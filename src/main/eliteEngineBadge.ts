@@ -1,7 +1,16 @@
 import type { PlayerRecord, StaffRecord } from './database/types'
+import { isSweeper } from './cmScoutRating'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 
-export type EliteEngineBadgeKind = 'finisher' | 'playmaker' | 'defender'
+export type EliteEngineBadgeKind =
+  | 'finisher'
+  | 'playmaker'
+  | 'defender'
+  | 'sweeper'
+  | 'anchor_dm'
+  | 'wing_back'
+  | 'goalkeeper'
+  | 'wide_attacker'
 
 export type EliteEngineBadge = {
   kind: EliteEngineBadgeKind
@@ -28,7 +37,7 @@ const FINISHER_TEMPLATE: Record<string, number> = {
   flair: 19,
 }
 
-/** Nesta-style DC benchmark (illustrative high bar — tune against your saves). */
+/** Nesta-style DC benchmark (out-and-out centre-back). */
 const DEFENDER_TEMPLATE: Record<string, number> = {
   positioning: 19,
   tackling: 19,
@@ -42,6 +51,94 @@ const DEFENDER_TEMPLATE: Record<string, number> = {
   bravery: 17,
   determination: 19,
   teamwork: 16,
+}
+
+/** Libero-style sweeper (wins DC recipe but natural sweeper line): reading + distribution floor. */
+const SWEEPER_TEMPLATE: Record<string, number> = {
+  positioning: 19,
+  tackling: 19,
+  anticipation: 19,
+  decisions: 18,
+  pace: 16,
+  heading: 17,
+  jumping: 17,
+  strength: 17,
+  marking: 16,
+  passing: 16,
+  creativity: 14,
+  consistency: 18,
+  bravery: 16,
+  determination: 19,
+  teamwork: 17,
+  professionalism: 16,
+}
+
+/** Destroyer anchor DM — wins the ball, covers ground, leads by example. */
+const ANCHOR_DM_TEMPLATE: Record<string, number> = {
+  positioning: 19,
+  tackling: 19,
+  stamina: 19,
+  anticipation: 18,
+  decisions: 18,
+  strength: 18,
+  work_rate: 18,
+  aggression: 14,
+  consistency: 17,
+  bravery: 16,
+  determination: 19,
+  teamwork: 17,
+  professionalism: 17,
+}
+
+/** Overlapping / elite wing-back: two-way legs, cross, and defensive bite. */
+const WING_BACK_TEMPLATE: Record<string, number> = {
+  pace: 18,
+  acceleration: 18,
+  tackling: 18,
+  positioning: 17,
+  stamina: 18,
+  crossing: 17,
+  work_rate: 18,
+  determination: 18,
+  natural_fitness: 17,
+  consistency: 17,
+  agility: 16,
+  professionalism: 16,
+  teamwork: 16,
+}
+
+/** Goalkeeper who owns the box and big moments — reflexes first, mentals locked in. */
+const GOALKEEPER_TEMPLATE: Record<string, number> = {
+  reflexes: 19,
+  agility: 17,
+  handling: 18,
+  positioning: 18,
+  bravery: 17,
+  one_on_ones: 17,
+  anticipation: 17,
+  decisions: 16,
+  consistency: 17,
+  determination: 18,
+  professionalism: 17,
+  important_matches: 15,
+}
+
+/** Wide outlet / line-breaker on the flank: pace, dribble, service, engine. */
+const WIDE_ATTACKER_TEMPLATE: Record<string, number> = {
+  pace: 19,
+  acceleration: 19,
+  dribbling: 18,
+  crossing: 17,
+  off_the_ball: 18,
+  flair: 18,
+  technique: 18,
+  stamina: 17,
+  decisions: 16,
+  anticipation: 16,
+  determination: 17,
+  consistency: 16,
+  important_matches: 15,
+  work_rate: 16,
 }
 
 function matchesTemplate(get: (k: string) => number, tmpl: Record<string, number>, maxShort: number): boolean {
@@ -101,12 +198,61 @@ export function evaluateEliteEngineBadge(
   }
 
   if (winnerArchetypeId === 'dc') {
+    if (isSweeper(p)) {
+      if (!matchesTemplate(get, SWEEPER_TEMPLATE, 2)) return null
+      return {
+        kind: 'sweeper',
+        title: 'Engine-tier sweeper',
+        detail:
+          'Libero-style bar: positioning/tackling with elite anticipation/decisions, enough passing/creativity to step out, aerials and marking in range, plus determination/consistency/professionalism — at most two single-point dips vs the template (natural sweeper, DC recipe).',
+      }
+    }
     if (!matchesTemplate(get, DEFENDER_TEMPLATE, 2)) return null
     return {
       kind: 'defender',
       title: 'Engine-tier defender',
       detail:
         'Matches the Nesta-style DC benchmark: dominant positioning/tackling with pace and aerial strength in range, plus mental/hidden support (anticipation, decisions, consistency, bravery, determination, teamwork) within at most two single-point dips.',
+    }
+  }
+
+  if (winnerArchetypeId === 'dmc') {
+    if (!matchesTemplate(get, ANCHOR_DM_TEMPLATE, 2)) return null
+    return {
+      kind: 'anchor_dm',
+      title: 'Engine-tier anchor DM',
+      detail:
+        'Anchor destroyer check: elite positioning/tackling/stamina with anticipation/decisions/strength, high work rate and leadership mentals — aggression floor reflects “nasty but controlled”; at most two single-point dips.',
+    }
+  }
+
+  if (winnerArchetypeId === 'wb') {
+    if (!matchesTemplate(get, WING_BACK_TEMPLATE, 2)) return null
+    return {
+      kind: 'wing_back',
+      title: 'Engine-tier wing back',
+      detail:
+        'Two-way fullback bar: pace/acceleration/tackling with crossing and engine (stamina, work rate, natural fitness), consistency and professionalism in range — at most two single-point dips vs the template.',
+    }
+  }
+
+  if (winnerArchetypeId === 'gk') {
+    if (!matchesTemplate(get, GOALKEEPER_TEMPLATE, 2)) return null
+    return {
+      kind: 'goalkeeper',
+      title: 'Engine-tier goalkeeper',
+      detail:
+        'Shot-stopper + organiser bar: reflexes/agility with handling/positioning/bravery and one-on-ones, anticipation/decisions, consistency/determination/professionalism — at most two single-point dips.',
+    }
+  }
+
+  if (winnerArchetypeId === 'amw') {
+    if (!matchesTemplate(get, WIDE_ATTACKER_TEMPLATE, 2)) return null
+    return {
+      kind: 'wide_attacker',
+      title: 'Engine-tier wide attacker',
+      detail:
+        'Flank game-breaker bar: pace/acceleration/dribbling with crossing/off-the-ball/flair/technique, stamina and work rate, decisions/anticipation floor, consistency and professionalism — at most two single-point dips.',
     }
   }
 

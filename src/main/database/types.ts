@@ -184,7 +184,15 @@ export interface UiPlayerRow {
   effPercent?: number | null
   effArchetype?: string
   effArchetypeId?: string
-  eliteEngineBadgeKind?: 'finisher' | 'playmaker' | 'defender'
+  eliteEngineBadgeKind?:
+    | 'finisher'
+    | 'playmaker'
+    | 'defender'
+    | 'sweeper'
+    | 'anchor_dm'
+    | 'wing_back'
+    | 'goalkeeper'
+    | 'wide_attacker'
   eliteEngineBadgeTitle?: string
   eliteEngineBadgeDetail?: string
   /** CM Scout % per weight column (GK, D, DM, M, AM, A, WB), length 7 */

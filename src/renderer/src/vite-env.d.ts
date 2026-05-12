@@ -117,7 +117,15 @@ export interface ProfilePayload {
   /** Effectiveness % (best archetype); bracket label on grid. Null when naturals matched no recipe — show Unsure. */
   effPercent?: number | null
   effArchetype?: string
-  eliteEngineBadgeKind?: 'finisher' | 'playmaker' | 'defender'
+  eliteEngineBadgeKind?:
+    | 'finisher'
+    | 'playmaker'
+    | 'defender'
+    | 'sweeper'
+    | 'anchor_dm'
+    | 'wing_back'
+    | 'goalkeeper'
+    | 'wide_attacker'
   eliteEngineBadgeTitle?: string
   eliteEngineBadgeDetail?: string
   effWinnerDetail?: EffectivenessWinnerDetail | null
