@@ -1480,21 +1480,6 @@ export function App() {
                   )}
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-500">{profile.club}</p>
-                {(profile.seasonStats.internationalCaps.apps > 0 ||
-                  profile.seasonStats.internationalCaps.goals > 0) && (
-                  <p className="mt-1 text-xs text-zinc-400">
-                    International{' '}
-                    <span className="font-mono text-zinc-200">{profile.seasonStats.internationalCaps.apps}</span> caps
-                    {profile.seasonStats.internationalCaps.goals > 0 && (
-                      <>
-                        {' '}
-                        ·{' '}
-                        <span className="font-mono text-zinc-200">{profile.seasonStats.internationalCaps.goals}</span>{' '}
-                        goals
-                      </>
-                    )}
-                  </p>
-                )}
                 {(profile.age != null || profile.dobIso) && (
                   <p className="mt-1 text-xs text-zinc-500">
                     {profile.age != null && (
@@ -1506,6 +1491,21 @@ export function App() {
                     {profile.dobIso && (
                       <>
                         DOB <span className="font-mono text-zinc-400">{profile.dobIso}</span>
+                      </>
+                    )}
+                  </p>
+                )}
+                {(profile.seasonStats.internationalCaps.apps > 0 ||
+                  profile.seasonStats.internationalCaps.goals > 0) && (
+                  <p className="mt-1 text-xs text-zinc-400">
+                    International{' '}
+                    <span className="font-mono text-zinc-200">{profile.seasonStats.internationalCaps.apps}</span> caps
+                    {profile.seasonStats.internationalCaps.goals > 0 && (
+                      <>
+                        {' '}
+                        ·{' '}
+                        <span className="font-mono text-zinc-200">{profile.seasonStats.internationalCaps.goals}</span>{' '}
+                        goals
                       </>
                     )}
                   </p>
@@ -1528,10 +1528,78 @@ export function App() {
                   <span className="text-zinc-600">world</span>{' '}
                   <span className="font-mono text-zinc-200">{profile.reputation.world.toLocaleString()}</span>
                 </p>
-                <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-                  <h3 className="mb-2 font-semibold text-zinc-300">Transfer</h3>
-                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-zinc-400">
-                    <span>Value</span>
+              </div>
+
+              <div>
+                <HoverTip
+                  tip={
+                    <div className="space-y-2">
+                      <p>
+                        In-game CM0102 three-column order (12 / 12 / 7, then feet and morale). Row tint marks key
+                        attributes for natural positions (suitability &gt;14):{' '}
+                        <span className="font-mono text-zinc-200">{profile.highlightRolesLabel}</span>.
+                      </p>
+                      <p>
+                        Hover a value for intrinsic and in-match numbers. Engine brackets: use the strip under the
+                        loaded database path; a highlighted bracket appears only when the uncapped engine-style value
+                        differs from the number shown.
+                      </p>
+                      <p className="text-zinc-400">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2.5 w-6 rounded bg-emerald-500/[0.14]" />
+                          Core for role
+                        </span>
+                        {' · '}
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2.5 w-6 rounded bg-sky-500/[0.11]" />
+                          Supporting / universal
+                        </span>
+                      </p>
+                    </div>
+                  }
+                >
+                  <h3 className="mb-1 flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    Attributes
+                    <InfoDot />
+                  </h3>
+                </HoverTip>
+                <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+                  <ProfileAttrColumn cells={profile.attrColumns[0]} showEngineAttrs={showEngineAttrs} />
+                  <ProfileAttrColumn cells={profile.attrColumns[1]} showEngineAttrs={showEngineAttrs} />
+                  <div className="min-w-0">
+                    <ProfileAttrColumn cells={profile.attrColumns[2]} showEngineAttrs={showEngineAttrs} />
+                    <FeetMoraleBlock feet={profile.feetMorale} showEngineAttrs={showEngineAttrs} />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <HoverTip
+                  tip={
+                    <p>
+                      CM second-screen style order: player fields (consistency, corners, penalties, throw-ins,
+                      one-on-ones, versatility, dirtiness, important matches, injury proneness, natural fitness) plus
+                      staff.dat mentals (adaptability, ambition, loyalty, pressure, professionalism, sportsmanship,
+                      temperament). Determination stays in the main Attributes left column from staff.dat.
+                    </p>
+                  }
+                >
+                  <h3 className="mb-1 flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    Hidden
+                    <InfoDot />
+                  </h3>
+                </HoverTip>
+                <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+                  <ProfileAttrColumn cells={profile.hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
+                  <ProfileAttrColumn cells={profile.hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />
+                  <ProfileAttrColumn cells={profile.hiddenColumns[2]} showEngineAttrs={showEngineAttrs} />
+                </div>
+              </div>
+
+              <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
+                <h3 className="mb-2 font-semibold text-zinc-300">Transfer</h3>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-zinc-400">
+                  <span>Value</span>
                     <span className="text-right font-mono text-zinc-200">{fmtMoney(profile.transfer.value)}</span>
                     <span>Listed by club</span>
                     <span className={`text-right ${profile.transfer.listedByClub ? 'text-emerald-300' : 'text-zinc-500'}`}>
@@ -1699,7 +1767,6 @@ export function App() {
                     </div>
                   </div>
                 )}
-              </div>
 
               {profile.contract && (
                 <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
@@ -1922,72 +1989,6 @@ export function App() {
                   ) : (
                     <p className="text-[10px] text-zinc-600">Hover the heading for per-competition data status.</p>
                   )}
-                </div>
-              </div>
-
-              <div>
-                <HoverTip
-                  tip={
-                    <div className="space-y-2">
-                      <p>
-                        In-game CM0102 three-column order (12 / 12 / 7, then feet and morale). Row tint marks key
-                        attributes for natural positions (suitability &gt;14):{' '}
-                        <span className="font-mono text-zinc-200">{profile.highlightRolesLabel}</span>.
-                      </p>
-                      <p>
-                        Hover a value for intrinsic and in-match numbers. Engine brackets: use the strip under the
-                        loaded database path; a highlighted bracket appears only when the uncapped engine-style value
-                        differs from the number shown.
-                      </p>
-                      <p className="text-zinc-400">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="h-2.5 w-6 rounded bg-emerald-500/[0.14]" />
-                          Core for role
-                        </span>
-                        {' · '}
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="h-2.5 w-6 rounded bg-sky-500/[0.11]" />
-                          Supporting / universal
-                        </span>
-                      </p>
-                    </div>
-                  }
-                >
-                  <h3 className="mb-1 flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                    Attributes
-                    <InfoDot />
-                  </h3>
-                </HoverTip>
-                <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
-                  <ProfileAttrColumn cells={profile.attrColumns[0]} showEngineAttrs={showEngineAttrs} />
-                  <ProfileAttrColumn cells={profile.attrColumns[1]} showEngineAttrs={showEngineAttrs} />
-                  <div className="min-w-0">
-                    <ProfileAttrColumn cells={profile.attrColumns[2]} showEngineAttrs={showEngineAttrs} />
-                    <FeetMoraleBlock feet={profile.feetMorale} showEngineAttrs={showEngineAttrs} />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <HoverTip
-                  tip={
-                    <p>
-                      CM second-screen style order: player fields (consistency, corners, penalties, throw-ins,
-                      one-on-ones, versatility, dirtiness, important matches, injury proneness, natural fitness) plus
-                      staff.dat mentals (adaptability, ambition, loyalty, pressure, professionalism, sportsmanship,
-                      temperament). Determination stays in the main Attributes left column from staff.dat.
-                    </p>
-                  }
-                >
-                  <h3 className="mb-1 flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                    Hidden
-                    <InfoDot />
-                  </h3>
-                </HoverTip>
-                <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
-                  <ProfileAttrColumn cells={profile.hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
-                  <ProfileAttrColumn cells={profile.hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />
-                  <ProfileAttrColumn cells={profile.hiddenColumns[2]} showEngineAttrs={showEngineAttrs} />
                 </div>
               </div>
             </div>
