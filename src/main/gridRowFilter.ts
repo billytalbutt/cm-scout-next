@@ -1,5 +1,6 @@
 import { calendarDaysBetween } from './database/dates'
 import type { UiPlayerRow } from './database/types'
+import { matchesEngineSniffer, type EngineSnifferId } from './engineSniffer'
 import {
   listedForLoan,
   passesAttributeMins,
@@ -39,6 +40,8 @@ export type GetRowsFilter = {
   attrMins?: (number | null)[]
   /** When true, only rows flagged by the same-save regen heuristic (`regenDetection.ts`). */
   isRegenLikely?: boolean
+  /** Forum-style CM0102 meta filter (see `engineSniffer.ts`). */
+  engineSniffer?: EngineSnifferId
 }
 
 function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string | null }): boolean {
@@ -117,6 +120,10 @@ function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string
   }
 
   if (f.isRegenLikely === true && r.isRegenLikely !== true) return false
+
+  if (f.engineSniffer != null) {
+    if (!matchesEngineSniffer(r, f.engineSniffer)) return false
+  }
 
   return true
 }

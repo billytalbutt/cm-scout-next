@@ -22,6 +22,7 @@ import {
 } from './regenBaseline'
 import { applyRegenPipeline } from './regenDetection'
 import type { GridIncludeFlags } from '../shared/gridTypes'
+import type { EngineSnifferId } from './engineSniffer'
 import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -161,6 +162,13 @@ ipcMain.handle('get-rows', async (_e, payload: unknown) => {
   delete raw.offset
   delete raw.limit
   delete raw.gridInclude
+
+  const es = raw.engineSniffer
+  if (es === 'assist_prospect' || es === 'striker_finisher') {
+    ;(raw as GetRowsFilter).engineSniffer = es as EngineSnifferId
+  } else {
+    delete raw.engineSniffer
+  }
 
   const gameDateIso = loaded?.db.gameDateIso ?? null
   const rows = filterUiPlayerRows(allRowsForGrid(), raw as GetRowsFilter, { gameDateIso })

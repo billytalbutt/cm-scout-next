@@ -27,6 +27,8 @@ const DEFAULT_PROFILE_PANE_PX = 400
 const MIN_PROFILE_PANE_PX = 240
 const MAX_PROFILE_PANE_PX = 720
 
+type EngineSnifferUi = 'off' | 'assist_prospect' | 'striker_finisher'
+
 function readProfilePanePx(): number {
   try {
     const v = localStorage.getItem(PROFILE_PANE_WIDTH_LS)
@@ -303,6 +305,7 @@ export function App() {
   })
   const [browseTab, setBrowseTab] = useState<'players' | 'regens'>('players')
   const [regenOnly, setRegenOnly] = useState(false)
+  const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
   const [showEngineAttrs, setShowEngineAttrs] = useState(() => {
     try {
       return typeof localStorage !== 'undefined' && localStorage.getItem(ENGINE_ATTRS_LS) === '1'
@@ -443,6 +446,7 @@ export function App() {
     } else if (regenOnly) {
       f.isRegenLikely = true
     }
+    if (engineSniffer !== 'off') f.engineSniffer = engineSniffer
     f.gridInclude = gridInclude
     const ROWS_IPC_PAGE = 12000
     try {
@@ -552,6 +556,7 @@ export function App() {
     gridInclude,
     browseTab,
     regenOnly,
+    engineSniffer,
   ])
 
   useEffect(() => {
@@ -1169,6 +1174,51 @@ export function App() {
                   Regens tab is on — switch to All players to use this checkbox with the full list.
                 </p>
               )}
+            </div>
+            <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
+              <HoverTip
+                tip={
+                  <div className="space-y-2 text-zinc-300">
+                    <p className="font-medium text-white">Heuristic only</p>
+                    <p>
+                      Thresholds use raw bytes from your save (normally 1–20 on screen). Values{' '}
+                      <span className="font-mono text-zinc-300">21+</span> match editor “intrinsic” overflow (e.g. 23–24)
+                      and are treated as top-tier for that attribute.
+                    </p>
+                    <p>
+                      <span className="font-medium text-emerald-200/90">Assist prospect</span> — Strict playmaker
+                      lane: decisions / anticipation / teamwork 18+; passing / technique 18+, creativity 17+; stamina /
+                      agility / balance 17+; consistency / important matches / adaptability 17+; corners or set
+                      pieces 16+. Needs three of (decisions, anticipation, passing, technique, creativity) at 19+ unless
+                      one of those is <span className="font-mono text-zinc-300">21+</span> raw (overflow), then slightly
+                      relaxed floors with two at 19+. If any of those five is <span className="font-mono text-zinc-300">22+</span>, a shorter “super
+                      overflow” path applies (still distributor roles only).
+                    </p>
+                    <p>
+                      <span className="font-medium text-emerald-200/90">Striker finisher</span> — Tsigalko lane: pace,
+                      acceleration, finishing, off the ball, flair, technique all 18+, with five of six at 19+; if any
+                      of those six is <span className="font-mono text-zinc-300">21+</span> raw, all six stay 17+ and four
+                      at 19+. If any core is <span className="font-mono text-zinc-300">22+</span>, all six 16+, balance /
+                      dribbling 17+, mentals 16+, determination 17+. Balance / dribbling 18+ otherwise; consistency /
+                      big games 17+; determination 18+.
+                    </p>
+                  </div>
+                }
+              >
+                <span className="flex cursor-default items-center text-xs font-medium text-zinc-400">
+                  Engine sniffer
+                  <InfoDot />
+                </span>
+              </HoverTip>
+              <select
+                className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-emerald-600"
+                value={engineSniffer}
+                onChange={(e) => setEngineSniffer(e.target.value as EngineSnifferUi)}
+              >
+                <option value="off">Off</option>
+                <option value="assist_prospect">Assist prospect (playmaker meta)</option>
+                <option value="striker_finisher">Striker finisher (Tsigalko-shaped)</option>
+              </select>
             </div>
           </div>
           </aside>
