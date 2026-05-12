@@ -12,13 +12,21 @@ import type { ParsedDatabase, UiPlayerRow } from './database/types'
 import { DEMO_STAFF_INDEX, getDemoUiPlayerRow } from './demoTsigalko'
 import { buildProfilePayload } from './profilePayload'
 import { mapUiRowToGridPayload } from './gridRowPayload'
-import { applyRegenHints } from './regenDetection'
+import {
+  baselineStatusForPath,
+  buildBaselineFromRows,
+  deleteBaselineFromDisk,
+  loadBaselineFromDisk,
+  pathKeyForDb,
+  saveBaselineToDisk,
+} from './regenBaseline'
+import { applyRegenPipeline } from './regenDetection'
 import type { GridIncludeFlags } from '../shared/gridTypes'
 import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-let loaded: { db: ParsedDatabase; rows: UiPlayerRow[] } | null = null
+let loaded: { db: ParsedDatabase; rows: UiPlayerRow[]; indexPath: string; pathKey: string } | null = null
 
 /** CM Scout–style: open *.sav or index.dat; same block directory format. */
 function parseSaveOrIndex(selectedPath: string): ParsedDatabase {
@@ -106,20 +114,24 @@ ipcMain.handle('open-database', async (event) => {
   const r = parent ? await dialog.showOpenDialog(parent, opts) : await dialog.showOpenDialog(opts)
   if (r.canceled || !r.filePaths[0]) return { ok: false as const, error: 'cancelled' }
   try {
-    const db = parseSaveOrIndex(r.filePaths[0])
+    const indexPath = r.filePaths[0]
+    const db = parseSaveOrIndex(indexPath)
     const rows = buildUiRows(db)
     applyCmScoutRatings(rows)
-    applyRegenHints(rows)
-    loaded = { db, rows }
+    const pathKey = pathKeyForDb(indexPath)
+    const baseline = loadBaselineFromDisk(pathKey)
+    applyRegenPipeline(rows, baseline, pathKey)
+    loaded = { db, rows, indexPath, pathKey }
     return {
       ok: true as const,
-      path: r.filePaths[0],
+      path: indexPath,
       compressed: db.compressed,
       gameDate: db.gameDateIso,
       playerCount: rows.length,
       staffDatRows: db.staff.length,
       playerBlobRows: db.players.length,
       clubs: sortedUniqueClubNames(db),
+      regenBaseline: baselineStatusForPath(pathKey),
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -173,4 +185,19 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
     }),
     isDemo: false as const,
   }
+})
+
+ipcMain.handle('save-regen-baseline', async () => {
+  if (!loaded) return { ok: false as const, error: 'No database loaded.' }
+  const file = buildBaselineFromRows(loaded.rows, loaded.indexPath, loaded.db.gameDateIso ?? null)
+  saveBaselineToDisk(file)
+  applyRegenPipeline(loaded.rows, file, loaded.pathKey)
+  return { ok: true as const, ...baselineStatusForPath(loaded.pathKey) }
+})
+
+ipcMain.handle('clear-regen-baseline', async () => {
+  if (!loaded) return { ok: false as const, error: 'No database loaded.' }
+  deleteBaselineFromDisk(loaded.pathKey)
+  applyRegenPipeline(loaded.rows, null, loaded.pathKey)
+  return { ok: true as const, ...baselineStatusForPath(loaded.pathKey) }
 })

@@ -176,12 +176,12 @@ export interface UiPlayerRow {
   /** Cached 1–20 in-match–normalized vector for attribute filters */
   cmAttrNorm?: number[]
   /**
-   * Heuristic regen hint (same-save): young player shares PA, nationalities, natural-position
-   * vector, and **date-of-birth signal** (full ISO or month–day) with an older player in the DB;
-   * see `regenDetection.ts`. Not proof — no height/weight in parsed `player.dat` rows.
+   * Regen hint: with a **snapshot** (`regenBaseline.ts`), same `staff.dat` **id** and changed name-id triple →
+   * GPF2-style match; **Regen of** is the snapshot display name. Without a snapshot, same-save PA + nationalities +
+   * positions + DOB heuristic (`regenDetection.ts`). Not proof — no height/weight in parsed vanilla rows.
    */
   isRegenLikely?: boolean
-  /** Display name of the older player used for the regen heuristic (if `isRegenLikely`). */
+  /** Predecessor display name (snapshot) or older player in-bucket name (heuristic). */
   regenOfName?: string
   regenOfStaffIndex?: number
   /** Optional rows from `staff_history.dat` for this staff `id`. */

@@ -12,6 +12,12 @@ contextBridge.exposeInMainWorld('cmapi', {
           staffDatRows: number
           playerBlobRows: number
           clubs: string[]
+          regenBaseline: {
+            active: boolean
+            savedAt?: string
+            entryCount?: number
+            indexPath?: string
+          }
         }
       | { ok: false; error: string }
     >,
@@ -22,4 +28,6 @@ contextBridge.exposeInMainWorld('cmapi', {
       capped: boolean
     }>,
   getProfile: (staffIndex: number) => ipcRenderer.invoke('get-profile', staffIndex),
+  saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),
+  clearRegenBaseline: () => ipcRenderer.invoke('clear-regen-baseline'),
 })

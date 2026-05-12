@@ -14,7 +14,17 @@ type OpenResult =
       staffDatRows: number
       playerBlobRows: number
       clubs: string[]
+      regenBaseline: {
+        active: boolean
+        savedAt?: string
+        entryCount?: number
+        indexPath?: string
+      }
     }
+  | { ok: false; error: string }
+
+type RegenBaselineMutationResult =
+  | { ok: true; active: boolean; savedAt?: string; entryCount?: number; indexPath?: string }
   | { ok: false; error: string }
 
 declare global {
@@ -30,6 +40,8 @@ declare global {
         | Array<GridPlayerRow>
       >
       getProfile: (staffIndex: number) => Promise<ProfilePayload | null>
+      saveRegenBaseline: () => Promise<RegenBaselineMutationResult>
+      clearRegenBaseline: () => Promise<RegenBaselineMutationResult>
     }
   }
 }

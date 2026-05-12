@@ -1,25 +1,23 @@
 /**
- * Same-save “regen” hints (no historical saves, no retired rows unless still in `staff.dat`).
+ * Regen detection uses two layers (see `regenBaseline.ts` for snapshot I/O):
  *
- * Community checks (champman0102.net, CM wiki, scout threads): regens typically reuse the
- * retired player’s **PA**, **nationality**, **natural-position suitability**, and especially
- * **date of birth** (same calendar date, or at least same month/day vs the lineage player).
- * `TPlayer` / `TStaff` in vanilla CM0102 index blocks do **not** include height/weight in the
- * 70 / 110-byte rows we parse — those live outside this path in other tools, so we cannot match
- * on height/weight without a separate layout investigation.
+ * **1. GPF2-style snapshot (community “best” method)**  
+ * [GPF2 / Generated Player Finder 2](https://champman0102.net/viewtopic.php?t=2941) and similar save tools work by
+ * comparing an **early snapshot** of the uncompressed save to a **later** load: the same `staff.dat` person
+ * **id** keeps the same slot while **name indices** change when the game replaces a retiring player with a regen.
+ * We mirror that: save a baseline after you load a save (ideally before many retirements), then reload later —
+ * anyone whose `(first_name_id, second_name_id, common_name_id)` changed vs baseline is flagged; **Regen of**
+ * shows the **snapshot display name** (the identity before the name change).
  *
- * Algorithm (hardened vs PA+nation+pos only):
- * 1. Bucket active players by `PA + first nation + second nation (when set) + full natural-position vector`.
- * 2. Within a bucket, require at least one **old** (age ≥ OLD_MIN) and one **young** (age ≤ YOUNG_MAX,
- *    still developing: CA + MIN_PA_CA_GAP ≤ PA).
- * 3. **Source assignment** (must pass name-dup guard):
- *    - Prefer **full `dob_iso` match** between young and an old in the bucket (strongest community signal).
- *    - Else **month–day match** on valid ISO strings (wiki’s “day and month” emphasis).
- *    - Else if the young row has **no DOB** and the bucket has **exactly one** old, use legacy single-source
- *      behaviour (very narrow; avoids dropping everyone when DOB bytes are unset).
- * 4. Among eligible olds for that young, pick the **oldest by age** as `regenOf`.
- * 5. Skip huge buckets and highly ambiguous many-old × many-young groups.
+ * **2. Same-save heuristic (fallback)**  
+ * When no baseline exists for this file path, we use PA + nationalities + natural positions + DOB rules as a
+ * weaker single-snapshot guess (see comments on `applyHeuristicRegenHints`). This cannot match GPF2’s accuracy
+ * without two points in time.
+ *
+ * `TPlayer` / `TStaff` in vanilla CM0102 index blocks do **not** include height/weight in the 70 / 110-byte rows
+ * we parse — other tools may read additional structures.
  */
+import type { RegenBaselineFile } from './regenBaseline'
 import type { PlayerRecord, UiPlayerRow } from './database/types'
 
 const YOUNG_MAX_AGE = 23
@@ -32,6 +30,56 @@ const MAX_AMBIG_OLD = 2
 const MAX_AMBIG_YOUNG = 2
 /** Legacy fallback: only when young has no DOB and the bucket is tiny with a single old. */
 const MAX_GROUP_NULL_DOB_FALLBACK = 6
+
+function clearRegenMarkers(rows: UiPlayerRow[]): void {
+  for (const r of rows) {
+    delete r.isRegenLikely
+    delete r.regenOfName
+    delete r.regenOfStaffIndex
+  }
+}
+
+/**
+ * Same `staff.dat` **id** as baseline, but name-id triple changed → treated like GPF2 “name changed at same id”.
+ * `regenOfName` is the predecessor’s display name from the snapshot (not necessarily still in the DB).
+ */
+export function applyBaselineRegenFromSnapshot(
+  rows: UiPlayerRow[],
+  baseline: RegenBaselineFile,
+  pathKey: string,
+): number {
+  if (baseline.pathKey !== pathKey) return 0
+  let n = 0
+  for (const r of rows) {
+    if (r.staffIndex < 0) continue
+    const b = baseline.entries[String(r.staff.id)]
+    if (!b) continue
+    const s = r.staff
+    const sameFace =
+      s.first_name_id === b.firstNameId &&
+      s.second_name_id === b.secondNameId &&
+      s.common_name_id === b.commonNameId
+    if (sameFace) continue
+    r.isRegenLikely = true
+    r.regenOfName = b.name
+    delete r.regenOfStaffIndex
+    n++
+  }
+  return n
+}
+
+/** Clear markers, apply snapshot rules if baseline matches `pathKey`, then heuristic for everyone not yet flagged. */
+export function applyRegenPipeline(
+  rows: UiPlayerRow[],
+  baseline: RegenBaselineFile | null,
+  pathKey: string,
+): void {
+  clearRegenMarkers(rows)
+  if (baseline && baseline.pathKey === pathKey) {
+    applyBaselineRegenFromSnapshot(rows, baseline, pathKey)
+  }
+  applyHeuristicRegenHints(rows)
+}
 
 function posSig(p: PlayerRecord): string {
   return [
@@ -99,14 +147,9 @@ function pickSourceForYoung(young: UiPlayerRow, olds: UiPlayerRow[], groupSize: 
   return null
 }
 
-export function applyRegenHints(rows: UiPlayerRow[]): void {
-  for (const r of rows) {
-    delete r.isRegenLikely
-    delete r.regenOfName
-    delete r.regenOfStaffIndex
-  }
-
-  const dataRows = rows.filter((r) => r.staffIndex >= 0)
+/** Single-snapshot fingerprinting — skipped for rows already marked by a GPF2-style baseline. */
+function applyHeuristicRegenHints(rows: UiPlayerRow[]): void {
+  const dataRows = rows.filter((r) => r.staffIndex >= 0 && !r.isRegenLikely)
   if (dataRows.length < 2) return
 
   const byKey = new Map<string, UiPlayerRow[]>()
