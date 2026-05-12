@@ -4,7 +4,7 @@ import type { EffectivenessFullResult } from '../../../shared/effectivenessEngin
 
 type Props = {
   staffIndex: number
-  effPercent: number
+  effPercent: number | null
   effArchetype: string
   cmScoutRatingBp?: number
   isDemo?: boolean
@@ -17,6 +17,8 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
   const anchorRef = useRef<HTMLSpanElement>(null)
   const fetchSeq = useRef(0)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const isUnsure = effArchetype === 'Unsure' || effPercent == null
 
   const clearClose = () => {
     if (closeTimer.current) {
@@ -62,7 +64,11 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
 
   useEffect(() => () => clearClose(), [])
 
-  const gem = effPercent != null && cmScoutRatingBp != null && effPercent > cmScoutRatingBp + 15
+  const gem =
+    !isUnsure && effPercent != null && cmScoutRatingBp != null && effPercent > cmScoutRatingBp + 15
+
+  const unsureTitle =
+    'Natural positions did not match any effectiveness recipe (rare). No Eff % is shown — use CM Scout % for an intrinsic read. Relative Eff ranking still works for everyone else.'
 
   const tip =
     open &&
@@ -75,6 +81,19 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
       >
         {!data ? (
           <p className="text-zinc-400">Loading breakdown…</p>
+        ) : data.effPercent == null || data.winnerDetail == null ? (
+          <div className="space-y-2">
+            <p className="font-semibold text-violet-200/95">Eff % — Unsure</p>
+            <p className="text-zinc-400">
+              This player’s natural lines (&gt;14, same idea as CM Scout) did not match any of the eight effectiveness
+              recipes, so we do not assign a numeric Eff %. Use <strong className="text-zinc-300">CM Scout %</strong> in
+              this grid or profile — it stays reliable here.
+            </p>
+            <p className="text-[10px] text-zinc-500">
+              Other players’ Eff % values still rank them relative to each other on the recipes that did match.
+              {isDemo ? ' Demo row uses the built-in Tsigalko fixture.' : ''}
+            </p>
+          </div>
         ) : (
           <>
             <p className="font-semibold text-emerald-200/95">
@@ -122,16 +141,29 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
               profile. Mentals count only where listed in the recipe.
               {isDemo ? ' Demo row uses the built-in Tsigalko fixture.' : ''}
             </p>
-            {data.relaxedNaturalGate && (
-              <p className="mt-2 rounded border border-amber-600/40 bg-amber-950/35 px-2 py-1.5 text-[10px] text-amber-200/95">
-                No natural line matched any recipe — this score used all eight archetypes once (fallback).
-              </p>
-            )}
           </>
         )}
       </div>,
       document.body,
     )
+
+  if (isUnsure) {
+    return (
+      <>
+        <span
+          ref={anchorRef}
+          className="inline-flex cursor-help items-baseline gap-0.5 border-b border-dotted border-violet-500/45"
+          onMouseEnter={loadAndOpen}
+          onMouseLeave={scheduleClose}
+        >
+          <span className="font-medium italic text-violet-200/95" title={unsureTitle}>
+            Unsure
+          </span>
+        </span>
+        {tip}
+      </>
+    )
+  }
 
   return (
     <>
@@ -149,7 +181,7 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
               : 'Hover for stat breakdown'
           }
         >
-          {effPercent.toFixed(1)}% ({effArchetype})
+          {effPercent!.toFixed(1)}% ({effArchetype})
         </span>
       </span>
       {tip}

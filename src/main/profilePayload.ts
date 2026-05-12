@@ -403,11 +403,12 @@ export function buildProfilePayload(
     cmScoutRatingBp: row.cmScoutRatingBp,
     effPercent: effFull.effPercent,
     effArchetype: effFull.effArchetype,
-    effWinnerDetail: effFull.winnerDetail,
+    effWinnerDetail: effFull.winnerDetail ?? undefined,
     effRunnerUp: effFull.runnerUp,
     effRelaxedNaturalGate: effFull.relaxedNaturalGate,
-    effRatingDisclaimer:
-      'Eff % only scores archetypes that match natural positions (>14 on the same lines as CM Scout suitability), so the bracket role is one you could pick in-game. CM Scout % uses the full Intrinsic grid with in-match scaling — the two numbers measure different things.',
+    effRatingDisclaimer: effFull.relaxedNaturalGate
+      ? undefined
+      : 'Eff % only scores archetypes that match natural positions (>14 on the same lines as CM Scout suitability), so the bracket role is one you could pick in-game. CM Scout % uses the full Intrinsic grid with in-match scaling — the two numbers measure different things.',
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
     transfer: {

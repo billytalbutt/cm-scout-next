@@ -1653,19 +1653,28 @@ export function App() {
                         <span className="text-emerald-200">{profile.cmScoutRatingBp}%</span>
                       </p>
                     )}
-                    {profile.effPercent != null && profile.effArchetype && (
+                    {profile.effArchetype && (
                       <div className="mt-1 space-y-2">
                         <p className="font-mono text-[11px] text-zinc-300/95">
                           Eff % (best archetype){' '}
-                          <span
-                            className={
-                              profile.cmScoutRatingBp != null && profile.effPercent > profile.cmScoutRatingBp + 15
-                                ? 'font-semibold text-[#39FF14]'
-                                : 'text-emerald-200/90'
-                            }
-                          >
-                            {profile.effPercent.toFixed(1)}% ({profile.effArchetype})
-                          </span>
+                          {profile.effPercent != null ? (
+                            <span
+                              className={
+                                profile.cmScoutRatingBp != null && profile.effPercent > profile.cmScoutRatingBp + 15
+                                  ? 'font-semibold text-[#39FF14]'
+                                  : 'text-emerald-200/90'
+                              }
+                            >
+                              {profile.effPercent.toFixed(1)}% ({profile.effArchetype})
+                            </span>
+                          ) : (
+                            <span
+                              className="font-medium italic text-violet-200/95"
+                              title="Natural positions did not match any effectiveness recipe. Use CM Scout % above."
+                            >
+                              Unsure — use CM Scout % above
+                            </span>
+                          )}
                         </p>
                         {profile.effWinnerDetail && (
                           <div className="rounded border border-zinc-800/90 bg-zinc-950/55 p-2 text-[10px] leading-snug text-zinc-400">
@@ -1726,10 +1735,10 @@ export function App() {
                             )}
                           </div>
                         )}
-                        {profile.effRelaxedNaturalGate && (
-                          <p className="rounded border border-amber-600/35 bg-amber-950/30 px-2 py-1.5 text-[9px] leading-snug text-amber-200/95">
-                            No natural line matched any recipe (unusual data). Eff % used all eight archetypes once —
-                            treat as approximate.
+                        {profile.effRelaxedNaturalGate && profile.effPercent == null && (
+                          <p className="rounded border border-violet-600/35 bg-violet-950/25 px-2 py-1.5 text-[9px] leading-snug text-violet-200/95">
+                            Natural positions did not match any effectiveness recipe — no numeric Eff % is shown. Use
+                            CM Scout % for this player; Eff % still ranks everyone else on matched recipes.
                           </p>
                         )}
                       </div>

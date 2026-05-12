@@ -25,7 +25,7 @@ export type GridPlayerRow = {
   euPassport?: boolean
   cmScoutRatingBp?: number
   /** Effectiveness % + archetype label (see `effectivenessEngine.ts`) */
-  effPercent?: number
+  effPercent?: number | null
   effArchetype?: string
   isDemo?: boolean
   attr48?: number[]

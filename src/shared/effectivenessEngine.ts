@@ -10,7 +10,7 @@
  *
  * **Natural gate (main process):** Only archetypes the player is natural for (>14 on matching lines,
  * same idea as CM Scout) are scored, so e.g. outfielders are not rated on GK. If no line matches any
- * recipe (data oddities), all recipes are used once with `relaxedNaturalGate` flagged.
+ * recipe (data oddities), Eff % shows **Unsure** (no numeric score) — use CM Scout % for that row.
  */
 
 export type EffectivenessBrainKind = 'none' | 'defense' | 'assist'
@@ -196,12 +196,13 @@ export type EffectivenessRunnerUp = {
 }
 
 export type EffectivenessFullResult = {
-  effPercent: number
+  /** Null when no natural line matched any recipe — UI should show “Unsure”, not a raw %. */
+  effPercent: number | null
   effArchetype: string
   effArchetypeId: string
-  winnerDetail: EffectivenessWinnerDetail
+  winnerDetail: EffectivenessWinnerDetail | null
   runnerUp: EffectivenessRunnerUp | null
-  /** True when no natural position matched any recipe — scores used all eight recipes instead. */
+  /** True when naturals matched none of the eight recipes (effPercent is null). */
   relaxedNaturalGate: boolean
 }
 
@@ -217,11 +218,16 @@ export function computeEffectivenessFull(
   getAttr: (name: string) => number,
   naturalEligibleIds: ReadonlySet<string>,
 ): EffectivenessFullResult {
-  let relaxedNaturalGate = false
   let pool = EFFECTIVENESS_ARCHETYPES.filter((a) => naturalEligibleIds.has(a.id))
   if (pool.length === 0) {
-    pool = [...EFFECTIVENESS_ARCHETYPES]
-    relaxedNaturalGate = true
+    return {
+      effPercent: null,
+      effArchetype: 'Unsure',
+      effArchetypeId: 'unsure',
+      winnerDetail: null,
+      runnerUp: null,
+      relaxedNaturalGate: true,
+    }
   }
 
   const scored: { a: EffectivenessArchetype; rawFinal: number; detail: EffectivenessWinnerDetail }[] = []
@@ -251,7 +257,7 @@ export function computeEffectivenessFull(
     effArchetypeId: best.a.id,
     winnerDetail: { ...best.detail, finalPercent: effPercent },
     runnerUp,
-    relaxedNaturalGate,
+    relaxedNaturalGate: false,
   }
 }
 
@@ -259,7 +265,7 @@ export function computeBestEffectiveness(
   getAttr: (name: string) => number,
   naturalEligibleIds: ReadonlySet<string>,
 ): {
-  effPercent: number
+  effPercent: number | null
   effArchetype: string
 } {
   const f = computeEffectivenessFull(getAttr, naturalEligibleIds)

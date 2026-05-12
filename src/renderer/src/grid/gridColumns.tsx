@@ -86,32 +86,36 @@ function defFor(
         },
       })
     case 'effRating':
-      return h.accessor((r) => r.effPercent ?? -1, {
-        id,
-        header: () => (
-          <span
-            className="cursor-help border-b border-dotted border-zinc-500"
-            title="Eff %: raw 1–20 intrinsics; only archetypes that match natural positions (&gt;14, CM Scout–style) compete. Hover for breakdown. 1.25× at 20+; brain mult on DC/DMC/MC/AMC. Not CM Scout %."
-          >
-            {lab}
-          </span>
-        ),
-        cell: ({ row }) => {
-          const pct = row.original.effPercent
-          const role = row.original.effArchetype
-          const cm = row.original.cmScoutRatingBp
-          if (pct == null || !role) return <span className="text-zinc-600">—</span>
-          return (
-            <EffPercentCell
-              staffIndex={row.original.staffIndex}
-              effPercent={pct}
-              effArchetype={role}
-              cmScoutRatingBp={cm}
-              isDemo={row.original.isDemo}
-            />
-          )
+      return h.accessor(
+        (r) => (r.effArchetype === 'Unsure' || r.effPercent == null ? undefined : r.effPercent),
+        {
+          id,
+          sortUndefined: 'last',
+          header: () => (
+            <span
+              className="cursor-help border-b border-dotted border-zinc-500"
+              title="Eff %: raw 1–20 intrinsics; only archetypes that match natural positions (&gt;14, CM Scout–style) compete. Hover for breakdown. If naturals match no recipe, the cell shows Unsure — use CM Scout %. Not CM Scout %."
+            >
+              {lab}
+            </span>
+          ),
+          cell: ({ row }) => {
+            const pct = row.original.effPercent
+            const role = row.original.effArchetype
+            const cm = row.original.cmScoutRatingBp
+            if (!role) return <span className="text-zinc-600">—</span>
+            return (
+              <EffPercentCell
+                staffIndex={row.original.staffIndex}
+                effPercent={pct ?? null}
+                effArchetype={role}
+                cmScoutRatingBp={cm}
+                isDemo={row.original.isDemo}
+              />
+            )
+          },
         },
-      })
+      )
     case 'staffId':
       return h.accessor('staffId', { id, header: lab })
     case 'staffIndex':

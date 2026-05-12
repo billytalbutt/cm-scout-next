@@ -180,7 +180,8 @@ export interface UiPlayerRow {
    * Custom “engine effectiveness” % from raw intrinsics — best of fixed archetypes (GK, DC, WB,
    * DMC, MC, AM, AMC, ST); `effArchetype` is which recipe won (may differ from natural position).
    */
-  effPercent?: number
+  /** Set when effectiveness ran; `null` when naturals matched no recipe (UI: Unsure). */
+  effPercent?: number | null
   effArchetype?: string
   /** CM Scout % per weight column (GK, D, DM, M, AM, A, WB), length 7 */
   cmScoutRolePercents?: number[]

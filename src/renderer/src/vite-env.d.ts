@@ -114,13 +114,13 @@ export interface ProfilePayload {
   pa: number
   /** Grid column: max % among “suitable” roles (Intrinsic BP rule) */
   cmScoutRatingBp?: number
-  /** Effectiveness % (best archetype); bracket label on grid */
-  effPercent?: number
+  /** Effectiveness % (best archetype); bracket label on grid. Null when naturals matched no recipe — show Unsure. */
+  effPercent?: number | null
   effArchetype?: string
-  effWinnerDetail?: EffectivenessWinnerDetail
+  effWinnerDetail?: EffectivenessWinnerDetail | null
   effRunnerUp?: EffectivenessRunnerUp | null
   effRatingDisclaimer?: string
-  /** No natural line matched any recipe — Eff used all eight recipes once. */
+  /** True when natural lines matched none of the eight recipes — Eff % is not computed (use CM Scout %). */
   effRelaxedNaturalGate?: boolean
   /** Length 7: GK, D, DM, M, AM, A, WB — weighted attribute % per WeightsSet_CMScout column */
   cmScoutRolePercents?: number[]

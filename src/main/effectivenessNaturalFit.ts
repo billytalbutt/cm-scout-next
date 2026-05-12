@@ -29,13 +29,14 @@ export function archetypeNaturalFit(archetypeId: string, p: PlayerRecord): boole
       return isDefensiveMidfielder(p)
     case 'mc':
       return isMidfielder(p)
-    case 'amw':
-      return isAttackingMidfielder(p) && (p.left_side > 14 || p.right_side > 14)
+    case 'amw': {
+      if (!isAttackingMidfielder(p)) return false
+      if (p.left_side <= 14 && p.right_side <= 14) return false
+      const centreOnly = p.centre_side > 14 && p.left_side <= 14 && p.right_side <= 14
+      return !centreOnly
+    }
     case 'amc':
-      return (
-        isAttackingMidfielder(p) &&
-        (p.centre_side > 14 || (p.left_side <= 14 && p.right_side <= 14))
-      )
+      return isAttackingMidfielder(p) && p.centre_side > 14
     case 'st':
       return isForward(p) || isStriker(p)
     default:
