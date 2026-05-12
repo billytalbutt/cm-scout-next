@@ -64,4 +64,7 @@ README in that repo states **vfilatov allowed community development**; treat att
 
 ## Next engineering task (concrete)
 
-Pick **one** slice from `Filter` (e.g. “Age from / Age to”) → add to IPC `get-rows` filter object → wire React controls → add a unit test comparing count to a known save. Repeat until `Filter` fields are exhausted.
+- **Done in-tree:** DOB-based age (staff TCM date), contract TCM dates + Bosman byte + release-clause bytes, fixed `transfer_status` / `squad_status` offsets on `contract.dat`, EU passport filter via `nation.dat` `GroupMembership == 2` (matches community loaders), “expires within N months” vs loaded game date.
+- **Planned:** Profile/grid toggle to emphasise **engine raw** attributes (already in payload as `raw` for CA18) vs capped in-game 1–20 display — see JSDoc on `attributes.ts`.
+
+Pick **one** slice from `Filter` (e.g. division / side / position) → add to IPC `get-rows` filter object → wire React controls → add a unit test comparing count to a known save. Repeat until `Filter` fields are exhausted.

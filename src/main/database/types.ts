@@ -74,6 +74,8 @@ export interface StaffRecord {
   first_name_id: number
   second_name_id: number
   common_name_id: number
+  /** TCMDate at staff+0x10 (day-of-year + year); null if unset / invalid */
+  dob_iso: string | null
   year_of_birth: number
   first_nation_id: number
   second_nation_id: number
@@ -99,8 +101,21 @@ export interface ContractRecord {
   goal_bonus: number
   assist_bonus: number
   clean_sheet_bonus: number
+  /** Release-clause / contract-option bytes (see CM0102Patcher TContract) */
+  non_promotion_rc: number
+  minimum_fee_rc: number
+  non_playing_rc: number
+  relegation_rc: number
+  manager_job_rc: number
   release_fee: number
+  /** TCMDate — contract start */
+  date_started_iso: string | null
+  /** TCMDate — contract end */
+  contract_expires_iso: string | null
   contract_type: number
+  /** Leaving on Bosman / free (byte at contract+0x49 in 80-byte row) */
+  leaving_on_bosman: number
+  transfer_arranged_for: number
   transfer_status: number
   squad_status: number
 }
@@ -109,6 +124,8 @@ export interface ParsedDatabase {
   compressed: boolean
   blocks: BlockInfo[]
   nationNames: Map<number, string>
+  /** `GroupMembership == 2` in nation.dat — same rule as community loaders (EU / free movement) */
+  nationEuEligible: Map<number, boolean>
   clubNames: Map<number, string>
   firstNames: string[]
   secondNames: string[]
@@ -131,8 +148,10 @@ export interface UiPlayerRow {
   pa: number
   wage: number
   value: number
-  /** Approximate age from game year − birth year when game date known */
+  /** Age from DOB vs game date when possible; else year-of-birth fallback */
   age: number | null
+  /** True if first or second nation has EU-style GroupMembership (value 2) */
+  euPassport: boolean
   /** CM Scout Intrinsic–style % (Best regard position, CM Scout weights) */
   cmScoutRatingBp?: number
   /** Cached 1–20 in-match–normalized vector for attribute filters */

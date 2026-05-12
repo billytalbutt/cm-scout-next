@@ -1,6 +1,10 @@
 import type { PlayerRecord } from './types'
 
-/** CM Scout Intrinsic HighConvert / LowConvert / in-match (DataService.cs). */
+/**
+ * Future UI: "Show engine raw attributes" toggle — profile already carries `raw` vs `inGame` vs `inMatch`.
+ * When on, prefer displaying `raw` (can exceed 20 for CA18) in grids/tooltips; filters may optionally
+ * use raw vs in-match via IPC flag. See profile `buildCa18Display` / `otherAttrDisplay`.
+ */
 export function highConvert(ca: number, intrinsic: number): number {
   const d = intrinsic / 10 + ca / 20 + 10
   let r = (d * d) / 30 + d / 3 + 0.5

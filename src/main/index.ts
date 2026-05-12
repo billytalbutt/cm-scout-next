@@ -3,6 +3,7 @@ import { join, dirname, basename } from 'path'
 import { fileURLToPath } from 'url'
 import { readFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
+import { calendarDaysBetween } from './database/dates'
 import { buildUiRows, parseIndexDat } from './database/parser'
 import { getSuggestedDatabaseFolder, getSuggestedSaveGameFolder } from './cm0102Paths'
 import {
@@ -134,6 +135,11 @@ ipcMain.handle('get-rows', async (_e, filter: unknown) => {
     transferListedClub?: boolean
     transferListedRequest?: boolean
     listedForLoan?: boolean
+    euPassport?: boolean
+    leavingOnBosman?: boolean
+    /** Contract end within this many months from game date (inclusive); requires contract row + valid dates */
+    contractExpiresWithinMonths?: number
+    hasMinimumReleaseClause?: boolean
     attrMins?: (number | null)[]
   }
   const q = (f.q ?? '').trim().toLowerCase()
@@ -177,6 +183,29 @@ ipcMain.handle('get-rows', async (_e, filter: unknown) => {
       return ok
     })
   }
+  if (f.euPassport === true) {
+    rows = rows.filter((r) => r.euPassport)
+  }
+  if (f.leavingOnBosman === true) {
+    rows = rows.filter((r) => r.contract != null && r.contract.leaving_on_bosman > 0)
+  }
+  if (f.hasMinimumReleaseClause === true) {
+    rows = rows.filter((r) => r.contract != null && r.contract.minimum_fee_rc > 0)
+  }
+  if (f.contractExpiresWithinMonths != null && Number.isFinite(f.contractExpiresWithinMonths)) {
+    const gameIso = loaded?.db.gameDateIso
+    if (gameIso) {
+      const maxM = Math.max(0, Math.min(120, f.contractExpiresWithinMonths))
+      const maxDays = Math.ceil(maxM * 30.4375)
+      rows = rows.filter((r) => {
+        const exp = r.contract?.contract_expires_iso
+        if (!exp) return false
+        const d = calendarDaysBetween(gameIso, exp)
+        if (d == null) return false
+        return d >= 0 && d <= maxDays
+      })
+    }
+  }
   if (f.attrMins?.length) {
     rows = rows.filter((r) => passesAttributeMins(r.cmAttrNorm, f.attrMins!))
   }
@@ -192,6 +221,7 @@ ipcMain.handle('get-rows', async (_e, filter: unknown) => {
     wage: r.wage,
     value: r.value,
     age: r.age,
+    euPassport: r.euPassport,
     cmScoutRatingBp: r.cmScoutRatingBp,
     isDemo: r.staffIndex === DEMO_STAFF_INDEX,
   }))

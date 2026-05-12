@@ -22,6 +22,7 @@ type Row = {
   wage: number
   value: number
   age: number | null
+  euPassport?: boolean
   cmScoutRatingBp?: number
   isDemo?: boolean
 }
@@ -42,6 +43,7 @@ const DEMO_FALLBACK: Row[] = [
     wage: 18500,
     value: 12_500_000,
     age: 22,
+    euPassport: false,
     cmScoutRatingBp: 91.4,
     isDemo: true,
   },
@@ -89,6 +91,10 @@ export function App() {
   const [tlClub, setTlClub] = useState(false)
   const [tlRequest, setTlRequest] = useState(false)
   const [loanListed, setLoanListed] = useState(false)
+  const [euOnly, setEuOnly] = useState(false)
+  const [bosmanOnly, setBosmanOnly] = useState(false)
+  const [minReleaseClause, setMinReleaseClause] = useState(false)
+  const [expiresWithinMonths, setExpiresWithinMonths] = useState('')
   const [attrMins, setAttrMins] = useState<string[]>(() => Array.from({ length: 48 }, () => ''))
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
   const [sel, setSel] = useState<number | null>(null)
@@ -123,6 +129,13 @@ export function App() {
     if (tlClub) f.transferListedClub = true
     if (tlRequest) f.transferListedRequest = true
     if (loanListed) f.listedForLoan = true
+    if (euOnly) f.euPassport = true
+    if (bosmanOnly) f.leavingOnBosman = true
+    if (minReleaseClause) f.hasMinimumReleaseClause = true
+    const expM = num(expiresWithinMonths)
+    if (expiresWithinMonths.trim() !== '' && Number.isFinite(expM) && expM >= 0) {
+      f.contractExpiresWithinMonths = Math.floor(expM)
+    }
     const mins = attrMins.map((s) => {
       if (s.trim() === '') return null
       const n = Number(s)
@@ -166,6 +179,10 @@ export function App() {
     tlClub,
     tlRequest,
     loanListed,
+    euOnly,
+    bosmanOnly,
+    minReleaseClause,
+    expiresWithinMonths,
     attrMins,
     loadInfo,
   ])
@@ -250,6 +267,18 @@ export function App() {
             row.original.nation
           )
         },
+      }),
+      columnHelper.accessor((r) => (r.euPassport ? 1 : 0), {
+        id: 'eu',
+        header: 'EU',
+        cell: ({ row }) =>
+          row.original.euPassport ? (
+            <span className="text-emerald-400/90" title="EU-style nation (nation.dat GroupMembership)">
+              Y
+            </span>
+          ) : (
+            <span className="text-zinc-600">—</span>
+          ),
       }),
       columnHelper.accessor('club', { header: 'Club' }),
       columnHelper.accessor('ca', { header: 'CA' }),
@@ -497,6 +526,39 @@ export function App() {
                 Listed for loan
               </label>
             </div>
+            <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
+              <span className="text-xs font-medium text-zinc-400">Contract / passport</span>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={euOnly} onChange={(e) => setEuOnly(e.target.checked)} />
+                EU passport (1st or 2nd nation)
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={bosmanOnly} onChange={(e) => setBosmanOnly(e.target.checked)} />
+                Leaving on Bosman / free
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={minReleaseClause}
+                  onChange={(e) => setMinReleaseClause(e.target.checked)}
+                />
+                Minimum fee release clause
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] text-zinc-500">
+                  Contract expires within (months, empty = any)
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={120}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={expiresWithinMonths}
+                  onChange={(e) => setExpiresWithinMonths(e.target.value)}
+                  placeholder="e.g. 6"
+                />
+              </label>
+            </div>
             <details className="rounded-md border border-zinc-800 bg-zinc-900/40">
               <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400">
                 Attribute minimums (1–20, in-match scale)
@@ -528,6 +590,9 @@ export function App() {
               <span className="font-medium text-zinc-300">CM Scout %</span> uses the same weights file as CM Scout
               Intrinsic (<code className="text-emerald-400/80">WeightsSet_CMScout.txt</code>) and “best position” logic
               (max among roles the player fits). Elite players in a strong database often land in the 70s–90s.{' '}
+              <span className="font-medium text-zinc-300">Age</span> uses staff DOB (TCM date) vs the loaded game date when
+              available. <span className="font-medium text-zinc-300">EU</span> follows nation.dat{' '}
+              <code className="text-zinc-500">GroupMembership == 2</code> (community loader rule).{' '}
               <span className="font-medium text-zinc-300">Profile:</span> single-click, double-click,{' '}
               <kbd className="rounded bg-zinc-800 px-1 font-mono text-zinc-300">Enter</kbd>, or Open profile.
               {!loadInfo && (
@@ -610,8 +675,19 @@ export function App() {
               <div>
                 <h2 className="text-xl font-semibold text-white">{profile.name}</h2>
                 <p className="text-sm text-zinc-400">
-                  {profile.nation} · {profile.club}
+                  {profile.nation}
+                  {profile.euPassport && (
+                    <span className="ml-1.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+                      EU
+                    </span>
+                  )}{' '}
+                  · {profile.club}
                 </p>
+                {profile.dobIso && (
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    DOB <span className="font-mono text-zinc-400">{profile.dobIso}</span>
+                  </p>
+                )}
                 <p className="mt-1 text-sm">
                   <span className="text-zinc-500">CA</span>{' '}
                   <span className="font-mono text-emerald-300">{profile.ca}</span>
@@ -632,6 +708,20 @@ export function App() {
                     <span className="text-right text-zinc-200">{fmtMoney(profile.contract.assistBonus)}</span>
                     <span>Release fee</span>
                     <span className="text-right text-zinc-200">{fmtMoney(profile.contract.releaseFee)}</span>
+                    <span>Started</span>
+                    <span className="text-right font-mono text-zinc-200">
+                      {profile.contract.dateStarted ?? '—'}
+                    </span>
+                    <span>Expires</span>
+                    <span className="text-right font-mono text-zinc-200">
+                      {profile.contract.contractExpires ?? '—'}
+                    </span>
+                    <span>Bosman / free</span>
+                    <span className="text-right text-zinc-200">{profile.contract.leavingOnBosman ? 'Yes' : 'No'}</span>
+                    <span>Min-fee release</span>
+                    <span className="text-right text-zinc-200">
+                      {profile.contract.minimumReleaseClause ? 'Yes' : 'No'}
+                    </span>
                     <span>Type byte</span>
                     <span className="text-right font-mono text-zinc-200">{profile.contract.type}</span>
                   </div>

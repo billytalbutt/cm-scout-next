@@ -50,12 +50,21 @@ export function buildProfilePayload(row: UiPlayerRow) {
         assistBonus: row.contract.assist_bonus,
         releaseFee: row.contract.release_fee,
         type: row.contract.contract_type,
+        dateStarted: row.contract.date_started_iso,
+        contractExpires: row.contract.contract_expires_iso,
+        leavingOnBosman: row.contract.leaving_on_bosman > 0,
+        minimumReleaseClause: row.contract.minimum_fee_rc > 0,
+        nonPromotionClause: row.contract.non_promotion_rc > 0,
+        nonPlayingClause: row.contract.non_playing_rc > 0,
+        relegationClause: row.contract.relegation_rc > 0,
       }
     : null
   return {
     name: row.name,
     nation: row.nation,
     club: row.club,
+    dobIso: s.dob_iso,
+    euPassport: row.euPassport,
     ca: p.current_ability,
     pa: p.potential_ability,
     ca18: CA18_KEYS.map((k) => ({ key: k, ...ca18[k] })),

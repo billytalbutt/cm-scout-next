@@ -23,6 +23,7 @@ declare global {
           wage: number
           value: number
           age: number | null
+          euPassport?: boolean
           cmScoutRatingBp?: number
           isDemo?: boolean
         }>
@@ -37,6 +38,8 @@ export interface ProfilePayload {
   name: string
   nation: string
   club: string
+  dobIso: string | null
+  euPassport: boolean
   ca: number
   pa: number
   ca18: Array<{ key: string; raw: number; inGame: number; inMatch: number }>
@@ -49,6 +52,13 @@ export interface ProfilePayload {
     assistBonus: number
     releaseFee: number
     type: number
+    dateStarted: string | null
+    contractExpires: string | null
+    leavingOnBosman: boolean
+    minimumReleaseClause: boolean
+    nonPromotionClause: boolean
+    nonPlayingClause: boolean
+    relegationClause: boolean
   } | null
   positions: Record<string, number>
 }

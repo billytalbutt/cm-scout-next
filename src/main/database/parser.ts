@@ -1,4 +1,5 @@
 import { CmBinaryReader, readLatin1String } from './cmBinaryReader'
+import { ageFromBirthYearOnly, ageOnGameDate, tcmDateToIso } from './dates'
 import type {
   BlockInfo,
   ContractRecord,
@@ -44,15 +45,6 @@ function blockData(file: Buffer, compressed: boolean, b: BlockInfo): Buffer {
   const r = new CmBinaryReader(file, compressed)
   r.seek(b.position)
   return r.readBytes(b.size)
-}
-
-function tcmDateToIso(buf: Buffer, off: number): string | null {
-  const day = buf.readInt16LE(off)
-  const year = buf.readInt16LE(off + 2)
-  if (day === 0 && year === 0) return null
-  const d = new Date(year, 0, 1)
-  d.setDate(d.getDate() + day)
-  return d.toISOString().slice(0, 10)
 }
 
 function parsePlayer(buf: Buffer, off: number): PlayerRecord {
@@ -148,7 +140,8 @@ function parseStaff(buf: Buffer, off: number): StaffRecord {
   o += 4
   const common_name_id = buf.readInt32LE(o)
   o += 4
-  o += 8 // dob
+  const dob_iso = tcmDateToIso(buf, o)
+  o += 8
   const year_of_birth = buf.readUInt16LE(o)
   o += 2
   const first_nation_id = buf.readInt32LE(o)
@@ -185,6 +178,7 @@ function parseStaff(buf: Buffer, off: number): StaffRecord {
     first_name_id,
     second_name_id,
     common_name_id,
+    dob_iso,
     year_of_birth,
     first_nation_id,
     second_nation_id,
@@ -208,17 +202,23 @@ function parseNameRow(buf: Buffer, off: number): string {
   return readLatin1String(buf.subarray(off, off + 51), 51)
 }
 
-function parseNations(data: Buffer): Map<number, string> {
+/** nation.dat row: GroupMembership sbyte at 0x7F — value 2 == EU-style free movement (community loaders). */
+const NATION_GROUP_MEMBERSHIP_OFF = 0x7f
+
+function parseNations(data: Buffer): { names: Map<number, string>; euEligible: Map<number, boolean> } {
   const ROW = 290
   const n = Math.floor(data.length / ROW)
-  const m = new Map<number, string>()
+  const names = new Map<number, string>()
+  const euEligible = new Map<number, boolean>()
   for (let i = 0; i < n; i++) {
     const row = data.subarray(i * ROW, (i + 1) * ROW)
+    if (row.length < NATION_GROUP_MEMBERSHIP_OFF + 1) continue
     const id = row.readInt32LE(0)
     const nm = readLatin1String(row.subarray(4, 55), 51)
-    m.set(id, nm)
+    names.set(id, nm)
+    euEligible.set(id, row.readInt8(NATION_GROUP_MEMBERSHIP_OFF) === 2)
   }
-  return m
+  return { names, euEligible }
 }
 
 function parseClubs(data: Buffer): Map<number, string> {
@@ -279,7 +279,7 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     }
   }
 
-  const nationNames = parseNations(readBlock('nation.dat'))
+  const { names: nationNames, euEligible: nationEuEligible } = parseNations(readBlock('nation.dat'))
   const clubNames = parseClubs(readBlock('club.dat'))
 
   const fnData = readBlock('first_names.dat')
@@ -327,10 +327,19 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
       const goal_bonus = r.readInt32LE(16)
       const assist_bonus = r.readInt32LE(20)
       const clean_sheet_bonus = r.readInt32LE(24)
+      const non_promotion_rc = r.readUInt8(28)
+      const minimum_fee_rc = r.readUInt8(29)
+      const non_playing_rc = r.readUInt8(30)
+      const relegation_rc = r.readUInt8(31)
+      const manager_job_rc = r.readUInt8(32)
       const release_fee = r.readInt32LE(33)
+      const date_started_iso = tcmDateToIso(r, 37)
+      const contract_expires_iso = tcmDateToIso(r, 45)
       const contract_type = r.readUInt8(53)
-      const transfer_status = r.readUInt8(77)
-      const squad_status = r.readUInt8(78)
+      const leaving_on_bosman = r.readUInt8(73)
+      const transfer_arranged_for = r.readInt32LE(74)
+      const transfer_status = r.readUInt8(78)
+      const squad_status = r.readUInt8(79)
       if (staffIndex >= 0 && staffIndex < staff.length) {
         contractsByStaffIndex.set(staffIndex, {
           staffIndex,
@@ -339,8 +348,17 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
           goal_bonus,
           assist_bonus,
           clean_sheet_bonus,
+          non_promotion_rc,
+          minimum_fee_rc,
+          non_playing_rc,
+          relegation_rc,
+          manager_job_rc,
           release_fee,
+          date_started_iso,
+          contract_expires_iso,
           contract_type,
+          leaving_on_bosman,
+          transfer_arranged_for,
           transfer_status,
           squad_status,
         })
@@ -352,6 +370,7 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     compressed,
     blocks,
     nationNames,
+    nationEuEligible,
     clubNames,
     firstNames,
     secondNames,
@@ -363,18 +382,20 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
   }
 }
 
-function playerAgeFromYear(yearOfBirth: number, gameDateIso: string | null): number | null {
-  if (!yearOfBirth || yearOfBirth < 1870) return null
-  if (!gameDateIso) return null
-  const y = Number(gameDateIso.slice(0, 4))
-  if (!Number.isFinite(y)) return null
-  return y - yearOfBirth
-}
-
 export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
   const rows: UiPlayerRow[] = []
-  const { players, staff, nationNames, clubNames, firstNames, secondNames, commonNames, contractsByStaffIndex, gameDateIso } =
-    db
+  const {
+    players,
+    staff,
+    nationNames,
+    nationEuEligible,
+    clubNames,
+    firstNames,
+    secondNames,
+    commonNames,
+    contractsByStaffIndex,
+    gameDateIso,
+  } = db
   staff.forEach((s, staffIndex) => {
     if (!isValidPlayerRow(s, firstNames, secondNames, commonNames, players.length)) return
     const player = players[s.player_id]
@@ -388,7 +409,11 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
     const club = clubNames.get(s.club_job_id) ?? ''
     const c = contractsByStaffIndex.get(staffIndex) ?? null
     const wage = c?.wage ?? s.wage
-    const age = playerAgeFromYear(s.year_of_birth, gameDateIso)
+    const ageFromDob = ageOnGameDate(s.dob_iso, gameDateIso)
+    const age = ageFromDob != null ? ageFromDob : ageFromBirthYearOnly(s.year_of_birth, gameDateIso)
+    const euPassport =
+      !!nationEuEligible.get(s.first_nation_id) ||
+      (s.second_nation_id > 0 && !!nationEuEligible.get(s.second_nation_id))
     rows.push({
       staffId: s.id,
       staffIndex,
@@ -401,6 +426,7 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
       wage,
       value: s.value,
       age,
+      euPassport,
       player,
       staff: s,
       contract: c,
