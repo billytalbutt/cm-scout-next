@@ -171,6 +171,15 @@ ipcMain.handle('get-rows', async (_e, payload: unknown) => {
     delete raw.engineSniffer
   }
 
+  const ammRaw = raw.attrMinMatchAtLeast
+  delete raw.attrMinMatchAtLeast
+  if (ammRaw !== undefined && ammRaw !== null && ammRaw !== '') {
+    const n = Math.floor(Number(ammRaw))
+    if (Number.isFinite(n) && n >= 1) {
+      ;(raw as GetRowsFilter).attrMinMatchAtLeast = n
+    }
+  }
+
   const gameDateIso = loaded?.db.gameDateIso ?? null
   const rows = filterUiPlayerRows(allRowsForGrid(), raw as GetRowsFilter, { gameDateIso })
   const total = rows.length

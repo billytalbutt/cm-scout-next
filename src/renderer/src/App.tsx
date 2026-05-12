@@ -16,6 +16,7 @@ import { GridColumnPickerModal } from './grid/GridColumnPickerModal'
 import { loadGridColumnOrder, saveGridColumnOrder } from './grid/gridPersistence'
 import { cm0102FootWord, cm0102MoraleWord } from '../../shared/cm0102Bands'
 import { CM_SCOUT_ATTR_LABELS } from '../../shared/cmScoutAttrLabels'
+import { attrMinsStringsFromEnginePreset } from '../../shared/engineSnifferAttrPresets'
 import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
 import { DebouncedTextFilters } from './DebouncedTextFilters'
 
@@ -280,6 +281,8 @@ export function App() {
   const [minReleaseClause, setMinReleaseClause] = useState(false)
   const [expiresWithinMonths, setExpiresWithinMonths] = useState('')
   const [attrMins, setAttrMins] = useState<string[]>(() => Array.from({ length: 48 }, () => ''))
+  /** Among attribute cells with a min &gt; 0, require at least this many to pass (empty = all must pass). */
+  const [attrMinMatchAtLeast, setAttrMinMatchAtLeast] = useState('')
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
   const [sel, setSel] = useState<number | null>(null)
   const [opening, setOpening] = useState(false)
@@ -437,6 +440,10 @@ export function App() {
       return Number.isFinite(n) && n > 0 ? n : null
     })
     if (mins.some((m) => m != null)) f.attrMins = mins
+    const matchN = num(attrMinMatchAtLeast)
+    if (attrMinMatchAtLeast.trim() !== '' && Number.isFinite(matchN) && matchN >= 1) {
+      f.attrMinMatchAtLeast = Math.floor(matchN)
+    }
     if (browseTab === 'regens') {
       f.isRegenLikely = true
     } else if (regenOnly) {
@@ -548,6 +555,7 @@ export function App() {
     minReleaseClause,
     expiresWithinMonths,
     attrMins,
+    attrMinMatchAtLeast,
     loadInfo,
     gridInclude,
     browseTab,
@@ -1133,6 +1141,23 @@ export function App() {
                 Attribute minimums (1–20 on screen; enter <span className="font-mono text-zinc-300">21+</span> to match
                 uncapped CA18 / raw bytes — e.g. tackling 22 finds edited or very high-CA elites)
               </summary>
+              <div className="space-y-1 border-t border-zinc-800 px-2 py-2">
+                <label className="block text-[11px] text-zinc-500">
+                  Match at least{' '}
+                  <span className="text-zinc-600">
+                    (of attributes with a min set; empty = every set min must pass — like tightening all vs. in-game
+                    “any N”)
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 font-mono text-zinc-200"
+                    value={attrMinMatchAtLeast}
+                    onChange={(e) => setAttrMinMatchAtLeast(e.target.value)}
+                    placeholder="e.g. 6"
+                  />
+                </label>
+              </div>
               <div className="max-h-48 overflow-y-auto border-t border-zinc-800 px-2 py-2 cm-scroll">
                 <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 text-[11px]">
                   {CM_SCOUT_ATTR_LABELS.map((label, i) => (
@@ -1196,6 +1221,13 @@ export function App() {
                       <span className="font-mono text-zinc-300">21+</span> raw); balance / dribbling 17+; consistency /
                       important matches 16+; determination 17+. If any core is <span className="font-mono text-zinc-300">22+</span>, softer floors on the six.
                     </p>
+                    <p>
+                      Choosing <span className="font-medium text-zinc-200">Assist</span> or{' '}
+                      <span className="font-medium text-zinc-200">Striker</span> here also fills{' '}
+                      <strong className="text-zinc-400">Attribute minimums</strong> with that recipe’s baseline floors (main
+                      path) so you can lower them or use <strong className="text-zinc-400">Match at least N</strong> without
+                      clearing every column. Sniffer still applies on top of those filters.
+                    </p>
                   </div>
                 }
               >
@@ -1207,12 +1239,24 @@ export function App() {
               <select
                 className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-emerald-600"
                 value={engineSniffer}
-                onChange={(e) => setEngineSniffer(e.target.value as EngineSnifferUi)}
+                onChange={(e) => {
+                  const v = e.target.value as EngineSnifferUi
+                  setEngineSniffer(v)
+                  if (v === 'assist_prospect') {
+                    setAttrMins(attrMinsStringsFromEnginePreset('assist_prospect'))
+                  } else if (v === 'striker_finisher') {
+                    setAttrMins(attrMinsStringsFromEnginePreset('striker_finisher'))
+                  }
+                }}
               >
                 <option value="off">Off</option>
                 <option value="assist_prospect">Assist prospect (playmaker meta)</option>
                 <option value="striker_finisher">Striker finisher (elite ST/FC)</option>
               </select>
+              <p className="mt-1 text-[10px] leading-snug text-zinc-600">
+                Assist / Striker pre-fills attribute minimums below (baseline floors); use “Match at least N” there to
+                relax without clearing every stat.
+              </p>
             </div>
           </div>
           </aside>

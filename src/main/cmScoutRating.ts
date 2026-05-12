@@ -340,33 +340,62 @@ export function applyCmScoutRatings(rows: UiPlayerRow[]): void {
   }
 }
 
+/** Single-attribute minimum check (same rules as the grid filter). */
+export function attrIndexPassesMin(row: UiPlayerRow, index: number, min: number): boolean {
+  const inNorm = row.cmAttrNorm
+  const hi = row.cmAttrFilter48
+  if (!inNorm || min == null || min <= 0) return true
+  if (ATTR_LESS_BETTER[index]) {
+    let v = inNorm[index]!
+    v = 21 - v
+    return v >= min
+  }
+  if (min > 20) {
+    const raw = hi?.[index] ?? inNorm[index]!
+    return raw >= min
+  }
+  return inNorm[index]! >= min
+}
+
+export type PassesAttributeMinsOptions = {
+  /**
+   * If set to a positive integer: among attributes with a min &gt; 0, require at least this many to pass
+   * (in-game–style partial match). If omitted or ≤0, every active filter must pass (original behaviour).
+   */
+  matchAtLeast?: number | null
+}
+
 /**
  * Attribute minimum filters: default 1–20 on-screen (`cmAttrNorm`). If a column min is **above 20**, compare against
  * `cmAttrFilter48` (uncapped CA18-style + raw intrinsic) so edited / high-CA elites match (e.g. tackling 22).
  * Injury / dirtiness keep the flipped 1–20 display scale for any min.
  */
-export function passesAttributeMins(row: UiPlayerRow, mins: (number | null | undefined)[]): boolean {
-  const inNorm = row.cmAttrNorm
-  const hi = row.cmAttrFilter48
-  if (!inNorm || !mins?.length) return true
+export function passesAttributeMins(
+  row: UiPlayerRow,
+  mins: (number | null | undefined)[],
+  opts?: PassesAttributeMinsOptions,
+): boolean {
+  if (!row.cmAttrNorm || !mins?.length) return true
+
+  const activeIdx: number[] = []
   for (let i = 0; i < N_ATTR; i++) {
     const min = mins[i]
-    if (min == null || min <= 0) continue
-    if (ATTR_LESS_BETTER[i]) {
-      let v = inNorm[i]!
-      v = 21 - v
-      if (v < min) return false
-      continue
-    }
-    if (min > 20) {
-      const raw = hi?.[i] ?? inNorm[i]!
-      if (raw < min) return false
-    } else {
-      const v = inNorm[i]!
-      if (v < min) return false
-    }
+    if (min != null && min > 0) activeIdx.push(i)
   }
-  return true
+  if (activeIdx.length === 0) return true
+
+  const want = opts?.matchAtLeast
+  const need =
+    want == null || !Number.isFinite(want) || want <= 0
+      ? activeIdx.length
+      : Math.min(Math.floor(want), activeIdx.length)
+
+  let pass = 0
+  for (const i of activeIdx) {
+    const min = mins[i]!
+    if (attrIndexPassesMin(row, i, min)) pass++
+  }
+  return pass >= need
 }
 
 export function transferListedByClub(ts: number): boolean {
