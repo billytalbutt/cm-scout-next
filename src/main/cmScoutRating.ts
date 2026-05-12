@@ -1,6 +1,7 @@
 /**
  * CM Scout Intrinsic–style rating (DataService.CalculateRating + WeightsSet_CMScout.txt).
  * Uses in-match–normalized attributes (1–20) and CM Scout weights per position.
+ * Per-role % = weighted mean for each of the seven weight columns (always).
  * "BP" column = max weighted % among positions the player is suitable for (Best regard position).
  */
 import { inMatchValue } from './database/attributes'
@@ -123,6 +124,13 @@ export function intrinsicRawAt(i: number, p: PlayerRecord, s: StaffRecord): numb
     default:
       return 0
   }
+}
+
+/** Raw intrinsic bytes in CM Scout attribute order (48), for grid / tools. */
+export function intrinsicRaw48(p: PlayerRecord, s: StaffRecord): number[] {
+  const out = new Array<number>(48)
+  for (let i = 0; i < 48; i++) out[i] = intrinsicRawAt(i, p, s)
+  return out
 }
 
 export function isGoalkeeper(p: PlayerRecord): boolean {
@@ -251,6 +259,15 @@ function weightedRatingPercent(inNorm: number[], pos: number): number {
   return (100 * r) / n
 }
 
+/** Hypothetical CM Scout % in each weight column (all seven roles), same as Intrinsic per-column rating. */
+export function cmScoutAllRolePercents(inNorm: number[]): number[] {
+  const out: number[] = []
+  for (let pos = 0; pos < N_POS; pos++) {
+    out.push(Math.round(weightedRatingPercent(inNorm, pos) * 10) / 10)
+  }
+  return out
+}
+
 /** Best regard position: max rating among positions the player fits. */
 export function cmScoutBpPercent(p: PlayerRecord, inNorm: number[]): number {
   let best = -1
@@ -277,6 +294,7 @@ export function applyCmScoutRatings(rows: UiPlayerRow[]): void {
   for (const row of dataRows) {
     const norm = inMatchNormalized48(row.player, row.staff, ranges)
     row.cmAttrNorm = norm
+    row.cmScoutRolePercents = cmScoutAllRolePercents(norm)
     row.cmScoutRatingBp = cmScoutBpPercent(row.player, norm)
   }
 }

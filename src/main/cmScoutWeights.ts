@@ -1,6 +1,6 @@
 /**
  * CM Scout position weights (from CMScoutIntrinsicCommunity `Resources/WeightsSet_CMScout.txt`).
- * Rows follow `DataService.Attributes` order (48). Columns: GK, D, DM, M, AM, A, WB.
+ * Rows follow `DataService.Attributes` order (48). Columns: GK, D, DM, M, AM, A, WB (see `src/shared/cmScoutRoles.ts`).
  */
 export const CM_SCOUT_WEIGHTS: number[][] = [
   [6, 10, 6, 8, 8, 15, 6],

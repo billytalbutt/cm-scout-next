@@ -1,9 +1,20 @@
 /// <reference types="vite/client" />
 
+import type { GridPlayerRow } from '../../shared/gridTypes'
+
 export {}
 
 type OpenResult =
-  | { ok: true; path: string; compressed: boolean; gameDate: string | null; playerCount: number }
+  | {
+      ok: true
+      path: string
+      compressed: boolean
+      gameDate: string | null
+      playerCount: number
+      staffDatRows: number
+      playerBlobRows: number
+      clubs: string[]
+    }
   | { ok: false; error: string }
 
 declare global {
@@ -13,40 +24,10 @@ declare global {
       getRows: (filter: Record<string, unknown>) => Promise<
         | {
             total: number
-            rows: Array<{
-              staffId: number
-              staffIndex: number
-              name: string
-              nation: string
-              secondNation?: string
-              club: string
-              ca: number
-              pa: number
-              wage: number
-              value: number
-              age: number | null
-              euPassport?: boolean
-              cmScoutRatingBp?: number
-              isDemo?: boolean
-            }>
-            capped: boolean
+            rows: GridPlayerRow[]
+            capped?: boolean
           }
-        | Array<{
-            staffId: number
-            staffIndex: number
-            name: string
-            nation: string
-            secondNation?: string
-            club: string
-            ca: number
-            pa: number
-            wage: number
-            value: number
-            age: number | null
-            euPassport?: boolean
-            cmScoutRatingBp?: number
-            isDemo?: boolean
-          }>
+        | Array<GridPlayerRow>
       >
       getProfile: (staffIndex: number) => Promise<ProfilePayload | null>
     }
@@ -57,10 +38,45 @@ export interface ProfileAttrCell {
   key: string
   label: string
   inGame: number
+  inGameUncapped: number
   raw: number
   inMatch: number
   invert: boolean
   highlightTier?: 'primary' | 'secondary'
+}
+
+export interface ProfileSeasonStatsRow {
+  year: number
+  club: string
+  onLoan: boolean
+  apps: number
+  goals: number
+}
+
+export interface ProfilePerCompetitionRow {
+  competitionId: number
+  competitionName: string
+  apps: number
+  goals: number
+}
+
+export interface ProfileSeasonStats {
+  internationalCaps: { apps: number; goals: number }
+  /** Calendar year of the in-game date (informational). */
+  saveCalendarYear: number | null
+  /** `staff_history.year` treated as the active season for totals + row tint. */
+  highlightHistoryYear: number | null
+  currentYearResolution: 'season_boundary' | 'calendar_fallback' | 'none'
+  /** 1-based day-of-year boundary used for season tagging (nation.dat average or 1 Jul fallback). */
+  boundaryDayOfYearUsed: number | null
+  currentSeasonRows: ProfileSeasonStatsRow[]
+  currentSeasonTotals: { apps: number; goals: number }
+  careerTotals: { apps: number; goals: number }
+  allSeasons: ProfileSeasonStatsRow[]
+  /** Primary domestic league from `club.dat` division → `club_comp.dat` (name only). */
+  inferredDomesticLeague: { competitionId: number; name: string } | null
+  perCompetitionRows: ProfilePerCompetitionRow[]
+  perCompetitionStatsInSave: boolean
 }
 
 export interface ProfilePayload {
@@ -75,14 +91,42 @@ export interface ProfilePayload {
   positionLabel: string
   ca: number
   pa: number
+  /** Grid column: max % among “suitable” roles (Intrinsic BP rule) */
+  cmScoutRatingBp?: number
+  /** Length 7: GK, D, DM, M, AM, A, WB — weighted attribute % per WeightsSet_CMScout column */
+  cmScoutRolePercents?: number[]
+  /** Same order as cmScoutRolePercents — role counts toward BP max */
+  cmScoutRoleSuitable?: boolean[]
   attrColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
   feetMorale: {
-    left: { label: string; inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }
-    right: { label: string; inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }
-    morale: { label: string; inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }
+    left: {
+      label: string
+      inGame: number
+      inGameUncapped: number
+      raw: number
+      inMatch: number
+      highlightTier?: 'primary' | 'secondary'
+    }
+    right: {
+      label: string
+      inGame: number
+      inGameUncapped: number
+      raw: number
+      inMatch: number
+      highlightTier?: 'primary' | 'secondary'
+    }
+    morale: {
+      label: string
+      inGame: number
+      inGameUncapped: number
+      raw: number
+      inMatch: number
+      highlightTier?: 'primary' | 'secondary'
+    }
   }
   hiddenColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
   highlightRolesLabel: string
+  seasonStats: ProfileSeasonStats
   contract: {
     wage: number
     clubId: number

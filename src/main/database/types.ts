@@ -1,3 +1,6 @@
+import type { StaffHistoryRecord } from './staffHistory'
+import type { ClubCompRecord, StaffCompRecord } from './clubComp'
+
 export interface BlockInfo {
   position: number
   size: number
@@ -79,6 +82,10 @@ export interface StaffRecord {
   year_of_birth: number
   first_nation_id: number
   second_nation_id: number
+  /** International caps (byte at staff+0x22) */
+  int_apps: number
+  /** International goals (byte at staff+0x23) */
+  int_goals: number
   club_job_id: number
   job_for_club: number
   player_id: number
@@ -123,6 +130,16 @@ export interface ContractRecord {
 export interface ParsedDatabase {
   compressed: boolean
   blocks: BlockInfo[]
+  /** Optional: keyed by `staff.dat` row `id` (same as `StaffRecord.id`). */
+  staffHistoryByStaffId?: Map<number, StaffHistoryRecord[]>
+  /** Raw `SeasonUpdateDay` samples from nation.dat (1–366); used for staff_history season tagging. */
+  nationSeasonUpdateDaySamples: number[]
+  /** Optional `club_comp.dat` (domestic league / cup competition definitions). */
+  clubCompsById?: Map<number, ClubCompRecord>
+  /** Optional `staff_comp.dat` (international competition definitions). */
+  staffCompsById?: Map<number, StaffCompRecord>
+  /** `club.dat` → primary `club_comp` id (`TClub.Division`). */
+  clubDivisionCompIdByClubId: Map<number, number>
   nationNames: Map<number, string>
   /** `GroupMembership == 2` in nation.dat — same rule as community loaders (EU / free movement) */
   nationEuEligible: Map<number, boolean>
@@ -154,8 +171,25 @@ export interface UiPlayerRow {
   euPassport: boolean
   /** CM Scout Intrinsic–style % (Best regard position, CM Scout weights) */
   cmScoutRatingBp?: number
+  /** CM Scout % per weight column (GK, D, DM, M, AM, A, WB), length 7 */
+  cmScoutRolePercents?: number[]
   /** Cached 1–20 in-match–normalized vector for attribute filters */
   cmAttrNorm?: number[]
+  /**
+   * Heuristic regen hint (same-save): young player shares PA + primary nation + natural
+   * position bytes with an older player in the DB. Not proof — see `regenDetection.ts`.
+   */
+  isRegenLikely?: boolean
+  /** Display name of the older player used for the regen heuristic (if `isRegenLikely`). */
+  regenOfName?: string
+  regenOfStaffIndex?: number
+  /** Optional rows from `staff_history.dat` for this staff `id`. */
+  staffHistory?: StaffHistoryRecord[]
+  /** Totals from `staff_history.dat` (career = all rows; season = rows whose `year` matches resolved highlight year). */
+  staffHistCareerApps: number
+  staffHistCareerGoals: number
+  staffHistSeasonApps: number
+  staffHistSeasonGoals: number
   /** joined player blob for profile */
   player: PlayerRecord
   staff: StaffRecord

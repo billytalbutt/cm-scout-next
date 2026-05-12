@@ -1,5 +1,21 @@
 import { CmBinaryReader, readLatin1String } from './cmBinaryReader'
 import { ageFromBirthYearOnly, ageOnGameDate, tcmDateToIso } from './dates'
+import {
+  indexStaffHistoryByStaffId,
+  parseStaffHistoryData,
+  STAFF_HISTORY_ROW_BYTES,
+  sumStaffHistoryCareerAndSeason,
+  type StaffHistoryRecord,
+} from './staffHistory'
+import {
+  parseClubCompData,
+  parseClubPrimaryDivisionIds,
+  parseStaffCompData,
+} from './clubComp'
+import {
+  refineHighlightYearWithHistoryFallback,
+  resolveStaffHistoryHighlightYear,
+} from './seasonYear'
 import type {
   BlockInfo,
   ContractRecord,
@@ -13,7 +29,8 @@ import type {
  * CM0102 `index.dat` is a block archive (same on-disk format the game and CM Scout read).
  * This parser loads the blocks we need for a player-centric scout view:
  * general.dat (game date), nation.dat, club.dat, first/second/common_names.dat,
- * player.dat, staff.dat, and contract.dat (for club/wage when present).
+ * player.dat, staff.dat, contract.dat, and optional staff_history.dat (club-year apps/goals).
+ * Optional `club_comp.dat` / `staff_comp.dat` are read when present (competition metadata).
  * The player table lists playable humans (staff rows tied to player.dat); it does not
  * list every non-player staff row. CM Scout (the original app) has many extra screens
  * and may touch other blocks — feature parity with that entire program is not claimed here.
@@ -148,7 +165,8 @@ function parseStaff(buf: Buffer, off: number): StaffRecord {
   o += 4
   const second_nation_id = buf.readInt32LE(o)
   o += 4
-  o += 2 // int apps, int goals
+  const int_apps = buf.readUInt8(o++)
+  const int_goals = buf.readUInt8(o++)
   o += 4 // national_job_id
   o += 1 // job_for_nation
   o += 8 // date joined nation
@@ -182,6 +200,8 @@ function parseStaff(buf: Buffer, off: number): StaffRecord {
     year_of_birth,
     first_nation_id,
     second_nation_id,
+    int_apps,
+    int_goals,
     club_job_id,
     job_for_club,
     player_id,
@@ -204,12 +224,20 @@ function parseNameRow(buf: Buffer, off: number): string {
 
 /** nation.dat row: GroupMembership sbyte at 0x7F — value 2 == EU-style free movement (community loaders). */
 const NATION_GROUP_MEMBERSHIP_OFF = 0x7f
+/** `TNation.SeasonUpdateDay` (agevak Structures.cs) — 1-based day-of-year for league season rollover. */
+const NATION_SEASON_UPDATE_DAY_OFF = 0x8c
 
-function parseNations(data: Buffer): { names: Map<number, string>; euEligible: Map<number, boolean> } {
+function parseNations(data: Buffer): {
+  names: Map<number, string>
+  euEligible: Map<number, boolean>
+  /** Non-empty when at least one nation row had a plausible SeasonUpdateDay (1–366). */
+  seasonUpdateDaySamples: number[]
+} {
   const ROW = 290
   const n = Math.floor(data.length / ROW)
   const names = new Map<number, string>()
   const euEligible = new Map<number, boolean>()
+  const seasonUpdateDaySamples: number[] = []
   for (let i = 0; i < n; i++) {
     const row = data.subarray(i * ROW, (i + 1) * ROW)
     if (row.length < NATION_GROUP_MEMBERSHIP_OFF + 1) continue
@@ -217,8 +245,12 @@ function parseNations(data: Buffer): { names: Map<number, string>; euEligible: M
     const nm = readLatin1String(row.subarray(4, 55), 51)
     names.set(id, nm)
     euEligible.set(id, row.readInt8(NATION_GROUP_MEMBERSHIP_OFF) === 2)
+    if (row.length >= NATION_SEASON_UPDATE_DAY_OFF + 2) {
+      const sud = row.readInt16LE(NATION_SEASON_UPDATE_DAY_OFF)
+      if (sud >= 1 && sud <= 366) seasonUpdateDaySamples.push(sud)
+    }
   }
-  return { names, euEligible }
+  return { names, euEligible, seasonUpdateDaySamples }
 }
 
 function parseClubs(data: Buffer): Map<number, string> {
@@ -234,7 +266,7 @@ function parseClubs(data: Buffer): Map<number, string> {
   return m
 }
 
-function staffDisplayName(
+export function staffDisplayName(
   s: StaffRecord,
   firstNames: string[],
   secondNames: string[],
@@ -279,8 +311,36 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     }
   }
 
-  const { names: nationNames, euEligible: nationEuEligible } = parseNations(readBlock('nation.dat'))
-  const clubNames = parseClubs(readBlock('club.dat'))
+  const { names: nationNames, euEligible: nationEuEligible, seasonUpdateDaySamples } = parseNations(
+    readBlock('nation.dat'),
+  )
+  const clubBuf = readBlock('club.dat')
+  const clubNames = parseClubs(clubBuf)
+  const clubDivisionCompIdByClubId = parseClubPrimaryDivisionIds(clubBuf)
+
+  let clubCompsById = undefined as ReturnType<typeof parseClubCompData> | undefined
+  const ccBlock = find('club_comp.dat')
+  if (ccBlock && ccBlock.size > 0) {
+    try {
+      const ccbuf = blockData(file, compressed, ccBlock)
+      const m = parseClubCompData(ccbuf)
+      if (m.size > 0) clubCompsById = m
+    } catch {
+      clubCompsById = undefined
+    }
+  }
+
+  let staffCompsById = undefined as ReturnType<typeof parseStaffCompData> | undefined
+  const scBlock = find('staff_comp.dat')
+  if (scBlock && scBlock.size > 0) {
+    try {
+      const scbuf = blockData(file, compressed, scBlock)
+      const m = parseStaffCompData(scbuf)
+      if (m.size > 0) staffCompsById = m
+    } catch {
+      staffCompsById = undefined
+    }
+  }
 
   const fnData = readBlock('first_names.dat')
   const snData = readBlock('second_names.dat')
@@ -366,9 +426,27 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     }
   }
 
+  let staffHistoryByStaffId: Map<number, StaffHistoryRecord[]> | undefined
+  const histBlock = find('staff_history.dat')
+  if (histBlock && histBlock.size > 0) {
+    try {
+      const hbuf = blockData(file, compressed, histBlock)
+      if (hbuf.length > 0 && hbuf.length % STAFF_HISTORY_ROW_BYTES === 0) {
+        staffHistoryByStaffId = indexStaffHistoryByStaffId(parseStaffHistoryData(hbuf))
+      }
+    } catch {
+      staffHistoryByStaffId = undefined
+    }
+  }
+
   return {
     compressed,
     blocks,
+    staffHistoryByStaffId,
+    nationSeasonUpdateDaySamples: seasonUpdateDaySamples,
+    clubCompsById,
+    staffCompsById,
+    clubDivisionCompIdByClubId,
     nationNames,
     nationEuEligible,
     clubNames,
@@ -395,7 +473,10 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
     commonNames,
     contractsByStaffIndex,
     gameDateIso,
+    staffHistoryByStaffId,
+    nationSeasonUpdateDaySamples,
   } = db
+  const baseYearPick = resolveStaffHistoryHighlightYear(gameDateIso, nationSeasonUpdateDaySamples)
   staff.forEach((s, staffIndex) => {
     if (!isValidPlayerRow(s, firstNames, secondNames, commonNames, players.length)) return
     const player = players[s.player_id]
@@ -414,6 +495,9 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
     const euPassport =
       !!nationEuEligible.get(s.first_nation_id) ||
       (s.second_nation_id > 0 && !!nationEuEligible.get(s.second_nation_id))
+    const hist = staffHistoryByStaffId?.get(s.id)
+    const yearPick = refineHighlightYearWithHistoryFallback(hist ?? [], baseYearPick)
+    const sums = sumStaffHistoryCareerAndSeason(hist, yearPick.highlightHistoryYear)
     rows.push({
       staffId: s.id,
       staffIndex,
@@ -427,6 +511,11 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
       value: s.value,
       age,
       euPassport,
+      staffHistory: hist,
+      staffHistCareerApps: sums.careerApps,
+      staffHistCareerGoals: sums.careerGoals,
+      staffHistSeasonApps: sums.seasonApps,
+      staffHistSeasonGoals: sums.seasonGoals,
       player,
       staff: s,
       contract: c,

@@ -3,7 +3,16 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('cmapi', {
   openDatabase: () =>
     ipcRenderer.invoke('open-database') as Promise<
-      | { ok: true; path: string; compressed: boolean; gameDate: string | null; playerCount: number }
+      | {
+          ok: true
+          path: string
+          compressed: boolean
+          gameDate: string | null
+          playerCount: number
+          staffDatRows: number
+          playerBlobRows: number
+          clubs: string[]
+        }
       | { ok: false; error: string }
     >,
   getRows: (filter: Record<string, unknown>) =>

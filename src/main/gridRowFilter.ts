@@ -1,0 +1,131 @@
+import { calendarDaysBetween } from './database/dates'
+import type { UiPlayerRow } from './database/types'
+import {
+  listedForLoan,
+  passesAttributeMins,
+  transferListedByClub,
+  transferListedByRequest,
+} from './cmScoutRating'
+
+/** Subset of the IPC payload from `get-rows` used for filtering (main process). */
+export type GetRowsFilter = {
+  q?: string
+  nation?: string
+  club?: string
+  caMin?: number
+  caMax?: number
+  paMin?: number
+  paMax?: number
+  ageMin?: number
+  ageMax?: number
+  valueMin?: number
+  valueMax?: number
+  wageMin?: number
+  wageMax?: number
+  shCareerGoalsMin?: number
+  shCareerGoalsMax?: number
+  shSeasonGoalsMin?: number
+  shSeasonGoalsMax?: number
+  shCareerAppsMin?: number
+  shSeasonAppsMin?: number
+  contractType?: number
+  transferListedClub?: boolean
+  transferListedRequest?: boolean
+  listedForLoan?: boolean
+  euPassport?: boolean
+  leavingOnBosman?: boolean
+  contractExpiresWithinMonths?: number
+  hasMinimumReleaseClause?: boolean
+  attrMins?: (number | null)[]
+}
+
+function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string | null }): boolean {
+  const q = (f.q ?? '').trim().toLowerCase()
+  if (q && !r.name.toLowerCase().includes(q)) return false
+
+  if (f.nation?.trim()) {
+    const n = f.nation.trim().toLowerCase()
+    if (
+      !r.nation.toLowerCase().includes(n) &&
+      !(r.secondNation && r.secondNation.toLowerCase().includes(n))
+    ) {
+      return false
+    }
+  }
+
+  if (f.club?.trim()) {
+    const c = f.club.trim().toLowerCase()
+    if (!r.club.toLowerCase().includes(c)) return false
+  }
+
+  if (f.caMin != null && r.ca < f.caMin) return false
+  if (f.caMax != null && r.ca > f.caMax) return false
+  if (f.paMin != null && r.pa < f.paMin) return false
+  if (f.paMax != null && r.pa > f.paMax) return false
+  if (f.ageMin != null && (r.age == null || r.age < f.ageMin)) return false
+  if (f.ageMax != null && (r.age == null || r.age > f.ageMax)) return false
+  if (f.valueMin != null && r.value < f.valueMin) return false
+  if (f.valueMax != null && r.value > f.valueMax) return false
+  if (f.wageMin != null && r.wage < f.wageMin) return false
+  if (f.wageMax != null && r.wage > f.wageMax) return false
+  if (f.shCareerGoalsMin != null && r.staffHistCareerGoals < f.shCareerGoalsMin) return false
+  if (f.shCareerGoalsMax != null && r.staffHistCareerGoals > f.shCareerGoalsMax) return false
+  if (f.shSeasonGoalsMin != null && r.staffHistSeasonGoals < f.shSeasonGoalsMin) return false
+  if (f.shSeasonGoalsMax != null && r.staffHistSeasonGoals > f.shSeasonGoalsMax) return false
+  if (f.shCareerAppsMin != null && r.staffHistCareerApps < f.shCareerAppsMin) return false
+  if (f.shSeasonAppsMin != null && r.staffHistSeasonApps < f.shSeasonAppsMin) return false
+
+  if (typeof f.contractType === 'number' && !Number.isNaN(f.contractType)) {
+    if (!r.contract || r.contract.contract_type !== f.contractType) return false
+  }
+
+  const wantTl =
+    f.transferListedClub === true || f.transferListedRequest === true || f.listedForLoan === true
+  if (wantTl) {
+    const c = r.contract
+    if (!c) return false
+    const ts = c.transfer_status
+    let ok = false
+    if (f.transferListedClub && transferListedByClub(ts)) ok = true
+    if (f.transferListedRequest && transferListedByRequest(ts)) ok = true
+    if (f.listedForLoan && listedForLoan(ts)) ok = true
+    if (!ok) return false
+  }
+
+  if (f.euPassport === true && !r.euPassport) return false
+  if (f.leavingOnBosman === true && (!r.contract || r.contract.leaving_on_bosman <= 0)) return false
+  if (f.hasMinimumReleaseClause === true && (!r.contract || r.contract.minimum_fee_rc <= 0)) return false
+
+  if (
+    f.contractExpiresWithinMonths != null &&
+    Number.isFinite(f.contractExpiresWithinMonths) &&
+    f.contractExpiresWithinMonths >= 1 &&
+    ctx.gameDateIso
+  ) {
+    const maxM = Math.min(120, Math.floor(f.contractExpiresWithinMonths))
+    const maxDays = Math.ceil(maxM * 30.4375)
+    const exp = r.contract?.contract_expires_iso
+    if (!exp) return false
+    const d = calendarDaysBetween(ctx.gameDateIso, exp)
+    if (d == null || d < 0 || d > maxDays) return false
+  }
+
+  if (f.attrMins?.length) {
+    if (!passesAttributeMins(r.cmAttrNorm, f.attrMins)) return false
+  }
+
+  return true
+}
+
+/** Single-pass filter — avoids chaining `.filter()` which allocates many intermediate arrays. */
+export function filterUiPlayerRows(
+  source: readonly UiPlayerRow[],
+  f: GetRowsFilter,
+  ctx: { gameDateIso: string | null },
+): UiPlayerRow[] {
+  const out: UiPlayerRow[] = []
+  for (const r of source) {
+    if (rowMatches(r, f, ctx)) out.push(r)
+  }
+  return out
+}

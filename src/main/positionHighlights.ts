@@ -5,7 +5,7 @@ import type { PlayerRecord } from './database/types'
  * Sources: champman0102.net “Key Attributes for each Position” (Churky / community summaries),
  * attribute-pair threads (marking+positioning, passing+creativity, pace+acceleration),
  * and CM Scout Intrinsic GK weight ordering cited on the same forum (Handling, One-on-ones, Reflexes…).
- * Staff highlights follow editor mental descriptions + forum emphasis on determination / ambition.
+ * Staff highlights follow editor mental descriptions + forum emphasis on ambition / professionalism.
  */
 
 export type PositionRoleId = 'GK' | 'SW' | 'D' | 'WB' | 'DM' | 'M' | 'AM' | 'ST'
@@ -36,43 +36,43 @@ const BY_ROLE: Record<PositionRoleId, Pack> = {
   GK: {
     playerPrimary: ['handling', 'reflexes', 'one_on_ones', 'positioning', 'anticipation', 'agility'],
     playerSecondary: ['jumping', 'bravery', 'marking', 'heading', 'throw_ins', 'decisions', 'teamwork'],
-    staffPrimary: ['determination', 'professionalism', 'pressure', 'ambition'],
+    staffPrimary: ['professionalism', 'pressure', 'ambition'],
     staffSecondary: ['adaptability', 'loyalty', 'sportsmanship', 'temperament'],
   },
   SW: {
     playerPrimary: ['positioning', 'tackling', 'marking', 'anticipation', 'heading', 'passing', 'decisions'],
     playerSecondary: ['pace', 'stamina', 'bravery', 'creativity', 'teamwork', 'work_rate', 'jumping', 'strength'],
-    staffPrimary: ['determination', 'ambition', 'professionalism'],
+    staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'adaptability', 'loyalty', 'sportsmanship', 'temperament'],
   },
   D: {
     playerPrimary: ['positioning', 'tackling', 'marking', 'heading', 'anticipation', 'strength', 'jumping', 'pace'],
     playerSecondary: ['aggression', 'bravery', 'teamwork', 'decisions', 'work_rate', 'passing', 'acceleration'],
-    staffPrimary: ['determination', 'professionalism', 'ambition'],
+    staffPrimary: ['professionalism', 'ambition'],
     staffSecondary: ['pressure', 'temperament', 'sportsmanship', 'loyalty', 'adaptability'],
   },
   WB: {
     playerPrimary: ['crossing', 'pace', 'stamina', 'tackling', 'positioning', 'off_the_ball', 'work_rate', 'acceleration'],
     playerSecondary: ['marking', 'passing', 'decisions', 'teamwork', 'agility', 'dribbling', 'anticipation', 'balance'],
-    staffPrimary: ['determination', 'ambition', 'professionalism'],
+    staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'adaptability', 'loyalty', 'sportsmanship', 'temperament'],
   },
   DM: {
     playerPrimary: ['tackling', 'positioning', 'marking', 'passing', 'decisions', 'work_rate', 'stamina', 'teamwork', 'heading'],
     playerSecondary: ['anticipation', 'strength', 'aggression', 'long_shots', 'creativity', 'bravery', 'jumping'],
-    staffPrimary: ['determination', 'professionalism', 'ambition'],
+    staffPrimary: ['professionalism', 'ambition'],
     staffSecondary: ['pressure', 'temperament', 'loyalty', 'adaptability', 'sportsmanship'],
   },
   M: {
     playerPrimary: ['passing', 'decisions', 'technique', 'teamwork', 'work_rate', 'creativity', 'off_the_ball', 'tackling'],
     playerSecondary: ['stamina', 'anticipation', 'long_shots', 'flair', 'positioning', 'dribbling', 'pace', 'balance'],
-    staffPrimary: ['determination', 'ambition', 'professionalism'],
+    staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'loyalty', 'adaptability', 'sportsmanship', 'temperament'],
   },
   AM: {
     playerPrimary: ['creativity', 'technique', 'dribbling', 'passing', 'decisions', 'flair', 'off_the_ball', 'long_shots'],
     playerSecondary: ['finishing', 'teamwork', 'work_rate', 'stamina', 'tackling', 'anticipation', 'pace', 'acceleration'],
-    staffPrimary: ['determination', 'ambition', 'professionalism'],
+    staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'temperament', 'loyalty', 'adaptability', 'sportsmanship'],
   },
   ST: {
@@ -88,18 +88,19 @@ const BY_ROLE: Record<PositionRoleId, Pack> = {
       'heading',
     ],
     playerSecondary: ['long_shots', 'creativity', 'balance', 'jumping', 'strength', 'work_rate', 'decisions', 'teamwork'],
-    staffPrimary: ['determination', 'ambition', 'professionalism'],
+    staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'loyalty', 'temperament', 'adaptability', 'sportsmanship'],
   },
 }
 
-/** Forum: big games, consistency, decisions, teamwork, fitness stack */
+/** Forum: big games, consistency, decisions, teamwork, fitness stack; determination is a visible player attr in CM. */
 const UNIVERSAL_PLAYER_SECONDARY = [
   'important_matches',
   'consistency',
   'decisions',
   'teamwork',
   'natural_fitness',
+  'determination',
 ] as const
 
 export type HighlightSets = {
