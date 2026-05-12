@@ -71,6 +71,29 @@ function cmScoutRoleValueTierByRole(percents: readonly number[]): Map<number, 0 
   return out
 }
 
+function countActiveAttrMinsStrings(attrMins: readonly string[]): number {
+  let c = 0
+  for (const s of attrMins) {
+    const t = s.trim()
+    if (!t) continue
+    const n = Number(t)
+    if (Number.isFinite(n) && n > 0) c++
+  }
+  return c
+}
+
+/** Right-click: empty → 5 → 10 → 15 → 20 → empty (already ≥20 clears). */
+function nextAttrMinLadderOnRightClick(current: string): string {
+  const t = current.trim()
+  const n = Number(t)
+  if (!t || !Number.isFinite(n) || n <= 0) return '5'
+  if (n >= 20) return ''
+  for (const step of [5, 10, 15, 20] as const) {
+    if (step > n) return String(step)
+  }
+  return ''
+}
+
 /** Long help text on hover only — keeps the chrome minimal until you need it. */
 function HoverTip({
   tip,
@@ -283,6 +306,21 @@ export function App() {
   const [attrMins, setAttrMins] = useState<string[]>(() => Array.from({ length: 48 }, () => ''))
   /** Among attribute cells with a min &gt; 0, require at least this many to pass (empty = all must pass). */
   const [attrMinMatchAtLeast, setAttrMinMatchAtLeast] = useState('')
+  const activeAttrFilterCount = useMemo(() => countActiveAttrMinsStrings(attrMins), [attrMins])
+
+  useEffect(() => {
+    if (activeAttrFilterCount === 0) {
+      setAttrMinMatchAtLeast((prev) => (prev !== '' ? '' : prev))
+      return
+    }
+    setAttrMinMatchAtLeast((prev) => {
+      if (prev.trim() === '') return prev
+      const m = parseInt(prev, 10)
+      if (!Number.isFinite(m) || m <= 0) return prev
+      if (m > activeAttrFilterCount) return String(activeAttrFilterCount)
+      return prev
+    })
+  }, [attrMins, activeAttrFilterCount])
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
   const [sel, setSel] = useState<number | null>(null)
   const [opening, setOpening] = useState(false)
@@ -330,6 +368,23 @@ export function App() {
       /* ignore */
     }
   }, [])
+
+  const adjustMatchAtLeast = useCallback(
+    (delta: number) => {
+      if (activeAttrFilterCount === 0) return
+      setAttrMinMatchAtLeast((prev) => {
+        const cur = prev.trim() === '' ? null : parseInt(prev, 10)
+        if (delta > 0) {
+          if (cur == null || !Number.isFinite(cur)) return '1'
+          return String(Math.min(activeAttrFilterCount, cur + 1))
+        }
+        if (cur == null || !Number.isFinite(cur)) return ''
+        if (cur <= 1) return ''
+        return String(cur - 1)
+      })
+    },
+    [activeAttrFilterCount],
+  )
 
   const gridInclude = useMemo(() => gridFlagsForVisibleColumnIds(columnOrder), [columnOrder])
   const dblGuard = useRef<{ t: number; sid: number }>({ t: 0, sid: -1 })
@@ -1138,25 +1193,54 @@ export function App() {
             </div>
             <details className="rounded-md border border-zinc-800 bg-zinc-900/40">
               <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400">
-                Attribute minimums (1–20 on screen; enter <span className="font-mono text-zinc-300">21+</span> to match
-                uncapped CA18 / raw bytes — e.g. tackling 22 finds edited or very high-CA elites)
+                Attribute minimums (1–20 on screen; enter <span className="font-mono text-zinc-300">21+</span> for
+                uncapped CA18 / raw bytes — right-click a box: 5 → 10 → 15 → 20 → clear)
               </summary>
               <div className="space-y-1 border-t border-zinc-800 px-2 py-2">
-                <label className="block text-[11px] text-zinc-500">
-                  Match at least{' '}
-                  <span className="text-zinc-600">
-                    (of attributes with a min set; empty = every set min must pass — like tightening all vs. in-game
-                    “any N”)
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+                  <span className="text-zinc-400">Attributes with a min set</span>
+                  <span
+                    className="min-w-[2.25rem] rounded border border-zinc-600 bg-zinc-950 px-2 py-1 text-center font-mono text-emerald-200/90"
+                    title="Count of filter rows with a value &gt; 0"
+                  >
+                    {activeAttrFilterCount}
                   </span>
+                </div>
+                <p className="text-[10px] leading-snug text-zinc-600">
+                  <span className="text-zinc-500">Match ≥</span> empty = every active filter must pass. Otherwise at least
+                  that many filters must pass (looser).
+                </p>
+                <div className="mt-1 flex items-center gap-1">
+                  <span className="shrink-0 text-[11px] text-zinc-500">Match ≥</span>
+                  <button
+                    type="button"
+                    disabled={activeAttrFilterCount === 0}
+                    className="shrink-0 rounded border border-zinc-600 bg-zinc-900 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Decrease (or clear to “all must pass”)"
+                    onClick={() => adjustMatchAtLeast(-1)}
+                  >
+                    ▼
+                  </button>
                   <input
                     type="text"
                     inputMode="numeric"
-                    className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 font-mono text-zinc-200"
+                    className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-center font-mono text-sm text-zinc-200"
                     value={attrMinMatchAtLeast}
-                    onChange={(e) => setAttrMinMatchAtLeast(e.target.value)}
-                    placeholder="e.g. 6"
+                    onChange={(e) => setAttrMinMatchAtLeast(e.target.value.replace(/\D/g, ''))}
+                    placeholder="all"
+                    disabled={activeAttrFilterCount === 0}
+                    title="Type a number or use arrows (1 … count of active filters)"
                   />
-                </label>
+                  <button
+                    type="button"
+                    disabled={activeAttrFilterCount === 0}
+                    className="shrink-0 rounded border border-zinc-600 bg-zinc-900 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Increase (from empty starts at 1)"
+                    onClick={() => adjustMatchAtLeast(1)}
+                  >
+                    ▲
+                  </button>
+                </div>
               </div>
               <div className="max-h-48 overflow-y-auto border-t border-zinc-800 px-2 py-2 cm-scroll">
                 <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 text-[11px]">
@@ -1170,6 +1254,11 @@ export function App() {
                         className="w-12 rounded border border-zinc-700 bg-zinc-950 px-1 py-0.5 text-zinc-200"
                         value={attrMins[i]}
                         onChange={(e) => setAttrMinAt(i, e.target.value)}
+                        title="Right-click: cycle 5 → 10 → 15 → 20 → clear"
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          setAttrMinAt(i, nextAttrMinLadderOnRightClick(attrMins[i] ?? ''))
+                        }}
                       />
                     </label>
                   ))}
@@ -1223,10 +1312,11 @@ export function App() {
                     </p>
                     <p>
                       Choosing <span className="font-medium text-zinc-200">Assist</span> or{' '}
-                      <span className="font-medium text-zinc-200">Striker</span> here also fills{' '}
-                      <strong className="text-zinc-400">Attribute minimums</strong> with that recipe’s baseline floors (main
-                      path) so you can lower them or use <strong className="text-zinc-400">Match at least N</strong> without
-                      clearing every column. Sniffer still applies on top of those filters.
+                      <span className="font-medium text-zinc-200">Striker</span> fills{' '}
+                      <strong className="text-zinc-400">Attribute minimums</strong> with baseline floors. While any
+                      attribute min is set, the grid uses <strong className="text-zinc-400">only those bars</strong> (and
+                      optional <strong className="text-zinc-400">Match ≥</strong>); clear every attribute min to use the
+                      sniffer heuristic alone on rows.
                     </p>
                   </div>
                 }
@@ -1254,8 +1344,8 @@ export function App() {
                 <option value="striker_finisher">Striker finisher (elite ST/FC)</option>
               </select>
               <p className="mt-1 text-[10px] leading-snug text-zinc-600">
-                Assist / Striker pre-fills attribute minimums below (baseline floors); use “Match at least N” there to
-                relax without clearing every stat.
+                Assist / Striker fills attribute minimums; sniffer row filter runs only when <strong className="text-zinc-500">all</strong>{' '}
+                those mins are cleared. Right-click an attribute box: 5 → 10 → 15 → 20 → clear.
               </p>
             </div>
           </div>

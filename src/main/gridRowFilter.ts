@@ -46,6 +46,15 @@ export type GetRowsFilter = {
   engineSniffer?: EngineSnifferId
 }
 
+function hasActiveAttrMins(mins?: (number | null)[] | undefined): boolean {
+  if (!mins?.length) return false
+  for (let i = 0; i < mins.length; i++) {
+    const m = mins[i]
+    if (m != null && m > 0) return true
+  }
+  return false
+}
+
 function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string | null }): boolean {
   const q = (f.q ?? '').trim().toLowerCase()
   if (q && !r.name.toLowerCase().includes(q)) return false
@@ -123,7 +132,9 @@ function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string
 
   if (f.isRegenLikely === true && r.isRegenLikely !== true) return false
 
-  if (f.engineSniffer != null) {
+  // Engine sniffer and attribute bars use overlapping criteria. When any attribute min is active (including
+  // sniffer-filled presets), rely on attribute filters only — otherwise nobody passes (AND was far stricter than N-of-M).
+  if (f.engineSniffer != null && !hasActiveAttrMins(f.attrMins)) {
     if (!matchesEngineSniffer(r, f.engineSniffer)) return false
   }
 
