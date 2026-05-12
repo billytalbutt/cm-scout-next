@@ -99,18 +99,33 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
             <p className="font-semibold text-emerald-200/95">
               {data.winnerDetail.archetypeLabel} recipe · {data.effPercent.toFixed(1)}%
             </p>
-            {data.winnerDetail.brainMult && (
+            {data.winnerDetail.brainMult ? (
               <p className="mt-1 text-zinc-400">
-                Base {data.winnerDetail.basePercent.toFixed(1)}% × brain ({data.winnerDetail.brainMult.decisions}{' '}
-                Dec / 20 × {data.winnerDetail.brainMult.anticipation} Ant / 20 ={' '}
+                Base (recipe + engine) {data.winnerDetail.basePercent.toFixed(1)}% × brain (
+                {data.winnerDetail.brainMult.decisions} Dec / 20 × {data.winnerDetail.brainMult.anticipation} Ant / 20 ={' '}
                 <span className="font-mono text-zinc-200">{data.winnerDetail.brainMult.factor}</span>) →{' '}
-                <span className="font-mono text-zinc-100">{data.winnerDetail.finalPercent.toFixed(1)}%</span>
+                <span className="font-mono text-zinc-100">
+                  {data.winnerDetail.preConsistencyPercent.toFixed(1)}%
+                </span>
+              </p>
+            ) : (
+              <p className="mt-1 text-zinc-400">
+                Base (recipe + engine){' '}
+                <span className="font-mono text-zinc-100">{data.winnerDetail.preConsistencyPercent.toFixed(1)}%</span>
+              </p>
+            )}
+            {data.winnerDetail.consistencyReliability && (
+              <p className="mt-1 text-zinc-400">
+                Consistency (hidden){' '}
+                <span className="font-mono text-zinc-200">{data.winnerDetail.consistencyReliability.consistency}</span>
+                /20 → ×{data.winnerDetail.consistencyReliability.factor.toFixed(3)} (match-to-form heuristic) →{' '}
+                <span className="font-mono text-emerald-200/95">{data.effPercent!.toFixed(1)}%</span>
               </p>
             )}
             <p className="mt-1 text-[10px] text-zinc-500">
-              Numbers are the <strong className="text-zinc-400">same 1–20 scale as the profile</strong> (in-game for
-              technicals/mentals that use the CA18 display path; others clamped 1–20) — not raw signed bytes from the
-              save file.
+              Same <strong className="text-zinc-400">1–20 numbers as the profile</strong>. Engine rows = hiddens /
+              set-pieces / staff mentals vetted per role; injury proneness is inverted (high file value = worse).
+              Consistency multiplies the whole score — forum lore, not a decompiled formula.
             </p>
             <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-500">Primary (×5)</p>
             <ul className="mt-0.5 space-y-0.5 font-mono text-[10px] text-zinc-300">
@@ -134,6 +149,21 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
                   </li>
                 ))}
             </ul>
+            {data.winnerDetail.engineLines.length > 0 && (
+              <>
+                <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-500">Engine (weighted)</p>
+                <ul className="mt-0.5 space-y-0.5 font-mono text-[10px] text-zinc-300">
+                  {data.winnerDetail.engineLines.map((l) => (
+                    <li key={`e-${l.key}`}>
+                      {l.label}{' '}
+                      <span className="text-zinc-500">{l.raw}</span>
+                      {l.key === 'injury_proneness' ? <span className="text-zinc-600"> (inv.)</span> : null}
+                      {l.godTier ? <span className="text-amber-300"> ★20+</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             {data.runnerUp && (
               <p className="mt-2 border-t border-zinc-800 pt-2 text-zinc-400">
                 Runner-up: <span className="text-zinc-200">{data.runnerUp.archetypeLabel}</span> at{' '}
@@ -143,7 +173,8 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
             <p className="mt-2 border-t border-zinc-800 pt-2 text-[10px] text-zinc-500">
               Only archetypes that match <strong className="text-zinc-400">natural positions</strong> (&gt;14, same idea
               as CM Scout) are scored. DC / DMC / MC / AMC apply the <strong className="text-zinc-400">brain</strong>{' '}
-              multiplier (Decisions × Anticipation) on the recipe base.
+              multiplier on the recipe+engine base, then <strong className="text-zinc-400">consistency</strong> scales
+              the final %.
               {isDemo ? ' Demo row uses the built-in Tsigalko fixture.' : ''}
             </p>
           </>

@@ -1695,18 +1695,34 @@ export function App() {
                             <p className="font-semibold text-zinc-300">Why this Eff %</p>
                             <p className="mt-1 text-zinc-500">
                               Winning recipe <span className="text-emerald-200/90">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
-                              — primary ×5, secondary ×1.5; values match <strong className="text-zinc-400">profile 1–20</strong>{' '}
-                              (in-game CA18 path + clamped others). ★ = on-screen 20 (1.25×). DC / DMC / MC / AMC also
-                              multiply by Decisions × Anticipation.
+                              — primary ×5, secondary ×1.5, engine rows (hiddens / set-pieces / staff mentals) on lighter
+                              weights; all values match <strong className="text-zinc-400">profile 1–20</strong>. ★ =
+                              on-screen 20 (1.25×). Then <strong className="text-zinc-400">consistency</strong> multiplies
+                              the score (forum-style “realizes their level” — not from a decompiled EXE).
                             </p>
-                            {profile.effWinnerDetail.brainMult && (
+                            {profile.effWinnerDetail.brainMult ? (
                               <p className="mt-1 text-zinc-500">
-                                Brain step: base {profile.effWinnerDetail.basePercent.toFixed(1)}% × (
+                                Brain: base {profile.effWinnerDetail.basePercent.toFixed(1)}% × (
                                 {profile.effWinnerDetail.brainMult.decisions}/20 ×{' '}
-                                {profile.effWinnerDetail.brainMult.anticipation}/20) ={' '}
+                                {profile.effWinnerDetail.brainMult.anticipation}/20) →{' '}
                                 <span className="font-mono text-zinc-200">
-                                  {profile.effWinnerDetail.finalPercent.toFixed(1)}%
+                                  {profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}%
                                 </span>
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-zinc-500">
+                                Base (recipe + engine){' '}
+                                <span className="font-mono text-zinc-200">
+                                  {profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}%
+                                </span>
+                              </p>
+                            )}
+                            {profile.effWinnerDetail.consistencyReliability && profile.effPercent != null && (
+                              <p className="mt-1 text-zinc-500">
+                                Consistency {profile.effWinnerDetail.consistencyReliability.consistency.toFixed(0)}/20 →
+                                ×{profile.effWinnerDetail.consistencyReliability.factor.toFixed(3)} →{' '}
+                                <span className="font-mono text-emerald-200/90">{profile.effPercent.toFixed(1)}%</span>{' '}
+                                final
                               </p>
                             )}
                             <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
@@ -1737,6 +1753,22 @@ export function App() {
                                 </ul>
                               </div>
                             </div>
+                            {profile.effWinnerDetail.engineLines.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">Engine</p>
+                                <ul className="mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-zinc-300">
+                                  {profile.effWinnerDetail.engineLines.map((l) => (
+                                    <li key={`eng-${l.key}`}>
+                                      {l.label} {l.raw}
+                                      {l.key === 'injury_proneness' ? (
+                                        <span className="text-zinc-600"> inv</span>
+                                      ) : null}
+                                      {l.godTier ? <span className="text-amber-300/90"> ★</span> : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                             {profile.effRunnerUp && (
                               <p className="mt-2 border-t border-zinc-800/80 pt-2 text-zinc-500">
                                 Runner-up:{' '}

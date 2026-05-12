@@ -412,7 +412,7 @@ export function buildProfilePayload(
     eliteEngineBadgeDetail: row.eliteEngineBadgeDetail,
     effRatingDisclaimer: effFull.relaxedNaturalGate
       ? undefined
-      : 'Eff % uses only each archetype’s recipe stats on the same 1–20 scale as the profile (in-game CA18 path + clamped others). CM Scout % uses the full WeightsSet on all 48 attrs — the two numbers measure different things.',
+      : 'Eff % = recipe + vetted engine hiddens (profile 1–20), then brain mult where applicable, then a consistency reliability factor (community heuristic, not decompiled). CM Scout % uses the full WeightsSet — different measure.',
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
     transfer: {

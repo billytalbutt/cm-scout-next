@@ -1,13 +1,26 @@
 /**
- * Position-archetype “effectiveness” % (Eff %): weighted mix of **profile-scale** attributes (1–20
- * in-game for CA18, clamped for the rest), best archetype wins. Inputs come from
- * `effectivenessAttrGetter` so breakdown numbers match the profile, not raw `player.dat` bytes.
+ * Position-archetype “effectiveness” % (Eff %): weighted **recipe** (primary / secondary) plus a small
+ * **engine** block of hiddens / set-piece / staff mentals that scouting lore ties to match output.
+ * All inputs use `effectivenessAttrGetter` (same 1–20 scale as the profile).
  *
- * **Natural gate:** Only archetypes the player is natural for (>14) are scored. If none match,
- * Eff % is **Unsure** — use CM Scout %.
+ * **Consistency (hidden):** CM0102 does not publish exact formulas; community discussion treats it as
+ * “how reliably the player reaches their level” (e.g. champman0102.net hidden-attributes threads). We
+ * model that as a **separate multiplier** on the winning archetype score (after brain, if any), so low
+ * consistency clearly pulls Eff % down without mixing raw file bytes into the breakdown.
+ *
+ * **Natural gate:** Only archetypes natural for the player (>14) are scored; else **Unsure**.
+ *
+ * @see https://champman0102.net/viewtopic.php?t=3350 — hidden attributes (community reference)
  */
 
 export type EffectivenessBrainKind = 'none' | 'defense' | 'assist'
+
+export type EffectivenessEngineExtra = {
+  key: string
+  weight: number
+  /** Lower raw = better (e.g. injury proneness) — still uses profile-clamped 1–20, then inverted for scoring */
+  invert?: boolean
+}
 
 export interface EffectivenessArchetype {
   id: string
@@ -15,9 +28,11 @@ export interface EffectivenessArchetype {
   primary: readonly string[]
   secondary: readonly string[]
   brain: EffectivenessBrainKind
+  /** Hiddens / staff / set-pieces — vetted per role; weights are modest vs recipe */
+  engineExtras?: readonly EffectivenessEngineExtra[]
 }
 
-/** Primary w=5, secondary w=1.5; 1.25× when displayed value ≥ 20; brain mult on DC/DMC/MC/AMC. */
+/** Primary ×5, secondary ×1.5, engine ×2 default; 1.25× when value ≥ 20; brain mult on DC/DMC/MC/AMC. */
 export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
   {
     id: 'gk',
@@ -25,6 +40,13 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
     primary: ['reflexes', 'agility'],
     secondary: ['handling', 'positioning', 'bravery'],
     brain: 'none',
+    engineExtras: [
+      { key: 'important_matches', weight: 2 },
+      { key: 'natural_fitness', weight: 1.5 },
+      { key: 'determination', weight: 2 },
+      { key: 'professionalism', weight: 2 },
+      { key: 'temperament', weight: 1 },
+    ],
   },
   {
     id: 'dc',
@@ -32,6 +54,14 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
     primary: ['positioning', 'tackling', 'pace'],
     secondary: ['strength', 'heading', 'jumping'],
     brain: 'defense',
+    engineExtras: [
+      { key: 'teamwork', weight: 1.5 },
+      { key: 'determination', weight: 2 },
+      { key: 'professionalism', weight: 1.5 },
+      { key: 'important_matches', weight: 1.5 },
+      { key: 'natural_fitness', weight: 1.5 },
+      { key: 'injury_proneness', weight: 1.5, invert: true },
+    ],
   },
   {
     id: 'wb',
@@ -39,6 +69,13 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
     primary: ['pace', 'acceleration', 'tackling'],
     secondary: ['positioning', 'stamina', 'crossing'],
     brain: 'none',
+    engineExtras: [
+      { key: 'natural_fitness', weight: 2 },
+      { key: 'determination', weight: 2 },
+      { key: 'professionalism', weight: 1.5 },
+      { key: 'important_matches', weight: 1.5 },
+      { key: 'injury_proneness', weight: 1, invert: true },
+    ],
   },
   {
     id: 'dmc',
@@ -46,6 +83,14 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
     primary: ['positioning', 'tackling', 'stamina'],
     secondary: ['anticipation', 'decisions', 'strength'],
     brain: 'defense',
+    engineExtras: [
+      { key: 'teamwork', weight: 2 },
+      { key: 'determination', weight: 2 },
+      { key: 'professionalism', weight: 1.5 },
+      { key: 'aggression', weight: 1 },
+      { key: 'important_matches', weight: 1.5 },
+      { key: 'injury_proneness', weight: 1.5, invert: true },
+    ],
   },
   {
     id: 'mc',
@@ -53,6 +98,15 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
     primary: ['passing', 'creativity', 'stamina'],
     secondary: ['off_the_ball', 'work_rate', 'technique'],
     brain: 'assist',
+    engineExtras: [
+      { key: 'corners', weight: 2 },
+      { key: 'important_matches', weight: 2 },
+      { key: 'teamwork', weight: 2 },
+      { key: 'influence', weight: 1 },
+      { key: 'determination', weight: 2 },
+      { key: 'professionalism', weight: 1.5 },
+      { key: 'injury_proneness', weight: 1, invert: true },
+    ],
   },
   {
     id: 'amw',
@@ -60,6 +114,15 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
     primary: ['pace', 'acceleration', 'dribbling'],
     secondary: ['crossing', 'off_the_ball', 'flair'],
     brain: 'none',
+    engineExtras: [
+      { key: 'corners', weight: 2 },
+      { key: 'important_matches', weight: 2 },
+      { key: 'determination', weight: 2 },
+      { key: 'professionalism', weight: 1.5 },
+      { key: 'natural_fitness', weight: 1.5 },
+      { key: 'technique', weight: 1.5 },
+      { key: 'injury_proneness', weight: 1, invert: true },
+    ],
   },
   {
     id: 'amc',
@@ -67,6 +130,15 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
     primary: ['creativity', 'off_the_ball', 'passing'],
     secondary: ['decisions', 'anticipation', 'finishing'],
     brain: 'assist',
+    engineExtras: [
+      { key: 'corners', weight: 2 },
+      { key: 'important_matches', weight: 2 },
+      { key: 'teamwork', weight: 2 },
+      { key: 'influence', weight: 1 },
+      { key: 'determination', weight: 2 },
+      { key: 'professionalism', weight: 1.5 },
+      { key: 'injury_proneness', weight: 1, invert: true },
+    ],
   },
   {
     id: 'st',
@@ -74,12 +146,29 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
     primary: ['pace', 'acceleration', 'finishing', 'off_the_ball'],
     secondary: ['agility', 'jumping', 'strength'],
     brain: 'none',
+    engineExtras: [
+      { key: 'important_matches', weight: 2 },
+      { key: 'teamwork', weight: 2 },
+      { key: 'determination', weight: 2 },
+      { key: 'professionalism', weight: 1.5 },
+      { key: 'technique', weight: 2 },
+      { key: 'injury_proneness', weight: 2, invert: true },
+    ],
   },
 ] as const
 
 const W_PRIMARY = 5
 const W_SECONDARY = 1.5
 const GOD_MULT = 1.25
+
+/**
+ * Heuristic “realizes their level” factor from consistency (1–20 display). Not from decompiled EXE;
+ * tuned so C=1 still leaves ~73% of pre-consistency Eff, C=20 leaves 100%.
+ */
+export function consistencyReliabilityFactor(consistencyDisplay: number): number {
+  const c = Math.max(1, Math.min(20, consistencyDisplay))
+  return 0.72 + 0.014 * c
+}
 
 export function effAttrLabel(key: string): string {
   return key
@@ -98,7 +187,7 @@ function valPart(raw: number): number {
 export interface EffStatLine {
   key: string
   label: string
-  slot: 'primary' | 'secondary'
+  slot: 'primary' | 'secondary' | 'engine'
   weight: number
   raw: number
   contribution: number
@@ -108,10 +197,16 @@ export interface EffStatLine {
 export interface EffectivenessWinnerDetail {
   archetypeId: string
   archetypeLabel: string
+  /** Recipe + engine, % of max, before brain mult */
   basePercent: number
-  finalPercent: number
+  /** After brain (if any), before consistency reliability */
+  preConsistencyPercent: number
   brainMult?: { decisions: number; anticipation: number; factor: number }
+  /** Final % after consistency multiplier */
+  finalPercent: number
+  consistencyReliability?: { consistency: number; factor: number }
   lines: EffStatLine[]
+  engineLines: EffStatLine[]
 }
 
 function round1(n: number): number {
@@ -123,6 +218,7 @@ function accumulateArchetype(
   get: (name: string) => number,
 ): { rawFinal: number; detail: EffectivenessWinnerDetail } {
   const lines: EffStatLine[] = []
+  const engineLines: EffStatLine[] = []
   let sum = 0
   let max = 0
   for (const k of a.primary) {
@@ -157,26 +253,50 @@ function accumulateArchetype(
       godTier: raw >= 20,
     })
   }
+  for (const ex of a.engineExtras ?? []) {
+    const sourceRaw = get(ex.key)
+    let effectiveRaw = sourceRaw
+    if (ex.invert) {
+      const c0 = Math.max(1, Math.min(20, sourceRaw))
+      effectiveRaw = 21 - c0
+    }
+    const w = ex.weight
+    const vp = valPart(effectiveRaw)
+    const c = w * vp
+    sum += c
+    max += w * GOD_MULT
+    engineLines.push({
+      key: ex.key,
+      label: effAttrLabel(ex.key),
+      slot: 'engine',
+      weight: w,
+      raw: sourceRaw,
+      contribution: c,
+      godTier: effectiveRaw >= 20,
+    })
+  }
   const basePct = max <= 0 ? 0 : (100 * sum) / max
   let brainMult: EffectivenessWinnerDetail['brainMult']
-  let finalPct = basePct
+  let afterBrain = basePct
   if (a.brain === 'defense' || a.brain === 'assist') {
     const decisions = Math.max(0, Math.min(20, get('decisions')))
     const anticipation = Math.max(0, Math.min(20, get('anticipation')))
     const factor = (decisions / 20) * (anticipation / 20)
     brainMult = { decisions, anticipation, factor: Math.round(factor * 10000) / 10000 }
-    finalPct = basePct * factor
+    afterBrain = basePct * factor
   }
-  finalPct = Math.min(100, finalPct)
+  afterBrain = Math.min(100, afterBrain)
   const detail: EffectivenessWinnerDetail = {
     archetypeId: a.id,
     archetypeLabel: a.label,
     basePercent: round1(basePct),
-    finalPercent: round1(finalPct),
+    preConsistencyPercent: round1(afterBrain),
+    finalPercent: round1(afterBrain),
     brainMult,
     lines,
+    engineLines,
   }
-  return { rawFinal: finalPct, detail }
+  return { rawFinal: afterBrain, detail }
 }
 
 export type EffectivenessRunnerUp = {
@@ -228,21 +348,33 @@ export function computeEffectivenessFull(
   })
   const best = scored[0]!
   const second = scored[1]
+
+  const preC = best.rawFinal
+  const c = Math.max(1, Math.min(20, getAttr('consistency')))
+  const rel = consistencyReliabilityFactor(c)
+  const effPercent = preC < 0 ? 0 : round1(Math.min(100, preC * rel))
+
   const runnerUp: EffectivenessRunnerUp | null =
     second && second.a.id !== best.a.id
       ? {
           archetypeId: second.a.id,
           archetypeLabel: second.a.label,
-          score: round1(second.rawFinal),
+          score: round1(second.rawFinal * rel),
         }
       : null
 
-  const effPercent = best.rawFinal < 0 ? 0 : round1(best.rawFinal)
+  const winnerDetail: EffectivenessWinnerDetail = {
+    ...best.detail,
+    preConsistencyPercent: round1(preC),
+    consistencyReliability: { consistency: round1(c), factor: Math.round(rel * 1000) / 1000 },
+    finalPercent: effPercent,
+  }
+
   return {
     effPercent,
     effArchetype: best.a.label,
     effArchetypeId: best.a.id,
-    winnerDetail: { ...best.detail, finalPercent: effPercent },
+    winnerDetail,
     runnerUp,
     relaxedNaturalGate: false,
   }

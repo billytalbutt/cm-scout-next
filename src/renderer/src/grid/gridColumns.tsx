@@ -95,7 +95,7 @@ function defFor(
           header: () => (
             <span
               className="cursor-help border-b border-dotted border-zinc-500"
-              title="Eff %: recipe only, same 1–20 numbers as profile; naturals (&gt;14) compete. Hover for breakdown. Unsure = no recipe match. Not CM Scout %."
+              title="Eff %: recipe + engine hiddens (profile scale), brain mult, then consistency factor. Naturals &gt;14. Unsure = no recipe. Not CM Scout %."
             >
               {lab}
             </span>
