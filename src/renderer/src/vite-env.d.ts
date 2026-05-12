@@ -86,9 +86,13 @@ export interface ProfilePayload {
   secondNation: string
   nationDisplay: string
   club: string
+  /** Whole years on loaded game date when derivable (see `buildUiRows`). */
+  age: number | null
   dobIso: string | null
   euPassport: boolean
   positionLabel: string
+  /** From `player.dat` — useful for scouting profile vs media perception. */
+  reputation: { home: number; current: number; world: number }
   ca: number
   pa: number
   /** Grid column: max % among “suitable” roles (Intrinsic BP rule) */
@@ -97,6 +101,15 @@ export interface ProfilePayload {
   cmScoutRolePercents?: number[]
   /** Same order as cmScoutRolePercents — role counts toward BP max */
   cmScoutRoleSuitable?: boolean[]
+  /** Same scale as grid “Value” (`staff.dat`). */
+  transfer: {
+    value: number
+    listedByClub: boolean
+    listedByRequest: boolean
+    listedForLoan: boolean
+    futureTransferToClubId: number | null
+    futureTransferToClubName: string | null
+  }
   attrColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
   feetMorale: {
     left: {

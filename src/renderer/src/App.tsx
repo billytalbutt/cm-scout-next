@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition, type ReactNode } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -54,6 +54,47 @@ function fmtMoney(n: number) {
   return String(n)
 }
 
+/** Long help text on hover only — keeps the chrome minimal until you need it. */
+function HoverTip({
+  tip,
+  children,
+  tipClassName = '',
+}: {
+  tip: ReactNode
+  children: ReactNode
+  tipClassName?: string
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span
+      className="relative inline-flex max-w-full items-center"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      {children}
+      {open && (
+        <span
+          role="tooltip"
+          className={`pointer-events-none absolute left-0 top-full z-[200] mt-1 block max-w-[min(22rem,calc(100vw-2rem)))] rounded-lg border border-zinc-600 bg-zinc-900/98 p-2.5 text-[11px] leading-snug text-zinc-200 shadow-2xl shadow-black/50 ${tipClassName}`}
+        >
+          {tip}
+        </span>
+      )}
+    </span>
+  )
+}
+
+function InfoDot() {
+  return (
+    <span
+      className="ml-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-zinc-600 bg-zinc-800/80 text-[9px] font-semibold text-zinc-400"
+      aria-hidden
+    >
+      ?
+    </span>
+  )
+}
+
 function attrColor(v: number, invert = false): string {
   const x = invert ? 21 - v : v
   if (x >= 18) return 'text-emerald-300 font-semibold'
@@ -80,7 +121,7 @@ function ProfileEngineAttrsControl({
   return (
     <label
       className="flex max-w-full cursor-pointer select-none items-center gap-2 rounded-md border border-zinc-600/90 bg-zinc-950/80 px-2.5 py-2 text-[11px] leading-snug text-zinc-100 shadow-sm shadow-black/20"
-      title="When on, a bracketed number appears only if the uncapped engine-style value differs from the in-game CM number (mostly CA18 attributes)."
+      title="Hover the control for a longer explanation."
     >
       <input
         type="checkbox"
@@ -608,23 +649,38 @@ export function App() {
             </span>
           </div>
           <div className="flex shrink-0 flex-col gap-2 border-b border-zinc-800/60 bg-zinc-900/30 px-5 py-2 sm:flex-row sm:items-center sm:justify-between">
-            <ProfileEngineAttrsControl checked={showEngineAttrs} onChange={persistShowEngineAttrs} />
-            <p className="max-w-2xl text-[10px] leading-snug text-zinc-500">
-              Affects the <span className="text-zinc-400">profile</span> attribute lists only: when on, bracketed
-              values appear if the uncapped engine-style number differs from the in-game display (mostly CA18
-              conversions).
-            </p>
+            <HoverTip
+              tip={
+                <>
+                  Affects the <span className="text-zinc-300">profile</span> attribute lists only: when on, bracketed
+                  values appear if the uncapped engine-style number differs from the in-game display (mostly CA18
+                  conversions).
+                </>
+              }
+            >
+              <span className="inline-flex cursor-default">
+                <ProfileEngineAttrsControl checked={showEngineAttrs} onChange={persistShowEngineAttrs} />
+              </span>
+            </HoverTip>
           </div>
         </>
       )}
 
       <div className="flex min-h-0 flex-1">
         <aside className="cm-scroll relative z-20 w-[22rem] shrink-0 overflow-y-auto border-r border-zinc-800/80 bg-zinc-950/50 p-4">
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Filters</h2>
-          <p className="mb-3 text-[11px] leading-snug text-zinc-500">
-            Checkboxes and numbers apply immediately. Name, nation, and club text commit after a short pause (~95&nbsp;ms)
-            so the grid is not recomputed on every keystroke; a subtle overlay shows while the list updates.
-          </p>
+          <HoverTip
+            tip={
+              <>
+                Checkboxes and numbers apply immediately. Name, nation, and club text commit after a short pause (~95
+                ms) so the grid is not recomputed on every keystroke; a subtle overlay shows while the list updates.
+              </>
+            }
+          >
+            <h2 className="mb-3 flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Filters
+              <InfoDot />
+            </h2>
+          </HoverTip>
           <div className="space-y-3 text-sm">
             <DebouncedTextFilters
               key={loadInfo?.path ?? 'pre'}
@@ -892,38 +948,71 @@ export function App() {
                 </div>
               </div>
             )}
-            <p className="mb-3 rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-2 text-xs leading-relaxed text-zinc-400">
-              <span className="font-medium text-zinc-300">CM Scout %</span> uses the same weights file as CM Scout
-              Intrinsic (<code className="text-emerald-400/80">WeightsSet_CMScout.txt</code>) and “best position” logic
-              (max among roles the player fits). Elite players in a strong database often land in the 70s–90s.{' '}
-              <span className="font-medium text-zinc-300">Age</span> uses staff DOB (TCM date) vs the loaded game date when
-              available. <span className="font-medium text-zinc-300">EU</span> follows nation.dat{' '}
-              <code className="text-zinc-500">GroupMembership == 2</code> (community loader rule).{' '}
-              <span className="font-medium text-zinc-300">Profile:</span> single-click, double-click,{' '}
-              <kbd className="rounded bg-zinc-800 px-1 font-mono text-zinc-300">Enter</kbd>, or Open profile.
-              {!loadInfo && (
-                <>
-                  {' '}
-                  Load <code className="text-emerald-400/90">index.dat</code> for real ratings; demo row is illustrative.
-                </>
-              )}
-            </p>
+            <div className="mb-3">
+              <HoverTip
+                tip={
+                  <div className="space-y-2 text-zinc-300">
+                    <p>
+                      <span className="font-medium text-white">CM Scout %</span> uses the same weights file as CM Scout
+                      Intrinsic (<code className="text-emerald-400/80">WeightsSet_CMScout.txt</code>) and “best position”
+                      logic (max among roles the player fits). Elite players in a strong database often land in the
+                      70s–90s.
+                    </p>
+                    <p>
+                      <span className="font-medium text-white">Age</span> uses staff DOB (TCM date) vs the loaded game
+                      date when available. <span className="font-medium text-white">EU</span> follows nation.dat{' '}
+                      <code className="text-zinc-400">GroupMembership == 2</code> (community loader rule).
+                    </p>
+                    <p>
+                      <span className="font-medium text-white">Profile:</span> single-click, double-click,{' '}
+                      <kbd className="rounded bg-zinc-800 px-1 font-mono text-zinc-300">Enter</kbd>, or Open profile.
+                    </p>
+                    {!loadInfo && (
+                      <p>
+                        Load <code className="text-emerald-400/90">index.dat</code> for real ratings; demo row is
+                        illustrative.
+                      </p>
+                    )}
+                  </div>
+                }
+              >
+                <span className="inline-flex cursor-default items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-400">
+                  <span className="font-medium text-zinc-300">Scouting &amp; profile</span>
+                  <InfoDot />
+                </span>
+              </HoverTip>
+            </div>
             {loadInfo && rows.length === 0 && (
               <p className="mb-3 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-300">
                 No players match the current filters. Clear text fields and uncheck boxes to see the full squad again.
               </p>
             )}
             {loadInfo && gridMeta && rows.length > 0 && (
-              <p className="mb-2 text-[11px] text-zinc-500">
-                Showing <span className="font-mono text-zinc-300">{rows.length.toLocaleString()}</span> loaded rows
-                (total matching <span className="font-mono text-zinc-300">{gridMeta.total.toLocaleString()}</span>
-                ). Fetched in pages over IPC so large saves stay reliable; sorts stay client-side on the full set. The
-                table virtualizes rows.
-                <span className="text-zinc-600">Right-click column headers to add or remove columns.</span>{' '}
-                <span className="text-zinc-600">
-                  “Is regen” is a same-save heuristic (PA + primary nation + natural positions, young vs older); not
-                  guaranteed.
+              <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500">
+                <span>
+                  Showing <span className="font-mono text-zinc-300">{rows.length.toLocaleString()}</span> loaded rows
+                  {' · '}
+                  total matching <span className="font-mono text-zinc-300">{gridMeta.total.toLocaleString()}</span>
                 </span>
+                <HoverTip
+                  tip={
+                    <div className="space-y-2">
+                      <p>
+                        Fetched in pages over IPC so large saves stay reliable; sorts stay client-side on the full set.
+                        The table virtualizes rows.
+                      </p>
+                      <p className="text-zinc-400">
+                        Right-click column headers to add or remove columns. “Is regen” is a same-save heuristic (PA +
+                        primary nation + natural positions, young vs older); not guaranteed.
+                      </p>
+                    </div>
+                  }
+                >
+                  <span className="inline-flex cursor-default items-center gap-0.5 rounded border border-zinc-700/70 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                    Grid details
+                    <InfoDot />
+                  </span>
+                </HoverTip>
               </p>
             )}
             {sel != null && (
@@ -1052,9 +1141,19 @@ export function App() {
                     )}
                   </p>
                 )}
-                {profile.dobIso && (
+                {(profile.age != null || profile.dobIso) && (
                   <p className="mt-1 text-xs text-zinc-500">
-                    DOB <span className="font-mono text-zinc-400">{profile.dobIso}</span>
+                    {profile.age != null && (
+                      <>
+                        Age <span className="font-mono text-zinc-300">{profile.age}</span>
+                      </>
+                    )}
+                    {profile.age != null && profile.dobIso && <span className="text-zinc-600"> · </span>}
+                    {profile.dobIso && (
+                      <>
+                        DOB <span className="font-mono text-zinc-400">{profile.dobIso}</span>
+                      </>
+                    )}
                   </p>
                 )}
                 <p className="mt-2 text-sm">
@@ -1064,16 +1163,68 @@ export function App() {
                   <span className="text-zinc-500">PA</span>{' '}
                   <span className="font-mono text-emerald-300">{profile.pa}</span>
                 </p>
+                <p className="mt-1.5 text-[11px] text-zinc-400">
+                  <span className="text-zinc-500">Rep</span>{' '}
+                  <span className="text-zinc-600">home</span>{' '}
+                  <span className="font-mono text-zinc-200">{profile.reputation.home.toLocaleString()}</span>
+                  <span className="mx-1.5 text-zinc-700">·</span>
+                  <span className="text-zinc-600">current</span>{' '}
+                  <span className="font-mono text-zinc-200">{profile.reputation.current.toLocaleString()}</span>
+                  <span className="mx-1.5 text-zinc-700">·</span>
+                  <span className="text-zinc-600">world</span>{' '}
+                  <span className="font-mono text-zinc-200">{profile.reputation.world.toLocaleString()}</span>
+                </p>
+                <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
+                  <h3 className="mb-2 font-semibold text-zinc-300">Transfer</h3>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-zinc-400">
+                    <span>Value</span>
+                    <span className="text-right font-mono text-zinc-200">{fmtMoney(profile.transfer.value)}</span>
+                    <span>Listed by club</span>
+                    <span className={`text-right ${profile.transfer.listedByClub ? 'text-emerald-300' : 'text-zinc-500'}`}>
+                      {profile.transfer.listedByClub ? 'Yes' : 'No'}
+                    </span>
+                    <span>Listed by request</span>
+                    <span
+                      className={`text-right ${profile.transfer.listedByRequest ? 'text-emerald-300' : 'text-zinc-500'}`}
+                    >
+                      {profile.transfer.listedByRequest ? 'Yes' : 'No'}
+                    </span>
+                    <span>Listed for loan</span>
+                    <span className={`text-right ${profile.transfer.listedForLoan ? 'text-emerald-300' : 'text-zinc-500'}`}>
+                      {profile.transfer.listedForLoan ? 'Yes' : 'No'}
+                    </span>
+                    <span>Future transfer arranged</span>
+                    <span className="text-right text-zinc-200">
+                      {profile.transfer.futureTransferToClubName ?? '—'}
+                    </span>
+                  </div>
+                </div>
                 {profile.cmScoutRolePercents && profile.cmScoutRolePercents.length === 7 && (
                   <div className="mt-3 rounded-lg border border-zinc-800/90 bg-zinc-900/40 p-2.5">
-                    <h3 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                      CM Scout % by role
-                    </h3>
-                    <p className="mt-1 text-[9px] leading-snug text-zinc-600">
-                      Same formula as CM Scout Intrinsic: each column is a weighted blend of normalized attributes for
-                      that weight set (injury/dirtiness inverted). Shown for all seven roles; grid “CM Scout %” uses
-                      the best among roles the player is considered suitable for (highlighted).
-                    </p>
+                    <HoverTip
+                      tip={
+                        <div className="space-y-2">
+                          <p>
+                            Same formula as CM Scout Intrinsic: each column is a weighted blend of normalized attributes
+                            for that weight set (injury/dirtiness inverted). Shown for all seven roles; grid “CM Scout %”
+                            uses the best among roles the player is considered suitable for (highlighted).
+                          </p>
+                          {profile.cmScoutRatingBp != null &&
+                            profile.cmScoutRolePercents &&
+                            Math.max(...profile.cmScoutRolePercents) > profile.cmScoutRatingBp + 0.05 && (
+                              <p className="text-amber-200/90">
+                                The amber ring marks the highest value among all seven columns. Grid BP can be lower if
+                                that column is not a “suitable” role for this player.
+                              </p>
+                            )}
+                        </div>
+                      }
+                    >
+                      <h3 className="flex cursor-default items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                        CM Scout % by role
+                        <InfoDot />
+                      </h3>
+                    </HoverTip>
                     {profile.cmScoutRatingBp != null && (
                       <p className="mt-1 font-mono text-[11px] text-emerald-300/95">
                         BP (grid){' '}
@@ -1083,9 +1234,8 @@ export function App() {
                     {profile.cmScoutRatingBp != null &&
                       profile.cmScoutRolePercents &&
                       Math.max(...profile.cmScoutRolePercents) > profile.cmScoutRatingBp + 0.05 && (
-                        <p className="mt-1 text-[9px] leading-snug text-amber-200/85">
-                          The amber ring marks the highest value among all seven columns. Grid BP can be lower if that
-                          column is not a “suitable” role for this player.
+                        <p className="mt-1 text-[9px] text-zinc-500">
+                          Amber ring = highest role column (hover heading for why BP can differ).
                         </p>
                       )}
                     <div className="mt-2 grid grid-cols-7 gap-1 text-center">
@@ -1155,39 +1305,62 @@ export function App() {
               )}
 
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-                <h3 className="mb-1 font-semibold text-zinc-300">Season &amp; career record</h3>
-                <p className="mb-2 text-[10px] leading-snug text-zinc-500">
-                  Loaded from <code className="text-emerald-400/80">staff_history.dat</code> (one row per club per
-                  season-year tag in the save; league and cups are <span className="text-zinc-400">aggregated</span>{' '}
-                  into that row). Rows whose <code className="text-zinc-600">year</code> matches the highlighted season
-                  are tinted. Assists and average rating are not in this block (
-                  <span className="text-zinc-600">—</span>).
-                </p>
-                {profile.seasonStats.saveCalendarYear != null && (
-                  <p className="mb-1 text-[10px] text-zinc-500">
-                    Save calendar year{' '}
-                    <span className="font-mono text-zinc-300">{profile.seasonStats.saveCalendarYear}</span>
-                    {profile.seasonStats.boundaryDayOfYearUsed != null && (
-                      <>
-                        {' '}
-                        · season boundary ≈ day-of-year{' '}
-                        <span className="font-mono text-zinc-300">{profile.seasonStats.boundaryDayOfYearUsed}</span>
-                        <span className="text-zinc-600">
-                          {' '}
-                          (average <code className="text-zinc-600">SeasonUpdateDay</code> from nation.dat when present;
-                          otherwise 1 July)
-                        </span>
-                      </>
-                    )}
-                  </p>
-                )}
-                {profile.seasonStats.currentYearResolution === 'calendar_fallback' && (
-                  <p className="mb-2 text-[10px] text-amber-200/85">
-                    No <code className="text-amber-200/70">staff_history</code> rows matched the season-tagged year;
-                    totals use the save&apos;s calendar year instead. If your DB uses a different convention, tell us
-                    what you see in-game.
-                  </p>
-                )}
+                <HoverTip
+                  tip={
+                    <div className="space-y-2 text-zinc-300">
+                      <p>
+                        Loaded from <code className="text-emerald-400/80">staff_history.dat</code> (one row per club per
+                        season-year tag in the save; league and cups are aggregated into that row). Rows whose{' '}
+                        <code className="text-zinc-400">year</code> matches the highlighted season are tinted. Assists and
+                        average rating are not in this block (shown as —).
+                      </p>
+                      {profile.seasonStats.saveCalendarYear != null && (
+                        <p className="text-[11px]">
+                          Save calendar year{' '}
+                          <span className="font-mono text-zinc-100">{profile.seasonStats.saveCalendarYear}</span>
+                          {profile.seasonStats.boundaryDayOfYearUsed != null && (
+                            <>
+                              {' '}
+                              · season boundary ≈ day-of-year{' '}
+                              <span className="font-mono text-zinc-100">
+                                {profile.seasonStats.boundaryDayOfYearUsed}
+                              </span>
+                              <span className="text-zinc-500">
+                                {' '}
+                                (average <code className="text-zinc-500">SeasonUpdateDay</code> from nation.dat when
+                                present; otherwise 1 July)
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      )}
+                      {profile.seasonStats.currentYearResolution === 'calendar_fallback' && (
+                        <p className="text-amber-200/90">
+                          No <code className="text-amber-200/70">staff_history</code> rows matched the season-tagged
+                          year; totals use the save&apos;s calendar year instead. If your DB uses a different convention,
+                          tell us what you see in-game.
+                        </p>
+                      )}
+                      {profile.seasonStats.inferredDomesticLeague && (
+                        <p>
+                          Primary league from <code className="text-zinc-500">club.dat</code> division →{' '}
+                          <code className="text-zinc-500">club_comp.dat</code>:{' '}
+                          <span className="font-medium text-zinc-100">
+                            {profile.seasonStats.inferredDomesticLeague.name}
+                          </span>{' '}
+                          <span className="text-zinc-500">
+                            (id {profile.seasonStats.inferredDomesticLeague.competitionId})
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  }
+                >
+                  <h3 className="mb-2 flex cursor-default items-center font-semibold text-zinc-300">
+                    Season &amp; career record
+                    <InfoDot />
+                  </h3>
+                </HoverTip>
                 <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-400">
                   <span>
                     Career:{' '}
@@ -1210,14 +1383,6 @@ export function App() {
                     </span>
                   )}
                 </div>
-                {profile.seasonStats.inferredDomesticLeague && (
-                  <p className="mb-2 text-[10px] text-zinc-500">
-                    Primary league from <code className="text-zinc-600">club.dat</code> division →{' '}
-                    <code className="text-zinc-600">club_comp.dat</code>:{' '}
-                    <span className="font-medium text-zinc-300">{profile.seasonStats.inferredDomesticLeague.name}</span>{' '}
-                    <span className="text-zinc-600">(id {profile.seasonStats.inferredDomesticLeague.competitionId})</span>
-                  </p>
-                )}
                 <div className="overflow-x-auto rounded border border-zinc-800/80">
                   <table className="w-full min-w-[19rem] border-collapse text-left text-[11px]">
                     <thead>
@@ -1266,9 +1431,22 @@ export function App() {
                   </table>
                 </div>
                 <div className="mt-3 border-t border-zinc-800/80 pt-2">
-                  <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                    By competition (detail)
-                  </h4>
+                  <HoverTip
+                    tip={
+                      <p>
+                        Per-competition apps/goals (CM-style league vs cups split) are not loaded yet — they live outside{' '}
+                        <code className="text-zinc-400">staff_history.dat</code>. Next step is mapping the correct index
+                        block(s) and row layout, then joining <code className="text-zinc-400">staff id</code> +{' '}
+                        <code className="text-zinc-400">competition id</code> (names from{' '}
+                        <code className="text-zinc-400">club_comp.dat</code>).
+                      </p>
+                    }
+                  >
+                    <h4 className="mb-1 flex cursor-default items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                      By competition (detail)
+                      <InfoDot />
+                    </h4>
+                  </HoverTip>
                   {profile.seasonStats.perCompetitionStatsInSave && profile.seasonStats.perCompetitionRows.length > 0 ? (
                     <div className="overflow-x-auto rounded border border-zinc-800/80">
                       <table className="w-full min-w-[16rem] border-collapse text-left text-[11px]">
@@ -1293,45 +1471,44 @@ export function App() {
                       </table>
                     </div>
                   ) : (
-                    <p className="text-[10px] leading-snug text-zinc-500">
-                      Per-competition apps/goals (CM-style league vs cups split) are not loaded yet — they live outside{' '}
-                      <code className="text-zinc-600">staff_history.dat</code>. Next step is mapping the correct index
-                      block(s) and row layout, then joining <code className="text-zinc-600">staff id</code> +{' '}
-                      <code className="text-zinc-600">competition id</code> (names from <code className="text-zinc-600">
-                        club_comp.dat
-                      </code>
-                      ).
-                    </p>
+                    <p className="text-[10px] text-zinc-600">Hover the heading for per-competition data status.</p>
                   )}
                 </div>
               </div>
 
               <div>
-                <div className="mb-1">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Attributes</h3>
-                  <p className="mt-0.5 text-[10px] text-zinc-500">
-                    “Engine” brackets: use the strip under the loaded database path (always visible when a save is
-                    open).
-                  </p>
-                </div>
-                <p className="mb-1.5 text-[10px] leading-snug text-zinc-600">
-                  In-game values in <span className="text-zinc-400">CM0102 column order</span> (left: acceleration →
-                  finishing; middle: flair → positioning; right: set pieces → work rate). Row tint = key attributes for
-                  natural positions (suitability &gt;14):{' '}
-                  <span className="font-mono text-zinc-400">{profile.highlightRolesLabel}</span>. Hover a value for
-                  intrinsic and in-match. With the toggle on, a highlighted bracket appears only when the uncapped
-                  engine-style value differs from the number shown (e.g. finishing 20 with a higher true display).
-                </p>
-                <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-zinc-500">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="h-2.5 w-6 rounded bg-emerald-500/[0.14]" />
-                    Core for role
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="h-2.5 w-6 rounded bg-sky-500/[0.11]" />
-                    Supporting / universal
-                  </span>
-                </p>
+                <HoverTip
+                  tip={
+                    <div className="space-y-2">
+                      <p>
+                        In-game CM0102 three-column order (12 / 12 / 7, then feet and morale). Row tint marks key
+                        attributes for natural positions (suitability &gt;14):{' '}
+                        <span className="font-mono text-zinc-200">{profile.highlightRolesLabel}</span>.
+                      </p>
+                      <p>
+                        Hover a value for intrinsic and in-match numbers. Engine brackets: use the strip under the
+                        loaded database path; a highlighted bracket appears only when the uncapped engine-style value
+                        differs from the number shown.
+                      </p>
+                      <p className="text-zinc-400">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2.5 w-6 rounded bg-emerald-500/[0.14]" />
+                          Core for role
+                        </span>
+                        {' · '}
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2.5 w-6 rounded bg-sky-500/[0.11]" />
+                          Supporting / universal
+                        </span>
+                      </p>
+                    </div>
+                  }
+                >
+                  <h3 className="mb-1 flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    Attributes
+                    <InfoDot />
+                  </h3>
+                </HoverTip>
                 <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
                   <ProfileAttrColumn cells={profile.attrColumns[0]} showEngineAttrs={showEngineAttrs} />
                   <ProfileAttrColumn cells={profile.attrColumns[1]} showEngineAttrs={showEngineAttrs} />
@@ -1343,19 +1520,21 @@ export function App() {
               </div>
 
               <div>
-                <div className="mb-1">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Hidden</h3>
-                  <p className="mt-0.5 text-[10px] text-zinc-500">
-                    Same engine bracket toggle as above — scroll to the database strip if needed.
-                  </p>
-                </div>
-                <p className="mb-2 text-[10px] text-zinc-600">
-                  CM second-screen player fields only: consistency, dirtiness, important matches, injury proneness,
-                  versatility — plus staff.dat mentals (adaptability, ambition, loyalty, pressure, professionalism,
-                  sportsmanship, temperament). Set pieces, bravery, handling, and reflexes stay in the main Attributes
-                  columns above. Determination is read from staff.dat in the left column. Same tint for staff mentals:
-                  ambition / professionalism often read as core.
-                </p>
+                <HoverTip
+                  tip={
+                    <p>
+                      CM second-screen style order: player fields (consistency, corners, penalties, throw-ins,
+                      one-on-ones, versatility, dirtiness, important matches, injury proneness, natural fitness) plus
+                      staff.dat mentals (adaptability, ambition, loyalty, pressure, professionalism, sportsmanship,
+                      temperament). Determination stays in the main Attributes left column from staff.dat.
+                    </p>
+                  }
+                >
+                  <h3 className="mb-1 flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    Hidden
+                    <InfoDot />
+                  </h3>
+                </HoverTip>
                 <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
                   <ProfileAttrColumn cells={profile.hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
                   <ProfileAttrColumn cells={profile.hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />

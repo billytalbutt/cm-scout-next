@@ -1,4 +1,9 @@
-import { ratingPositionSuitable } from './cmScoutRating'
+import {
+  listedForLoan,
+  ratingPositionSuitable,
+  transferListedByClub,
+  transferListedByRequest,
+} from './cmScoutRating'
 import type { ClubCompRecord } from './database/clubComp'
 import type { StaffHistoryRecord } from './database/staffHistory'
 import {
@@ -17,8 +22,7 @@ import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from '
 import { computeHighlightSets, footMoraleHighlightTier, formatHighlightRoles } from './positionHighlights'
 
 /**
- * Main profile attribute columns — CM0102-style three-column stack (top → bottom),
- * not alphabetical. Matches the in-game layout: accel…finishing | flair…positioning | set pieces…work rate.
+ * Main profile — CM0102 three-column stack (12 / 12 / 7). `free_kicks` is the on-disk “Set pieces” byte.
  */
 const MAIN_ATTR_COLS: readonly [readonly string[], readonly string[], readonly string[]] = [
   [
@@ -43,36 +47,52 @@ const MAIN_ATTR_COLS: readonly [readonly string[], readonly string[], readonly s
     'jumping',
     'long_shots',
     'marking',
-    'natural_fitness',
     'off_the_ball',
+    'pace',
     'passing',
     'positioning',
-  ],
-  [
-    'corners',
-    'free_kicks',
-    'penalties',
-    'throw_ins',
-    'one_on_ones',
-    'pace',
     'reflexes',
-    'stamina',
-    'strength',
-    'tackling',
-    'technique',
-    'teamwork',
-    'work_rate',
   ],
+  ['free_kicks', 'stamina', 'strength', 'tackling', 'teamwork', 'technique', 'work_rate'],
 ] as const
 
-/** Player attributes on CM’s separate “hidden” screen only (plus staff mentals below). */
-const HIDDEN_PLAYER_KEYS = [
+/** Hidden panel: CM second-screen style order (player + staff mentals), then split into three columns. */
+const HIDDEN_DISPLAY_ORDER = [
+  'adaptability',
+  'ambition',
   'consistency',
+  'corners',
   'dirtiness',
   'important_matches',
   'injury_proneness',
+  'loyalty',
+  'natural_fitness',
+  'one_on_ones',
+  'penalties',
+  'pressure',
+  'professionalism',
+  'sportsmanship',
+  'temperament',
+  'throw_ins',
   'versatility',
 ] as const
+
+const STAFF_ATTR_IN_PROFILE: Record<string, keyof StaffRecord> = {
+  adaptability: 'adaptability',
+  ambition: 'ambition',
+  loyalty: 'loyalty',
+  pressure: 'pressure',
+  professionalism: 'professionalism',
+  sportsmanship: 'sportsmanship',
+  temperament: 'temperament',
+}
+
+const STAFF_ATTR_KEY_SET = new Set(Object.keys(STAFF_ATTR_IN_PROFILE))
+
+function attrCellLabel(key: string): string {
+  if (key === 'free_kicks') return 'Set pieces'
+  return humanizeAttrKey(key)
+}
 
 function putProfileAttrIntoOther(
   key: string,
@@ -84,6 +104,11 @@ function putProfileAttrIntoOther(
   if (Object.prototype.hasOwnProperty.call(other, key)) return
   if (key === 'determination') {
     other[key] = otherAttrDisplay(s.determination)
+    return
+  }
+  const sk = STAFF_ATTR_IN_PROFILE[key]
+  if (sk != null) {
+    other[key] = otherAttrDisplay(s[sk] as number)
     return
   }
   if ((CA18_KEYS as readonly string[]).includes(key)) {
@@ -228,17 +253,7 @@ export function buildProfilePayload(
   for (const col of MAIN_ATTR_COLS) {
     for (const k of col) putProfileAttrIntoOther(k, p, s, ca18, other)
   }
-  for (const k of HIDDEN_PLAYER_KEYS) putProfileAttrIntoOther(k, p, s, ca18, other)
-
-  const mentalStaff: Record<string, AttrDisplayBlock> = {
-    adaptability: otherAttrDisplay(s.adaptability),
-    ambition: otherAttrDisplay(s.ambition),
-    loyalty: otherAttrDisplay(s.loyalty),
-    pressure: otherAttrDisplay(s.pressure),
-    professionalism: otherAttrDisplay(s.professionalism),
-    sportsmanship: otherAttrDisplay(s.sportsmanship),
-    temperament: otherAttrDisplay(s.temperament),
-  }
+  for (const k of HIDDEN_DISPLAY_ORDER) putProfileAttrIntoOther(k, p, s, ca18, other)
 
   const hl = computeHighlightSets(p)
   const rolesUsed = hl.rolesUsed
@@ -257,7 +272,7 @@ export function buildProfilePayload(
   }
 
   const toCell = (key: string): ProfileAttrCell => {
-    const label = humanizeAttrKey(key)
+    const label = attrCellLabel(key)
     if ((CA18_KEYS as readonly string[]).includes(key)) {
       const x = ca18[key as Ca18Key]
       return {
@@ -273,8 +288,9 @@ export function buildProfilePayload(
     }
     const x = other[key]!
     const inv = key === 'injury_proneness' || key === 'dirtiness'
-    const highlightTier =
-      key === 'determination'
+    const highlightTier = STAFF_ATTR_KEY_SET.has(key)
+      ? tierForStaffAttr(key)
+      : key === 'determination'
         ? tierForPlayerAttr(key) ?? tierForStaffAttr('determination')
         : tierForPlayerAttr(key)
     return {
@@ -313,28 +329,12 @@ export function buildProfilePayload(
     },
   }
 
-  const hiddenPlayerCells: ProfileAttrCell[] = [...HIDDEN_PLAYER_KEYS]
-    .sort((a, b) => humanizeAttrKey(a).localeCompare(humanizeAttrKey(b)))
-    .map((key) => toCell(key))
-
-  const hiddenStaffCells: ProfileAttrCell[] = Object.entries(mentalStaff)
-    .map(([key, v]) => ({
-      key,
-      label: humanizeAttrKey(key),
-      inGame: v.inGame,
-      inGameUncapped: v.inGameUncapped,
-      raw: v.raw,
-      inMatch: v.inMatch,
-      invert: false,
-      highlightTier: tierForStaffAttr(key),
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label))
-
-  const hiddenSorted: ProfileAttrCell[] = [...hiddenPlayerCells, ...hiddenStaffCells]
-    .filter((c) => c.key !== 'determination')
-    .sort((a, b) => a.label.localeCompare(b.label))
-
-  const hiddenColumns = splitIntoThreeColumns(hiddenSorted)
+  const hiddenKeysSplit = splitIntoThreeColumns([...HIDDEN_DISPLAY_ORDER])
+  const hiddenColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]] = [
+    hiddenKeysSplit[0].map(toCell),
+    hiddenKeysSplit[1].map(toCell),
+    hiddenKeysSplit[2].map(toCell),
+  ]
 
   const contract = row.contract
     ? {
@@ -361,21 +361,46 @@ export function buildProfilePayload(
 
   const cmScoutRoleSuitable = [0, 1, 2, 3, 4, 5, 6].map((i) => ratingPositionSuitable(i, p))
 
+  const c = row.contract
+  const transferStatus = c?.transfer_status ?? 0
+  const arrangedClubId = c != null && c.transfer_arranged_for > 0 ? c.transfer_arranged_for : null
+  const arrangedClubLabel =
+    arrangedClubId != null
+      ? (() => {
+          const nm = clubNames.get(arrangedClubId)?.trim()
+          return nm && nm.length > 0 ? nm : `Club #${arrangedClubId}`
+        })()
+      : null
+
   return {
     name: row.name,
     nation: row.nation,
     secondNation: row.secondNation ?? '',
     nationDisplay,
     club: row.club,
+    age: row.age,
     dobIso: s.dob_iso,
     euPassport: row.euPassport,
     positionLabel: formatNaturalPositions(p),
     highlightRolesLabel: formatHighlightRoles(rolesUsed),
+    reputation: {
+      home: p.home_reputation,
+      current: p.current_reputation,
+      world: p.world_reputation,
+    },
     ca: p.current_ability,
     pa: p.potential_ability,
     cmScoutRatingBp: row.cmScoutRatingBp,
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
+    transfer: {
+      value: row.value,
+      listedByClub: transferListedByClub(transferStatus),
+      listedByRequest: transferListedByRequest(transferStatus),
+      listedForLoan: listedForLoan(transferStatus),
+      futureTransferToClubId: arrangedClubId,
+      futureTransferToClubName: arrangedClubLabel,
+    },
     attrColumns,
     feetMorale,
     hiddenColumns,
