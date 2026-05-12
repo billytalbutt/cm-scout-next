@@ -1,0 +1,85 @@
+import type { PlayerRecord } from './types'
+
+/** CM Scout Intrinsic HighConvert / LowConvert / in-match (DataService.cs). */
+export function highConvert(ca: number, intrinsic: number): number {
+  const d = intrinsic / 10 + ca / 20 + 10
+  let r = (d * d) / 30 + d / 3 + 0.5
+  if (r < 1) r = 1
+  else if (r > 20) r = 20
+  return Math.trunc(r)
+}
+
+export function lowConvert(ca: number, intrinsic: number): number {
+  const d = intrinsic / 10 + ca / 200 + 10
+  let r = (d * d) / 30 + d / 3 + 0.5
+  if (r < 1) r = 1
+  else if (r > 20) r = 20
+  return Math.trunc(r)
+}
+
+export function inMatchValue(ca: number, intrinsic: number): number {
+  let r = intrinsic / 5 + ca / 20 + 10
+  if (r < 0) r = 0
+  return Math.trunc(r)
+}
+
+function isGk(p: PlayerRecord): boolean {
+  return p.goalkeeper > 14
+}
+
+function inGameCa18(idx: number, ca: number, intrinsic: number, p: PlayerRecord): number {
+  const gk = isGk(p)
+  if ([0, 3, 6, 7, 10, 11, 12, 13].includes(idx)) return highConvert(ca, intrinsic)
+  if ([15, 16, 17].includes(idx)) return gk ? highConvert(ca, intrinsic) : lowConvert(ca, intrinsic)
+  if ([1, 2, 4, 5, 8, 9, 14].includes(idx)) return gk ? lowConvert(ca, intrinsic) : highConvert(ca, intrinsic)
+  return intrinsic
+}
+
+function clamp20(v: number): number {
+  if (v < 1) return 1
+  if (v > 20) return 20
+  return v
+}
+
+/** CA18 keys in CM Scout order (indices 0–17). */
+export const CA18_KEYS = [
+  'anticipation',
+  'creativity',
+  'crossing',
+  'decisions',
+  'dribbling',
+  'finishing',
+  'heading',
+  'long_shots',
+  'marking',
+  'off_the_ball',
+  'passing',
+  'penalties',
+  'positioning',
+  'tackling',
+  'throw_ins',
+  'handling',
+  'one_on_ones',
+  'reflexes',
+] as const
+
+export type Ca18Key = (typeof CA18_KEYS)[number]
+
+export function buildCa18Display(p: PlayerRecord): Record<Ca18Key, { raw: number; inGame: number; inMatch: number }> {
+  const ca = p.current_ability
+  const out = {} as Record<Ca18Key, { raw: number; inGame: number; inMatch: number }>
+  CA18_KEYS.forEach((key, idx) => {
+    const raw = p[key] as number
+    out[key] = {
+      raw,
+      inGame: inGameCa18(idx, ca, raw, p),
+      inMatch: inMatchValue(ca, raw),
+    }
+  })
+  return out
+}
+
+export function otherAttrDisplay(raw: number): { raw: number; inGame: number; inMatch: number } {
+  const ig = clamp20(raw)
+  return { raw, inGame: ig, inMatch: ig }
+}

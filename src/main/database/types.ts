@@ -1,0 +1,136 @@
+export interface BlockInfo {
+  position: number
+  size: number
+  name: string
+}
+
+export interface PlayerRecord {
+  id: number
+  squad_number: number
+  current_ability: number
+  potential_ability: number
+  home_reputation: number
+  current_reputation: number
+  world_reputation: number
+  goalkeeper: number
+  sweeper: number
+  defender: number
+  defensive_midfielder: number
+  midfielder: number
+  attacking_midfielder: number
+  attacker: number
+  wing_back: number
+  right_side: number
+  left_side: number
+  centre_side: number
+  free_role: number
+  acceleration: number
+  aggression: number
+  agility: number
+  anticipation: number
+  balance: number
+  bravery: number
+  consistency: number
+  corners: number
+  crossing: number
+  decisions: number
+  dirtiness: number
+  dribbling: number
+  finishing: number
+  flair: number
+  free_kicks: number
+  handling: number
+  heading: number
+  important_matches: number
+  injury_proneness: number
+  jumping: number
+  influence: number
+  left_foot: number
+  long_shots: number
+  marking: number
+  off_the_ball: number
+  natural_fitness: number
+  one_on_ones: number
+  pace: number
+  passing: number
+  penalties: number
+  positioning: number
+  reflexes: number
+  right_foot: number
+  stamina: number
+  strength: number
+  tackling: number
+  teamwork: number
+  technique: number
+  throw_ins: number
+  versatility: number
+  creativity: number
+  work_rate: number
+  morale: number
+}
+
+export interface StaffRecord {
+  id: number
+  first_name_id: number
+  second_name_id: number
+  common_name_id: number
+  year_of_birth: number
+  first_nation_id: number
+  second_nation_id: number
+  club_job_id: number
+  job_for_club: number
+  player_id: number
+  wage: number
+  value: number
+  adaptability: number
+  ambition: number
+  determination: number
+  loyalty: number
+  pressure: number
+  professionalism: number
+  sportsmanship: number
+  temperament: number
+}
+
+export interface ContractRecord {
+  staffIndex: number
+  club_id: number
+  wage: number
+  goal_bonus: number
+  assist_bonus: number
+  clean_sheet_bonus: number
+  release_fee: number
+  contract_type: number
+  transfer_status: number
+  squad_status: number
+}
+
+export interface ParsedDatabase {
+  compressed: boolean
+  blocks: BlockInfo[]
+  nationNames: Map<number, string>
+  clubNames: Map<number, string>
+  firstNames: string[]
+  secondNames: string[]
+  commonNames: string[]
+  players: PlayerRecord[]
+  staff: StaffRecord[]
+  contractsByStaffIndex: Map<number, ContractRecord>
+  gameDateIso: string | null
+}
+
+export interface UiPlayerRow {
+  staffId: number
+  staffIndex: number
+  name: string
+  nation: string
+  club: string
+  ca: number
+  pa: number
+  wage: number
+  value: number
+  /** joined player blob for profile */
+  player: PlayerRecord
+  staff: StaffRecord
+  contract: ContractRecord | null
+}

@@ -1,0 +1,131 @@
+/**
+ * Demo roster row so you can open a profile without index.dat.
+ * "Maxime Segalco" — fun name; stats loosely inspired by the classic CM01/02 Belarus wonderkid striker archetype.
+ */
+import type { ContractRecord, PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
+
+export const DEMO_STAFF_INDEX = -1
+
+function demoPlayer(): PlayerRecord {
+  return {
+    id: -1,
+    squad_number: 9,
+    current_ability: 187,
+    potential_ability: 200,
+    home_reputation: 7500,
+    current_reputation: 8200,
+    world_reputation: 7800,
+    goalkeeper: 1,
+    sweeper: 1,
+    defender: 2,
+    defensive_midfielder: 2,
+    midfielder: 8,
+    attacking_midfielder: 14,
+    attacker: 20,
+    wing_back: 6,
+    right_side: 8,
+    left_side: 8,
+    centre_side: 18,
+    free_role: 10,
+    acceleration: 18,
+    aggression: 12,
+    agility: 16,
+    anticipation: 18,
+    balance: 18,
+    bravery: 15,
+    consistency: 16,
+    corners: 12,
+    crossing: 14,
+    decisions: 17,
+    dirtiness: 6,
+    dribbling: 18,
+    finishing: 20,
+    flair: 18,
+    free_kicks: 14,
+    handling: 1,
+    heading: 16,
+    important_matches: 17,
+    injury_proneness: 8,
+    jumping: 17,
+    influence: 15,
+    left_foot: 18,
+    long_shots: 17,
+    marking: 8,
+    off_the_ball: 19,
+    natural_fitness: 18,
+    one_on_ones: 16,
+    pace: 18,
+    passing: 16,
+    penalties: 15,
+    positioning: 15,
+    reflexes: 2,
+    right_foot: 20,
+    stamina: 17,
+    strength: 16,
+    tackling: 9,
+    teamwork: 16,
+    technique: 18,
+    throw_ins: 10,
+    versatility: 14,
+    creativity: 19,
+    work_rate: 17,
+    morale: 18,
+  }
+}
+
+function demoStaff(): StaffRecord {
+  return {
+    id: -1,
+    first_name_id: 0,
+    second_name_id: 0,
+    common_name_id: 0,
+    year_of_birth: 1983,
+    first_nation_id: 0,
+    second_nation_id: -1,
+    club_job_id: 0,
+    job_for_club: 10,
+    player_id: 0,
+    wage: 18500,
+    value: 12_500_000,
+    adaptability: 16,
+    ambition: 18,
+    determination: 18,
+    loyalty: 15,
+    pressure: 14,
+    professionalism: 17,
+    sportsmanship: 14,
+    temperament: 15,
+  }
+}
+
+function demoContract(): ContractRecord {
+  return {
+    staffIndex: DEMO_STAFF_INDEX,
+    club_id: 0,
+    wage: 18500,
+    goal_bonus: 2500,
+    assist_bonus: 1200,
+    clean_sheet_bonus: 0,
+    release_fee: 0,
+    contract_type: 2,
+    transfer_status: 0,
+    squad_status: 1,
+  }
+}
+
+export function getDemoUiPlayerRow(): UiPlayerRow {
+  return {
+    staffId: DEMO_STAFF_INDEX,
+    staffIndex: DEMO_STAFF_INDEX,
+    name: 'Maxime Segalco',
+    nation: 'Belarus',
+    club: 'Dinamo Minsk',
+    ca: 187,
+    pa: 200,
+    wage: 18500,
+    value: 12_500_000,
+    player: demoPlayer(),
+    staff: demoStaff(),
+    contract: demoContract(),
+  }
+}
