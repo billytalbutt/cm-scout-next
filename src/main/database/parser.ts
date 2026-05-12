@@ -8,6 +8,16 @@ import type {
   UiPlayerRow,
 } from './types'
 
+/**
+ * CM0102 `index.dat` is a block archive (same on-disk format the game and CM Scout read).
+ * This parser loads the blocks we need for a player-centric scout view:
+ * general.dat (game date), nation.dat, club.dat, first/second/common_names.dat,
+ * player.dat, staff.dat, and contract.dat (for club/wage when present).
+ * The player table lists playable humans (staff rows tied to player.dat); it does not
+ * list every non-player staff row. CM Scout (the original app) has many extra screens
+ * and may touch other blocks — feature parity with that entire program is not claimed here.
+ */
+
 function readBlocksDirectory(buf: Buffer): { compressed: boolean; blocks: BlockInfo[]; headerEnd: number } {
   let o = 0
   const marker = buf.readUInt32LE(o)

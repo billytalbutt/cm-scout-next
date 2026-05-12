@@ -44,37 +44,54 @@ function crossoverBottleGameDirs(bottlesRoot: string): string[] {
   return out
 }
 
-/** CM0102 Starter Kit (Wineskin): …/Program Files/Starter Kit vX.Y.Z/Game */
-function starterKitGameDirs(home: string): string[] {
+/**
+ * Any folder that directly contains `*.app` bundles (e.g. Applications, ~/Downloads, ~/Downloads/cm0102).
+ * Resolves …/Contents/Resources/drive_c/Program Files/Starter Kit vX.Y.Z/Game
+ */
+function collectStarterKitGameFoldersFromAppsParent(appsParent: string): string[] {
   const out: string[] = []
-  const roots = ['/Applications', join(home, 'Applications'), join(home, 'Downloads')]
-  for (const root of roots) {
-    if (!existsSync(root)) continue
-    let apps: ReturnType<typeof readdirSync>
+  if (!existsSync(appsParent)) return out
+  let apps: ReturnType<typeof readdirSync>
+  try {
+    apps = readdirSync(appsParent, { withFileTypes: true })
+  } catch {
+    return out
+  }
+  for (const ent of apps) {
+    if (!ent.isDirectory() || !ent.name.toLowerCase().endsWith('.app')) continue
+    if (!/CM0102|StarterKit|Starter Kit/i.test(ent.name)) continue
+    const pf = join(appsParent, ent.name, 'Contents/Resources/drive_c/Program Files')
+    if (!existsSync(pf)) continue
+    let sk: ReturnType<typeof readdirSync>
     try {
-      apps = readdirSync(root, { withFileTypes: true })
+      sk = readdirSync(pf, { withFileTypes: true })
     } catch {
       continue
     }
-    for (const ent of apps) {
-      if (!ent.isDirectory() || !ent.name.endsWith('.app')) continue
-      if (!/CM0102|StarterKit|Starter Kit/i.test(ent.name)) continue
-      const pf = join(root, ent.name, 'Contents/Resources/drive_c/Program Files')
-      if (!existsSync(pf)) continue
-      let sk: ReturnType<typeof readdirSync>
-      try {
-        sk = readdirSync(pf, { withFileTypes: true })
-      } catch {
-        continue
-      }
-      for (const d of sk) {
-        if (!d.isDirectory() || !/^Starter Kit v/i.test(d.name)) continue
-        const game = join(pf, d.name, 'Game')
-        if (existsSync(game)) out.push(game)
-      }
+    for (const d of sk) {
+      if (!d.isDirectory() || !/^Starter Kit v/i.test(d.name)) continue
+      const game = join(pf, d.name, 'Game')
+      if (existsSync(game)) out.push(game)
     }
   }
   return out
+}
+
+/** CM0102 Starter Kit (Wineskin): common install locations */
+function starterKitGameDirs(home: string): string[] {
+  const roots = ['/Applications', join(home, 'Applications'), join(home, 'Downloads')]
+  const out: string[] = []
+  for (const root of roots) {
+    out.push(...collectStarterKitGameFoldersFromAppsParent(root))
+  }
+  return out
+}
+
+/** Typical user layout: ~/Downloads/cm0102/CM0102StarterKit.app/…/Game */
+function starterKitGameDirsDownloadsCm0102(home: string): string[] {
+  const a = collectStarterKitGameFoldersFromAppsParent(join(home, 'Downloads/cm0102'))
+  if (a.length) return a
+  return collectStarterKitGameFoldersFromAppsParent(join(home, 'Downloads/CM0102'))
 }
 
 function winePrefixGameDirs(home: string): string[] {
@@ -116,18 +133,34 @@ function dirHasIndexDat(dir: string): boolean {
   return existsSync(join(dir, 'index.dat'))
 }
 
-/**
- * CM Scout–style: `Data/index.dat` inside the CM0102 install (or Starter Kit `Game/Data`).
- * Falls back to a game root that already contains `index.dat`, then save-game heuristics.
- */
-export function getSuggestedDatabaseFolder(home = homedir()): string | undefined {
-  const roots = collectGameRoots(home)
-  const dataDirs = roots.map((r) => join(r, 'Data')).filter((p) => existsSync(p))
+function pickDatabaseFolderFromGameRoots(gameRoots: string[]): string | undefined {
+  const uniq = [...new Set(gameRoots.filter(Boolean))]
+  const dataDirs = uniq.map((r) => join(r, 'Data')).filter((p) => existsSync(p))
   const dataWithIndex = dataDirs.filter(dirHasIndexDat)
   if (dataWithIndex.length) return dataWithIndex[0]
   if (dataDirs.length) return dataDirs[0]
-  const rootsWithIndex = roots.filter((r) => dirHasIndexDat(r))
+  const rootsWithIndex = uniq.filter((r) => dirHasIndexDat(r))
   if (rootsWithIndex.length) return rootsWithIndex[0]
+  if (uniq.length) {
+    const d = join(uniq[0], 'Data')
+    return existsSync(d) ? d : uniq[0]
+  }
+  return undefined
+}
+
+/**
+ * CM Scout–style: `Data/index.dat` under the game (Starter Kit: `Game/Data/index.dat`).
+ * Prioritises ~/Downloads/cm0102/*.app when present (common Mac layout).
+ */
+export function getSuggestedDatabaseFolder(home = homedir()): string | undefined {
+  const downloadsNested = starterKitGameDirsDownloadsCm0102(home)
+  const fromDownloads = pickDatabaseFolderFromGameRoots(downloadsNested)
+  if (fromDownloads) return fromDownloads
+
+  const roots = collectGameRoots(home)
+  const fromRest = pickDatabaseFolderFromGameRoots(roots)
+  if (fromRest) return fromRest
+
   return getSuggestedSaveGameFolder()
 }
 
