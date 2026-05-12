@@ -84,6 +84,33 @@ function defFor(
           return v == null ? <span className="text-zinc-600">—</span> : <span>{v.toFixed(1)}%</span>
         },
       })
+    case 'effRating':
+      return h.accessor((r) => r.effPercent ?? -1, {
+        id,
+        header: () => (
+          <span
+            className="cursor-help border-b border-dotted border-zinc-500"
+            title="Effectiveness %: raw 1–20 intrinsics, weighted by archetype (GK / DC / WB / DMC / MC / AM / AMC / ST). Best archetype wins — bracket shows which recipe (e.g. a DM may peak as DC). 1.25× weight on stats at 20+; Decisions×Anticipation multiplier on DC, DMC, MC, AMC. Not CM Scout — compare to CM Scout % for “hidden gem” outliers."
+          >
+            {lab}
+          </span>
+        ),
+        cell: ({ row }) => {
+          const pct = row.original.effPercent
+          const role = row.original.effArchetype
+          const cm = row.original.cmScoutRatingBp
+          const gem = pct != null && cm != null && pct > cm + 15
+          if (pct == null || !role) return <span className="text-zinc-600">—</span>
+          return (
+            <span
+              className={gem ? 'font-semibold text-[#39FF14]' : 'text-zinc-200'}
+              title={gem ? 'Eff % is more than 15 points above CM Scout % — possible engine standout vs weighted-average scout view.' : undefined}
+            >
+              {pct.toFixed(1)}% ({role})
+            </span>
+          )
+        },
+      })
     case 'staffId':
       return h.accessor('staffId', { id, header: lab })
     case 'staffIndex':

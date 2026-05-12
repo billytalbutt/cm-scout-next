@@ -24,6 +24,9 @@ export type GridPlayerRow = {
   age: number | null
   euPassport?: boolean
   cmScoutRatingBp?: number
+  /** Effectiveness % + archetype label (see `effectivenessEngine.ts`) */
+  effPercent?: number
+  effArchetype?: string
   isDemo?: boolean
   attr48?: number[]
   role7?: number[]

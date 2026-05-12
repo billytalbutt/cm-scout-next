@@ -5,9 +5,8 @@ import { readFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
 import { buildUiRows, parseIndexDat } from './database/parser'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
-import {
-  applyCmScoutRatings,
-} from './cmScoutRating'
+import { applyCmScoutRatings } from './cmScoutRating'
+import { applyEffectivenessRatings } from './effectivenessRating'
 import type { ParsedDatabase, UiPlayerRow } from './database/types'
 import { DEMO_STAFF_INDEX, getDemoUiPlayerRow } from './demoTsigalko'
 import { buildProfilePayload } from './profilePayload'
@@ -128,6 +127,7 @@ ipcMain.handle('open-database', async (event) => {
     const db = parseSaveOrIndex(indexPath)
     const rows = buildUiRows(db)
     applyCmScoutRatings(rows)
+    applyEffectivenessRatings(rows)
     const pathKey = pathKeyForDb(indexPath)
     const baseline = loadBaselineFromDisk(pathKey)
     applyRegenPipeline(rows, baseline, pathKey)

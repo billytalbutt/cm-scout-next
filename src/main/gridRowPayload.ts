@@ -23,6 +23,8 @@ function baseRow(r: UiPlayerRow): GridPlayerRow {
     age: r.age,
     euPassport: r.euPassport,
     cmScoutRatingBp: r.cmScoutRatingBp,
+    effPercent: r.effPercent,
+    effArchetype: r.effArchetype,
     isRegenLikely: !!r.isRegenLikely,
     regenOf: r.regenOfName ?? '',
     isDemo: r.staffIndex === DEMO_STAFF_INDEX,

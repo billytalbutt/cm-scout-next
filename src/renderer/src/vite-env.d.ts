@@ -112,6 +112,9 @@ export interface ProfilePayload {
   pa: number
   /** Grid column: max % among “suitable” roles (Intrinsic BP rule) */
   cmScoutRatingBp?: number
+  /** Effectiveness % (best archetype); bracket label on grid */
+  effPercent?: number
+  effArchetype?: string
   /** Length 7: GK, D, DM, M, AM, A, WB — weighted attribute % per WeightsSet_CMScout column */
   cmScoutRolePercents?: number[]
   /** Same order as cmScoutRolePercents — role counts toward BP max */

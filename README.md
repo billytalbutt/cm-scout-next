@@ -20,6 +20,8 @@ After you load a real database, Maxim stays at the top of the list (until filter
 - **Profile** — CA18 (in-game / intrinsic / in-match), other physical/technical fields, staff mental fields, contract summary when linked.
 - **Colour hints** on attribute numbers (high = green, low = red; inverted for injury proneness and dirtiness).
 
+**Season & career apps/goals** in the profile come from **`staff_history.dat`** in the same `index.dat` you load (one row per staff id, club, and season-year tag; league and cups are rolled together). That block does **not** contain assists or average match rating — the game stores those elsewhere (match / performance data in the save), which this app does not parse yet. Use a **saved game** `index.dat` (after the game has written history), not only a fresh data-update database, if you expect non-zero rows.
+
 Data layout and attribute math follow **CM0102Patcher** (`SaveChanger` / structures) and **CMScoutIntrinsicCommunity** `DataService.cs`.
 
 ## Run locally

@@ -12,6 +12,7 @@ export interface GridColumnCatalogEntry {
 
 const CORE: GridColumnCatalogEntry[] = [
   { id: 'rating', label: 'CM Scout %', group: 'Ratings & summary' },
+  { id: 'effRating', label: 'Eff %', group: 'Ratings & summary' },
   { id: 'staffId', label: 'Staff ID', group: 'Identity' },
   { id: 'staffIndex', label: 'Staff index', group: 'Identity' },
   { id: 'name', label: 'Player', group: 'Identity' },
@@ -97,6 +98,7 @@ export const GRID_COLUMN_CATALOG: GridColumnCatalogEntry[] = [...CORE, ...ATTR_E
 
 export const GRID_DEFAULT_COLUMN_ORDER: string[] = [
   'rating',
+  'effRating',
   'name',
   'age',
   'nation',

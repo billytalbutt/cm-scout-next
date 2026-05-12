@@ -58,6 +58,8 @@ const DEMO_FALLBACK: GridPlayerRow[] = [
     age: 22,
     euPassport: false,
     cmScoutRatingBp: 91.4,
+    effPercent: 78.9,
+    effArchetype: 'ST',
     isRegenLikely: false,
     regenOf: '',
     isDemo: true,
@@ -1581,6 +1583,20 @@ export function App() {
                       <p className="mt-1 font-mono text-[11px] text-emerald-300/95">
                         BP (grid){' '}
                         <span className="text-emerald-200">{profile.cmScoutRatingBp}%</span>
+                      </p>
+                    )}
+                    {profile.effPercent != null && profile.effArchetype && (
+                      <p className="mt-1 font-mono text-[11px] text-zinc-300/95">
+                        Eff % (best archetype){' '}
+                        <span
+                          className={
+                            profile.cmScoutRatingBp != null && profile.effPercent > profile.cmScoutRatingBp + 15
+                              ? 'font-semibold text-[#39FF14]'
+                              : 'text-emerald-200/90'
+                          }
+                        >
+                          {profile.effPercent}% ({profile.effArchetype})
+                        </span>
                       </p>
                     )}
                     {profile.cmScoutRatingBp != null &&

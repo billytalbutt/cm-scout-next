@@ -394,6 +394,8 @@ export function buildProfilePayload(
     ca: p.current_ability,
     pa: p.potential_ability,
     cmScoutRatingBp: row.cmScoutRatingBp,
+    effPercent: row.effPercent,
+    effArchetype: row.effArchetype,
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
     transfer: {

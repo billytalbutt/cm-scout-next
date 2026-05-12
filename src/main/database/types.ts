@@ -176,6 +176,12 @@ export interface UiPlayerRow {
   euPassport: boolean
   /** CM Scout Intrinsic–style % (Best regard position, CM Scout weights) */
   cmScoutRatingBp?: number
+  /**
+   * Custom “engine effectiveness” % from raw intrinsics — best of fixed archetypes (GK, DC, WB,
+   * DMC, MC, AM, AMC, ST); `effArchetype` is which recipe won (may differ from natural position).
+   */
+  effPercent?: number
+  effArchetype?: string
   /** CM Scout % per weight column (GK, D, DM, M, AM, A, WB), length 7 */
   cmScoutRolePercents?: number[]
   /** Cached 1–20 in-match–normalized vector for attribute filters */
