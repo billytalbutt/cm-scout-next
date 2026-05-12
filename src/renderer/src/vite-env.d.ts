@@ -16,11 +16,14 @@ declare global {
           staffIndex: number
           name: string
           nation: string
+          secondNation?: string
           club: string
           ca: number
           pa: number
           wage: number
           value: number
+          age: number | null
+          cmScoutRatingBp?: number
           isDemo?: boolean
         }>
       >

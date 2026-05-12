@@ -124,11 +124,19 @@ export interface UiPlayerRow {
   staffIndex: number
   name: string
   nation: string
+  /** Second nationality name if set */
+  secondNation: string
   club: string
   ca: number
   pa: number
   wage: number
   value: number
+  /** Approximate age from game year − birth year when game date known */
+  age: number | null
+  /** CM Scout Intrinsic–style % (Best regard position, CM Scout weights) */
+  cmScoutRatingBp?: number
+  /** Cached 1–20 in-match–normalized vector for attribute filters */
+  cmAttrNorm?: number[]
   /** joined player blob for profile */
   player: PlayerRecord
   staff: StaffRecord

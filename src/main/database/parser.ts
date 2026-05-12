@@ -363,28 +363,44 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
   }
 }
 
+function playerAgeFromYear(yearOfBirth: number, gameDateIso: string | null): number | null {
+  if (!yearOfBirth || yearOfBirth < 1870) return null
+  if (!gameDateIso) return null
+  const y = Number(gameDateIso.slice(0, 4))
+  if (!Number.isFinite(y)) return null
+  return y - yearOfBirth
+}
+
 export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
   const rows: UiPlayerRow[] = []
-  const { players, staff, nationNames, clubNames, firstNames, secondNames, commonNames, contractsByStaffIndex } = db
+  const { players, staff, nationNames, clubNames, firstNames, secondNames, commonNames, contractsByStaffIndex, gameDateIso } =
+    db
   staff.forEach((s, staffIndex) => {
     if (!isValidPlayerRow(s, firstNames, secondNames, commonNames, players.length)) return
     const player = players[s.player_id]
     if (!player) return
     const name = staffDisplayName(s, firstNames, secondNames, commonNames)
     const nation = nationNames.get(s.first_nation_id) ?? ''
+    const secondNation =
+      s.second_nation_id > 0 && s.second_nation_id !== s.first_nation_id
+        ? (nationNames.get(s.second_nation_id) ?? '')
+        : ''
     const club = clubNames.get(s.club_job_id) ?? ''
     const c = contractsByStaffIndex.get(staffIndex) ?? null
     const wage = c?.wage ?? s.wage
+    const age = playerAgeFromYear(s.year_of_birth, gameDateIso)
     rows.push({
       staffId: s.id,
       staffIndex,
       name,
       nation,
+      secondNation,
       club,
       ca: player.current_ability,
       pa: player.potential_ability,
       wage,
       value: s.value,
+      age,
       player,
       staff: s,
       contract: c,

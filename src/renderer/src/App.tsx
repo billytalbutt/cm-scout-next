@@ -8,17 +8,21 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import type { ProfilePayload } from './vite-env.d'
+import { CM_SCOUT_ATTR_LABELS } from '../../shared/cmScoutAttrLabels'
 
 type Row = {
   staffId: number
   staffIndex: number
   name: string
   nation: string
+  secondNation?: string
   club: string
   ca: number
   pa: number
   wage: number
   value: number
+  age: number | null
+  cmScoutRatingBp?: number
   isDemo?: boolean
 }
 
@@ -31,11 +35,14 @@ const DEMO_FALLBACK: Row[] = [
     staffIndex: -1,
     name: 'Maxim Tsigalko',
     nation: 'Belarus',
+    secondNation: '',
     club: 'Dinamo Minsk',
     ca: 187,
     pa: 200,
     wage: 18500,
     value: 12_500_000,
+    age: 22,
+    cmScoutRatingBp: 91.4,
     isDemo: true,
   },
 ]
@@ -64,7 +71,7 @@ export function App() {
   } | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [rows, setRows] = useState<Row[]>(DEMO_FALLBACK)
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'ca', desc: true }])
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'rating', desc: true }])
   const [q, setQ] = useState('')
   const [nation, setNation] = useState('')
   const [club, setClub] = useState('')
@@ -72,6 +79,17 @@ export function App() {
   const [caMax, setCaMax] = useState('')
   const [paMin, setPaMin] = useState('')
   const [paMax, setPaMax] = useState('')
+  const [ageMin, setAgeMin] = useState('')
+  const [ageMax, setAgeMax] = useState('')
+  const [valueMin, setValueMin] = useState('')
+  const [valueMax, setValueMax] = useState('')
+  const [wageMin, setWageMin] = useState('')
+  const [wageMax, setWageMax] = useState('')
+  const [contractType, setContractType] = useState('')
+  const [tlClub, setTlClub] = useState(false)
+  const [tlRequest, setTlRequest] = useState(false)
+  const [loanListed, setLoanListed] = useState(false)
+  const [attrMins, setAttrMins] = useState<string[]>(() => Array.from({ length: 48 }, () => ''))
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
   const [sel, setSel] = useState<number | null>(null)
   const [opening, setOpening] = useState(false)
@@ -79,14 +97,38 @@ export function App() {
 
   const refresh = useCallback(async () => {
     const f: Record<string, unknown> = { q, nation, club }
-    const caLo = caMin === '' ? undefined : Number(caMin)
-    const caHi = caMax === '' ? undefined : Number(caMax)
-    const paLo = paMin === '' ? undefined : Number(paMin)
-    const paHi = paMax === '' ? undefined : Number(paMax)
+    const num = (s: string) => (s === '' ? undefined : Number(s))
+    const caLo = num(caMin)
+    const caHi = num(caMax)
+    const paLo = num(paMin)
+    const paHi = num(paMax)
+    const ageLo = num(ageMin)
+    const ageHi = num(ageMax)
+    const vLo = num(valueMin)
+    const vHi = num(valueMax)
+    const wLo = num(wageMin)
+    const wHi = num(wageMax)
     if (Number.isFinite(caLo)) f.caMin = caLo
     if (Number.isFinite(caHi)) f.caMax = caHi
     if (Number.isFinite(paLo)) f.paMin = paLo
     if (Number.isFinite(paHi)) f.paMax = paHi
+    if (Number.isFinite(ageLo)) f.ageMin = ageLo
+    if (Number.isFinite(ageHi)) f.ageMax = ageHi
+    if (Number.isFinite(vLo)) f.valueMin = vLo
+    if (Number.isFinite(vHi)) f.valueMax = vHi
+    if (Number.isFinite(wLo)) f.wageMin = wLo
+    if (Number.isFinite(wHi)) f.wageMax = wHi
+    const ct = num(contractType)
+    if (contractType.trim() !== '' && Number.isFinite(ct)) f.contractType = ct
+    if (tlClub) f.transferListedClub = true
+    if (tlRequest) f.transferListedRequest = true
+    if (loanListed) f.listedForLoan = true
+    const mins = attrMins.map((s) => {
+      if (s.trim() === '') return null
+      const n = Number(s)
+      return Number.isFinite(n) && n > 0 ? n : null
+    })
+    if (mins.some((m) => m != null)) f.attrMins = mins
     try {
       if (typeof window.cmapi?.getRows !== 'function') {
         setErr('Open this app via the Electron window from npm run dev (not a browser tab).')
@@ -106,7 +148,27 @@ export function App() {
       setErr(msg)
       setRows(loadInfo ? [] : DEMO_FALLBACK)
     }
-  }, [q, nation, club, caMin, caMax, paMin, paMax, loadInfo])
+  }, [
+    q,
+    nation,
+    club,
+    caMin,
+    caMax,
+    paMin,
+    paMax,
+    ageMin,
+    ageMax,
+    valueMin,
+    valueMax,
+    wageMin,
+    wageMax,
+    contractType,
+    tlClub,
+    tlRequest,
+    loanListed,
+    attrMins,
+    loadInfo,
+  ])
 
   useEffect(() => {
     void refresh()
@@ -149,6 +211,14 @@ export function App() {
 
   const columns = useMemo(
     () => [
+      columnHelper.accessor((r) => r.cmScoutRatingBp ?? -1, {
+        id: 'rating',
+        header: 'CM Scout %',
+        cell: ({ row }) => {
+          const v = row.original.cmScoutRatingBp
+          return v == null ? <span className="text-zinc-600">—</span> : <span>{v.toFixed(1)}%</span>
+        },
+      }),
       columnHelper.accessor('name', {
         header: 'Player',
         cell: (info) => (
@@ -162,7 +232,25 @@ export function App() {
           </span>
         ),
       }),
-      columnHelper.accessor('nation', { header: 'Nation' }),
+      columnHelper.accessor((r) => r.age ?? -1, {
+        id: 'age',
+        header: 'Age',
+        cell: ({ row }) => (row.original.age == null ? '—' : String(row.original.age)),
+      }),
+      columnHelper.accessor('nation', {
+        header: 'Nation',
+        cell: ({ row }) => {
+          const s = row.original.secondNation
+          return s ? (
+            <span>
+              {row.original.nation}
+              <span className="text-zinc-500"> / {s}</span>
+            </span>
+          ) : (
+            row.original.nation
+          )
+        },
+      }),
       columnHelper.accessor('club', { header: 'Club' }),
       columnHelper.accessor('ca', { header: 'CA' }),
       columnHelper.accessor('pa', { header: 'PA' }),
@@ -219,6 +307,14 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [sel, pick])
 
+  const setAttrMinAt = (i: number, v: string) => {
+    setAttrMins((prev) => {
+      const next = [...prev]
+      next[i] = v
+      return next
+    })
+  }
+
   return (
     <div className="flex h-screen flex-col bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-5 py-3 backdrop-blur">
@@ -254,7 +350,7 @@ export function App() {
       )}
 
       <div className="flex min-h-0 flex-1">
-        <aside className="w-72 shrink-0 border-r border-zinc-800/80 bg-zinc-950/50 p-4">
+        <aside className="cm-scroll w-[22rem] shrink-0 overflow-y-auto border-r border-zinc-800/80 bg-zinc-950/50 p-4">
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Filters</h2>
           <div className="space-y-3 text-sm">
             <label className="block">
@@ -267,7 +363,7 @@ export function App() {
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs text-zinc-500">Nation</span>
+              <span className="mb-1 block text-xs text-zinc-500">Nation (1st or 2nd)</span>
               <input
                 className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
                 value={nation}
@@ -283,6 +379,24 @@ export function App() {
               />
             </label>
             <div className="grid grid-cols-2 gap-2">
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">Age min</span>
+                <input
+                  type="number"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={ageMin}
+                  onChange={(e) => setAgeMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">Age max</span>
+                <input
+                  type="number"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={ageMax}
+                  onChange={(e) => setAgeMax(e.target.value)}
+                />
+              </label>
               <label>
                 <span className="mb-1 block text-xs text-zinc-500">CA min</span>
                 <input
@@ -319,24 +433,107 @@ export function App() {
                   onChange={(e) => setPaMax(e.target.value)}
                 />
               </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">Value min</span>
+                <input
+                  type="number"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={valueMin}
+                  onChange={(e) => setValueMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">Value max</span>
+                <input
+                  type="number"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={valueMax}
+                  onChange={(e) => setValueMax(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">Wage min</span>
+                <input
+                  type="number"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={wageMin}
+                  onChange={(e) => setWageMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">Wage max</span>
+                <input
+                  type="number"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={wageMax}
+                  onChange={(e) => setWageMax(e.target.value)}
+                />
+              </label>
             </div>
+            <div>
+              <span className="mb-1 block text-xs text-zinc-500">Contract type (exact byte, empty = any)</span>
+              <input
+                type="number"
+                min={0}
+                max={255}
+                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                value={contractType}
+                onChange={(e) => setContractType(e.target.value)}
+                placeholder="e.g. 2"
+              />
+            </div>
+            <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
+              <span className="text-xs font-medium text-zinc-400">Transfer / loan</span>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={tlClub} onChange={(e) => setTlClub(e.target.checked)} />
+                Listed by club
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={tlRequest} onChange={(e) => setTlRequest(e.target.checked)} />
+                Listed by request
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={loanListed} onChange={(e) => setLoanListed(e.target.checked)} />
+                Listed for loan
+              </label>
+            </div>
+            <details className="rounded-md border border-zinc-800 bg-zinc-900/40">
+              <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400">
+                Attribute minimums (1–20, in-match scale)
+              </summary>
+              <div className="max-h-48 overflow-y-auto border-t border-zinc-800 px-2 py-2 cm-scroll">
+                <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 text-[11px]">
+                  {CM_SCOUT_ATTR_LABELS.map((label, i) => (
+                    <label key={label} className="contents">
+                      <span className="truncate text-zinc-500">{label}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        className="w-12 rounded border border-zinc-700 bg-zinc-950 px-1 py-0.5 text-zinc-200"
+                        value={attrMins[i]}
+                        onChange={(e) => setAttrMinAt(i, e.target.value)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </details>
           </div>
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="cm-scroll min-h-0 flex-1 overflow-auto p-3">
             <p className="mb-3 rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-2 text-xs leading-relaxed text-zinc-400">
-              <span className="font-medium text-zinc-300">Players:</span> the table lists playable staff from the loaded
-              database. Use filters to narrow the list.{' '}
-              <span className="font-medium text-zinc-300">Profile:</span> single-click a row, double-click a row or cell,
-              press <kbd className="rounded bg-zinc-800 px-1 font-mono text-zinc-300">Enter</kbd>, or use{' '}
-              <span className="text-zinc-200">Open profile</span> below.
+              <span className="font-medium text-zinc-300">CM Scout %</span> uses the same weights file as CM Scout
+              Intrinsic (<code className="text-emerald-400/80">WeightsSet_CMScout.txt</code>) and “best position” logic
+              (max among roles the player fits). Elite players in a strong database often land in the 70s–90s.{' '}
+              <span className="font-medium text-zinc-300">Profile:</span> single-click, double-click,{' '}
+              <kbd className="rounded bg-zinc-800 px-1 font-mono text-zinc-300">Enter</kbd>, or Open profile.
               {!loadInfo && (
                 <>
                   {' '}
-                  Before you load <code className="text-emerald-400/90">index.dat</code> (from the game{' '}
-                  <code className="text-emerald-400/90">Data</code> folder or a <code className="text-emerald-400/90">.sav</code>
-                  ), try the demo row — <span className="text-amber-200/90">Maxim Tsigalko (Demo)</span>.
+                  Load <code className="text-emerald-400/90">index.dat</code> for real ratings; demo row is illustrative.
                 </>
               )}
             </p>

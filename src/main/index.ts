@@ -5,6 +5,13 @@ import { readFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
 import { buildUiRows, parseIndexDat } from './database/parser'
 import { getSuggestedDatabaseFolder, getSuggestedSaveGameFolder } from './cm0102Paths'
+import {
+  applyCmScoutRatings,
+  listedForLoan,
+  passesAttributeMins,
+  transferListedByClub,
+  transferListedByRequest,
+} from './cmScoutRating'
 import type { ParsedDatabase, UiPlayerRow } from './database/types'
 import { DEMO_STAFF_INDEX, getDemoUiPlayerRow } from './demoTsigalko'
 import { buildProfilePayload } from './profilePayload'
@@ -92,6 +99,7 @@ ipcMain.handle('open-database', async (event) => {
   try {
     const db = parseSaveOrIndex(r.filePaths[0])
     const rows = buildUiRows(db)
+    applyCmScoutRatings(rows)
     loaded = { db, rows }
     return {
       ok: true as const,
@@ -116,12 +124,27 @@ ipcMain.handle('get-rows', async (_e, filter: unknown) => {
     caMax?: number
     paMin?: number
     paMax?: number
+    ageMin?: number
+    ageMax?: number
+    valueMin?: number
+    valueMax?: number
+    wageMin?: number
+    wageMax?: number
+    contractType?: number
+    transferListedClub?: boolean
+    transferListedRequest?: boolean
+    listedForLoan?: boolean
+    attrMins?: (number | null)[]
   }
   const q = (f.q ?? '').trim().toLowerCase()
   if (q) rows = rows.filter((r) => r.name.toLowerCase().includes(q))
   if (f.nation?.trim()) {
     const n = f.nation.trim().toLowerCase()
-    rows = rows.filter((r) => r.nation.toLowerCase().includes(n))
+    rows = rows.filter(
+      (r) =>
+        r.nation.toLowerCase().includes(n) ||
+        (r.secondNation && r.secondNation.toLowerCase().includes(n)),
+    )
   }
   if (f.club?.trim()) {
     const c = f.club.trim().toLowerCase()
@@ -131,16 +154,45 @@ ipcMain.handle('get-rows', async (_e, filter: unknown) => {
   if (f.caMax != null) rows = rows.filter((r) => r.ca <= f.caMax!)
   if (f.paMin != null) rows = rows.filter((r) => r.pa >= f.paMin!)
   if (f.paMax != null) rows = rows.filter((r) => r.pa <= f.paMax!)
+  if (f.ageMin != null) rows = rows.filter((r) => r.age != null && r.age >= f.ageMin!)
+  if (f.ageMax != null) rows = rows.filter((r) => r.age != null && r.age <= f.ageMax!)
+  if (f.valueMin != null) rows = rows.filter((r) => r.value >= f.valueMin!)
+  if (f.valueMax != null) rows = rows.filter((r) => r.value <= f.valueMax!)
+  if (f.wageMin != null) rows = rows.filter((r) => r.wage >= f.wageMin!)
+  if (f.wageMax != null) rows = rows.filter((r) => r.wage <= f.wageMax!)
+  if (typeof f.contractType === 'number' && !Number.isNaN(f.contractType)) {
+    rows = rows.filter((r) => r.contract && r.contract.contract_type === f.contractType)
+  }
+  const wantTl =
+    f.transferListedClub === true || f.transferListedRequest === true || f.listedForLoan === true
+  if (wantTl) {
+    rows = rows.filter((r) => {
+      const c = r.contract
+      if (!c) return false
+      const ts = c.transfer_status
+      let ok = false
+      if (f.transferListedClub && transferListedByClub(ts)) ok = true
+      if (f.transferListedRequest && transferListedByRequest(ts)) ok = true
+      if (f.listedForLoan && listedForLoan(ts)) ok = true
+      return ok
+    })
+  }
+  if (f.attrMins?.length) {
+    rows = rows.filter((r) => passesAttributeMins(r.cmAttrNorm, f.attrMins!))
+  }
   return rows.map((r) => ({
     staffId: r.staffId,
     staffIndex: r.staffIndex,
     name: r.name,
     nation: r.nation,
+    secondNation: r.secondNation,
     club: r.club,
     ca: r.ca,
     pa: r.pa,
     wage: r.wage,
     value: r.value,
+    age: r.age,
+    cmScoutRatingBp: r.cmScoutRatingBp,
     isDemo: r.staffIndex === DEMO_STAFF_INDEX,
   }))
 })
