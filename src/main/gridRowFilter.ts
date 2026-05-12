@@ -37,6 +37,8 @@ export type GetRowsFilter = {
   contractExpiresWithinMonths?: number
   hasMinimumReleaseClause?: boolean
   attrMins?: (number | null)[]
+  /** When true, only rows flagged by the same-save regen heuristic (`regenDetection.ts`). */
+  isRegenLikely?: boolean
 }
 
 function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string | null }): boolean {
@@ -113,6 +115,8 @@ function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string
   if (f.attrMins?.length) {
     if (!passesAttributeMins(r.cmAttrNorm, f.attrMins)) return false
   }
+
+  if (f.isRegenLikely === true && r.isRegenLikely !== true) return false
 
   return true
 }

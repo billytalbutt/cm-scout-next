@@ -21,6 +21,7 @@ import { DebouncedTextFilters } from './DebouncedTextFilters'
 const gridColHelper = createGridColumnHelper()
 
 const ENGINE_ATTRS_LS = 'cm-scout-next-profile-engine-attrs'
+const FILTERS_COLLAPSED_LS = 'cm-scout-next-filters-collapsed'
 
 /** Shown immediately and if IPC fails — same as main-process demo row (`GridPlayerRow` subset). */
 const DEMO_FALLBACK: GridPlayerRow[] = [
@@ -75,7 +76,7 @@ function HoverTip({
       {open && (
         <span
           role="tooltip"
-          className={`pointer-events-none absolute left-0 top-full z-[200] mt-1 block max-w-[min(22rem,calc(100vw-2rem)))] rounded-lg border border-zinc-600 bg-zinc-900/98 p-2.5 text-[11px] leading-snug text-zinc-200 shadow-2xl shadow-black/50 ${tipClassName}`}
+          className={`pointer-events-none absolute left-0 top-full z-[200] mt-1 block max-w-[min(22rem,calc(100vw-2rem)))] rounded-lg border border-zinc-600 bg-zinc-950 p-2.5 text-[11px] leading-snug text-zinc-200 shadow-2xl shadow-black/60 ring-1 ring-zinc-800/90 ${tipClassName}`}
         >
           {tip}
         </span>
@@ -269,6 +270,15 @@ export function App() {
   const [committedText, setCommittedText] = useState({ q: '', nation: '', club: '' })
   const [textFiltersPending, setTextFiltersPending] = useState(false)
   const [gridRefreshing, setGridRefreshing] = useState(false)
+  const [filtersCollapsed, setFiltersCollapsed] = useState(() => {
+    try {
+      return typeof localStorage !== 'undefined' && localStorage.getItem(FILTERS_COLLAPSED_LS) === '1'
+    } catch {
+      return false
+    }
+  })
+  const [browseTab, setBrowseTab] = useState<'players' | 'regens'>('players')
+  const [regenOnly, setRegenOnly] = useState(false)
   const [showEngineAttrs, setShowEngineAttrs] = useState(() => {
     try {
       return typeof localStorage !== 'undefined' && localStorage.getItem(ENGINE_ATTRS_LS) === '1'
@@ -276,6 +286,15 @@ export function App() {
       return false
     }
   })
+
+  const persistFiltersCollapsed = useCallback((v: boolean) => {
+    setFiltersCollapsed(v)
+    try {
+      localStorage.setItem(FILTERS_COLLAPSED_LS, v ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   const persistShowEngineAttrs = useCallback((v: boolean) => {
     setShowEngineAttrs(v)
@@ -350,6 +369,11 @@ export function App() {
       return Number.isFinite(n) && n > 0 ? n : null
     })
     if (mins.some((m) => m != null)) f.attrMins = mins
+    if (browseTab === 'regens') {
+      f.isRegenLikely = true
+    } else if (regenOnly) {
+      f.isRegenLikely = true
+    }
     f.gridInclude = gridInclude
     const ROWS_IPC_PAGE = 12000
     try {
@@ -457,6 +481,8 @@ export function App() {
     attrMins,
     loadInfo,
     gridInclude,
+    browseTab,
+    regenOnly,
   ])
 
   useEffect(() => {
@@ -667,21 +693,48 @@ export function App() {
       )}
 
       <div className="flex min-h-0 flex-1">
-        <aside className="cm-scroll relative z-20 w-[22rem] shrink-0 overflow-y-auto border-r border-zinc-800/80 bg-zinc-950/50 p-4">
-          <HoverTip
-            tip={
-              <>
-                Checkboxes and numbers apply immediately. Name, nation, and club text commit after a short pause (~95
-                ms) so the grid is not recomputed on every keystroke; a subtle overlay shows while the list updates.
-              </>
-            }
-          >
-            <h2 className="mb-3 flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Filters
-              <InfoDot />
-            </h2>
-          </HoverTip>
-          <div className="space-y-3 text-sm">
+        {filtersCollapsed ? (
+          <div className="flex w-11 shrink-0 flex-col items-center border-r border-zinc-800/80 bg-zinc-950/70 py-2">
+            <button
+              type="button"
+              title="Show filters"
+              aria-expanded={false}
+              onClick={() => persistFiltersCollapsed(false)}
+              className="flex flex-col items-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-1 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 hover:border-emerald-600/50 hover:bg-zinc-800 hover:text-emerald-200"
+            >
+              <span aria-hidden className="text-base leading-none text-zinc-500">
+                ▸
+              </span>
+              <span className="max-w-[2.5rem] text-center leading-tight">Filters</span>
+            </button>
+          </div>
+        ) : (
+          <aside className="relative z-20 flex w-[22rem] shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/50">
+            <div className="flex shrink-0 items-start justify-between gap-2 border-b border-zinc-800/60 px-3 py-2.5">
+              <HoverTip
+                tip={
+                  <>
+                    Checkboxes and numbers apply immediately. Name, nation, and club text commit after a short pause (~95
+                    ms) so the grid is not recomputed on every keystroke; a subtle overlay shows while the list updates.
+                  </>
+                }
+              >
+                <h2 className="flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                  Filters
+                  <InfoDot />
+                </h2>
+              </HoverTip>
+              <button
+                type="button"
+                title="Hide filters (more room for the grid)"
+                aria-expanded
+                onClick={() => persistFiltersCollapsed(true)}
+                className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+              >
+                Hide
+              </button>
+            </div>
+            <div className="cm-scroll min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-sm">
             <DebouncedTextFilters
               key={loadInfo?.path ?? 'pre'}
               clubList={clubList}
@@ -921,10 +974,62 @@ export function App() {
                 </div>
               </div>
             </details>
+            <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
+              <span className="text-xs font-medium text-zinc-400">Regens</span>
+              <label
+                className={`flex items-center gap-2 text-xs ${
+                  browseTab === 'regens' ? 'cursor-not-allowed text-zinc-500' : 'cursor-pointer text-zinc-300'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={regenOnly}
+                  disabled={browseTab === 'regens'}
+                  onChange={(e) => setRegenOnly(e.target.checked)}
+                />
+                Likely regen only <span className="text-zinc-600">(heuristic)</span>
+              </label>
+              {browseTab === 'regens' && (
+                <p className="text-[10px] leading-snug text-zinc-500">
+                  Regens tab is on — switch to All players to use this checkbox with the full list.
+                </p>
+              )}
+            </div>
           </div>
-        </aside>
+          </aside>
+        )}
 
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Browse</span>
+            <button
+              type="button"
+              onClick={() => setBrowseTab('players')}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                browseTab === 'players'
+                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
+                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+              }`}
+            >
+              All players
+            </button>
+            <button
+              type="button"
+              onClick={() => setBrowseTab('regens')}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                browseTab === 'regens'
+                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
+                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+              }`}
+            >
+              Regens
+            </button>
+            {browseTab === 'regens' && loadInfo && (
+              <span className="text-[10px] text-zinc-500">
+                Heuristic list only — grid columns can still show Is regen / Regen of.
+              </span>
+            )}
+          </div>
           <div ref={scrollParentRef} className="cm-scroll relative min-h-0 flex-1 overflow-auto p-3">
             {(textFiltersPending || gridRefreshing) && loadInfo && (
               <div
@@ -984,7 +1089,9 @@ export function App() {
             </div>
             {loadInfo && rows.length === 0 && (
               <p className="mb-3 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-300">
-                No players match the current filters. Clear text fields and uncheck boxes to see the full squad again.
+                {browseTab === 'regens'
+                  ? 'No heuristic regens match the current filters. Try All players, or relax filters — the regen list is a same-save guess, not exhaustive.'
+                  : 'No players match the current filters. Clear text fields and uncheck boxes to see the full squad again.'}
               </p>
             )}
             {loadInfo && gridMeta && rows.length > 0 && (
