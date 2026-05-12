@@ -194,6 +194,7 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
       clubCompsById: loaded.db.clubCompsById,
       clubDivisionCompIdByClubId: loaded.db.clubDivisionCompIdByClubId,
       staffHistoryParsed: loaded.db.staffHistoryParsed ?? false,
+      playerStatsDatPresent: loaded.db.playerStatsDatPresent ?? false,
     }),
     isDemo: false as const,
   }

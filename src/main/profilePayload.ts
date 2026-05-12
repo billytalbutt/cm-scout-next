@@ -169,6 +169,8 @@ export type ProfileDbContext = {
   clubDivisionCompIdByClubId: Map<number, number>
   /** Whether `staff_history.dat` was present and row-aligned in this index (per-player rows may still be empty). */
   staffHistoryParsed: boolean
+  /** Archive includes `player stats.dat` (not decoded yet — assists / rating / per-competition splits). */
+  playerStatsDatPresent?: boolean
 }
 
 function calendarYearFromGameIso(iso: string | null): number | null {
@@ -185,6 +187,11 @@ function historyToSeasonRow(h: StaffHistoryRecord, clubNames: Map<number, string
     onLoan: h.onLoan !== 0,
     apps: h.apps,
     goals: h.goals,
+    assists: null as number | null,
+    averageRating: null as number | null,
+    tackles: null as number | null,
+    passes: null as number | null,
+    headers: null as number | null,
   }
 }
 
@@ -227,6 +234,11 @@ function buildProfileSeasonStats(
     if (label) inferredDomesticLeague = { competitionId: divCompId, name: label }
   }
 
+  const playerStatsDatPresent = ctx.playerStatsDatPresent === true
+  const savePerformanceHint = playerStatsDatPresent
+    ? 'This save includes `player stats.dat` (where the game stores performance beyond staff_history). CM Scout Next does not decode that block yet, so assists, average rating, tackles, passes, headers, and per-competition splits show as — until the row layout is mapped.'
+    : 'The in-game table (goals, assists, average rating, tackles, etc. per competition) lives in save performance data (`player stats.dat` in a `.sav`). A small `Data/index.dat` without that block cannot supply those columns. `staff_history.dat` only has apps and goals per club-year (league + cups combined).'
+
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },
     saveCalendarYear,
@@ -239,8 +251,20 @@ function buildProfileSeasonStats(
     allSeasons,
     inferredDomesticLeague,
     staffHistoryParsed: ctx.staffHistoryParsed,
+    playerStatsDatPresent,
+    savePerformanceHint,
     /** Populated when a per-staff competition stats block is mapped (not `staff_history.dat`). */
-    perCompetitionRows: [] as { competitionId: number; competitionName: string; apps: number; goals: number }[],
+    perCompetitionRows: [] as Array<{
+      competitionId: number
+      competitionName: string
+      apps: number
+      goals: number
+      assists?: number | null
+      averageRating?: number | null
+      tackles?: number | null
+      passes?: number | null
+      headers?: number | null
+    }>,
     perCompetitionStatsInSave: false as const,
   }
 }

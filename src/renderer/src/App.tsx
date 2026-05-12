@@ -16,7 +16,7 @@ import { GridColumnPickerModal } from './grid/GridColumnPickerModal'
 import { loadGridColumnOrder, saveGridColumnOrder } from './grid/gridPersistence'
 import { cm0102FootWord, cm0102MoraleWord } from '../../shared/cm0102Bands'
 import { CM_SCOUT_ATTR_LABELS } from '../../shared/cmScoutAttrLabels'
-import { CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
+import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
 import { DebouncedTextFilters } from './DebouncedTextFilters'
 
 const gridColHelper = createGridColumnHelper()
@@ -47,6 +47,27 @@ function fmtMoney(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`
   if (n >= 1000) return `${(n / 1000).toFixed(0)}k`
   return String(n)
+}
+
+function formatProfileStatCell(v: number | null | undefined, kind: 'int' | 'rating' = 'int'): ReactNode {
+  if (v == null || Number.isNaN(v)) return <span className="text-zinc-600">—</span>
+  if (kind === 'rating') return <span className="font-mono text-zinc-200">{v.toFixed(1)}</span>
+  return <span className="font-mono text-zinc-200">{Math.round(v)}</span>
+}
+
+/** Map role index 0–6 → tier by **distinct** % value (ties share the same tier). Top three values → 0 best … 2 third. */
+function cmScoutRoleValueTierByRole(percents: readonly number[]): Map<number, 0 | 1 | 2> {
+  const uniq = [...new Set(percents)].sort((a, b) => b - a)
+  const valueToTier = new Map<number, 0 | 1 | 2>()
+  for (let t = 0; t < Math.min(3, uniq.length); t++) {
+    valueToTier.set(uniq[t]!, t as 0 | 1 | 2)
+  }
+  const out = new Map<number, 0 | 1 | 2>()
+  for (let i = 0; i < percents.length; i++) {
+    const tier = valueToTier.get(percents[i]!)
+    if (tier !== undefined) out.set(i, tier)
+  }
+  return out
 }
 
 /** Long help text on hover only — keeps the chrome minimal until you need it. */
@@ -1614,8 +1635,10 @@ export function App() {
                             profile.cmScoutRolePercents &&
                             Math.max(...profile.cmScoutRolePercents) > profile.cmScoutRatingBp + 0.05 && (
                               <p className="text-amber-200/90">
-                                The amber ring marks the highest value among all seven columns. Grid BP can be lower if
-                                that column is not a “suitable” role for this player.
+                                <strong className="text-emerald-200/90">Green</strong> rings mark the best % among
+                                columns; <strong className="text-amber-200/90">two amber</strong> shades mark the 2nd- and
+                                3rd-best distinct values (ties share the same tier). Grid BP can be lower if the best
+                                column is not a “suitable” role for this player.
                               </p>
                             )}
                         </div>
@@ -1760,38 +1783,53 @@ export function App() {
                       profile.cmScoutRolePercents &&
                       Math.max(...profile.cmScoutRolePercents) > profile.cmScoutRatingBp + 0.05 && (
                         <p className="mt-1 text-[9px] text-zinc-500">
-                          Amber ring = highest role column (hover heading for why BP can differ).
+                          <span className="text-emerald-400/90">Green</span> = best column %;{' '}
+                          <span className="text-amber-300/90">lighter amber</span> = 2nd-best value;{' '}
+                          <span className="text-amber-600/90">darker amber</span> = 3rd-best (hover heading if BP differs).
                         </p>
                       )}
                     <div className="mt-2 grid grid-cols-7 gap-1 text-center">
-                      {CM_SCOUT_ROLE_SHORT.map((lab, i) => {
-                        const pct = profile.cmScoutRolePercents![i]!
-                        const suit = profile.cmScoutRoleSuitable?.[i]
-                        const bestIdx = profile.cmScoutRolePercents!.reduce(
-                          (bi, v, j) => (v > profile.cmScoutRolePercents![bi]! ? j : bi),
-                          0,
-                        )
-                        const isBest = i === bestIdx
-                        return (
-                          <div
-                            key={lab}
-                            className={`min-w-0 rounded border px-0.5 py-1 ${
-                              suit
-                                ? 'border-emerald-500/35 bg-emerald-500/[0.06]'
-                                : 'border-zinc-800/80 bg-zinc-950/40'
-                            } ${isBest ? 'ring-1 ring-amber-500/40' : ''}`}
-                          >
-                            <div className="truncate text-[8px] font-medium uppercase tracking-tight text-zinc-500">
-                              {lab}
-                            </div>
+                      {(() => {
+                        const percents = profile.cmScoutRolePercents!
+                        const tierByRole = cmScoutRoleValueTierByRole(percents)
+                        return CM_SCOUT_ROLE_PROFILE_UI_ORDER.map((roleIdx) => {
+                          const lab = CM_SCOUT_ROLE_SHORT[roleIdx]!
+                          const pct = percents[roleIdx]!
+                          const suit = profile.cmScoutRoleSuitable?.[roleIdx]
+                          const tier = tierByRole.get(roleIdx)
+                          const ring =
+                            tier === 0
+                              ? 'ring-1 ring-emerald-500/50'
+                              : tier === 1
+                                ? 'ring-1 ring-amber-400/55'
+                                : tier === 2
+                                  ? 'ring-1 ring-amber-800/50'
+                                  : ''
+                          const pctClass =
+                            tier === 0
+                              ? 'text-emerald-200'
+                              : tier === 1
+                                ? 'text-amber-200'
+                                : tier === 2
+                                  ? 'text-amber-500'
+                                  : 'text-zinc-200'
+                          return (
                             <div
-                              className={`font-mono text-[10px] tabular-nums ${isBest ? 'text-amber-200' : 'text-zinc-200'}`}
+                              key={lab + roleIdx}
+                              className={`min-w-0 rounded border px-0.5 py-1 ${
+                                suit
+                                  ? 'border-emerald-500/35 bg-emerald-500/[0.06]'
+                                  : 'border-zinc-800/80 bg-zinc-950/40'
+                              } ${ring}`}
                             >
-                              {pct}%
+                              <div className="truncate text-[8px] font-medium uppercase tracking-tight text-zinc-500">
+                                {lab}
+                              </div>
+                              <div className={`font-mono text-[10px] tabular-nums ${pctClass}`}>{pct}%</div>
                             </div>
-                          </div>
-                        )
-                      })}
+                          )
+                        })
+                      })()}
                     </div>
                   </div>
                 )}
@@ -1835,8 +1873,9 @@ export function App() {
                       <p>
                         Loaded from <code className="text-emerald-400/80">staff_history.dat</code> (one row per club per
                         season-year tag in the save; league and cups are aggregated into that row). Rows whose{' '}
-                        <code className="text-zinc-400">year</code> matches the highlighted season are tinted. Assists and
-                        average rating are not in this block (shown as —).
+                        <code className="text-zinc-400">year</code> matches the highlighted season are tinted. Extra
+                        columns (assists, average rating, tackles, passes, headers) are not in this block — they need{' '}
+                        <code className="text-zinc-400">player stats.dat</code> decoded (shown as — until then).
                       </p>
                       {profile.seasonStats.saveCalendarYear != null && (
                         <p className="text-[11px]">
@@ -1875,6 +1914,11 @@ export function App() {
                           <span className="text-zinc-500">
                             (id {profile.seasonStats.inferredDomesticLeague.competitionId})
                           </span>
+                        </p>
+                      )}
+                      {profile.seasonStats.savePerformanceHint && (
+                        <p className="border-t border-zinc-800/80 pt-2 text-[11px] text-zinc-400">
+                          {profile.seasonStats.savePerformanceHint}
                         </p>
                       )}
                     </div>
@@ -1937,12 +1981,15 @@ export function App() {
                         <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
                         <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
                         <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
+                        <th className="px-2 py-1.5 text-right font-mono font-medium">Tkl</th>
+                        <th className="px-2 py-1.5 text-right font-mono font-medium">Pass</th>
+                        <th className="px-2 py-1.5 text-right font-mono font-medium">Hdr</th>
                       </tr>
                     </thead>
                     <tbody>
                       {profile.seasonStats.allSeasons.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-2 py-3 text-zinc-500">
+                          <td colSpan={10} className="px-2 py-3 text-zinc-500">
                             {profile.seasonStats.staffHistoryParsed
                               ? 'No table rows for this player (totals above are zero).'
                               : 'History block not available — see the note above.'}
@@ -1966,8 +2013,11 @@ export function App() {
                             <td className="px-2 py-1 text-center text-zinc-500">{r.onLoan ? 'Y' : ''}</td>
                             <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.apps}</td>
                             <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.goals}</td>
-                            <td className="px-2 py-1 text-right font-mono text-zinc-600">—</td>
-                            <td className="px-2 py-1 text-right font-mono text-zinc-600">—</td>
+                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.assists)}</td>
+                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.averageRating, 'rating')}</td>
+                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.tackles)}</td>
+                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.passes)}</td>
+                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.headers)}</td>
                           </tr>
                         ))
                       )}
@@ -1978,9 +2028,10 @@ export function App() {
                   <HoverTip
                     tip={
                       <p>
-                        Per-competition apps/goals (CM-style league vs cups split) are not loaded yet — they live outside{' '}
-                        <code className="text-zinc-400">staff_history.dat</code>. Next step is mapping the correct index
-                        block(s) and row layout, then joining <code className="text-zinc-400">staff id</code> +{' '}
+                        CM-style league vs cups split, assists, average rating, and defensive counts live in save
+                        performance blocks (typically <code className="text-zinc-400">player stats.dat</code> inside the
+                        loaded archive). CM Scout Next shows the same column layout as the game; values fill in once that
+                        block is decoded and joined to <code className="text-zinc-400">staff id</code> +{' '}
                         <code className="text-zinc-400">competition id</code> (names from{' '}
                         <code className="text-zinc-400">club_comp.dat</code>).
                       </p>
@@ -1991,32 +2042,50 @@ export function App() {
                       <InfoDot />
                     </h4>
                   </HoverTip>
-                  {profile.seasonStats.perCompetitionStatsInSave && profile.seasonStats.perCompetitionRows.length > 0 ? (
-                    <div className="overflow-x-auto rounded border border-zinc-800/80">
-                      <table className="w-full min-w-[16rem] border-collapse text-left text-[11px]">
-                        <thead>
-                          <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
-                            <th className="px-2 py-1.5 font-medium">Competition</th>
-                            <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
-                            <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {profile.seasonStats.perCompetitionRows.map((r) => (
+                  <div className="overflow-x-auto rounded border border-zinc-800/80">
+                    <table className="w-full min-w-[22rem] border-collapse text-left text-[11px]">
+                      <thead>
+                        <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
+                          <th className="px-2 py-1.5 font-medium">Competition</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Tkl</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Pass</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Hdr</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {profile.seasonStats.perCompetitionStatsInSave &&
+                        profile.seasonStats.perCompetitionRows.length > 0 ? (
+                          profile.seasonStats.perCompetitionRows.map((r) => (
                             <tr key={r.competitionId} className="border-b border-zinc-800/40">
                               <td className="max-w-[12rem] truncate px-2 py-1 text-zinc-200" title={r.competitionName}>
                                 {r.competitionName}
                               </td>
                               <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.apps}</td>
                               <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.goals}</td>
+                              <td className="px-2 py-1 text-right">{formatProfileStatCell(r.assists)}</td>
+                              <td className="px-2 py-1 text-right">
+                                {formatProfileStatCell(r.averageRating, 'rating')}
+                              </td>
+                              <td className="px-2 py-1 text-right">{formatProfileStatCell(r.tackles)}</td>
+                              <td className="px-2 py-1 text-right">{formatProfileStatCell(r.passes)}</td>
+                              <td className="px-2 py-1 text-right">{formatProfileStatCell(r.headers)}</td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="text-[10px] text-zinc-600">Hover the heading for per-competition data status.</p>
-                  )}
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={8} className="px-2 py-2.5 text-[11px] leading-snug text-zinc-500">
+                              {profile.seasonStats.savePerformanceHint ??
+                                'Per-competition rows are not decoded for this database yet.'}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>

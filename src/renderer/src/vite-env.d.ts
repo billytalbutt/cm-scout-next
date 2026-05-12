@@ -66,6 +66,12 @@ export interface ProfileSeasonStatsRow {
   onLoan: boolean
   apps: number
   goals: number
+  /** From `staff_history.dat` only apps/goals exist; other columns reserved for save performance parsing. */
+  assists?: number | null
+  averageRating?: number | null
+  tackles?: number | null
+  passes?: number | null
+  headers?: number | null
 }
 
 export interface ProfilePerCompetitionRow {
@@ -73,6 +79,11 @@ export interface ProfilePerCompetitionRow {
   competitionName: string
   apps: number
   goals: number
+  assists?: number | null
+  averageRating?: number | null
+  tackles?: number | null
+  passes?: number | null
+  headers?: number | null
 }
 
 export interface ProfileSeasonStats {
@@ -94,6 +105,10 @@ export interface ProfileSeasonStats {
   perCompetitionStatsInSave: boolean
   /** True when `staff_history.dat` was present and parsed for this save (this player may still have zero rows). */
   staffHistoryParsed: boolean
+  /** Save contains `player stats.dat` block (decoded in a future release). */
+  playerStatsDatPresent?: boolean
+  /** Short explanation for performance columns (goals/assists/rating per competition). */
+  savePerformanceHint?: string
 }
 
 export interface ProfilePayload {

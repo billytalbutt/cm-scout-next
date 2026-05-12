@@ -156,6 +156,8 @@ export interface ParsedDatabase {
   staff: StaffRecord[]
   contractsByStaffIndex: Map<number, ContractRecord>
   gameDateIso: string | null
+  /** True when the loaded archive contains a `player stats.dat` block (typical of `.sav`; not decoded yet). */
+  playerStatsDatPresent?: boolean
 }
 
 export interface UiPlayerRow {

@@ -452,11 +452,15 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     }
   }
 
+  const playerStatsBlock = find('player stats.dat') ?? findBlockLoose('player stats.dat')
+  const playerStatsDatPresent = !!(playerStatsBlock && playerStatsBlock.size > 0)
+
   return {
     compressed,
     blocks,
     staffHistoryByStaffId,
     staffHistoryParsed,
+    playerStatsDatPresent,
     nationSeasonUpdateDaySamples: seasonUpdateDaySamples,
     clubCompsById,
     staffCompsById,
