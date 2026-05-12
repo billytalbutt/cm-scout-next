@@ -1,6 +1,7 @@
 import { buildCa18Display, CA18_KEYS, otherAttrDisplay } from './database/attributes'
 import type { UiPlayerRow } from './database/types'
 import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
+import { computeHighlightSets, footMoraleHighlightTier, formatHighlightRoles } from './positionHighlights'
 
 const OTHER_KEYS = [
   'acceleration',
@@ -34,12 +35,14 @@ export type ProfileAttrCell = {
   raw: number
   inMatch: number
   invert: boolean
+  /** FM-style row tint: key attributes for natural position(s) */
+  highlightTier?: 'primary' | 'secondary'
 }
 
 export type ProfileFeetMorale = {
-  left: { label: string; inGame: number; raw: number; inMatch: number }
-  right: { label: string; inGame: number; raw: number; inMatch: number }
-  morale: { label: string; inGame: number; raw: number; inMatch: number }
+  left: { label: string; inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }
+  right: { label: string; inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }
+  morale: { label: string; inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }
 }
 
 export function buildProfilePayload(row: UiPlayerRow) {
@@ -64,6 +67,22 @@ export function buildProfilePayload(row: UiPlayerRow) {
     temperament: otherAttrDisplay(s.temperament),
   }
 
+  const hl = computeHighlightSets(p)
+  const rolesUsed = hl.rolesUsed
+
+  const tierForPlayerAttr = (key: string): 'primary' | 'secondary' | undefined => {
+    if (key === 'injury_proneness' || key === 'dirtiness') return undefined
+    if (hl.playerPrimary.has(key)) return 'primary'
+    if (hl.playerSecondary.has(key)) return 'secondary'
+    return undefined
+  }
+
+  const tierForStaffAttr = (key: string): 'primary' | 'secondary' | undefined => {
+    if (hl.staffPrimary.has(key)) return 'primary'
+    if (hl.staffSecondary.has(key)) return 'secondary'
+    return undefined
+  }
+
   const gridKeys = [...CA18_KEYS, ...OTHER_KEYS.filter((k) => k !== 'morale')].sort((a, b) =>
     humanizeAttrKey(a).localeCompare(humanizeAttrKey(b)),
   )
@@ -72,11 +91,27 @@ export function buildProfilePayload(row: UiPlayerRow) {
     const label = humanizeAttrKey(key)
     if ((CA18_KEYS as readonly string[]).includes(key)) {
       const x = ca18[key as (typeof CA18_KEYS)[number]]
-      return { key, label, inGame: x.inGame, raw: x.raw, inMatch: x.inMatch, invert: false }
+      return {
+        key,
+        label,
+        inGame: x.inGame,
+        raw: x.raw,
+        inMatch: x.inMatch,
+        invert: false,
+        highlightTier: tierForPlayerAttr(key),
+      }
     }
     const x = other[key]!
     const inv = key === 'injury_proneness' || key === 'dirtiness'
-    return { key, label, inGame: x.inGame, raw: x.raw, inMatch: x.inMatch, invert: inv }
+    return {
+      key,
+      label,
+      inGame: x.inGame,
+      raw: x.raw,
+      inMatch: x.inMatch,
+      invert: inv,
+      highlightTier: tierForPlayerAttr(key),
+    }
   }
 
   const [k0, k1, k2] = splitIntoThreeColumns(gridKeys)
@@ -87,9 +122,21 @@ export function buildProfilePayload(row: UiPlayerRow) {
   ]
 
   const feetMorale: ProfileFeetMorale = {
-    left: { label: 'Left foot', ...otherAttrDisplay(p.left_foot) },
-    right: { label: 'Right foot', ...otherAttrDisplay(p.right_foot) },
-    morale: { label: 'Morale', ...otherAttrDisplay(p.morale) },
+    left: {
+      label: 'Left foot',
+      ...otherAttrDisplay(p.left_foot),
+      highlightTier: footMoraleHighlightTier('left_foot', rolesUsed),
+    },
+    right: {
+      label: 'Right foot',
+      ...otherAttrDisplay(p.right_foot),
+      highlightTier: footMoraleHighlightTier('right_foot', rolesUsed),
+    },
+    morale: {
+      label: 'Morale',
+      ...otherAttrDisplay(p.morale),
+      highlightTier: footMoraleHighlightTier('morale', rolesUsed),
+    },
   }
 
   const hiddenSorted: ProfileAttrCell[] = Object.entries(mentalStaff)
@@ -100,6 +147,7 @@ export function buildProfilePayload(row: UiPlayerRow) {
       raw: v.raw,
       inMatch: v.inMatch,
       invert: false,
+      highlightTier: tierForStaffAttr(key),
     }))
     .sort((a, b) => a.label.localeCompare(b.label))
 
@@ -137,6 +185,7 @@ export function buildProfilePayload(row: UiPlayerRow) {
     dobIso: s.dob_iso,
     euPassport: row.euPassport,
     positionLabel: formatNaturalPositions(p),
+    highlightRolesLabel: formatHighlightRoles(rolesUsed),
     ca: p.current_ability,
     pa: p.potential_ability,
     attrColumns,

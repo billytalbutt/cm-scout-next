@@ -60,6 +60,7 @@ export interface ProfileAttrCell {
   raw: number
   inMatch: number
   invert: boolean
+  highlightTier?: 'primary' | 'secondary'
 }
 
 export interface ProfilePayload {
@@ -76,11 +77,12 @@ export interface ProfilePayload {
   pa: number
   attrColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
   feetMorale: {
-    left: { label: string; inGame: number; raw: number; inMatch: number }
-    right: { label: string; inGame: number; raw: number; inMatch: number }
-    morale: { label: string; inGame: number; raw: number; inMatch: number }
+    left: { label: string; inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }
+    right: { label: string; inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }
+    morale: { label: string; inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }
   }
   hiddenColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
+  highlightRolesLabel: string
   contract: {
     wage: number
     clubId: number

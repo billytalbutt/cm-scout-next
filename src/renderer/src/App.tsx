@@ -65,10 +65,18 @@ function attrColor(v: number, invert = false): string {
 }
 
 function ProfileAttrColumn({ cells }: { cells: ProfileAttrCell[] }) {
+  const tint = (tier?: 'primary' | 'secondary') => {
+    if (tier === 'primary') return 'rounded px-1 -mx-1 bg-emerald-500/[0.14]'
+    if (tier === 'secondary') return 'rounded px-1 -mx-1 bg-sky-500/[0.11]'
+    return ''
+  }
   return (
     <ul className="min-w-0 space-y-0.5 text-[12px]">
       {cells.map((a) => (
-        <li key={a.key} className="flex justify-between gap-1.5 border-b border-zinc-800/30 py-1">
+        <li
+          key={a.key}
+          className={`flex justify-between gap-1.5 border-b border-zinc-800/30 py-1 ${tint(a.highlightTier)}`}
+        >
           <span className="truncate text-zinc-400" title={a.key}>
             {a.label}
           </span>
@@ -89,8 +97,16 @@ function FeetMoraleBlock({
 }: {
   feet: ProfilePayload['feetMorale']
 }) {
-  const row = (label: string, v: { inGame: number; raw: number; inMatch: number }) => (
-    <div key={label} className="flex justify-between gap-1.5 border-b border-zinc-800/30 py-1 text-[12px]">
+  const tint = (tier?: 'primary' | 'secondary') => {
+    if (tier === 'primary') return 'rounded px-1 -mx-1 bg-emerald-500/[0.14]'
+    if (tier === 'secondary') return 'rounded px-1 -mx-1 bg-sky-500/[0.11]'
+    return ''
+  }
+  const row = (label: string, v: { inGame: number; raw: number; inMatch: number; highlightTier?: 'primary' | 'secondary' }) => (
+    <div
+      key={label}
+      className={`flex justify-between gap-1.5 border-b border-zinc-800/30 py-1 text-[12px] ${tint(v.highlightTier)}`}
+    >
       <span className="text-zinc-400">{label}</span>
       <span
         className={`font-mono text-[13px] tabular-nums ${attrColor(v.inGame)}`}
@@ -830,9 +846,21 @@ export function App() {
 
               <div>
                 <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Attributes</h3>
-                <p className="mb-2 text-[10px] leading-snug text-zinc-600">
-                  In-game values (CM Scout style), A–Z in three columns like the CM 01/02 profile layout. Hover a value
-                  for intrinsic and in-match.
+                <p className="mb-1.5 text-[10px] leading-snug text-zinc-600">
+                  In-game values (CM Scout style), A–Z in three columns. Row tint = key attributes for natural
+                  positions (suitability &gt;14):{' '}
+                  <span className="font-mono text-zinc-400">{profile.highlightRolesLabel}</span>. Hover a value for
+                  intrinsic and in-match.
+                </p>
+                <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-zinc-500">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2.5 w-6 rounded bg-emerald-500/[0.14]" />
+                    Core for role
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2.5 w-6 rounded bg-sky-500/[0.11]" />
+                    Supporting / universal
+                  </span>
                 </p>
                 <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
                   <ProfileAttrColumn cells={profile.attrColumns[0]} />
@@ -846,7 +874,10 @@ export function App() {
 
               <div>
                 <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hidden</h3>
-                <p className="mb-2 text-[10px] text-zinc-600">Staff attributes from staff.dat (A–Z, three columns).</p>
+                <p className="mb-2 text-[10px] text-zinc-600">
+                  Staff attributes from staff.dat (A–Z, three columns). Same tint: determination / ambition /
+                  professionalism tend to be core; others supporting.
+                </p>
                 <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
                   <ProfileAttrColumn cells={profile.hiddenColumns[0]} />
                   <ProfileAttrColumn cells={profile.hiddenColumns[1]} />
