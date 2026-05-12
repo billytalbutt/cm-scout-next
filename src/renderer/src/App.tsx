@@ -283,7 +283,7 @@ export function App() {
             </table>
             {!loadInfo && (
               <p className="mt-8 text-center text-sm text-zinc-500">
-                <span className="text-amber-200/90">Maxime Segalco (demo)</span> is in the list — double-click to open his
+                <span className="text-amber-200/90">Maxim Tsigalko (demo)</span> is in the list — double-click to open his
                 profile. Or open your <code className="text-emerald-400/80">index.dat</code> for your full database.
               </p>
             )}
@@ -296,7 +296,7 @@ export function App() {
             <div className="space-y-4">
               {profile.isDemo && (
                 <div className="rounded-lg border border-amber-600/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-100/90">
-                  Demo roster — not loaded from your save. Stats are illustrative (wonderkid-style striker).
+                  Demo roster — not loaded from your save. Illustrative stats for Maxim Tsigalko (CM 01/02 archetype).
                 </div>
               )}
               <div>

@@ -1,6 +1,7 @@
 /**
  * Demo roster row so you can open a profile without index.dat.
- * "Maxime Segalco" — fun name; stats loosely inspired by the classic CM01/02 Belarus wonderkid striker archetype.
+ * Maxim Tsigalko — legendary CM 01/02 Belarus wonderkid (Dinamo Minsk).
+ * Stats are illustrative / community-typical, not read from your index.dat.
  */
 import type { ContractRecord, PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
 
@@ -117,7 +118,7 @@ export function getDemoUiPlayerRow(): UiPlayerRow {
   return {
     staffId: DEMO_STAFF_INDEX,
     staffIndex: DEMO_STAFF_INDEX,
-    name: 'Maxime Segalco',
+    name: 'Maxim Tsigalko',
     nation: 'Belarus',
     club: 'Dinamo Minsk',
     ca: 187,

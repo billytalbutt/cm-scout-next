@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url'
 import { readFileSync } from 'fs'
 import { buildUiRows, parseIndexDat } from './database/parser'
 import type { ParsedDatabase, UiPlayerRow } from './database/types'
-import { DEMO_STAFF_INDEX, getDemoUiPlayerRow } from './demoMaxime'
+import { DEMO_STAFF_INDEX, getDemoUiPlayerRow } from './demoTsigalko'
 import { buildProfilePayload } from './profilePayload'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
