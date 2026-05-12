@@ -120,6 +120,8 @@ export interface ProfilePayload {
   effWinnerDetail?: EffectivenessWinnerDetail
   effRunnerUp?: EffectivenessRunnerUp | null
   effRatingDisclaimer?: string
+  /** No natural line matched any recipe — Eff used all eight recipes once. */
+  effRelaxedNaturalGate?: boolean
   /** Length 7: GK, D, DM, M, AM, A, WB — weighted attribute % per WeightsSet_CMScout column */
   cmScoutRolePercents?: number[]
   /** Same order as cmScoutRolePercents — role counts toward BP max */

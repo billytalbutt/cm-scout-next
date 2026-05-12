@@ -4,6 +4,7 @@
  * Stats are illustrative / community-typical, not read from your index.dat.
  */
 import { computeBestEffectiveness, playerAttrGetter } from '../shared/effectivenessEngine'
+import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import type { ContractRecord, PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
 
 export const DEMO_STAFF_INDEX = -1
@@ -130,7 +131,10 @@ function demoContract(): ContractRecord {
 export function getDemoUiPlayerRow(): UiPlayerRow {
   const player = demoPlayer()
   const staff = demoStaff()
-  const { effPercent, effArchetype } = computeBestEffectiveness(playerAttrGetter(player as Record<string, number>))
+  const { effPercent, effArchetype } = computeBestEffectiveness(
+    playerAttrGetter(player as Record<string, number>),
+    eligibleEffectivenessArchetypeIds(player),
+  )
   return {
     staffId: DEMO_STAFF_INDEX,
     staffIndex: DEMO_STAFF_INDEX,

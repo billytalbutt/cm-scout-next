@@ -1726,6 +1726,12 @@ export function App() {
                             )}
                           </div>
                         )}
+                        {profile.effRelaxedNaturalGate && (
+                          <p className="rounded border border-amber-600/35 bg-amber-950/30 px-2 py-1.5 text-[9px] leading-snug text-amber-200/95">
+                            No natural line matched any recipe (unusual data). Eff % used all eight archetypes once —
+                            treat as approximate.
+                          </p>
+                        )}
                       </div>
                     )}
                     {profile.cmScoutRatingBp != null &&

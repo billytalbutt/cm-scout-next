@@ -117,10 +117,16 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
               </p>
             )}
             <p className="mt-2 border-t border-zinc-800 pt-2 text-[10px] text-zinc-500">
-              Mentals used only where listed (e.g. Decisions, Anticipation, Off The Ball). Eff % ignores whether the
-              player is natural in this bracket — compare to <strong className="text-zinc-400">Natural</strong> in the
-              profile.{isDemo ? ' Demo row uses the built-in Tsigalko fixture.' : ''}
+              Only archetypes that match <strong className="text-zinc-400">natural positions</strong> (&gt;14, same idea
+              as CM Scout) are scored — compare the bracket to <strong className="text-zinc-400">Natural</strong> in the
+              profile. Mentals count only where listed in the recipe.
+              {isDemo ? ' Demo row uses the built-in Tsigalko fixture.' : ''}
             </p>
+            {data.relaxedNaturalGate && (
+              <p className="mt-2 rounded border border-amber-600/40 bg-amber-950/35 px-2 py-1.5 text-[10px] text-amber-200/95">
+                No natural line matched any recipe — this score used all eight archetypes once (fallback).
+              </p>
+            )}
           </>
         )}
       </div>,

@@ -91,7 +91,7 @@ function defFor(
         header: () => (
           <span
             className="cursor-help border-b border-dotted border-zinc-500"
-            title="Effectiveness %: raw 1–20 intrinsics, weighted by archetype (GK / DC / WB / DMC / MC / AM / AMC / ST). Best archetype wins — bracket shows which recipe. Hover the cell for a stat breakdown. 1.25× on stats at 20+; Decisions×Anticipation multiplier on DC, DMC, MC, AMC. Not CM Scout."
+            title="Eff %: raw 1–20 intrinsics; only archetypes that match natural positions (&gt;14, CM Scout–style) compete. Hover for breakdown. 1.25× at 20+; brain mult on DC/DMC/MC/AMC. Not CM Scout %."
           >
             {lab}
           </span>

@@ -19,6 +19,7 @@ import {
 } from './database/attributes'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
 import { computeEffectivenessFull, playerAttrGetter } from '../shared/effectivenessEngine'
+import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
 import { computeHighlightSets, footMoraleHighlightTier, formatHighlightRoles } from './positionHighlights'
 
@@ -376,7 +377,10 @@ export function buildProfilePayload(
         })()
       : null
 
-  const effFull = computeEffectivenessFull(playerAttrGetter(p as Record<string, number>))
+  const effFull = computeEffectivenessFull(
+    playerAttrGetter(p as Record<string, number>),
+    eligibleEffectivenessArchetypeIds(p),
+  )
 
   return {
     name: row.name,
@@ -401,8 +405,9 @@ export function buildProfilePayload(
     effArchetype: effFull.effArchetype,
     effWinnerDetail: effFull.winnerDetail,
     effRunnerUp: effFull.runnerUp,
+    effRelaxedNaturalGate: effFull.relaxedNaturalGate,
     effRatingDisclaimer:
-      'Eff % is the best of eight fixed recipes on raw 1–20 attributes. It does not use CA18 in-match scaling and does not require the player to be natural in the bracket role (compare Natural above). CM Scout % uses the full Intrinsic weight grid — the two numbers measure different things.',
+      'Eff % only scores archetypes that match natural positions (>14 on the same lines as CM Scout suitability), so the bracket role is one you could pick in-game. CM Scout % uses the full Intrinsic grid with in-match scaling — the two numbers measure different things.',
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
     transfer: {
