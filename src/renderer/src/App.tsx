@@ -16,7 +16,7 @@ import { GridColumnPickerModal } from './grid/GridColumnPickerModal'
 import { loadGridColumnOrder, saveGridColumnOrder } from './grid/gridPersistence'
 import { cm0102FootWord, cm0102MoraleWord } from '../../shared/cm0102Bands'
 import { CM_SCOUT_ATTR_LABELS } from '../../shared/cmScoutAttrLabels'
-import { attrMinsStringsFromEnginePreset } from '../../shared/engineSnifferAttrPresets'
+import { attrMinsStringsFromEnginePreset, type EngineSnifferPresetId } from '../../shared/engineSnifferAttrPresets'
 import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
 import { DebouncedTextFilters } from './DebouncedTextFilters'
 
@@ -29,7 +29,7 @@ const DEFAULT_PROFILE_PANE_PX = 400
 const MIN_PROFILE_PANE_PX = 240
 const MAX_PROFILE_PANE_PX = 720
 
-type EngineSnifferUi = 'off' | 'assist_prospect' | 'striker_finisher'
+type EngineSnifferUi = 'off' | EngineSnifferPresetId
 
 function readProfilePanePx(): number {
   try {
@@ -1197,26 +1197,26 @@ export function App() {
                 uncapped CA18 / raw bytes — right-click a box: 5 → 10 → 15 → 20 → clear)
               </summary>
               <div className="space-y-1 border-t border-zinc-800 px-2 py-2">
-                <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
-                  <span className="text-zinc-400">Attributes with a min set</span>
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+                  <span className="text-zinc-400">Active</span>
                   <span
-                    className="min-w-[2.25rem] rounded border border-zinc-600 bg-zinc-950 px-2 py-1 text-center font-mono text-emerald-200/90"
-                    title="Count of filter rows with a value &gt; 0"
+                    className="inline-flex h-6 w-12 shrink-0 items-center justify-center rounded border border-zinc-600 bg-zinc-950 font-mono text-[11px] text-emerald-200/90"
+                    title="Attributes with a minimum value &gt; 0"
                   >
                     {activeAttrFilterCount}
                   </span>
                 </div>
                 <p className="text-[10px] leading-snug text-zinc-600">
-                  <span className="text-zinc-500">Match ≥</span> empty = every active filter must pass. Otherwise at least
-                  that many filters must pass (looser).
+                  <span className="text-zinc-500">Match ≥</span> empty = all active filters must pass; otherwise at least
+                  N must pass.
                 </p>
-                <div className="mt-1 flex items-center gap-1">
-                  <span className="shrink-0 text-[11px] text-zinc-500">Match ≥</span>
+                <div className="mt-1 flex items-center gap-0.5">
+                  <span className="shrink-0 pr-0.5 text-[10px] text-zinc-500">≥</span>
                   <button
                     type="button"
                     disabled={activeAttrFilterCount === 0}
-                    className="shrink-0 rounded border border-zinc-600 bg-zinc-900 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-                    title="Decrease (or clear to “all must pass”)"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-zinc-600 bg-zinc-900 p-0 text-[10px] leading-none text-zinc-400 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Decrease (at 1 → clear = all must pass)"
                     onClick={() => adjustMatchAtLeast(-1)}
                   >
                     ▼
@@ -1224,18 +1224,18 @@ export function App() {
                   <input
                     type="text"
                     inputMode="numeric"
-                    className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-center font-mono text-sm text-zinc-200"
+                    className="h-6 w-12 shrink-0 rounded border border-zinc-700 bg-zinc-950 px-1 py-0 text-center font-mono text-[11px] text-zinc-200"
                     value={attrMinMatchAtLeast}
                     onChange={(e) => setAttrMinMatchAtLeast(e.target.value.replace(/\D/g, ''))}
                     placeholder="all"
                     disabled={activeAttrFilterCount === 0}
-                    title="Type a number or use arrows (1 … count of active filters)"
+                    title="Match at least N (type or use arrows)"
                   />
                   <button
                     type="button"
                     disabled={activeAttrFilterCount === 0}
-                    className="shrink-0 rounded border border-zinc-600 bg-zinc-900 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-                    title="Increase (from empty starts at 1)"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-zinc-600 bg-zinc-900 p-0 text-[10px] leading-none text-zinc-400 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Increase (from empty → 1)"
                     onClick={() => adjustMatchAtLeast(1)}
                   >
                     ▲
@@ -1305,18 +1305,31 @@ export function App() {
                       those five at <span className="font-mono text-zinc-300">22+</span> uses a shorter overflow path.
                     </p>
                     <p>
-                      <span className="font-medium text-emerald-200/90">Striker finisher</span> — ST / wide forward: pace,
-                      acceleration, finishing, off the ball, flair, technique all 17+ with four at 18+ (three if any core is{' '}
-                      <span className="font-mono text-zinc-300">21+</span> raw); balance / dribbling 17+; consistency /
-                      important matches 16+; determination 17+. If any core is <span className="font-mono text-zinc-300">22+</span>, softer floors on the six.
+                      <span className="font-medium text-emerald-200/90">Striker finisher</span> — ST / FC: pace,
+                      acceleration, finishing, off the ball, technique as the hard spine (16+ with three at 18+ unless
+                      overflow); flair / dribbling only soft floors so poacher‑shaped elites (e.g. Tsigalko‑style) match;
+                      balance, consistency, important matches, determination.
                     </p>
                     <p>
-                      Choosing <span className="font-medium text-zinc-200">Assist</span> or{' '}
-                      <span className="font-medium text-zinc-200">Striker</span> fills{' '}
-                      <strong className="text-zinc-400">Attribute minimums</strong> with baseline floors. While any
-                      attribute min is set, the grid uses <strong className="text-zinc-400">only those bars</strong> (and
-                      optional <strong className="text-zinc-400">Match ≥</strong>); clear every attribute min to use the
-                      sniffer heuristic alone on rows.
+                      <span className="font-medium text-emerald-200/90">Goalkeeper</span> — natural GK: handling,
+                      reflexes, one‑on‑ones, positioning, anticipation, decisions, agility, jumping, consistency.
+                    </p>
+                    <p>
+                      <span className="font-medium text-emerald-200/90">Defender</span> — centre‑back / libero (Nesta‑style):
+                      marking, tackling, positioning, anticipation, bravery, heading, strength, jumping, pace, balance.
+                    </p>
+                    <p>
+                      <span className="font-medium text-emerald-200/90">Defensive midfielder</span> — natural DMC: tackling,
+                      positioning, marking, work rate, stamina, passing, decisions, anticipation, teamwork, aggression.
+                    </p>
+                    <p>
+                      <span className="font-medium text-emerald-200/90">Attacking midfielder</span> — natural AMC / wide
+                      creator (not lone ST): creativity, technique, passing, decisions, anticipation, off the ball,
+                      flair, stamina, balance.
+                    </p>
+                    <p>
+                      Picking any row below fills <strong className="text-zinc-400">Attribute minimums</strong> with that
+                      archetype’s baseline floors. While any attribute min is set, the grid uses <strong className="text-zinc-400">only those bars</strong> (and optional <strong className="text-zinc-400">Match ≥</strong>); clear every attribute min to use the sniffer heuristic alone.
                     </p>
                   </div>
                 }
@@ -1332,20 +1345,23 @@ export function App() {
                 onChange={(e) => {
                   const v = e.target.value as EngineSnifferUi
                   setEngineSniffer(v)
-                  if (v === 'assist_prospect') {
-                    setAttrMins(attrMinsStringsFromEnginePreset('assist_prospect'))
-                  } else if (v === 'striker_finisher') {
-                    setAttrMins(attrMinsStringsFromEnginePreset('striker_finisher'))
+                  if (v !== 'off') {
+                    setAttrMins(attrMinsStringsFromEnginePreset(v))
                   }
                 }}
               >
                 <option value="off">Off</option>
                 <option value="assist_prospect">Assist prospect (playmaker meta)</option>
-                <option value="striker_finisher">Striker finisher (elite ST/FC)</option>
+                <option value="striker_finisher">Striker finisher (elite ST / FC)</option>
+                <option value="goalkeeper">Goalkeeper</option>
+                <option value="defender">Defender (Nesta-style CB)</option>
+                <option value="defensive_mid">Defensive midfielder</option>
+                <option value="attacking_mid">Attacking midfielder</option>
               </select>
               <p className="mt-1 text-[10px] leading-snug text-zinc-600">
-                Assist / Striker fills attribute minimums; sniffer row filter runs only when <strong className="text-zinc-500">all</strong>{' '}
-                those mins are cleared. Right-click an attribute box: 5 → 10 → 15 → 20 → clear.
+                Each option fills attribute minimums; the sniffer row filter runs only when{' '}
+                <strong className="text-zinc-500">all</strong> those mins are cleared. Right-click an attribute box: 5 →
+                10 → 15 → 20 → clear.
               </p>
             </div>
           </div>
