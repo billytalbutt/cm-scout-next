@@ -108,9 +108,9 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
               </p>
             )}
             <p className="mt-1 text-[10px] text-zinc-500">
-              On-ball lines below; <strong className="text-zinc-400">Engine profile</strong> adds mentals and staff
-              hiddens (consistency, determination, professionalism, …) with lighter weights — they are included in the %
-              and in the engine list. Injury proneness is inverted (lower file byte = better for the mix).
+              Numbers are the <strong className="text-zinc-400">same 1–20 scale as the profile</strong> (in-game for
+              technicals/mentals that use the CA18 display path; others clamped 1–20) — not raw signed bytes from the
+              save file.
             </p>
             <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-500">Primary (×5)</p>
             <ul className="mt-0.5 space-y-0.5 font-mono text-[10px] text-zinc-300">
@@ -134,23 +134,6 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
                   </li>
                 ))}
             </ul>
-            {data.winnerDetail.engineLines && data.winnerDetail.engineLines.length > 0 && (
-              <>
-                <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-500">Engine profile (mentals &amp; hiddens)</p>
-                <ul className="mt-0.5 space-y-0.5 font-mono text-[10px] text-zinc-300">
-                  {data.winnerDetail.engineLines.map((l) => (
-                    <li key={`e-${l.key}`}>
-                      {l.label}{' '}
-                      <span className="text-zinc-500">
-                        {l.raw}
-                        {l.key === 'injury_proneness' ? ' (inv.)' : ''}
-                      </span>
-                      {l.godTier ? <span className="text-amber-300"> ★20+</span> : null}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
             {data.runnerUp && (
               <p className="mt-2 border-t border-zinc-800 pt-2 text-zinc-400">
                 Runner-up: <span className="text-zinc-200">{data.runnerUp.archetypeLabel}</span> at{' '}
@@ -160,7 +143,7 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
             <p className="mt-2 border-t border-zinc-800 pt-2 text-[10px] text-zinc-500">
               Only archetypes that match <strong className="text-zinc-400">natural positions</strong> (&gt;14, same idea
               as CM Scout) are scored. DC / DMC / MC / AMC apply the <strong className="text-zinc-400">brain</strong>{' '}
-              multiplier (Decisions × Anticipation) on top of base + engine lines.
+              multiplier (Decisions × Anticipation) on the recipe base.
               {isDemo ? ' Demo row uses the built-in Tsigalko fixture.' : ''}
             </p>
           </>

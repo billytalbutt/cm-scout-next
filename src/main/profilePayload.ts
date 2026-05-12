@@ -412,7 +412,7 @@ export function buildProfilePayload(
     eliteEngineBadgeDetail: row.eliteEngineBadgeDetail,
     effRatingDisclaimer: effFull.relaxedNaturalGate
       ? undefined
-      : 'Eff % uses on-ball primaries/secondaries plus an engine profile (mentals + staff hiddens) per archetype. CM Scout % uses the full WeightsSet on all 48 attrs (in-game CA18 + raw) — the two numbers measure different things.',
+      : 'Eff % uses only each archetype’s recipe stats on the same 1–20 scale as the profile (in-game CA18 path + clamped others). CM Scout % uses the full WeightsSet on all 48 attrs — the two numbers measure different things.',
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
     transfer: {

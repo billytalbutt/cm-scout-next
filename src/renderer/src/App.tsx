@@ -1695,10 +1695,9 @@ export function App() {
                             <p className="font-semibold text-zinc-300">Why this Eff %</p>
                             <p className="mt-1 text-zinc-500">
                               Winning recipe <span className="text-emerald-200/90">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
-                              — primary ×5, secondary ×1.5, then <strong className="text-zinc-400">engine profile</strong>{' '}
-                              (lighter weights on mentals + staff hiddens such as determination / professionalism); ★ =
-                              raw 20+ (1.25×). DC / DMC / MC / AMC also apply the brain multiplier (Dec × Ant) on the
-                              whole base.
+                              — primary ×5, secondary ×1.5; values match <strong className="text-zinc-400">profile 1–20</strong>{' '}
+                              (in-game CA18 path + clamped others). ★ = on-screen 20 (1.25×). DC / DMC / MC / AMC also
+                              multiply by Decisions × Anticipation.
                             </p>
                             {profile.effWinnerDetail.brainMult && (
                               <p className="mt-1 text-zinc-500">
@@ -1738,24 +1737,6 @@ export function App() {
                                 </ul>
                               </div>
                             </div>
-                            {profile.effWinnerDetail.engineLines && profile.effWinnerDetail.engineLines.length > 0 && (
-                              <div className="mt-2">
-                                <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">
-                                  Engine profile (mentals &amp; hiddens)
-                                </p>
-                                <ul className="mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-zinc-300">
-                                  {profile.effWinnerDetail.engineLines.map((l) => (
-                                    <li key={`eng-${l.key}`}>
-                                      {l.label} {l.raw}
-                                      {l.key === 'injury_proneness' ? (
-                                        <span className="text-zinc-600"> inv</span>
-                                      ) : null}
-                                      {l.godTier ? <span className="text-amber-300/90"> ★</span> : null}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
                             {profile.effRunnerUp && (
                               <p className="mt-2 border-t border-zinc-800/80 pt-2 text-zinc-500">
                                 Runner-up:{' '}
