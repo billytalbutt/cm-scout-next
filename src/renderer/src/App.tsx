@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react'
 import {
   createColumnHelper,
   flexRender,
@@ -99,6 +99,8 @@ export function App() {
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
   const [sel, setSel] = useState<number | null>(null)
   const [opening, setOpening] = useState(false)
+  /** Total matching filters in main process; `capped` if UI row list was truncated for performance */
+  const [gridMeta, setGridMeta] = useState<{ total: number; capped: boolean } | null>(null)
   const dblGuard = useRef<{ t: number; sid: number }>({ t: 0, sid: -1 })
 
   const refresh = useCallback(async () => {
@@ -133,7 +135,7 @@ export function App() {
     if (bosmanOnly) f.leavingOnBosman = true
     if (minReleaseClause) f.hasMinimumReleaseClause = true
     const expM = num(expiresWithinMonths)
-    if (expiresWithinMonths.trim() !== '' && Number.isFinite(expM) && expM >= 0) {
+    if (expiresWithinMonths.trim() !== '' && Number.isFinite(expM) && expM >= 1) {
       f.contractExpiresWithinMonths = Math.floor(expM)
     }
     const mins = attrMins.map((s) => {
@@ -146,19 +148,41 @@ export function App() {
       if (typeof window.cmapi?.getRows !== 'function') {
         setErr('Open this app via the Electron window from npm run dev (not a browser tab).')
         setRows(DEMO_FALLBACK)
+        setGridMeta(null)
         return
       }
-      const r = await window.cmapi.getRows(f)
-      const list = Array.isArray(r) ? r : []
+      const raw = await window.cmapi.getRows(f)
+      let list: Row[] = []
+      let total = 0
+      let capped = false
+      if (Array.isArray(raw)) {
+        list = raw as Row[]
+        total = list.length
+      } else if (
+        raw &&
+        typeof raw === 'object' &&
+        'rows' in raw &&
+        Array.isArray((raw as { rows: unknown }).rows)
+      ) {
+        const pkt = raw as { total: number; rows: Row[]; capped?: boolean }
+        list = pkt.rows
+        total = typeof pkt.total === 'number' ? pkt.total : list.length
+        capped = !!pkt.capped
+      }
       setErr(null)
       if (list.length > 0) {
-        setRows(list)
+        startTransition(() => {
+          setRows(list)
+          setGridMeta({ total, capped })
+        })
         return
       }
+      setGridMeta({ total, capped })
       setRows(loadInfo ? [] : DEMO_FALLBACK)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setErr(msg)
+      setGridMeta(null)
       setRows(loadInfo ? [] : DEMO_FALLBACK)
     }
   }, [
@@ -220,6 +244,7 @@ export function App() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setErr(msg)
+      setGridMeta(null)
       setRows(DEMO_FALLBACK)
     } finally {
       setOpening(false)
@@ -379,8 +404,11 @@ export function App() {
       )}
 
       <div className="flex min-h-0 flex-1">
-        <aside className="cm-scroll w-[22rem] shrink-0 overflow-y-auto border-r border-zinc-800/80 bg-zinc-950/50 p-4">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">Filters</h2>
+        <aside className="cm-scroll relative z-20 w-[22rem] shrink-0 overflow-y-auto border-r border-zinc-800/80 bg-zinc-950/50 p-4">
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Filters</h2>
+          <p className="mb-3 text-[11px] leading-snug text-zinc-500">
+            Updates are live: change any field and the player list refreshes automatically (no Apply button).
+          </p>
           <div className="space-y-3 text-sm">
             <label className="block">
               <span className="mb-1 block text-xs text-zinc-500">Search name</span>
@@ -546,12 +574,11 @@ export function App() {
               </label>
               <label className="block">
                 <span className="mb-1 block text-[11px] text-zinc-500">
-                  Contract expires within (months, empty = any)
+                  Contract expires within (months, ≥1, empty = any)
                 </span>
                 <input
-                  type="number"
-                  min={0}
-                  max={120}
+                  type="text"
+                  inputMode="numeric"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
                   value={expiresWithinMonths}
                   onChange={(e) => setExpiresWithinMonths(e.target.value)}
@@ -602,6 +629,23 @@ export function App() {
                 </>
               )}
             </p>
+            {loadInfo && gridMeta && gridMeta.capped && (
+              <p className="mb-3 rounded-lg border border-amber-800/50 bg-amber-950/35 px-3 py-2 text-xs text-amber-100/95">
+                Showing the first <strong>{rows.length.toLocaleString()}</strong> of{' '}
+                <strong>{gridMeta.total.toLocaleString()}</strong> matching players (memory cap). Narrow filters to work
+                with a smaller set, or ask for a higher cap in a future build.
+              </p>
+            )}
+            {loadInfo && rows.length === 0 && (
+              <p className="mb-3 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-300">
+                No players match the current filters. Clear text fields and uncheck boxes to see the full squad again.
+              </p>
+            )}
+            {loadInfo && gridMeta && !gridMeta.capped && rows.length > 0 && (
+              <p className="mb-2 text-[11px] text-zinc-500">
+                {gridMeta.total.toLocaleString()} matching player{gridMeta.total === 1 ? '' : 's'} — filters apply live.
+              </p>
+            )}
             {sel != null && (
               <div className="mb-3 flex items-center gap-2">
                 <button

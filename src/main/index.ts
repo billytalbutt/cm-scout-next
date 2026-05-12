@@ -39,10 +39,10 @@ function parseSaveOrIndex(selectedPath: string): ParsedDatabase {
   }
 }
 
-function allRowsWithDemo(): UiPlayerRow[] {
-  const demo = getDemoUiPlayerRow()
-  if (!loaded) return [demo]
-  return [demo, ...loaded.rows]
+/** When a save is loaded, return only real rows (demo would bloat IPC and confuse counts). */
+function allRowsForGrid(): UiPlayerRow[] {
+  if (!loaded) return [getDemoUiPlayerRow()]
+  return loaded.rows
 }
 
 function createWindow() {
@@ -115,8 +115,10 @@ ipcMain.handle('open-database', async (event) => {
   }
 })
 
+const DEFAULT_ROW_LIMIT = 35_000
+
 ipcMain.handle('get-rows', async (_e, filter: unknown) => {
-  let rows = allRowsWithDemo()
+  let rows = allRowsForGrid()
   const f = filter as {
     q?: string
     nation?: string
@@ -141,6 +143,8 @@ ipcMain.handle('get-rows', async (_e, filter: unknown) => {
     contractExpiresWithinMonths?: number
     hasMinimumReleaseClause?: boolean
     attrMins?: (number | null)[]
+    /** Max rows returned (default cap keeps IPC + React responsive on huge saves). */
+    limit?: number
   }
   const q = (f.q ?? '').trim().toLowerCase()
   if (q) rows = rows.filter((r) => r.name.toLowerCase().includes(q))
@@ -192,10 +196,15 @@ ipcMain.handle('get-rows', async (_e, filter: unknown) => {
   if (f.hasMinimumReleaseClause === true) {
     rows = rows.filter((r) => r.contract != null && r.contract.minimum_fee_rc > 0)
   }
-  if (f.contractExpiresWithinMonths != null && Number.isFinite(f.contractExpiresWithinMonths)) {
+  // Months must be >= 1: 0 used to mean "same calendar day only" and cleared entire grids by accident.
+  if (
+    f.contractExpiresWithinMonths != null &&
+    Number.isFinite(f.contractExpiresWithinMonths) &&
+    f.contractExpiresWithinMonths >= 1
+  ) {
     const gameIso = loaded?.db.gameDateIso
     if (gameIso) {
-      const maxM = Math.max(0, Math.min(120, f.contractExpiresWithinMonths))
+      const maxM = Math.min(120, Math.floor(f.contractExpiresWithinMonths))
       const maxDays = Math.ceil(maxM * 30.4375)
       rows = rows.filter((r) => {
         const exp = r.contract?.contract_expires_iso
@@ -209,7 +218,15 @@ ipcMain.handle('get-rows', async (_e, filter: unknown) => {
   if (f.attrMins?.length) {
     rows = rows.filter((r) => passesAttributeMins(r.cmAttrNorm, f.attrMins!))
   }
-  return rows.map((r) => ({
+  const total = rows.length
+  const limRaw = f.limit
+  const limit =
+    typeof limRaw === 'number' && Number.isFinite(limRaw) && limRaw > 0
+      ? Math.min(100_000, Math.floor(limRaw))
+      : DEFAULT_ROW_LIMIT
+  const capped = total > limit
+  const slice = capped ? rows.slice(0, limit) : rows
+  const mapped = slice.map((r) => ({
     staffId: r.staffId,
     staffIndex: r.staffIndex,
     name: r.name,
@@ -225,6 +242,7 @@ ipcMain.handle('get-rows', async (_e, filter: unknown) => {
     cmScoutRatingBp: r.cmScoutRatingBp,
     isDemo: r.staffIndex === DEMO_STAFF_INDEX,
   }))
+  return { total, rows: mapped, capped }
 })
 
 ipcMain.handle('get-profile', async (_e, staffIndex: number) => {

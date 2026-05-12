@@ -11,22 +11,42 @@ declare global {
     cmapi: {
       openDatabase: () => Promise<OpenResult>
       getRows: (filter: Record<string, unknown>) => Promise<
-        Array<{
-          staffId: number
-          staffIndex: number
-          name: string
-          nation: string
-          secondNation?: string
-          club: string
-          ca: number
-          pa: number
-          wage: number
-          value: number
-          age: number | null
-          euPassport?: boolean
-          cmScoutRatingBp?: number
-          isDemo?: boolean
-        }>
+        | {
+            total: number
+            rows: Array<{
+              staffId: number
+              staffIndex: number
+              name: string
+              nation: string
+              secondNation?: string
+              club: string
+              ca: number
+              pa: number
+              wage: number
+              value: number
+              age: number | null
+              euPassport?: boolean
+              cmScoutRatingBp?: number
+              isDemo?: boolean
+            }>
+            capped: boolean
+          }
+        | Array<{
+            staffId: number
+            staffIndex: number
+            name: string
+            nation: string
+            secondNation?: string
+            club: string
+            ca: number
+            pa: number
+            wage: number
+            value: number
+            age: number | null
+            euPassport?: boolean
+            cmScoutRatingBp?: number
+            isDemo?: boolean
+          }>
       >
       getProfile: (staffIndex: number) => Promise<ProfilePayload | null>
     }
