@@ -2,6 +2,7 @@ import { CmBinaryReader, readLatin1String } from './cmBinaryReader'
 import { ageFromBirthYearOnly, ageOnGameDate, tcmDateToIso } from './dates'
 import {
   indexStaffHistoryByStaffId,
+  normalizeStaffHistoryBuffer,
   parseStaffHistoryData,
   STAFF_HISTORY_ROW_BYTES,
   sumStaffHistoryCareerAndSeason,
@@ -70,7 +71,7 @@ function parsePlayer(buf: Buffer, off: number): PlayerRecord {
   o += 4
   const squad_number = buf.readUInt8(o)
   o += 1
-  const current_ability = buf.readUInt16LE(o)
+  const current_ability = buf.readInt16LE(o)
   o += 2
   const potential_ability = buf.readInt16LE(o)
   o += 2
@@ -296,6 +297,13 @@ function isValidPlayerRow(
 export function parseIndexDat(file: Buffer): ParsedDatabase {
   const { compressed, blocks } = readBlocksDirectory(file)
   const find = (n: string) => blocks.find((b) => b.name === n)
+  const findBlockLoose = (canonicalLower: string) =>
+    blocks.find((b) =>
+      b.name
+        .replace(/\0+$/g, '')
+        .trim()
+        .toLowerCase() === canonicalLower,
+    )
   const readBlock = (n: string) => {
     const b = find(n)
     if (!b) throw new Error(`Missing block ${n}`)
@@ -427,15 +435,20 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
   }
 
   let staffHistoryByStaffId: Map<number, StaffHistoryRecord[]> | undefined
-  const histBlock = find('staff_history.dat')
+  let staffHistoryParsed = false
+  const histBlock = find('staff_history.dat') ?? findBlockLoose('staff_history.dat')
   if (histBlock && histBlock.size > 0) {
     try {
-      const hbuf = blockData(file, compressed, histBlock)
-      if (hbuf.length > 0 && hbuf.length % STAFF_HISTORY_ROW_BYTES === 0) {
-        staffHistoryByStaffId = indexStaffHistoryByStaffId(parseStaffHistoryData(hbuf))
+      const raw = blockData(file, compressed, histBlock)
+      const norm = normalizeStaffHistoryBuffer(raw)
+      if (norm.length > 0 && norm.length % STAFF_HISTORY_ROW_BYTES === 0) {
+        const rows = parseStaffHistoryData(raw)
+        staffHistoryByStaffId = indexStaffHistoryByStaffId(rows)
+        staffHistoryParsed = true
       }
     } catch {
       staffHistoryByStaffId = undefined
+      staffHistoryParsed = false
     }
   }
 
@@ -443,6 +456,7 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     compressed,
     blocks,
     staffHistoryByStaffId,
+    staffHistoryParsed,
     nationSeasonUpdateDaySamples: seasonUpdateDaySamples,
     clubCompsById,
     staffCompsById,

@@ -1,8 +1,17 @@
 /**
- * CM Scout Intrinsic–style rating (DataService.CalculateRating + WeightsSet_CMScout.txt).
- * Uses in-match–normalized attributes (1–20) and CM Scout weights per position.
- * Per-role % = weighted mean for each of the seven weight columns (always).
- * "BP" column = max weighted % among positions the player is suitable for (Best regard position).
+ * CM Scout Intrinsic–style rating (ported from CMScoutIntrinsicCommunity `Sources/Model/DataService.cs`:
+ * `CalculateRating` + `WeightsSet_CMScout.txt`).
+ *
+ * Pipeline (matches upstream pass 2):
+ * 1. CA18 “in-match” raw: `trunc(intrinsic/5 + currentAbility/20 + 10)` (`GetInMatchValue`).
+ * 2. Map each CA18 in-match value to 1–20 using min/max of that value across **all valid players** in the loaded DB
+ *    (`InMatchNormalized`). Non-CA18 attributes use intrinsic clamped 1–20 (same as upstream).
+ * 3. Per-role % = `100 * sum(weight * v/20) / sum(weights)` with injury proneness & dirtiness inverted (`IsLessBetter`).
+ *
+ * **Grid “CM Scout %”** = **BP** (best position): max of those per-role scores **only among roles the player is
+ * natural for** (≥15), same as Intrinsic “best regard position”. A player’s **DM column** can read much higher than
+ * BP if their best natural role is elsewhere or BP excludes a high column — compare the seven role columns to a
+ * per-role number from another tool.
  */
 import { inMatchValue } from './database/attributes'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'

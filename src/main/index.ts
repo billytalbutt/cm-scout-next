@@ -55,6 +55,15 @@ function sortedUniqueClubNames(db: ParsedDatabase): string[] {
   return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
 }
 
+function sortedUniqueNationNames(db: ParsedDatabase): string[] {
+  const seen = new Set<string>()
+  for (const name of db.nationNames.values()) {
+    const t = name.trim()
+    if (t) seen.add(t)
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+}
+
 /** When a save is loaded, return only real rows (demo would bloat IPC and confuse counts). */
 function allRowsForGrid(): UiPlayerRow[] {
   if (!loaded) return [getDemoUiPlayerRow()]
@@ -131,6 +140,7 @@ ipcMain.handle('open-database', async (event) => {
       staffDatRows: db.staff.length,
       playerBlobRows: db.players.length,
       clubs: sortedUniqueClubNames(db),
+      nations: sortedUniqueNationNames(db),
       regenBaseline: baselineStatusForPath(pathKey),
     }
   } catch (e) {
@@ -171,6 +181,7 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
     const payload = buildProfilePayload(getDemoUiPlayerRow(), demoClub, '2002-05-12', {
       nationSeasonUpdateDaySamples: [],
       clubDivisionCompIdByClubId: new Map(),
+      staffHistoryParsed: true,
     })
     return { ...payload, isDemo: true as const }
   }
@@ -182,6 +193,7 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
       nationSeasonUpdateDaySamples: loaded.db.nationSeasonUpdateDaySamples,
       clubCompsById: loaded.db.clubCompsById,
       clubDivisionCompIdByClubId: loaded.db.clubDivisionCompIdByClubId,
+      staffHistoryParsed: loaded.db.staffHistoryParsed ?? false,
     }),
     isDemo: false as const,
   }

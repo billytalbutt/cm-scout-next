@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { ClubFilterCombo } from './ClubFilterCombo'
+import { ListFilterCombo } from './ListFilterCombo'
 
 export type CommittedTextFilters = { q: string; nation: string; club: string }
 
 type Props = {
+  nationList: string[]
   clubList: string[]
   onCommit: (v: CommittedTextFilters) => void
   /** Fires while local text differs from last committed payload (debounce window). */
@@ -16,6 +18,7 @@ type Props = {
  * receives `onCommit` after a short idle period).
  */
 export function DebouncedTextFilters({
+  nationList,
   clubList,
   onCommit,
   onPendingChange,
@@ -58,12 +61,11 @@ export function DebouncedTextFilters({
       </label>
       <label className="block">
         <span className="mb-1 block text-xs text-zinc-500">Nation (1st or 2nd)</span>
-        <input
-          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+        <ListFilterCombo
+          items={nationList}
           value={nation}
-          onChange={(e) => setNation(e.target.value)}
-          spellCheck={false}
-          autoCapitalize="off"
+          onChange={setNation}
+          emptyPlaceholder="Nation (load database for nation list)"
         />
       </label>
       <label className="block">

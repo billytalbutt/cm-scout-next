@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('cmapi', {
           staffDatRows: number
           playerBlobRows: number
           clubs: string[]
+          nations: string[]
           regenBaseline: {
             active: boolean
             savedAt?: string

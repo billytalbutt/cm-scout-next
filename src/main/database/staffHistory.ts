@@ -18,13 +18,25 @@ export interface StaffHistoryRecord {
 
 export const STAFF_HISTORY_ROW_BYTES = 17
 
+/**
+ * Some index builds prefix `staff_history.dat` with 4 bytes so `(size - 4) % 17 === 0` while `size % 17 !== 0`.
+ * CM0102Patcher `TStaffHistory` rows are always 17 bytes (pack 1).
+ */
+export function normalizeStaffHistoryBuffer(buf: Buffer): Buffer {
+  if (!buf.length) return buf
+  if (buf.length % STAFF_HISTORY_ROW_BYTES === 0) return buf
+  if (buf.length >= 4 && (buf.length - 4) % STAFF_HISTORY_ROW_BYTES === 0) return buf.subarray(4)
+  return buf
+}
+
 export function parseStaffHistoryData(data: Buffer): StaffHistoryRecord[] {
-  if (!data.length) return []
-  const n = Math.floor(data.length / STAFF_HISTORY_ROW_BYTES)
+  const body = normalizeStaffHistoryBuffer(data)
+  if (!body.length || body.length % STAFF_HISTORY_ROW_BYTES !== 0) return []
+  const n = body.length / STAFF_HISTORY_ROW_BYTES
   const out: StaffHistoryRecord[] = []
   for (let i = 0; i < n; i++) {
     const o = i * STAFF_HISTORY_ROW_BYTES
-    const slice = data.subarray(o, o + STAFF_HISTORY_ROW_BYTES)
+    const slice = body.subarray(o, o + STAFF_HISTORY_ROW_BYTES)
     if (slice.length < STAFF_HISTORY_ROW_BYTES) break
     out.push({
       id: slice.readInt32LE(0),
@@ -32,8 +44,9 @@ export function parseStaffHistoryData(data: Buffer): StaffHistoryRecord[] {
       year: slice.readInt16LE(8),
       clubId: slice.readInt32LE(10),
       onLoan: slice.readInt8(14),
-      apps: slice.readInt8(15),
-      goals: slice.readInt8(16),
+      /** Stored as byte; use unsigned so values above 127 are not shown as negative. */
+      apps: slice.readUInt8(15),
+      goals: slice.readUInt8(16),
     })
   }
   return out

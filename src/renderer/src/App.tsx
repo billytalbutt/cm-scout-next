@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, startTransition, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition, type MouseEvent, type ReactNode } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -22,6 +22,23 @@ const gridColHelper = createGridColumnHelper()
 
 const ENGINE_ATTRS_LS = 'cm-scout-next-profile-engine-attrs'
 const FILTERS_COLLAPSED_LS = 'cm-scout-next-filters-collapsed'
+const PROFILE_PANE_WIDTH_LS = 'cm-scout-next-profile-pane-px'
+const DEFAULT_PROFILE_PANE_PX = 400
+const MIN_PROFILE_PANE_PX = 240
+const MAX_PROFILE_PANE_PX = 720
+
+function readProfilePanePx(): number {
+  try {
+    const v = localStorage.getItem(PROFILE_PANE_WIDTH_LS)
+    if (v != null) {
+      const n = parseInt(v, 10)
+      if (Number.isFinite(n)) return Math.min(MAX_PROFILE_PANE_PX, Math.max(MIN_PROFILE_PANE_PX, n))
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_PROFILE_PANE_PX
+}
 
 /** Shown immediately and if IPC fails — same as main-process demo row (`GridPlayerRow` subset). */
 const DEMO_FALLBACK: GridPlayerRow[] = [
@@ -273,6 +290,7 @@ export function App() {
   const [columnPickerOpen, setColumnPickerOpen] = useState(false)
   const [headerMenu, setHeaderMenu] = useState<{ x: number; y: number } | null>(null)
   const [clubList, setClubList] = useState<string[]>([])
+  const [nationList, setNationList] = useState<string[]>([])
   const [committedText, setCommittedText] = useState({ q: '', nation: '', club: '' })
   const [textFiltersPending, setTextFiltersPending] = useState(false)
   const [gridRefreshing, setGridRefreshing] = useState(false)
@@ -314,6 +332,51 @@ export function App() {
   const gridInclude = useMemo(() => gridFlagsForVisibleColumnIds(columnOrder), [columnOrder])
   const dblGuard = useRef<{ t: number; sid: number }>({ t: 0, sid: -1 })
   const profileAsideRef = useRef<HTMLDivElement>(null)
+  const lastProfilePanePxRef = useRef(readProfilePanePx())
+  const [profilePanePx, setProfilePanePx] = useState(() => lastProfilePanePxRef.current)
+
+  useEffect(() => {
+    lastProfilePanePxRef.current = profilePanePx
+  }, [profilePanePx])
+
+  const onProfileSplitterMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startW = lastProfilePanePxRef.current
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    const onMove = (ev: MouseEvent) => {
+      const dw = ev.clientX - startX
+      const next = Math.min(MAX_PROFILE_PANE_PX, Math.max(MIN_PROFILE_PANE_PX, startW + dw))
+      lastProfilePanePxRef.current = next
+      setProfilePanePx(next)
+    }
+    const onUp = () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      try {
+        localStorage.setItem(PROFILE_PANE_WIDTH_LS, String(lastProfilePanePxRef.current))
+      } catch {
+        /* ignore */
+      }
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [])
+
+  const onProfileSplitterDoubleClick = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    lastProfilePanePxRef.current = DEFAULT_PROFILE_PANE_PX
+    setProfilePanePx(DEFAULT_PROFILE_PANE_PX)
+    try {
+      localStorage.setItem(PROFILE_PANE_WIDTH_LS, String(DEFAULT_PROFILE_PANE_PX))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   const refreshSeq = useRef(0)
 
   const refresh = useCallback(async () => {
@@ -581,6 +644,7 @@ export function App() {
         regenBaseline: r.regenBaseline,
       })
       setClubList(r.clubs)
+      setNationList(r.nations ?? [])
       setCommittedText({ q: '', nation: '', club: '' })
       setErr(null)
     } catch (e) {
@@ -847,6 +911,7 @@ export function App() {
             <div className="cm-scroll min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-sm">
             <DebouncedTextFilters
               key={loadInfo?.path ?? 'pre'}
+              nationList={nationList}
               clubList={clubList}
               onCommit={setCommittedText}
               onPendingChange={setTextFiltersPending}
@@ -1109,7 +1174,8 @@ export function App() {
           </aside>
         )}
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ flex: '1 1 0%', minWidth: '12rem' }}>
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Browse</span>
             <button
@@ -1168,10 +1234,15 @@ export function App() {
                 tip={
                   <div className="space-y-2 text-zinc-300">
                     <p>
-                      <span className="font-medium text-white">CM Scout %</span> uses the same weights file as CM Scout
-                      Intrinsic (<code className="text-emerald-400/80">WeightsSet_CMScout.txt</code>) and “best position”
-                      logic (max among roles the player fits). Elite players in a strong database often land in the
-                      70s–90s.
+                      <span className="font-medium text-white">CM Scout %</span> follows{' '}
+                      <span className="text-zinc-400">CM Scout Intrinsic</span> (
+                      <code className="text-emerald-400/80">DataService.CalculateRating</code> +{' '}
+                      <code className="text-emerald-400/80">WeightsSet_CMScout.txt</code>
+                      ): CA18 attributes are turned into “in-match” values, scaled to 1–20 using the min/max seen in
+                      your loaded database, then weighted. The main grid number is{' '}
+                      <span className="font-medium text-white">BP</span> (best among roles where natural position ≥15),
+                      not necessarily the DM/M/AM column — add the seven role columns to line up with another tool’s
+                      per-position percentages.
                     </p>
                     <p>
                       <span className="font-medium text-white">Age</span> uses staff DOB (TCM date) vs the loaded game
@@ -1320,9 +1391,22 @@ export function App() {
           </div>
         </main>
 
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize player grid and profile"
+          title="Drag to resize · double-click to reset width"
+          className="group relative w-1.5 shrink-0 cursor-col-resize select-none bg-zinc-900/40 hover:bg-emerald-950/30"
+          onMouseDown={onProfileSplitterMouseDown}
+          onDoubleClick={onProfileSplitterDoubleClick}
+        >
+          <span className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-px -translate-x-1/2 bg-zinc-700 group-hover:bg-emerald-500/70" />
+        </div>
+
         <aside
           ref={profileAsideRef}
-          className="w-[min(30rem,calc(100vw-48rem))] min-w-[22rem] shrink-0 overflow-y-auto border-l border-zinc-800/80 bg-zinc-950/60 p-4 cm-scroll"
+          style={{ width: profilePanePx, maxWidth: 'min(720px, 92vw)' }}
+          className="min-w-[240px] shrink-0 overflow-y-auto overflow-x-hidden border-l border-zinc-800/80 bg-zinc-950/60 p-4 cm-scroll"
         >
           {!profile && <p className="text-sm text-zinc-500">Select a player for profile & attributes.</p>}
           {profile && (
@@ -1601,6 +1685,25 @@ export function App() {
                     </span>
                   )}
                 </div>
+                {profile.seasonStats.allSeasons.length === 0 && (
+                  <p className="mb-2 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-2 text-[11px] leading-snug text-zinc-400">
+                    {!profile.seasonStats.staffHistoryParsed ? (
+                      <>
+                        This index did not load <code className="text-zinc-500">staff_history.dat</code> (block
+                        missing, empty, or decompressed size is not a multiple of 17-byte rows — some saves use a
+                        4-byte prefix, which we now skip automatically when it fits). Reload after a game has written
+                        history, or try an uncompressed save.
+                      </>
+                    ) : (
+                      <>
+                        No rows in <code className="text-zinc-500">staff_history.dat</code> for this staff id yet —
+                        common before they register competitive minutes, or if this database omits history for them.
+                        International caps from <code className="text-zinc-500">staff.dat</code> still show above when
+                        non-zero.
+                      </>
+                    )}
+                  </p>
+                )}
                 <div className="overflow-x-auto rounded border border-zinc-800/80">
                   <table className="w-full min-w-[19rem] border-collapse text-left text-[11px]">
                     <thead>
@@ -1618,8 +1721,9 @@ export function App() {
                       {profile.seasonStats.allSeasons.length === 0 ? (
                         <tr>
                           <td colSpan={7} className="px-2 py-3 text-zinc-500">
-                            No rows in <code className="text-zinc-600">staff_history.dat</code> for this player on this
-                            database.
+                            {profile.seasonStats.staffHistoryParsed
+                              ? 'No table rows for this player (totals above are zero).'
+                              : 'History block not available — see the note above.'}
                           </td>
                         </tr>
                       ) : (
@@ -1762,6 +1866,7 @@ export function App() {
             </div>
           )}
         </aside>
+        </div>
       </div>
       {headerMenu && (
         <ul

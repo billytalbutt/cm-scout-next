@@ -71,7 +71,14 @@ function defFor(
     case 'rating':
       return h.accessor((r) => r.cmScoutRatingBp ?? -1, {
         id,
-        header: lab,
+        header: () => (
+          <span
+            className="cursor-help border-b border-dotted border-zinc-500"
+            title="Intrinsic ‘BP’: max weighted % among roles where the player is natural (≥15). Per-role % (e.g. DM) can be higher — enable the seven role columns under CM Scout % by role. Same math as CM Scout Intrinsic (in-match values normalized across loaded players, then WeightsSet_CMScout.txt)."
+          >
+            {lab}
+          </span>
+        ),
         cell: ({ row }) => {
           const v = row.original.cmScoutRatingBp
           return v == null ? <span className="text-zinc-600">—</span> : <span>{v.toFixed(1)}%</span>

@@ -164,6 +164,8 @@ export type ProfileDbContext = {
   nationSeasonUpdateDaySamples: number[]
   clubCompsById?: Map<number, ClubCompRecord>
   clubDivisionCompIdByClubId: Map<number, number>
+  /** Whether `staff_history.dat` was present and row-aligned in this index (per-player rows may still be empty). */
+  staffHistoryParsed: boolean
 }
 
 function calendarYearFromGameIso(iso: string | null): number | null {
@@ -233,6 +235,7 @@ function buildProfileSeasonStats(
     careerTotals: { apps: careerApps, goals: careerGoals },
     allSeasons,
     inferredDomesticLeague,
+    staffHistoryParsed: ctx.staffHistoryParsed,
     /** Populated when a per-staff competition stats block is mapped (not `staff_history.dat`). */
     perCompetitionRows: [] as { competitionId: number; competitionName: string; apps: number; goals: number }[],
     perCompetitionStatsInSave: false as const,

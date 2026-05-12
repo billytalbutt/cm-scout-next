@@ -132,6 +132,11 @@ export interface ParsedDatabase {
   blocks: BlockInfo[]
   /** Optional: keyed by `staff.dat` row `id` (same as `StaffRecord.id`). */
   staffHistoryByStaffId?: Map<number, StaffHistoryRecord[]>
+  /**
+   * True when `staff_history.dat` exists in the index and was parsed into a map (possibly empty).
+   * False when the block is missing, empty, or the decompressed size is not a valid row multiple even after optional 4-byte prefix skip.
+   */
+  staffHistoryParsed?: boolean
   /** Raw `SeasonUpdateDay` samples from nation.dat (1–366); used for staff_history season tagging. */
   nationSeasonUpdateDaySamples: number[]
   /** Optional `club_comp.dat` (domestic league / cup competition definitions). */

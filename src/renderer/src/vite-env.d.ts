@@ -14,6 +14,7 @@ type OpenResult =
       staffDatRows: number
       playerBlobRows: number
       clubs: string[]
+      nations: string[]
       regenBaseline: {
         active: boolean
         savedAt?: string
@@ -89,6 +90,8 @@ export interface ProfileSeasonStats {
   inferredDomesticLeague: { competitionId: number; name: string } | null
   perCompetitionRows: ProfilePerCompetitionRow[]
   perCompetitionStatsInSave: boolean
+  /** True when `staff_history.dat` was present and parsed for this save (this player may still have zero rows). */
+  staffHistoryParsed: boolean
 }
 
 export interface ProfilePayload {
