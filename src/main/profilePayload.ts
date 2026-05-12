@@ -12,52 +12,88 @@ import {
   type AttrDisplayBlock,
   type Ca18Key,
 } from './database/attributes'
-import type { UiPlayerRow } from './database/types'
+import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
 import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
 import { computeHighlightSets, footMoraleHighlightTier, formatHighlightRoles } from './positionHighlights'
 
-/** Shown in main attribute grid (not hidden). */
-const OTHER_KEYS_VISIBLE = [
-  'acceleration',
-  'agility',
-  'balance',
-  'determination',
-  'flair',
-  'jumping',
-  'natural_fitness',
-  'pace',
-  'stamina',
-  'strength',
-  'technique',
-  'work_rate',
-  'aggression',
-  'influence',
-  'teamwork',
-  'morale',
+/**
+ * Main profile attribute columns — CM0102-style three-column stack (top → bottom),
+ * not alphabetical. Matches the in-game layout: accel…finishing | flair…positioning | set pieces…work rate.
+ */
+const MAIN_ATTR_COLS: readonly [readonly string[], readonly string[], readonly string[]] = [
+  [
+    'acceleration',
+    'aggression',
+    'agility',
+    'anticipation',
+    'balance',
+    'bravery',
+    'creativity',
+    'crossing',
+    'decisions',
+    'determination',
+    'dribbling',
+    'finishing',
+  ],
+  [
+    'flair',
+    'handling',
+    'heading',
+    'influence',
+    'jumping',
+    'long_shots',
+    'marking',
+    'natural_fitness',
+    'off_the_ball',
+    'passing',
+    'positioning',
+  ],
+  [
+    'corners',
+    'free_kicks',
+    'penalties',
+    'throw_ins',
+    'one_on_ones',
+    'pace',
+    'reflexes',
+    'stamina',
+    'strength',
+    'tackling',
+    'technique',
+    'teamwork',
+    'work_rate',
+  ],
 ] as const
 
-/** Player attributes shown only under Hidden (with staff mentals). */
+/** Player attributes on CM’s separate “hidden” screen only (plus staff mentals below). */
 const HIDDEN_PLAYER_KEYS = [
-  'bravery',
   'consistency',
-  'corners',
   'dirtiness',
-  'free_kicks',
   'important_matches',
   'injury_proneness',
-  'one_on_ones',
-  'penalties',
-  'throw_ins',
   'versatility',
 ] as const
 
-const HIDDEN_PLAYER_KEY_SET = new Set<string>(HIDDEN_PLAYER_KEYS)
-
-/** CA18 keys only on the default “hidden” / set-piece style screen in CM (always out of main grid). */
-const CA18_HIDDEN_IN_GRID = new Set<string>(['penalties', 'throw_ins', 'one_on_ones'])
-
-/** CA18 GK-only columns: keep in main grid only for natural goalkeepers (suitability &gt;14). */
-const CA18_GK_ONLY_IN_MAIN = new Set<string>(['handling', 'reflexes'])
+function putProfileAttrIntoOther(
+  key: string,
+  p: PlayerRecord,
+  s: StaffRecord,
+  ca18: Record<Ca18Key, AttrDisplayBlock>,
+  other: Record<string, AttrDisplayBlock>,
+) {
+  if (Object.prototype.hasOwnProperty.call(other, key)) return
+  if (key === 'determination') {
+    other[key] = otherAttrDisplay(s.determination)
+    return
+  }
+  if ((CA18_KEYS as readonly string[]).includes(key)) {
+    const k = key as Ca18Key
+    const x = ca18[k]
+    other[key] = { raw: x.raw, inGame: x.inGame, inGameUncapped: x.inGameUncapped, inMatch: x.inMatch }
+    return
+  }
+  other[key] = otherAttrDisplay(p[key as keyof PlayerRecord] as number)
+}
 
 export type ProfileAttrCell = {
   key: string
@@ -187,32 +223,12 @@ export function buildProfilePayload(
   const p = row.player
   const s = row.staff
   const ca18 = buildCa18Display(p)
-  const isNaturalGk = p.goalkeeper > 14
-
-  const hiddenPlayerKeyList: string[] = [...HIDDEN_PLAYER_KEYS]
-  if (!isNaturalGk) {
-    hiddenPlayerKeyList.push('handling', 'reflexes')
-  }
 
   const other: Record<string, AttrDisplayBlock> = {}
-  for (const k of OTHER_KEYS_VISIBLE) {
-    if (k === 'morale') continue
-    /** CM0102 stores playable determination on `staff.dat`, not the 70-byte `player.dat` row. */
-    if (k === 'determination') {
-      other[k] = otherAttrDisplay(s.determination)
-      continue
-    }
-    other[k] = otherAttrDisplay(p[k as keyof typeof p] as number)
+  for (const col of MAIN_ATTR_COLS) {
+    for (const k of col) putProfileAttrIntoOther(k, p, s, ca18, other)
   }
-  for (const k of hiddenPlayerKeyList) {
-    if ((CA18_KEYS as readonly string[]).includes(k)) {
-      const key = k as Ca18Key
-      const x = ca18[key]
-      other[k] = { raw: x.raw, inGame: x.inGame, inGameUncapped: x.inGameUncapped, inMatch: x.inMatch }
-    } else {
-      other[k] = otherAttrDisplay(p[k as keyof typeof p] as number)
-    }
-  }
+  for (const k of HIDDEN_PLAYER_KEYS) putProfileAttrIntoOther(k, p, s, ca18, other)
 
   const mentalStaff: Record<string, AttrDisplayBlock> = {
     adaptability: otherAttrDisplay(s.adaptability),
@@ -239,17 +255,6 @@ export function buildProfilePayload(
     if (hl.staffSecondary.has(key)) return 'secondary'
     return undefined
   }
-
-  const gridKeys = [
-    ...CA18_KEYS.filter((k) => {
-      if (CA18_HIDDEN_IN_GRID.has(k)) return false
-      if (!isNaturalGk && CA18_GK_ONLY_IN_MAIN.has(k)) return false
-      return true
-    }),
-    ...OTHER_KEYS_VISIBLE.filter((k) => k !== 'morale'),
-  ]
-    .filter((k) => !HIDDEN_PLAYER_KEY_SET.has(k))
-    .sort((a, b) => humanizeAttrKey(a).localeCompare(humanizeAttrKey(b)))
 
   const toCell = (key: string): ProfileAttrCell => {
     const label = humanizeAttrKey(key)
@@ -284,11 +289,10 @@ export function buildProfilePayload(
     }
   }
 
-  const [k0, k1, k2] = splitIntoThreeColumns(gridKeys)
   const attrColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]] = [
-    k0.map(toCell),
-    k1.map(toCell),
-    k2.map(toCell),
+    MAIN_ATTR_COLS[0].map(toCell),
+    MAIN_ATTR_COLS[1].map(toCell),
+    MAIN_ATTR_COLS[2].map(toCell),
   ]
 
   const feetMorale: ProfileFeetMorale = {
@@ -309,7 +313,7 @@ export function buildProfilePayload(
     },
   }
 
-  const hiddenPlayerCells: ProfileAttrCell[] = [...hiddenPlayerKeyList]
+  const hiddenPlayerCells: ProfileAttrCell[] = [...HIDDEN_PLAYER_KEYS]
     .sort((a, b) => humanizeAttrKey(a).localeCompare(humanizeAttrKey(b)))
     .map((key) => toCell(key))
 

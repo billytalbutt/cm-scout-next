@@ -1315,8 +1315,9 @@ export function App() {
                   </p>
                 </div>
                 <p className="mb-1.5 text-[10px] leading-snug text-zinc-600">
-                  In-game values (CM Scout style), A–Z in three columns. Row tint = key attributes for natural
-                  positions (suitability &gt;14):{' '}
+                  In-game values in <span className="text-zinc-400">CM0102 column order</span> (left: acceleration →
+                  finishing; middle: flair → positioning; right: set pieces → work rate). Row tint = key attributes for
+                  natural positions (suitability &gt;14):{' '}
                   <span className="font-mono text-zinc-400">{profile.highlightRolesLabel}</span>. Hover a value for
                   intrinsic and in-match. With the toggle on, a highlighted bracket appears only when the uncapped
                   engine-style value differs from the number shown (e.g. finishing 20 with a higher true display).
@@ -1349,11 +1350,11 @@ export function App() {
                   </p>
                 </div>
                 <p className="mb-2 text-[10px] text-zinc-600">
-                  CM “hidden” style player fields (set pieces, consistency, bravery, dirtiness, injury proneness,
-                  versatility, etc.) plus handling/reflexes when the player is not a natural GK — and staff.dat mentals
-                  (adaptability, ambition, loyalty, pressure, professionalism, sportsmanship, temperament). Determination
-                  is read from staff.dat but listed under Attributes. Same tint for staff mentals: ambition /
-                  professionalism often read as core.
+                  CM second-screen player fields only: consistency, dirtiness, important matches, injury proneness,
+                  versatility — plus staff.dat mentals (adaptability, ambition, loyalty, pressure, professionalism,
+                  sportsmanship, temperament). Set pieces, bravery, handling, and reflexes stay in the main Attributes
+                  columns above. Determination is read from staff.dat in the left column. Same tint for staff mentals:
+                  ambition / professionalism often read as core.
                 </p>
                 <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
                   <ProfileAttrColumn cells={profile.hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
