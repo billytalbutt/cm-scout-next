@@ -1,5 +1,6 @@
 import { buildCa18Display, CA18_KEYS, otherAttrDisplay } from './database/attributes'
 import type { UiPlayerRow } from './database/types'
+import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
 
 const OTHER_KEYS = [
   'acceleration',
@@ -26,13 +27,33 @@ const OTHER_KEYS = [
   'morale',
 ] as const
 
+export type ProfileAttrCell = {
+  key: string
+  label: string
+  inGame: number
+  raw: number
+  inMatch: number
+  invert: boolean
+}
+
+export type ProfileFeetMorale = {
+  left: { label: string; inGame: number; raw: number; inMatch: number }
+  right: { label: string; inGame: number; raw: number; inMatch: number }
+  morale: { label: string; inGame: number; raw: number; inMatch: number }
+}
+
 export function buildProfilePayload(row: UiPlayerRow) {
   const p = row.player
   const s = row.staff
   const ca18 = buildCa18Display(p)
+
   const other: Record<string, { raw: number; inGame: number; inMatch: number }> = {}
-  for (const k of OTHER_KEYS) other[k] = otherAttrDisplay(p[k as keyof typeof p] as number)
-  const mentalStaff = {
+  for (const k of OTHER_KEYS) {
+    if (k === 'morale') continue
+    other[k] = otherAttrDisplay(p[k as keyof typeof p] as number)
+  }
+
+  const mentalStaff: Record<string, { raw: number; inGame: number; inMatch: number }> = {
     adaptability: otherAttrDisplay(s.adaptability),
     ambition: otherAttrDisplay(s.ambition),
     determination: otherAttrDisplay(s.determination),
@@ -42,6 +63,48 @@ export function buildProfilePayload(row: UiPlayerRow) {
     sportsmanship: otherAttrDisplay(s.sportsmanship),
     temperament: otherAttrDisplay(s.temperament),
   }
+
+  const gridKeys = [...CA18_KEYS, ...OTHER_KEYS.filter((k) => k !== 'morale')].sort((a, b) =>
+    humanizeAttrKey(a).localeCompare(humanizeAttrKey(b)),
+  )
+
+  const toCell = (key: string): ProfileAttrCell => {
+    const label = humanizeAttrKey(key)
+    if ((CA18_KEYS as readonly string[]).includes(key)) {
+      const x = ca18[key as (typeof CA18_KEYS)[number]]
+      return { key, label, inGame: x.inGame, raw: x.raw, inMatch: x.inMatch, invert: false }
+    }
+    const x = other[key]!
+    const inv = key === 'injury_proneness' || key === 'dirtiness'
+    return { key, label, inGame: x.inGame, raw: x.raw, inMatch: x.inMatch, invert: inv }
+  }
+
+  const [k0, k1, k2] = splitIntoThreeColumns(gridKeys)
+  const attrColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]] = [
+    k0.map(toCell),
+    k1.map(toCell),
+    k2.map(toCell),
+  ]
+
+  const feetMorale: ProfileFeetMorale = {
+    left: { label: 'Left foot', ...otherAttrDisplay(p.left_foot) },
+    right: { label: 'Right foot', ...otherAttrDisplay(p.right_foot) },
+    morale: { label: 'Morale', ...otherAttrDisplay(p.morale) },
+  }
+
+  const hiddenSorted: ProfileAttrCell[] = Object.entries(mentalStaff)
+    .map(([key, v]) => ({
+      key,
+      label: humanizeAttrKey(key),
+      inGame: v.inGame,
+      raw: v.raw,
+      inMatch: v.inMatch,
+      invert: false,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label))
+
+  const hiddenColumns = splitIntoThreeColumns(hiddenSorted)
+
   const contract = row.contract
     ? {
         wage: row.contract.wage,
@@ -59,27 +122,26 @@ export function buildProfilePayload(row: UiPlayerRow) {
         relegationClause: row.contract.relegation_rc > 0,
       }
     : null
+
+  const nationDisplay =
+    row.secondNation && row.secondNation.trim()
+      ? `${row.nation} / ${row.secondNation}`
+      : row.nation
+
   return {
     name: row.name,
     nation: row.nation,
+    secondNation: row.secondNation ?? '',
+    nationDisplay,
     club: row.club,
     dobIso: s.dob_iso,
     euPassport: row.euPassport,
+    positionLabel: formatNaturalPositions(p),
     ca: p.current_ability,
     pa: p.potential_ability,
-    ca18: CA18_KEYS.map((k) => ({ key: k, ...ca18[k] })),
-    other,
-    mentalStaff,
+    attrColumns,
+    feetMorale,
+    hiddenColumns,
     contract,
-    positions: {
-      gk: p.goalkeeper,
-      sw: p.sweeper,
-      d: p.defender,
-      dm: p.defensive_midfielder,
-      m: p.midfielder,
-      am: p.attacking_midfielder,
-      st: p.attacker,
-      wb: p.wing_back,
-    },
   }
 }

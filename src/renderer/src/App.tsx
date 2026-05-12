@@ -7,7 +7,7 @@ import {
   useReactTable,
   type SortingState,
 } from '@tanstack/react-table'
-import type { ProfilePayload } from './vite-env.d'
+import type { ProfileAttrCell, ProfilePayload } from './vite-env.d'
 import { CM_SCOUT_ATTR_LABELS } from '../../shared/cmScoutAttrLabels'
 
 type Row = {
@@ -64,6 +64,51 @@ function attrColor(v: number, invert = false): string {
   return 'text-rose-300/90'
 }
 
+function ProfileAttrColumn({ cells }: { cells: ProfileAttrCell[] }) {
+  return (
+    <ul className="min-w-0 space-y-0.5 text-[12px]">
+      {cells.map((a) => (
+        <li key={a.key} className="flex justify-between gap-1.5 border-b border-zinc-800/30 py-1">
+          <span className="truncate text-zinc-400" title={a.key}>
+            {a.label}
+          </span>
+          <span
+            className={`shrink-0 font-mono text-[13px] tabular-nums ${attrColor(a.inGame, a.invert)}`}
+            title={`In-game ${a.inGame} · intrinsic ${a.raw} · in-match ${a.inMatch}`}
+          >
+            {a.inGame}
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function FeetMoraleBlock({
+  feet,
+}: {
+  feet: ProfilePayload['feetMorale']
+}) {
+  const row = (label: string, v: { inGame: number; raw: number; inMatch: number }) => (
+    <div key={label} className="flex justify-between gap-1.5 border-b border-zinc-800/30 py-1 text-[12px]">
+      <span className="text-zinc-400">{label}</span>
+      <span
+        className={`font-mono text-[13px] tabular-nums ${attrColor(v.inGame)}`}
+        title={`In-game ${v.inGame} · intrinsic ${v.raw} · in-match ${v.inMatch}`}
+      >
+        {v.inGame}
+      </span>
+    </div>
+  )
+  return (
+    <div className="mt-2 space-y-0.5 border-t border-zinc-700/50 pt-2">
+      {row(feet.left.label, feet.left)}
+      {row(feet.right.label, feet.right)}
+      {row(feet.morale.label, feet.morale)}
+    </div>
+  )
+}
+
 export function App() {
   const [loadInfo, setLoadInfo] = useState<{
     path: string
@@ -102,6 +147,7 @@ export function App() {
   /** Total matching filters in main process; `capped` if UI row list was truncated for performance */
   const [gridMeta, setGridMeta] = useState<{ total: number; capped: boolean } | null>(null)
   const dblGuard = useRef<{ t: number; sid: number }>({ t: 0, sid: -1 })
+  const profileAsideRef = useRef<HTMLDivElement>(null)
 
   const refresh = useCallback(async () => {
     const f: Record<string, unknown> = { q, nation, club }
@@ -214,6 +260,11 @@ export function App() {
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  useEffect(() => {
+    if (!profile) return
+    profileAsideRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+  }, [profile])
 
   const loadDatabase = useCallback(async () => {
     setErr(null)
@@ -707,7 +758,10 @@ export function App() {
           </div>
         </main>
 
-        <aside className="w-[420px] shrink-0 overflow-y-auto border-l border-zinc-800/80 bg-zinc-950/60 p-4 cm-scroll">
+        <aside
+          ref={profileAsideRef}
+          className="w-[min(30rem,calc(100vw-48rem))] min-w-[22rem] shrink-0 overflow-y-auto border-l border-zinc-800/80 bg-zinc-950/60 p-4 cm-scroll"
+        >
           {!profile && <p className="text-sm text-zinc-500">Select a player for profile & attributes.</p>}
           {profile && (
             <div className="space-y-4">
@@ -716,23 +770,24 @@ export function App() {
                   Demo roster — not loaded from your save. Illustrative stats for Maxim Tsigalko (CM 01/02 archetype).
                 </div>
               )}
-              <div>
-                <h2 className="text-xl font-semibold text-white">{profile.name}</h2>
-                <p className="text-sm text-zinc-400">
-                  {profile.nation}
+              <div className="border-b border-zinc-800/80 pb-3">
+                <h2 className="text-xl font-semibold tracking-tight text-white">{profile.name}</h2>
+                <p className="mt-1 text-sm font-medium text-emerald-200/90">{profile.positionLabel}</p>
+                <p className="mt-1.5 text-sm text-zinc-200">
+                  {profile.nationDisplay}
                   {profile.euPassport && (
                     <span className="ml-1.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
                       EU
                     </span>
-                  )}{' '}
-                  · {profile.club}
+                  )}
                 </p>
+                <p className="mt-0.5 text-xs text-zinc-500">{profile.club}</p>
                 {profile.dobIso && (
-                  <p className="mt-0.5 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-zinc-500">
                     DOB <span className="font-mono text-zinc-400">{profile.dobIso}</span>
                   </p>
                 )}
-                <p className="mt-1 text-sm">
+                <p className="mt-2 text-sm">
                   <span className="text-zinc-500">CA</span>{' '}
                   <span className="font-mono text-emerald-300">{profile.ca}</span>
                   <span className="mx-2 text-zinc-600">|</span>
@@ -740,6 +795,7 @@ export function App() {
                   <span className="font-mono text-emerald-300">{profile.pa}</span>
                 </p>
               </div>
+
               {profile.contract && (
                 <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
                   <h3 className="mb-2 font-semibold text-zinc-300">Contract</h3>
@@ -771,53 +827,31 @@ export function App() {
                   </div>
                 </div>
               )}
+
               <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                  CA18 · in-game / intrinsic / in-match
-                </h3>
-                <ul className="space-y-1 text-sm">
-                  {profile.ca18.map((a) => (
-                    <li key={a.key} className="flex justify-between gap-2 rounded px-1 py-0.5 hover:bg-zinc-800/40">
-                      <span className="text-zinc-400 capitalize">{a.key.replace(/_/g, ' ')}</span>
-                      <span className="font-mono text-xs">
-                        <span className={attrColor(a.inGame)}>{a.inGame}</span>
-                        <span className="text-zinc-600"> · </span>
-                        <span className="text-zinc-500">{a.raw}</span>
-                        <span className="text-zinc-600"> · </span>
-                        <span className="text-sky-300/80">{a.inMatch}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Attributes</h3>
+                <p className="mb-2 text-[10px] leading-snug text-zinc-600">
+                  In-game values (CM Scout style), A–Z in three columns like the CM 01/02 profile layout. Hover a value
+                  for intrinsic and in-match.
+                </p>
+                <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+                  <ProfileAttrColumn cells={profile.attrColumns[0]} />
+                  <ProfileAttrColumn cells={profile.attrColumns[1]} />
+                  <div className="min-w-0">
+                    <ProfileAttrColumn cells={profile.attrColumns[2]} />
+                    <FeetMoraleBlock feet={profile.feetMorale} />
+                  </div>
+                </div>
               </div>
+
               <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Physical &amp; other</h3>
-                <ul className="space-y-1 text-sm">
-                  {Object.entries(profile.other).map(([k, v]) => (
-                    <li key={k} className="flex justify-between gap-2">
-                      <span className="text-zinc-500 capitalize">{k.replace(/_/g, ' ')}</span>
-                      <span
-                        className={`font-mono ${attrColor(
-                          v.inGame,
-                          k === 'injury_proneness' || k === 'dirtiness',
-                        )}`}
-                      >
-                        {v.inGame}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Staff / hidden (from staff.dat)</h3>
-                <ul className="space-y-1 text-sm">
-                  {Object.entries(profile.mentalStaff).map(([k, v]) => (
-                    <li key={k} className="flex justify-between gap-2">
-                      <span className="text-zinc-500 capitalize">{k}</span>
-                      <span className={`font-mono ${attrColor(v.inGame)}`}>{v.inGame}</span>
-                    </li>
-                  ))}
-                </ul>
+                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hidden</h3>
+                <p className="mb-2 text-[10px] text-zinc-600">Staff attributes from staff.dat (A–Z, three columns).</p>
+                <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+                  <ProfileAttrColumn cells={profile.hiddenColumns[0]} />
+                  <ProfileAttrColumn cells={profile.hiddenColumns[1]} />
+                  <ProfileAttrColumn cells={profile.hiddenColumns[2]} />
+                </div>
               </div>
             </div>
           )}

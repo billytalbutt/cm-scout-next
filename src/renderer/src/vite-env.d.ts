@@ -53,18 +53,34 @@ declare global {
   }
 }
 
+export interface ProfileAttrCell {
+  key: string
+  label: string
+  inGame: number
+  raw: number
+  inMatch: number
+  invert: boolean
+}
+
 export interface ProfilePayload {
   isDemo?: boolean
   name: string
   nation: string
+  secondNation: string
+  nationDisplay: string
   club: string
   dobIso: string | null
   euPassport: boolean
+  positionLabel: string
   ca: number
   pa: number
-  ca18: Array<{ key: string; raw: number; inGame: number; inMatch: number }>
-  other: Record<string, { raw: number; inGame: number; inMatch: number }>
-  mentalStaff: Record<string, { raw: number; inGame: number; inMatch: number }>
+  attrColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
+  feetMorale: {
+    left: { label: string; inGame: number; raw: number; inMatch: number }
+    right: { label: string; inGame: number; raw: number; inMatch: number }
+    morale: { label: string; inGame: number; raw: number; inMatch: number }
+  }
+  hiddenColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
   contract: {
     wage: number
     clubId: number
@@ -80,5 +96,4 @@ export interface ProfilePayload {
     nonPlayingClause: boolean
     relegationClause: boolean
   } | null
-  positions: Record<string, number>
 }
