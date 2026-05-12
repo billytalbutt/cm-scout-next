@@ -112,11 +112,14 @@ export interface ProfilePayload {
   reputation: { home: number; current: number; world: number }
   ca: number
   pa: number
-  /** Grid column: max % among “suitable” roles (Intrinsic BP rule) */
+  /** Grid column: max % among “suitable” roles (CM Scout weights on in-game CA18 + raw mentals) */
   cmScoutRatingBp?: number
   /** Effectiveness % (best archetype); bracket label on grid. Null when naturals matched no recipe — show Unsure. */
   effPercent?: number | null
   effArchetype?: string
+  eliteEngineBadgeKind?: 'finisher' | 'playmaker' | 'defender'
+  eliteEngineBadgeTitle?: string
+  eliteEngineBadgeDetail?: string
   effWinnerDetail?: EffectivenessWinnerDetail | null
   effRunnerUp?: EffectivenessRunnerUp | null
   effRatingDisclaimer?: string

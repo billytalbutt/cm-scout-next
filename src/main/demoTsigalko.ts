@@ -3,9 +3,11 @@
  * Maxim Tsigalko — legendary CM 01/02 Belarus wonderkid (Dinamo Minsk).
  * Stats are illustrative / community-typical, not read from your index.dat.
  */
-import { computeBestEffectiveness, playerAttrGetter } from '../shared/effectivenessEngine'
+import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import type { ContractRecord, PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
+import { effectivenessAttrGetter } from './effectivenessAttrGetter'
+import { evaluateEliteEngineBadge } from './eliteEngineBadge'
 
 export const DEMO_STAFF_INDEX = -1
 
@@ -131,10 +133,10 @@ function demoContract(): ContractRecord {
 export function getDemoUiPlayerRow(): UiPlayerRow {
   const player = demoPlayer()
   const staff = demoStaff()
-  const { effPercent, effArchetype } = computeBestEffectiveness(
-    playerAttrGetter(player as Record<string, number>),
-    eligibleEffectivenessArchetypeIds(player),
-  )
+  const get = effectivenessAttrGetter(player, staff)
+  const ids = eligibleEffectivenessArchetypeIds(player)
+  const effFull = computeEffectivenessFull(get, ids)
+  const badge = evaluateEliteEngineBadge(player, staff, effFull.effArchetypeId, effFull.effPercent)
   return {
     staffId: DEMO_STAFF_INDEX,
     staffIndex: DEMO_STAFF_INDEX,
@@ -149,8 +151,12 @@ export function getDemoUiPlayerRow(): UiPlayerRow {
     age: 22,
     euPassport: false,
     cmScoutRatingBp: 91.4,
-    effPercent,
-    effArchetype,
+    effPercent: effFull.effPercent,
+    effArchetype: effFull.effArchetype,
+    effArchetypeId: effFull.effArchetypeId,
+    eliteEngineBadgeKind: badge?.kind,
+    eliteEngineBadgeTitle: badge?.title,
+    eliteEngineBadgeDetail: badge?.detail,
     cmScoutRolePercents: [0, 48.2, 55.1, 63.4, 71.2, 91.4, 59.8],
     staffHistory: [
       { id: 1, staffId: DEMO_STAFF_INDEX, year: 2001, clubId: 0, onLoan: 0, apps: 26, goals: 15 },

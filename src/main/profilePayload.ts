@@ -18,8 +18,9 @@ import {
   type Ca18Key,
 } from './database/attributes'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
-import { computeEffectivenessFull, playerAttrGetter } from '../shared/effectivenessEngine'
+import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
+import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
 import { computeHighlightSets, footMoraleHighlightTier, formatHighlightRoles } from './positionHighlights'
 
@@ -378,7 +379,7 @@ export function buildProfilePayload(
       : null
 
   const effFull = computeEffectivenessFull(
-    playerAttrGetter(p as Record<string, number>),
+    effectivenessAttrGetter(p, s),
     eligibleEffectivenessArchetypeIds(p),
   )
 
@@ -406,9 +407,12 @@ export function buildProfilePayload(
     effWinnerDetail: effFull.winnerDetail ?? undefined,
     effRunnerUp: effFull.runnerUp,
     effRelaxedNaturalGate: effFull.relaxedNaturalGate,
+    eliteEngineBadgeKind: row.eliteEngineBadgeKind,
+    eliteEngineBadgeTitle: row.eliteEngineBadgeTitle,
+    eliteEngineBadgeDetail: row.eliteEngineBadgeDetail,
     effRatingDisclaimer: effFull.relaxedNaturalGate
       ? undefined
-      : 'Eff % only scores archetypes that match natural positions (>14 on the same lines as CM Scout suitability), so the bracket role is one you could pick in-game. CM Scout % uses the full Intrinsic grid with in-match scaling — the two numbers measure different things.',
+      : 'Eff % uses on-ball primaries/secondaries plus an engine profile (mentals + staff hiddens) per archetype. CM Scout % uses the full WeightsSet on all 48 attrs (in-game CA18 + raw) — the two numbers measure different things.',
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
     transfer: {

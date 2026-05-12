@@ -1,19 +1,15 @@
 /**
- * CM Scout Intrinsic–style rating (ported from CMScoutIntrinsicCommunity `Sources/Model/DataService.cs`:
- * `CalculateRating` + `WeightsSet_CMScout.txt`).
+ * CM Scout–style weighted % (`WeightsSet_CMScout.txt`, same weights as CM Scout / CM Scout Intrinsic).
  *
- * Pipeline (matches upstream pass 2):
- * 1. CA18 “in-match” raw: `trunc(intrinsic/5 + currentAbility/20 + 10)` (`GetInMatchValue`).
- * 2. Map each CA18 in-match value to 1–20 using min/max of that value across **all valid players** in the loaded DB
- *    (`InMatchNormalized`). Non-CA18 attributes use intrinsic clamped 1–20 (same as upstream).
- * 3. Per-role % = `100 * sum(weight * v/20) / sum(weights)` with injury proneness & dirtiness inverted (`IsLessBetter`).
+ * Values fed into the weighted sum are **in-game displayed** 1–20 for CA18 (`inGameCa18` from intrinsic + CA) and
+ * **clamped raw bytes** for the other 30 attributes. That matches what players see on attribute bars and what classic
+ * CM Scout’s headline % tracks on the same roster. (An alternative pipeline normalizes CA18 “in-match” helpers across
+ * the whole database first — that compresses elites and was producing ~70s where CM Scout shows high 80s / 90s.)
  *
- * **Grid “CM Scout %”** = **BP** (best position): max of those per-role scores **only among roles the player is
- * natural for** (≥15), same as Intrinsic “best regard position”. A player’s **DM column** can read much higher than
- * BP if their best natural role is elsewhere or BP excludes a high column — compare the seven role columns to a
- * per-role number from another tool.
+ * **Grid “CM Scout %”** = **BP**: max per-role score among positions the player is **natural for** (≥15), same rule
+ * as “best regard position”. Injury proneness & dirtiness are inverted (`IsLessBetter`).
  */
-import { inMatchValue } from './database/attributes'
+import { inGameCa18, inMatchValue } from './database/attributes'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
 import { CM_SCOUT_WEIGHTS } from './cmScoutWeights'
 
@@ -231,7 +227,26 @@ export function buildCa18Ranges(rows: UiPlayerRow[]): Ca18Ranges {
   return { intrMin, intrMax, matchMin, matchMax }
 }
 
-/** 48 in-match–normalized values (same construction as CMScoutIntrinsic AttributeValues pass 2). */
+/** 48 × 1–20 for weighted CM Scout %: CA18 = on-screen display from CA + intrinsic; rest = clamped raw. */
+export function scoutDisplayVector48(p: PlayerRecord, s: StaffRecord): number[] {
+  const out: number[] = []
+  let ca18j = 0
+  for (let i = 0; i < N_ATTR; i++) {
+    const intr = intrinsicRawAt(i, p, s)
+    if (ATTR_CA18[i]) {
+      out.push(inGameCa18(ca18j, p.current_ability, intr, p))
+      ca18j++
+    } else {
+      let v = intr
+      if (v < 1) v = 1
+      else if (v > 20) v = 20
+      out.push(v)
+    }
+  }
+  return out
+}
+
+/** 48 in-match–normalized values (database-wide CA18 range map — kept for tooling / comparisons). */
 export function inMatchNormalized48(p: PlayerRecord, s: StaffRecord, ranges: Ca18Ranges): number[] {
   const out: number[] = []
   const ca = p.current_ability
@@ -299,9 +314,8 @@ export function cmScoutBpPercent(p: PlayerRecord, inNorm: number[]): number {
 export function applyCmScoutRatings(rows: UiPlayerRow[]): void {
   const dataRows = rows.filter((r) => r.staffIndex >= 0)
   if (!dataRows.length) return
-  const ranges = buildCa18Ranges(dataRows)
   for (const row of dataRows) {
-    const norm = inMatchNormalized48(row.player, row.staff, ranges)
+    const norm = scoutDisplayVector48(row.player, row.staff)
     row.cmAttrNorm = norm
     row.cmScoutRolePercents = cmScoutAllRolePercents(norm)
     row.cmScoutRatingBp = cmScoutBpPercent(row.player, norm)

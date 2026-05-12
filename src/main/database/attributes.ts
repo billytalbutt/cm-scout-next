@@ -46,7 +46,7 @@ function isGk(p: PlayerRecord): boolean {
   return p.goalkeeper > 14
 }
 
-function inGameCa18(idx: number, ca: number, intrinsic: number, p: PlayerRecord): number {
+export function inGameCa18(idx: number, ca: number, intrinsic: number, p: PlayerRecord): number {
   const gk = isGk(p)
   if ([0, 3, 6, 7, 10, 11, 12, 13].includes(idx)) return highConvert(ca, intrinsic)
   if ([15, 16, 17].includes(idx)) return gk ? highConvert(ca, intrinsic) : lowConvert(ca, intrinsic)

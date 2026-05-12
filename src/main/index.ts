@@ -3,8 +3,9 @@ import { join, dirname, basename } from 'path'
 import { fileURLToPath } from 'url'
 import { readFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
-import { computeEffectivenessFull, playerAttrGetter } from '../shared/effectivenessEngine'
+import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
+import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import { buildUiRows, parseIndexDat } from './database/parser'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
 import { applyCmScoutRatings } from './cmScoutRating'
@@ -213,7 +214,7 @@ ipcMain.handle('get-effectiveness-detail', async (_e, staffIndex: number) => {
   if (staffIndex === DEMO_STAFF_INDEX) {
     const row = getDemoUiPlayerRow()
     return computeEffectivenessFull(
-      playerAttrGetter(row.player as Record<string, number>),
+      effectivenessAttrGetter(row.player, row.staff),
       eligibleEffectivenessArchetypeIds(row.player),
     )
   }
@@ -221,7 +222,7 @@ ipcMain.handle('get-effectiveness-detail', async (_e, staffIndex: number) => {
   const row = loaded.rows.find((r) => r.staffIndex === staffIndex)
   if (!row) return null
   return computeEffectivenessFull(
-    playerAttrGetter(row.player as Record<string, number>),
+    effectivenessAttrGetter(row.player, row.staff),
     eligibleEffectivenessArchetypeIds(row.player),
   )
 })

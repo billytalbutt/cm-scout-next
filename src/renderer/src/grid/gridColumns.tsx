@@ -2,6 +2,7 @@ import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import type { GridPlayerRow } from '../../../shared/gridTypes'
 import { GRID_COLUMN_CATALOG } from '../../../shared/gridColumnCatalog'
 import { EffPercentCell } from './EffPercentCell'
+import { EliteEngineStar } from './EliteEngineStar'
 
 const LABEL = new Map(GRID_COLUMN_CATALOG.map((e) => [e.id, e.label]))
 
@@ -75,7 +76,7 @@ function defFor(
         header: () => (
           <span
             className="cursor-help border-b border-dotted border-zinc-500"
-            title="Intrinsic ‘BP’: max weighted % among roles where the player is natural (≥15). Per-role % (e.g. DM) can be higher — enable the seven role columns under CM Scout % by role. Same math as CM Scout Intrinsic (in-match values normalized across loaded players, then WeightsSet_CMScout.txt)."
+            title="Intrinsic ‘BP’: max weighted % among roles where the player is natural (≥15). Uses in-game CA18 display + clamped raw mentals (same weights as classic CM Scout / WeightsSet_CMScout.txt) so headline % tracks CM Scout on the same save. Per-role columns can read higher if that role is not “suitable.”"
           >
             {lab}
           </span>
@@ -94,7 +95,7 @@ function defFor(
           header: () => (
             <span
               className="cursor-help border-b border-dotted border-zinc-500"
-              title="Eff %: raw 1–20 intrinsics; only archetypes that match natural positions (&gt;14, CM Scout–style) compete. Hover for breakdown. If naturals match no recipe, the cell shows Unsure — use CM Scout %. Not CM Scout %."
+              title="Eff %: recipe + engine mentals/hiddens; only naturals (&gt;14) compete. Hover for breakdown. Unsure = no recipe match. Not CM Scout %."
             >
               {lab}
             </span>
@@ -130,6 +131,12 @@ function defFor(
               <span className="shrink-0 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
                 Demo
               </span>
+            )}
+            {info.row.original.eliteEngineBadgeKind && info.row.original.eliteEngineBadgeTitle && (
+              <EliteEngineStar
+                title={info.row.original.eliteEngineBadgeTitle}
+                detail={info.row.original.eliteEngineBadgeDetail ?? ''}
+              />
             )}
             <span>{info.getValue()}</span>
           </span>

@@ -11,6 +11,7 @@ import type { ProfileAttrCell, ProfilePayload } from './vite-env.d'
 import type { GridPlayerRow } from '../../shared/gridTypes'
 import { gridFlagsForVisibleColumnIds, GRID_DEFAULT_COLUMN_ORDER, sanitizeGridColumnOrder } from '../../shared/gridColumnCatalog'
 import { buildGridColumns, createGridColumnHelper } from './grid/gridColumns'
+import { EliteEngineStar } from './grid/EliteEngineStar'
 import { GridColumnPickerModal } from './grid/GridColumnPickerModal'
 import { loadGridColumnOrder, saveGridColumnOrder } from './grid/gridPersistence'
 import { cm0102FootWord, cm0102MoraleWord } from '../../shared/cm0102Bands'
@@ -60,6 +61,11 @@ const DEMO_FALLBACK: GridPlayerRow[] = [
     cmScoutRatingBp: 91.4,
     effPercent: 78.9,
     effArchetype: 'ST',
+    effArchetypeId: 'st',
+    eliteEngineBadgeKind: 'finisher',
+    eliteEngineBadgeTitle: 'Engine-tier finisher',
+    eliteEngineBadgeDetail:
+      'Matches the Tsigalko-style benchmark: elite pace/finishing/off-the-ball, secondaries in range, and mentals/hiddens within at most two single-point dips vs the template.',
     isRegenLikely: false,
     regenOf: '',
     isDemo: true,
@@ -1136,7 +1142,7 @@ export function App() {
             </div>
             <details className="rounded-md border border-zinc-800 bg-zinc-900/40">
               <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400">
-                Attribute minimums (1–20, in-match scale)
+                Attribute minimums (1–20, same scale as CM Scout %: in-game CA18 + raw)
               </summary>
               <div className="max-h-48 overflow-y-auto border-t border-zinc-800 px-2 py-2 cm-scroll">
                 <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 text-[11px]">
@@ -1286,15 +1292,14 @@ export function App() {
                 tip={
                   <div className="space-y-2 text-zinc-300">
                     <p>
-                      <span className="font-medium text-white">CM Scout %</span> follows{' '}
-                      <span className="text-zinc-400">CM Scout Intrinsic</span> (
-                      <code className="text-emerald-400/80">DataService.CalculateRating</code> +{' '}
-                      <code className="text-emerald-400/80">WeightsSet_CMScout.txt</code>
-                      ): CA18 attributes are turned into “in-match” values, scaled to 1–20 using the min/max seen in
-                      your loaded database, then weighted. The main grid number is{' '}
-                      <span className="font-medium text-white">BP</span> (best among roles where natural position ≥15),
-                      not necessarily the DM/M/AM column — add the seven role columns to line up with another tool’s
-                      per-position percentages.
+                      <span className="font-medium text-white">CM Scout %</span> uses the same weights as classic CM
+                      Scout / CM Scout Intrinsic (<code className="text-emerald-400/80">WeightsSet_CMScout.txt</code>
+                      ): CA18 attributes use the <span className="font-medium text-white">in-game 1–20 display</span>{' '}
+                      from CA + intrinsic bytes; other attributes use clamped raw bytes. That matches headline % on
+                      attribute bars (and avoids the old “normalize in-match across the whole DB” step that compressed
+                      everyone into the 70s). Grid <span className="font-medium text-white">BP</span> is the best among
+                      roles where natural position ≥15 — add the seven role columns to compare to another tool’s
+                      per-position columns.
                     </p>
                     <p>
                       <span className="font-medium text-white">Age</span> uses staff DOB (TCM date) vs the loaded game
@@ -1469,7 +1474,15 @@ export function App() {
                 </div>
               )}
               <div className="border-b border-zinc-800/80 pb-3">
-                <h2 className="text-xl font-semibold tracking-tight text-white">{profile.name}</h2>
+                <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-white">
+                  {profile.eliteEngineBadgeKind && profile.eliteEngineBadgeTitle && (
+                    <EliteEngineStar
+                      title={profile.eliteEngineBadgeTitle}
+                      detail={profile.eliteEngineBadgeDetail ?? ''}
+                    />
+                  )}
+                  <span>{profile.name}</span>
+                </h2>
                 <p className="mt-1 text-sm font-medium text-emerald-200/90">{profile.positionLabel}</p>
                 <p className="mt-1.5 text-sm text-zinc-200">
                   {profile.nationDisplay}
@@ -1627,9 +1640,10 @@ export function App() {
                       tip={
                         <div className="space-y-2">
                           <p>
-                            Same formula as CM Scout Intrinsic: each column is a weighted blend of normalized attributes
-                            for that weight set (injury/dirtiness inverted). Shown for all seven roles; grid “CM Scout %”
-                            uses the best among roles the player is considered suitable for (highlighted).
+                            Same weights as CM Scout: each column is a weighted blend of{' '}
+                            <span className="text-zinc-300">in-game CA18 display + raw mentals</span> for that role
+                            (injury/dirtiness inverted). Shown for all seven roles; grid “CM Scout %” uses the best among
+                            roles the player is considered suitable for (highlighted).
                           </p>
                           {profile.cmScoutRatingBp != null &&
                             profile.cmScoutRolePercents &&
@@ -1681,7 +1695,10 @@ export function App() {
                             <p className="font-semibold text-zinc-300">Why this Eff %</p>
                             <p className="mt-1 text-zinc-500">
                               Winning recipe <span className="text-emerald-200/90">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
-                              — primary stats weight ×5, secondary ×1.5; ★ = raw 20+ (1.25× on that stat).
+                              — primary ×5, secondary ×1.5, then <strong className="text-zinc-400">engine profile</strong>{' '}
+                              (lighter weights on mentals + staff hiddens such as determination / professionalism); ★ =
+                              raw 20+ (1.25×). DC / DMC / MC / AMC also apply the brain multiplier (Dec × Ant) on the
+                              whole base.
                             </p>
                             {profile.effWinnerDetail.brainMult && (
                               <p className="mt-1 text-zinc-500">
@@ -1721,6 +1738,24 @@ export function App() {
                                 </ul>
                               </div>
                             </div>
+                            {profile.effWinnerDetail.engineLines && profile.effWinnerDetail.engineLines.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">
+                                  Engine profile (mentals &amp; hiddens)
+                                </p>
+                                <ul className="mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-zinc-300">
+                                  {profile.effWinnerDetail.engineLines.map((l) => (
+                                    <li key={`eng-${l.key}`}>
+                                      {l.label} {l.raw}
+                                      {l.key === 'injury_proneness' ? (
+                                        <span className="text-zinc-600"> inv</span>
+                                      ) : null}
+                                      {l.godTier ? <span className="text-amber-300/90"> ★</span> : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                             {profile.effRunnerUp && (
                               <p className="mt-2 border-t border-zinc-800/80 pt-2 text-zinc-500">
                                 Runner-up:{' '}

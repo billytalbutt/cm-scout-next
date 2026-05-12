@@ -174,7 +174,7 @@ export interface UiPlayerRow {
   age: number | null
   /** True if first or second nation has EU-style GroupMembership (value 2) */
   euPassport: boolean
-  /** CM Scout Intrinsic–style % (Best regard position, CM Scout weights) */
+  /** CM Scout–style % (best natural role, WeightsSet_CMScout on in-game CA18 + raw vector) */
   cmScoutRatingBp?: number
   /**
    * Custom “engine effectiveness” % from raw intrinsics — best of fixed archetypes (GK, DC, WB,
@@ -183,9 +183,13 @@ export interface UiPlayerRow {
   /** Set when effectiveness ran; `null` when naturals matched no recipe (UI: Unsure). */
   effPercent?: number | null
   effArchetype?: string
+  effArchetypeId?: string
+  eliteEngineBadgeKind?: 'finisher' | 'playmaker' | 'defender'
+  eliteEngineBadgeTitle?: string
+  eliteEngineBadgeDetail?: string
   /** CM Scout % per weight column (GK, D, DM, M, AM, A, WB), length 7 */
   cmScoutRolePercents?: number[]
-  /** Cached 1–20 in-match–normalized vector for attribute filters */
+  /** Cached 1–20 vector for CM Scout % + attribute filters (in-game CA18 + clamped raw) */
   cmAttrNorm?: number[]
   /**
    * Regen hint: with a **snapshot** (`regenBaseline.ts`), same `staff.dat` **id** and changed name-id triple →
