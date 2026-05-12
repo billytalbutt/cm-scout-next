@@ -5,7 +5,7 @@ import { readFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
 import { calendarDaysBetween } from './database/dates'
 import { buildUiRows, parseIndexDat } from './database/parser'
-import { getSuggestedDatabaseFolder, getSuggestedSaveGameFolder } from './cm0102Paths'
+import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
 import {
   applyCmScoutRatings,
   listedForLoan,
@@ -80,7 +80,7 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('open-database', async (event) => {
   const suggested =
-    getSuggestedDatabaseFolder() ?? getSuggestedSaveGameFolder() ?? homedir()
+    getDefaultOpenDatabaseDirectory() ?? getSuggestedSaveGameFolder() ?? homedir()
   const parent =
     BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
 
@@ -89,9 +89,9 @@ ipcMain.handle('open-database', async (event) => {
     defaultPath: suggested,
     buttonLabel: 'Load',
     properties: ['openFile'] as const,
+    /** One filter with both extensions so macOS NSSavePanel does not grey out .sav when .dat is first. */
     filters: [
-      { name: 'index.dat (CM0102 database)', extensions: ['dat'] },
-      { name: 'Save games', extensions: ['sav'] },
+      { name: 'CM0102 (index.dat, .sav)', extensions: ['dat', 'sav'] },
       { name: 'All files', extensions: ['*'] },
     ],
   }

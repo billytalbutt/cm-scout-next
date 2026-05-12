@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from 'fs'
 import { homedir } from 'os'
-import { join } from 'path'
+import { basename, dirname, join } from 'path'
 
 const CM_DIR_NAMES = ['Championship Manager 01-02', 'Championship Manager 01/02']
 
@@ -146,6 +146,22 @@ function pickDatabaseFolderFromGameRoots(gameRoots: string[]): string | undefine
     return existsSync(d) ? d : uniq[0]
   }
   return undefined
+}
+
+/**
+ * Folder the file dialog should open in for “Load database”.
+ * CM0102 keeps `index.dat` under `…/Data/` but `*.sav` usually lives in the parent (`…/Game/`).
+ * Opening `Data/` as defaultPath makes Mac users go up one level — and with a `.dat`-only filter
+ * active first, `.sav` files look unselectable. So we prefer the parent when `Data` was chosen.
+ */
+export function getDefaultOpenDatabaseDirectory(home = homedir()): string | undefined {
+  const dataOrSave = getSuggestedDatabaseFolder(home) ?? getSuggestedSaveGameFolder()
+  if (!dataOrSave) return undefined
+  if (basename(dataOrSave).toLowerCase() === 'data') {
+    const parent = dirname(dataOrSave)
+    if (existsSync(parent)) return parent
+  }
+  return dataOrSave
 }
 
 /**
