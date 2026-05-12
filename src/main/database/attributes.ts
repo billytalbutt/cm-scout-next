@@ -54,7 +54,7 @@ export function inGameCa18(idx: number, ca: number, intrinsic: number, p: Player
   return intrinsic
 }
 
-function inGameCa18Uncapped(idx: number, ca: number, intrinsic: number, p: PlayerRecord): number {
+export function inGameCa18Uncapped(idx: number, ca: number, intrinsic: number, p: PlayerRecord): number {
   const gk = isGk(p)
   if ([0, 3, 6, 7, 10, 11, 12, 13].includes(idx)) return highConvertUncapped(ca, intrinsic)
   if ([15, 16, 17].includes(idx)) return gk ? highConvertUncapped(ca, intrinsic) : lowConvertUncapped(ca, intrinsic)

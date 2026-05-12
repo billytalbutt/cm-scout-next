@@ -34,7 +34,11 @@ export class CmBinaryReader {
   }
 
   private readCompressedInto(out: Buffer, count: number): void {
-    if (count > BUFFER_SIZE) throw new Error('read too large for compressed buffer')
+    /** RLE output can be much larger than one 64KiB read window; stream until `out` is full. */
+    const MAX_DECOMPRESSED_CHUNK = 80 * 1024 * 1024
+    if (count > MAX_DECOMPRESSED_CHUNK) {
+      throw new Error(`read too large for compressed buffer (${count} > ${MAX_DECOMPRESSED_CHUNK})`)
+    }
     let intNewBufPos = 0
     while (intNewBufPos < count) {
       if (this.fIntPos !== this.fReadPos + BUFFER_SIZE || this.fBufEmpty) {

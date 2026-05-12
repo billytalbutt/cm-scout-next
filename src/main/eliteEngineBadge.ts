@@ -20,7 +20,7 @@ export type EliteEngineBadge = {
   detail: string
 }
 
-/** Tsigalko-style benchmark (demo fixture + community lore): at most two stats one point short, none two below. */
+/** Community “elite finisher” benchmark: at most two stats one point short, none two below. */
 const FINISHER_TEMPLATE: Record<string, number> = {
   pace: 19,
   acceleration: 19,
@@ -193,7 +193,7 @@ export function evaluateEliteEngineBadge(
       kind: 'finisher',
       title: 'Engine-tier finisher',
       detail:
-        'Matches the Tsigalko-style benchmark: elite pace/finishing/off-the-ball, secondaries in range, and mentals/hiddens (consistency, important matches, determination, professionalism, flair) within at most two single-point dips vs the template.',
+        'Matches the elite finisher benchmark: pace/finishing/off-the-ball, secondaries in range, and mentals/hiddens (consistency, important matches, determination, professionalism, flair) within at most two single-point dips vs the template.',
     }
   }
 

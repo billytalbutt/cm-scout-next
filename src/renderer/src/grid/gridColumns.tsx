@@ -111,7 +111,6 @@ function defFor(
                 effPercent={pct ?? null}
                 effArchetype={role}
                 cmScoutRatingBp={cm}
-                isDemo={row.original.isDemo}
               />
             )
           },
@@ -127,11 +126,6 @@ function defFor(
         header: lab,
         cell: (info) => (
           <span className="flex items-center gap-2">
-            {info.row.original.isDemo && (
-              <span className="shrink-0 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
-                Demo
-              </span>
-            )}
             {info.row.original.eliteEngineBadgeKind && info.row.original.eliteEngineBadgeTitle && (
               <EliteEngineStar
                 title={info.row.original.eliteEngineBadgeTitle}

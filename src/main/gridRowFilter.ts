@@ -116,7 +116,7 @@ function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string
   }
 
   if (f.attrMins?.length) {
-    if (!passesAttributeMins(r.cmAttrNorm, f.attrMins)) return false
+    if (!passesAttributeMins(r, f.attrMins)) return false
   }
 
   if (f.isRegenLikely === true && r.isRegenLikely !== true) return false

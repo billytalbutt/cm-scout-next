@@ -6,11 +6,9 @@ Cross-platform **Electron + React + TypeScript** scout for **Championship Manage
 
 **Product goal:** **CM Scout–equivalent behaviour** (load database, player grid, filters, profile, compare, ratings—same data rules as the classic tools) with a **modern UI**, then layer new features. See **[docs/REPLICA_ROADMAP.md](docs/REPLICA_ROADMAP.md)** for the phased porting plan and **which upstream files to translate** (main reference: **CMScoutIntrinsicCommunity** `DataService.cs` + filter/compare viewmodels).
 
-## Demo player (no save required)
+## Getting started
 
-**Maxim Tsigalko** is always injected as the first list row (tagged **Demo**) with typical wonderkid striker stats. **Single-click** the row to select it; **double-click** (or **Enter** / **Open profile**) to open the profile panel before loading a database. He is not read from your game files.
-
-After you load a real database, Maxim stays at the top of the list (until filters hide him).
+Open **`index.dat`** or a **`.sav`** from your CM0102 `Game` folder (or Starter Kit). The grid stays empty until a database loads. Attribute filters accept **above 20** (e.g. tackling **22**) to match uncapped CA18 / raw bytes on disk.
 
 ## Features (current milestone)
 

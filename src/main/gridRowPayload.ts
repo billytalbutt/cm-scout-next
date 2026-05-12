@@ -5,7 +5,6 @@ import {
   transferListedByRequest,
 } from './cmScoutRating'
 import type { UiPlayerRow } from './database/types'
-import { DEMO_STAFF_INDEX } from './demoTsigalko'
 import type { GridIncludeFlags, GridPlayerRow } from '../shared/gridTypes'
 
 function baseRow(r: UiPlayerRow): GridPlayerRow {
@@ -31,7 +30,7 @@ function baseRow(r: UiPlayerRow): GridPlayerRow {
     eliteEngineBadgeDetail: r.eliteEngineBadgeDetail,
     isRegenLikely: !!r.isRegenLikely,
     regenOf: r.regenOfName ?? '',
-    isDemo: r.staffIndex === DEMO_STAFF_INDEX,
+    isDemo: false,
     staffHistCareerApps: r.staffHistCareerApps,
     staffHistCareerGoals: r.staffHistCareerGoals,
     staffHistSeasonApps: r.staffHistSeasonApps,

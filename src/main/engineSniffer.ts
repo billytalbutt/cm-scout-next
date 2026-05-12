@@ -1,12 +1,12 @@
 /**
  * Heuristic “engine meta” filters for CM 01/02 — **not** reverse‑engineered bytecode.
  *
- * Community lore: the match engine is harsh below ~17–18 on key stats; **19–20** are disproportionately strong
- * (often described as non‑linear vs 15–16). Edited / rare saves can store **raw bytes above 20** (e.g. 23–24 in
- * editors) for a few legends — those are treated here as **overflow** (`>= 21`) and satisfy the corresponding
- * “elite” tier without capping at 20.
+ * Community lore: the match engine is harsh below ~17–18 on key stats; **19–20** are disproportionately strong.
+ * Raw bytes can exceed 20 in editors / rare saves — `atLeast` treats **21+** as elite overflow.
  *
  * Thresholds read **on‑disk** `player.dat` / `staff.dat` bytes (same as the rest of this app).
+ * Tuned so real world‑class CMs / AMs (e.g. Xavi‑shaped profiles) can match **Assist prospect** without needing
+ * every mental at 19; **Striker finisher** still favours elite ST/FC but allows one fewer “19” spike than the old bar.
  */
 import type { UiPlayerRow } from './database/types'
 import {
@@ -29,9 +29,14 @@ function atLeast(v: number, min: number): boolean {
   return v >= OVERFLOW || v >= min
 }
 
+function countAtLeast(vals: readonly number[], floor: number): number {
+  return vals.filter((v) => v >= OVERFLOW || v >= floor).length
+}
+
 /**
- * “Assist monster” (strict): mental spine 18+, delivery 18+, legs / hidden 17+, dead-ball outlet; three of the five
- * brain/delivery stats at 19+ unless 21+ overflow (relaxed) or 22+ “super overflow” (short path). Excludes lone ST.
+ * Assist / playmaker prospect: MC‑shaped distributors (not lone ST/GK), strong mentals + passing spine,
+ * set‑piece outlet, legs and hiddens in a plausible “engine cares” band. Softer than the original 18/19 wall
+ * so real 2001‑database elites match.
  */
 export function matchesAssistProspect(row: UiPlayerRow): boolean {
   const p = row.player
@@ -44,42 +49,42 @@ export function matchesAssistProspect(row: UiPlayerRow): boolean {
     isAttackingMidfielder(p) ||
     isWingBack(p) ||
     isForward(p) ||
-    (isDefensiveMidfielder(p) && atLeast(p.passing, 18))
+    (isDefensiveMidfielder(p) && atLeast(p.passing, 17))
   if (!distributor) return false
 
-  const brainDelivery = [p.decisions, p.anticipation, p.passing, p.technique, p.creativity]
+  const brainDelivery = [p.decisions, p.anticipation, p.passing, p.technique, p.creativity] as const
+
+  /** Still‑rare “monster” shortcut: any brain stat 22+ with coherent support. */
   if (brainDelivery.some((v) => v >= 22)) {
-    if (!atLeast(p.teamwork, 17)) return false
-    if (!atLeast(p.decisions, 16) || !atLeast(p.anticipation, 16)) return false
-    if (!atLeast(p.passing, 17) || !atLeast(p.technique, 17) || !atLeast(p.creativity, 15)) return false
-    if (!atLeast(p.corners, 14) && !atLeast(p.free_kicks, 14)) return false
-    if (!atLeast(p.stamina, 16) || !atLeast(p.agility, 16) || !atLeast(p.balance, 16)) return false
-    if (!atLeast(p.consistency, 16) || !atLeast(p.important_matches, 16)) return false
-    if (!atLeast(s.adaptability, 16)) return false
+    if (!atLeast(p.teamwork, 16)) return false
+    if (!atLeast(p.decisions, 15) || !atLeast(p.anticipation, 15)) return false
+    if (!atLeast(p.passing, 16) || !atLeast(p.technique, 16) || !atLeast(p.creativity, 14)) return false
+    if (!atLeast(p.corners, 13) && !atLeast(p.free_kicks, 13)) return false
+    if (!atLeast(p.stamina, 15) || !atLeast(p.agility, 15) || !atLeast(p.balance, 15)) return false
+    if (!atLeast(p.consistency, 15) || !atLeast(p.important_matches, 15)) return false
+    if (!atLeast(s.adaptability, 15)) return false
     return true
   }
 
-  if (!atLeast(p.decisions, 18) || !atLeast(p.anticipation, 18) || !atLeast(p.teamwork, 18)) return false
-  if (!atLeast(p.passing, 18) || !atLeast(p.technique, 18) || !atLeast(p.creativity, 17)) return false
-  if (!atLeast(p.corners, 16) && !atLeast(p.free_kicks, 16)) return false
-  if (!atLeast(p.stamina, 17) || !atLeast(p.agility, 17) || !atLeast(p.balance, 17)) return false
-  if (!atLeast(p.consistency, 17) || !atLeast(p.important_matches, 17)) return false
-  if (!atLeast(s.adaptability, 17)) return false
+  if (!atLeast(p.decisions, 17) || !atLeast(p.anticipation, 17) || !atLeast(p.teamwork, 17)) return false
+  if (!atLeast(p.passing, 17) || !atLeast(p.technique, 17) || !atLeast(p.creativity, 16)) return false
+  if (!atLeast(p.corners, 15) && !atLeast(p.free_kicks, 15)) return false
+  if (!atLeast(p.stamina, 16) || !atLeast(p.agility, 16) || !atLeast(p.balance, 16)) return false
+  if (!atLeast(p.consistency, 16) || !atLeast(p.important_matches, 16)) return false
+  if (!atLeast(s.adaptability, 16)) return false
 
-  const at19 = brainDelivery.filter((v) => v >= 19 || v >= OVERFLOW).length
+  const strongBrain = countAtLeast(brainDelivery, 18)
   const anyOverflow = brainDelivery.some((v) => v >= OVERFLOW)
   if (anyOverflow) {
-    if (!atLeast(p.decisions, 16) || !atLeast(p.anticipation, 16) || !atLeast(p.teamwork, 17)) return false
-    if (!atLeast(p.passing, 17) || !atLeast(p.technique, 17) || !atLeast(p.creativity, 16)) return false
-    if (at19 < 2) return false
-  } else if (at19 < 3) return false
+    if (strongBrain < 2) return false
+  } else if (strongBrain < 3) return false
 
   return true
 }
 
 /**
- * Tsigalko‑lane finisher (strict): forward/ST only; core six all 18+ with five at 19+, unless any raw is 21+ (softer
- * floors + four at 19+) or any core is 22+ (“super overflow” — lenient floors, still striker-shaped).
+ * Finisher lane: ST / wide forward core (pace, burst, finishing, movement, flair, technique) with mentals/hiddens.
+ * Softer 17 / “four at 18+” baseline so typical elite STs match; overflow paths unchanged in spirit.
  */
 export function matchesStrikerFinisher(row: UiPlayerRow): boolean {
   const p = row.player
@@ -90,14 +95,13 @@ export function matchesStrikerFinisher(row: UiPlayerRow): boolean {
   const core = [p.pace, p.acceleration, p.finishing, p.off_the_ball, p.flair, p.technique] as const
   const maxCore = Math.max(...core)
 
-  /** One or more “super” raw values (22+) — forum lore: these are the real engine outliers. */
   if (maxCore >= 22) {
     for (const v of core) {
       if (!atLeast(v, 16)) return false
     }
-    if (!atLeast(p.balance, 17) || !atLeast(p.dribbling, 17)) return false
-    if (!atLeast(p.consistency, 16) || !atLeast(p.important_matches, 16)) return false
-    if (!atLeast(s.determination, 17)) return false
+    if (!atLeast(p.balance, 16) || !atLeast(p.dribbling, 16)) return false
+    if (!atLeast(p.consistency, 15) || !atLeast(p.important_matches, 15)) return false
+    if (!atLeast(s.determination, 16)) return false
     return true
   }
 
@@ -105,21 +109,19 @@ export function matchesStrikerFinisher(row: UiPlayerRow): boolean {
 
   if (anyCoreOverflow) {
     for (const v of core) {
-      if (!atLeast(v, 17)) return false
+      if (!atLeast(v, 16)) return false
     }
-    const at19 = core.filter((v) => v >= 19 || v >= OVERFLOW).length
-    if (at19 < 4) return false
+    if (countAtLeast(core, 18) < 3) return false
   } else {
     for (const v of core) {
-      if (!atLeast(v, 18)) return false
+      if (!atLeast(v, 17)) return false
     }
-    const at19 = core.filter((v) => v >= 19).length
-    if (at19 < 5) return false
+    if (countAtLeast(core, 18) < 4) return false
   }
 
-  if (!atLeast(p.balance, 18) || !atLeast(p.dribbling, 18)) return false
-  if (!atLeast(p.consistency, 17) || !atLeast(p.important_matches, 17)) return false
-  if (!atLeast(s.determination, 18)) return false
+  if (!atLeast(p.balance, 17) || !atLeast(p.dribbling, 17)) return false
+  if (!atLeast(p.consistency, 16) || !atLeast(p.important_matches, 16)) return false
+  if (!atLeast(s.determination, 17)) return false
 
   return true
 }

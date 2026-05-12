@@ -11,7 +11,6 @@ import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './c
 import { applyCmScoutRatings } from './cmScoutRating'
 import { applyEffectivenessRatings } from './effectivenessRating'
 import type { ParsedDatabase, UiPlayerRow } from './database/types'
-import { DEMO_STAFF_INDEX, getDemoUiPlayerRow } from './demoTsigalko'
 import { buildProfilePayload } from './profilePayload'
 import { mapUiRowToGridPayload } from './gridRowPayload'
 import {
@@ -67,9 +66,8 @@ function sortedUniqueNationNames(db: ParsedDatabase): string[] {
   return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
 }
 
-/** When a save is loaded, return only real rows (demo would bloat IPC and confuse counts). */
 function allRowsForGrid(): UiPlayerRow[] {
-  if (!loaded) return [getDemoUiPlayerRow()]
+  if (!loaded) return []
   return loaded.rows
 }
 
@@ -187,15 +185,6 @@ ipcMain.handle('get-rows', async (_e, payload: unknown) => {
 })
 
 ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
-  if (staffIndex === DEMO_STAFF_INDEX) {
-    const demoClub = new Map<number, string>([[0, 'Dinamo Minsk']])
-    const payload = buildProfilePayload(getDemoUiPlayerRow(), demoClub, '2002-05-12', {
-      nationSeasonUpdateDaySamples: [],
-      clubDivisionCompIdByClubId: new Map(),
-      staffHistoryParsed: true,
-    })
-    return { ...payload, isDemo: true as const }
-  }
   if (!loaded) return null
   const row = loaded.rows.find((r) => r.staffIndex === staffIndex)
   if (!row) return null
@@ -211,13 +200,6 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
 })
 
 ipcMain.handle('get-effectiveness-detail', async (_e, staffIndex: number) => {
-  if (staffIndex === DEMO_STAFF_INDEX) {
-    const row = getDemoUiPlayerRow()
-    return computeEffectivenessFull(
-      effectivenessAttrGetter(row.player, row.staff),
-      eligibleEffectivenessArchetypeIds(row.player),
-    )
-  }
   if (!loaded) return null
   const row = loaded.rows.find((r) => r.staffIndex === staffIndex)
   if (!row) return null

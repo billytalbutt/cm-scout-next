@@ -9,7 +9,7 @@
  * **Grid “CM Scout %”** = **BP**: max per-role score among positions the player is **natural for** (≥15), same rule
  * as “best regard position”. Injury proneness & dirtiness are inverted (`IsLessBetter`).
  */
-import { inGameCa18, inMatchValue } from './database/attributes'
+import { inGameCa18, inGameCa18Uncapped, inMatchValue } from './database/attributes'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
 import { CM_SCOUT_WEIGHTS } from './cmScoutWeights'
 
@@ -246,6 +246,23 @@ export function scoutDisplayVector48(p: PlayerRecord, s: StaffRecord): number[] 
   return out
 }
 
+/** Uncapped values for attribute min filters when user enters above 20 (CA18 formula uncapped; other attrs raw byte). */
+export function scoutFilterComparisonVector48(p: PlayerRecord, s: StaffRecord): number[] {
+  const out: number[] = []
+  const ca = p.current_ability
+  let ca18j = 0
+  for (let i = 0; i < N_ATTR; i++) {
+    const intr = intrinsicRawAt(i, p, s)
+    if (ATTR_CA18[i]) {
+      out.push(inGameCa18Uncapped(ca18j, ca, intr, p))
+      ca18j++
+    } else {
+      out.push(intr)
+    }
+  }
+  return out
+}
+
 /** 48 in-match–normalized values (database-wide CA18 range map — kept for tooling / comparisons). */
 export function inMatchNormalized48(p: PlayerRecord, s: StaffRecord, ranges: Ca18Ranges): number[] {
   const out: number[] = []
@@ -317,20 +334,37 @@ export function applyCmScoutRatings(rows: UiPlayerRow[]): void {
   for (const row of dataRows) {
     const norm = scoutDisplayVector48(row.player, row.staff)
     row.cmAttrNorm = norm
+    row.cmAttrFilter48 = scoutFilterComparisonVector48(row.player, row.staff)
     row.cmScoutRolePercents = cmScoutAllRolePercents(norm)
     row.cmScoutRatingBp = cmScoutBpPercent(row.player, norm)
   }
 }
 
-/** For filters: compare attribute min (uses same flip as Intrinsic ShowPlayer). */
-export function passesAttributeMins(inNorm: number[] | undefined, mins: (number | null | undefined)[]): boolean {
+/**
+ * Attribute minimum filters: default 1–20 on-screen (`cmAttrNorm`). If a column min is **above 20**, compare against
+ * `cmAttrFilter48` (uncapped CA18-style + raw intrinsic) so edited / high-CA elites match (e.g. tackling 22).
+ * Injury / dirtiness keep the flipped 1–20 display scale for any min.
+ */
+export function passesAttributeMins(row: UiPlayerRow, mins: (number | null | undefined)[]): boolean {
+  const inNorm = row.cmAttrNorm
+  const hi = row.cmAttrFilter48
   if (!inNorm || !mins?.length) return true
   for (let i = 0; i < N_ATTR; i++) {
     const min = mins[i]
     if (min == null || min <= 0) continue
-    let v = inNorm[i]!
-    if (ATTR_LESS_BETTER[i]) v = 21 - v
-    if (v < min) return false
+    if (ATTR_LESS_BETTER[i]) {
+      let v = inNorm[i]!
+      v = 21 - v
+      if (v < min) return false
+      continue
+    }
+    if (min > 20) {
+      const raw = hi?.[i] ?? inNorm[i]!
+      if (raw < min) return false
+    } else {
+      const v = inNorm[i]!
+      if (v < min) return false
+    }
   }
   return true
 }

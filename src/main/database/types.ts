@@ -200,6 +200,11 @@ export interface UiPlayerRow {
   /** Cached 1–20 vector for CM Scout % + attribute filters (in-game CA18 + clamped raw) */
   cmAttrNorm?: number[]
   /**
+   * Uncapped CA18-style + raw bytes (same 48 order as `cmAttrNorm`) for filters when minimum is above 20:
+   * CA18 uses `inGameCa18Uncapped`; others use on-disk intrinsic (can exceed 20 in edited saves).
+   */
+  cmAttrFilter48?: number[]
+  /**
    * Regen hint: with a **snapshot** (`regenBaseline.ts`), same `staff.dat` **id** and changed name-id triple →
    * GPF2-style match; **Regen of** is the snapshot display name. Without a snapshot, same-save PA + nationalities +
    * positions + DOB heuristic (`regenDetection.ts`). Not proof — no height/weight in parsed vanilla rows.

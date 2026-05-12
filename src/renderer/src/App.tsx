@@ -43,39 +43,6 @@ function readProfilePanePx(): number {
   return DEFAULT_PROFILE_PANE_PX
 }
 
-/** Shown immediately and if IPC fails — same as main-process demo row (`GridPlayerRow` subset). */
-const DEMO_FALLBACK: GridPlayerRow[] = [
-  {
-    staffId: -1,
-    staffIndex: -1,
-    name: 'Maxim Tsigalko',
-    nation: 'Belarus',
-    secondNation: '',
-    club: 'Dinamo Minsk',
-    ca: 187,
-    pa: 200,
-    wage: 18500,
-    value: 12_500_000,
-    age: 22,
-    euPassport: false,
-    cmScoutRatingBp: 91.4,
-    effPercent: 78.9,
-    effArchetype: 'ST',
-    effArchetypeId: 'st',
-    eliteEngineBadgeKind: 'finisher',
-    eliteEngineBadgeTitle: 'Engine-tier finisher',
-    eliteEngineBadgeDetail:
-      'Matches the Tsigalko-style benchmark: elite pace/finishing/off-the-ball, secondaries in range, and mentals/hiddens within at most two single-point dips vs the template.',
-    isRegenLikely: false,
-    regenOf: '',
-    isDemo: true,
-    staffHistCareerApps: 45,
-    staffHistCareerGoals: 29,
-    staffHistSeasonApps: 26,
-    staffHistSeasonGoals: 15,
-  },
-]
-
 function fmtMoney(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`
   if (n >= 1000) return `${(n / 1000).toFixed(0)}k`
@@ -265,7 +232,7 @@ export function App() {
     }
   } | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [rows, setRows] = useState<GridPlayerRow[]>(DEMO_FALLBACK)
+  const [rows, setRows] = useState<GridPlayerRow[]>([])
   const [sorting, setSorting] = useState<SortingState>([{ id: 'rating', desc: true }])
   const [caMin, setCaMin] = useState('')
   const [caMax, setCaMax] = useState('')
@@ -461,7 +428,7 @@ export function App() {
       if (typeof window.cmapi?.getRows !== 'function') {
         if (refreshSeq.current !== seq) return
         setErr('Open this app via the Electron window from npm run dev (not a browser tab).')
-        setRows(DEMO_FALLBACK)
+        setRows([])
         setGridMeta(null)
         return
       }
@@ -523,13 +490,13 @@ export function App() {
         return
       }
       setGridMeta({ total })
-      setRows(loadInfo ? [] : DEMO_FALLBACK)
+      setRows([])
     } catch (e) {
       if (refreshSeq.current !== seq) return
       const msg = e instanceof Error ? e.message : String(e)
       setErr(msg)
       setGridMeta(null)
-      setRows(loadInfo ? [] : DEMO_FALLBACK)
+      setRows([])
     } finally {
       if (refreshSeq.current === seq) setGridRefreshing(false)
     }
@@ -664,7 +631,7 @@ export function App() {
       const msg = e instanceof Error ? e.message : String(e)
       setErr(msg)
       setGridMeta(null)
-      setRows(DEMO_FALLBACK)
+      setRows([])
     } finally {
       setOpening(false)
     }
@@ -1142,7 +1109,8 @@ export function App() {
             </div>
             <details className="rounded-md border border-zinc-800 bg-zinc-900/40">
               <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400">
-                Attribute minimums (1–20, same scale as CM Scout %: in-game CA18 + raw)
+                Attribute minimums (1–20 on screen; enter <span className="font-mono text-zinc-300">21+</span> to match
+                uncapped CA18 / raw bytes — e.g. tackling 22 finds edited or very high-CA elites)
               </summary>
               <div className="max-h-48 overflow-y-auto border-t border-zinc-800 px-2 py-2 cm-scroll">
                 <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 text-[11px]">
@@ -1152,7 +1120,7 @@ export function App() {
                       <input
                         type="number"
                         min={1}
-                        max={20}
+                        max={31}
                         className="w-12 rounded border border-zinc-700 bg-zinc-950 px-1 py-0.5 text-zinc-200"
                         value={attrMins[i]}
                         onChange={(e) => setAttrMinAt(i, e.target.value)}
@@ -1194,21 +1162,18 @@ export function App() {
                       and are treated as top-tier for that attribute.
                     </p>
                     <p>
-                      <span className="font-medium text-emerald-200/90">Assist prospect</span> — Strict playmaker
-                      lane: decisions / anticipation / teamwork 18+; passing / technique 18+, creativity 17+; stamina /
-                      agility / balance 17+; consistency / important matches / adaptability 17+; corners or set
-                      pieces 16+. Needs three of (decisions, anticipation, passing, technique, creativity) at 19+ unless
-                      one of those is <span className="font-mono text-zinc-300">21+</span> raw (overflow), then slightly
-                      relaxed floors with two at 19+. If any of those five is <span className="font-mono text-zinc-300">22+</span>, a shorter “super
-                      overflow” path applies (still distributor roles only).
+                      <span className="font-medium text-emerald-200/90">Assist prospect</span> — Playmaker / distributor
+                      lane (not lone ST/GK): decisions / anticipation / teamwork 17+; passing / technique 17+, creativity
+                      16+; corners or free kicks 15+; stamina / agility / balance 16+; consistency / important matches /
+                      adaptability 16+; three of (decisions, anticipation, passing, technique, creativity) at 18+ unless
+                      raw overflow (<span className="font-mono text-zinc-300">21+</span>) relaxes that count. Any of
+                      those five at <span className="font-mono text-zinc-300">22+</span> uses a shorter overflow path.
                     </p>
                     <p>
-                      <span className="font-medium text-emerald-200/90">Striker finisher</span> — Tsigalko lane: pace,
-                      acceleration, finishing, off the ball, flair, technique all 18+, with five of six at 19+; if any
-                      of those six is <span className="font-mono text-zinc-300">21+</span> raw, all six stay 17+ and four
-                      at 19+. If any core is <span className="font-mono text-zinc-300">22+</span>, all six 16+, balance /
-                      dribbling 17+, mentals 16+, determination 17+. Balance / dribbling 18+ otherwise; consistency /
-                      big games 17+; determination 18+.
+                      <span className="font-medium text-emerald-200/90">Striker finisher</span> — ST / wide forward: pace,
+                      acceleration, finishing, off the ball, flair, technique all 17+ with four at 18+ (three if any core is{' '}
+                      <span className="font-mono text-zinc-300">21+</span> raw); balance / dribbling 17+; consistency /
+                      important matches 16+; determination 17+. If any core is <span className="font-mono text-zinc-300">22+</span>, softer floors on the six.
                     </p>
                   </div>
                 }
@@ -1225,7 +1190,7 @@ export function App() {
               >
                 <option value="off">Off</option>
                 <option value="assist_prospect">Assist prospect (playmaker meta)</option>
-                <option value="striker_finisher">Striker finisher (Tsigalko-shaped)</option>
+                <option value="striker_finisher">Striker finisher (elite ST/FC)</option>
               </select>
             </div>
           </div>
@@ -1312,8 +1277,8 @@ export function App() {
                     </p>
                     {!loadInfo && (
                       <p>
-                        Load <code className="text-emerald-400/90">index.dat</code> for real ratings; demo row is
-                        illustrative.
+                        Load <code className="text-emerald-400/90">index.dat</code> or a <code className="text-emerald-400/90">.sav</code> to
+                        browse your roster.
                       </p>
                     )}
                   </div>
@@ -1330,6 +1295,11 @@ export function App() {
                 {browseTab === 'regens'
                   ? 'No heuristic regens match the current filters. Try All players, or relax filters — the regen list is a same-save guess, not exhaustive.'
                   : 'No players match the current filters. Clear text fields and uncheck boxes to see the full squad again.'}
+              </p>
+            )}
+            {!loadInfo && rows.length === 0 && (
+              <p className="mb-3 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-300">
+                Load a database (index.dat or .sav) to populate the grid.
               </p>
             )}
             {loadInfo && gridMeta && rows.length > 0 && (
@@ -1468,11 +1438,6 @@ export function App() {
           {!profile && <p className="text-sm text-zinc-500">Select a player for profile & attributes.</p>}
           {profile && (
             <div className="space-y-4">
-              {profile.isDemo && (
-                <div className="rounded-lg border border-amber-600/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-100/90">
-                  Demo roster — not loaded from your save. Illustrative stats for Maxim Tsigalko (CM 01/02 archetype).
-                </div>
-              )}
               <div className="border-b border-zinc-800/80 pb-3">
                 <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-white">
                   {profile.eliteEngineBadgeKind && profile.eliteEngineBadgeTitle && (

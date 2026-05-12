@@ -7,10 +7,9 @@ type Props = {
   effPercent: number | null
   effArchetype: string
   cmScoutRatingBp?: number
-  isDemo?: boolean
 }
 
-export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRatingBp, isDemo }: Props) {
+export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRatingBp }: Props) {
   const [data, setData] = useState<EffectivenessFullResult | null>(null)
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
@@ -91,7 +90,6 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
             </p>
             <p className="text-[10px] text-zinc-500">
               Other players’ Eff % values still rank them relative to each other on the recipes that did match.
-              {isDemo ? ' Demo row uses the built-in Tsigalko fixture.' : ''}
             </p>
           </div>
         ) : (
@@ -175,7 +173,6 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
               as CM Scout) are scored. DC / DMC / MC / AMC apply the <strong className="text-zinc-400">brain</strong>{' '}
               multiplier on the recipe+engine base, then <strong className="text-zinc-400">consistency</strong> scales
               the final %.
-              {isDemo ? ' Demo row uses the built-in Tsigalko fixture.' : ''}
             </p>
           </>
         )}
