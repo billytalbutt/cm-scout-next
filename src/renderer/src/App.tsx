@@ -266,8 +266,10 @@ export function App() {
                 {table.getRowModel().rows.map((row) => (
                   <tr
                     key={row.id}
-                    onClick={() => setSel(row.original.staffIndex)}
-                    onDoubleClick={() => void pick(row.original.staffIndex)}
+                    onClick={() => {
+                      setSel(row.original.staffIndex)
+                      void pick(row.original.staffIndex)
+                    }}
                     className={`cursor-pointer border-b border-zinc-800/50 hover:bg-zinc-800/40 ${
                       sel === row.original.staffIndex ? 'bg-emerald-950/35' : ''
                     }`}
@@ -283,8 +285,8 @@ export function App() {
             </table>
             {!loadInfo && (
               <p className="mt-8 text-center text-sm text-zinc-500">
-                <span className="text-amber-200/90">Maxim Tsigalko (demo)</span> is in the list — double-click to open his
-                profile. Or open your <code className="text-emerald-400/80">index.dat</code> for your full database.
+                <span className="text-amber-200/90">Maxim Tsigalko (demo)</span> is in the list — click a row to open that
+                player&apos;s profile. Or open your <code className="text-emerald-400/80">index.dat</code> for your full database.
               </p>
             )}
           </div>
