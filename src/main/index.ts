@@ -3,6 +3,7 @@ import { join, dirname, basename } from 'path'
 import { fileURLToPath } from 'url'
 import { readFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
+import { computeEffectivenessFull, playerAttrGetter } from '../shared/effectivenessEngine'
 import { buildUiRows, parseIndexDat } from './database/parser'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
 import { applyCmScoutRatings } from './cmScoutRating'
@@ -205,6 +206,17 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
     }),
     isDemo: false as const,
   }
+})
+
+ipcMain.handle('get-effectiveness-detail', async (_e, staffIndex: number) => {
+  if (staffIndex === DEMO_STAFF_INDEX) {
+    const row = getDemoUiPlayerRow()
+    return computeEffectivenessFull(playerAttrGetter(row.player as Record<string, number>))
+  }
+  if (!loaded) return null
+  const row = loaded.rows.find((r) => r.staffIndex === staffIndex)
+  if (!row) return null
+  return computeEffectivenessFull(playerAttrGetter(row.player as Record<string, number>))
 })
 
 ipcMain.handle('save-regen-baseline', async () => {

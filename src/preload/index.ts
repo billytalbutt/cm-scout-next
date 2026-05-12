@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('cmapi', {
       capped: boolean
     }>,
   getProfile: (staffIndex: number) => ipcRenderer.invoke('get-profile', staffIndex),
+  getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),
   clearRegenBaseline: () => ipcRenderer.invoke('clear-regen-baseline'),
 })

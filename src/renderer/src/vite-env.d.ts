@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import type { GridPlayerRow } from '../../shared/gridTypes'
+import type { EffectivenessFullResult, EffectivenessRunnerUp, EffectivenessWinnerDetail } from '../../shared/effectivenessEngine'
 
 export {}
 
@@ -41,6 +42,7 @@ declare global {
         | Array<GridPlayerRow>
       >
       getProfile: (staffIndex: number) => Promise<ProfilePayload | null>
+      getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>
       saveRegenBaseline: () => Promise<RegenBaselineMutationResult>
       clearRegenBaseline: () => Promise<RegenBaselineMutationResult>
     }
@@ -115,6 +117,9 @@ export interface ProfilePayload {
   /** Effectiveness % (best archetype); bracket label on grid */
   effPercent?: number
   effArchetype?: string
+  effWinnerDetail?: EffectivenessWinnerDetail
+  effRunnerUp?: EffectivenessRunnerUp | null
+  effRatingDisclaimer?: string
   /** Length 7: GK, D, DM, M, AM, A, WB — weighted attribute % per WeightsSet_CMScout column */
   cmScoutRolePercents?: number[]
   /** Same order as cmScoutRolePercents — role counts toward BP max */

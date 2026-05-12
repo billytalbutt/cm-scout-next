@@ -1586,18 +1586,79 @@ export function App() {
                       </p>
                     )}
                     {profile.effPercent != null && profile.effArchetype && (
-                      <p className="mt-1 font-mono text-[11px] text-zinc-300/95">
-                        Eff % (best archetype){' '}
-                        <span
-                          className={
-                            profile.cmScoutRatingBp != null && profile.effPercent > profile.cmScoutRatingBp + 15
-                              ? 'font-semibold text-[#39FF14]'
-                              : 'text-emerald-200/90'
-                          }
-                        >
-                          {profile.effPercent}% ({profile.effArchetype})
-                        </span>
-                      </p>
+                      <div className="mt-1 space-y-2">
+                        <p className="font-mono text-[11px] text-zinc-300/95">
+                          Eff % (best archetype){' '}
+                          <span
+                            className={
+                              profile.cmScoutRatingBp != null && profile.effPercent > profile.cmScoutRatingBp + 15
+                                ? 'font-semibold text-[#39FF14]'
+                                : 'text-emerald-200/90'
+                            }
+                          >
+                            {profile.effPercent.toFixed(1)}% ({profile.effArchetype})
+                          </span>
+                        </p>
+                        {profile.effWinnerDetail && (
+                          <div className="rounded border border-zinc-800/90 bg-zinc-950/55 p-2 text-[10px] leading-snug text-zinc-400">
+                            <p className="font-semibold text-zinc-300">Why this Eff %</p>
+                            <p className="mt-1 text-zinc-500">
+                              Winning recipe <span className="text-emerald-200/90">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
+                              — primary stats weight ×5, secondary ×1.5; ★ = raw 20+ (1.25× on that stat).
+                            </p>
+                            {profile.effWinnerDetail.brainMult && (
+                              <p className="mt-1 text-zinc-500">
+                                Brain step: base {profile.effWinnerDetail.basePercent.toFixed(1)}% × (
+                                {profile.effWinnerDetail.brainMult.decisions}/20 ×{' '}
+                                {profile.effWinnerDetail.brainMult.anticipation}/20) ={' '}
+                                <span className="font-mono text-zinc-200">
+                                  {profile.effWinnerDetail.finalPercent.toFixed(1)}%
+                                </span>
+                              </p>
+                            )}
+                            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+                              <div>
+                                <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">Primary</p>
+                                <ul className="mt-0.5 space-y-0.5 font-mono text-zinc-300">
+                                  {profile.effWinnerDetail.lines
+                                    .filter((l) => l.slot === 'primary')
+                                    .map((l) => (
+                                      <li key={`pe-${l.key}`}>
+                                        {l.label} {l.raw}
+                                        {l.godTier ? <span className="text-amber-300/90"> ★</span> : null}
+                                      </li>
+                                    ))}
+                                </ul>
+                              </div>
+                              <div>
+                                <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">Secondary</p>
+                                <ul className="mt-0.5 space-y-0.5 font-mono text-zinc-300">
+                                  {profile.effWinnerDetail.lines
+                                    .filter((l) => l.slot === 'secondary')
+                                    .map((l) => (
+                                      <li key={`se-${l.key}`}>
+                                        {l.label} {l.raw}
+                                        {l.godTier ? <span className="text-amber-300/90"> ★</span> : null}
+                                      </li>
+                                    ))}
+                                </ul>
+                              </div>
+                            </div>
+                            {profile.effRunnerUp && (
+                              <p className="mt-2 border-t border-zinc-800/80 pt-2 text-zinc-500">
+                                Runner-up:{' '}
+                                <span className="text-zinc-300">{profile.effRunnerUp.archetypeLabel}</span> at{' '}
+                                <span className="font-mono text-zinc-200">{profile.effRunnerUp.score.toFixed(1)}%</span>
+                              </p>
+                            )}
+                            {profile.effRatingDisclaimer && (
+                              <p className="mt-2 border-t border-zinc-800/80 pt-2 text-[9px] text-zinc-500">
+                                {profile.effRatingDisclaimer}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                     {profile.cmScoutRatingBp != null &&
                       profile.cmScoutRolePercents &&

@@ -18,6 +18,7 @@ import {
   type Ca18Key,
 } from './database/attributes'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
+import { computeEffectivenessFull, playerAttrGetter } from '../shared/effectivenessEngine'
 import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
 import { computeHighlightSets, footMoraleHighlightTier, formatHighlightRoles } from './positionHighlights'
 
@@ -375,6 +376,8 @@ export function buildProfilePayload(
         })()
       : null
 
+  const effFull = computeEffectivenessFull(playerAttrGetter(p as Record<string, number>))
+
   return {
     name: row.name,
     nation: row.nation,
@@ -394,8 +397,12 @@ export function buildProfilePayload(
     ca: p.current_ability,
     pa: p.potential_ability,
     cmScoutRatingBp: row.cmScoutRatingBp,
-    effPercent: row.effPercent,
-    effArchetype: row.effArchetype,
+    effPercent: effFull.effPercent,
+    effArchetype: effFull.effArchetype,
+    effWinnerDetail: effFull.winnerDetail,
+    effRunnerUp: effFull.runnerUp,
+    effRatingDisclaimer:
+      'Eff % is the best of eight fixed recipes on raw 1–20 attributes. It does not use CA18 in-match scaling and does not require the player to be natural in the bracket role (compare Natural above). CM Scout % uses the full Intrinsic weight grid — the two numbers measure different things.',
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
     transfer: {

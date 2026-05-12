@@ -2,6 +2,11 @@
  * Position-archetype “effectiveness” % (Eff %): engine-style weighted mix of raw intrinsic
  * attributes (1–20), best archetype wins (e.g. a DM may peak as DC). Independent of CM Scout
  * in-match normalization — complements `cmScoutRating.ts`, does not replace it.
+ *
+ * Mentals: only attributes that appear in the eight recipes count — e.g. Decisions, Anticipation,
+ * Off the Ball, Creativity, Positioning (and Bravery on GK). We do **not** use teamwork,
+ * influence, aggression, consistency, etc. CM Scout % uses a different (full) weight grid + CA18
+ * normalization, so a player can be 100% in one scout column while Eff % peaks on another recipe.
  */
 
 export type EffectivenessBrainKind = 'none' | 'defense' | 'assist'
@@ -80,6 +85,13 @@ const W_PRIMARY = 5
 const W_SECONDARY = 1.5
 const GOD_MULT = 1.25
 
+export function effAttrLabel(key: string): string {
+  return key
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
 function valPart(raw: number): number {
   if (!Number.isFinite(raw)) return 0
   const capped = Math.max(0, Math.min(20, raw))
@@ -87,25 +99,104 @@ function valPart(raw: number): number {
   return raw >= 20 ? base * GOD_MULT : base
 }
 
-function archetypeScore(a: EffectivenessArchetype, get: (name: string) => number): number {
+export interface EffStatLine {
+  key: string
+  label: string
+  slot: 'primary' | 'secondary'
+  weight: number
+  raw: number
+  contribution: number
+  godTier: boolean
+}
+
+export interface EffectivenessWinnerDetail {
+  archetypeId: string
+  archetypeLabel: string
+  /** Weighted % before Decisions×Anticipation (when brain applies). */
+  basePercent: number
+  /** Final % after brain and cap at 100. */
+  finalPercent: number
+  brainMult?: { decisions: number; anticipation: number; factor: number }
+  lines: EffStatLine[]
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10
+}
+
+function accumulateArchetype(
+  a: EffectivenessArchetype,
+  get: (name: string) => number,
+): { rawFinal: number; detail: EffectivenessWinnerDetail } {
+  const lines: EffStatLine[] = []
   let sum = 0
   let max = 0
   for (const k of a.primary) {
-    sum += W_PRIMARY * valPart(get(k))
+    const raw = get(k)
+    const vp = valPart(raw)
+    const c = W_PRIMARY * vp
+    sum += c
     max += W_PRIMARY * GOD_MULT
+    lines.push({
+      key: k,
+      label: effAttrLabel(k),
+      slot: 'primary',
+      weight: W_PRIMARY,
+      raw,
+      contribution: c,
+      godTier: raw >= 20,
+    })
   }
   for (const k of a.secondary) {
-    sum += W_SECONDARY * valPart(get(k))
+    const raw = get(k)
+    const vp = valPart(raw)
+    const c = W_SECONDARY * vp
+    sum += c
     max += W_SECONDARY * GOD_MULT
+    lines.push({
+      key: k,
+      label: effAttrLabel(k),
+      slot: 'secondary',
+      weight: W_SECONDARY,
+      raw,
+      contribution: c,
+      godTier: raw >= 20,
+    })
   }
-  if (max <= 0) return 0
-  let pct = (100 * sum) / max
+  const basePct = max <= 0 ? 0 : (100 * sum) / max
+  let brainMult: EffectivenessWinnerDetail['brainMult']
+  let finalPct = basePct
   if (a.brain === 'defense' || a.brain === 'assist') {
-    const d = Math.max(0, Math.min(20, get('decisions'))) / 20
-    const an = Math.max(0, Math.min(20, get('anticipation'))) / 20
-    pct *= d * an
+    const decisions = Math.max(0, Math.min(20, get('decisions')))
+    const anticipation = Math.max(0, Math.min(20, get('anticipation')))
+    const factor = (decisions / 20) * (anticipation / 20)
+    brainMult = { decisions, anticipation, factor: Math.round(factor * 10000) / 10000 }
+    finalPct = basePct * factor
   }
-  return Math.min(100, pct)
+  finalPct = Math.min(100, finalPct)
+  const detail: EffectivenessWinnerDetail = {
+    archetypeId: a.id,
+    archetypeLabel: a.label,
+    basePercent: round1(basePct),
+    finalPercent: round1(finalPct),
+    brainMult,
+    lines,
+  }
+  return { rawFinal: finalPct, detail }
+}
+
+export type EffectivenessRunnerUp = {
+  archetypeId: string
+  archetypeLabel: string
+  score: number
+}
+
+export type EffectivenessFullResult = {
+  effPercent: number
+  effArchetype: string
+  effArchetypeId: string
+  winnerDetail: EffectivenessWinnerDetail
+  runnerUp: EffectivenessRunnerUp | null
 }
 
 export function playerAttrGetter(player: Record<string, number>): (name: string) => number {
@@ -115,19 +206,42 @@ export function playerAttrGetter(player: Record<string, number>): (name: string)
   }
 }
 
+/** Full effectiveness result including explainable winner breakdown and runner-up archetype. */
+export function computeEffectivenessFull(getAttr: (name: string) => number): EffectivenessFullResult {
+  const scored: { a: EffectivenessArchetype; rawFinal: number; detail: EffectivenessWinnerDetail }[] = []
+  for (const a of EFFECTIVENESS_ARCHETYPES) {
+    const { rawFinal, detail } = accumulateArchetype(a, getAttr)
+    scored.push({ a, rawFinal, detail })
+  }
+  scored.sort((x, y) => {
+    if (y.rawFinal !== x.rawFinal) return y.rawFinal - x.rawFinal
+    return x.a.id.localeCompare(y.a.id)
+  })
+  const best = scored[0]!
+  const second = scored[1]
+  const runnerUp: EffectivenessRunnerUp | null =
+    second && second.a.id !== best.a.id
+      ? {
+          archetypeId: second.a.id,
+          archetypeLabel: second.a.label,
+          score: round1(second.rawFinal),
+        }
+      : null
+
+  const effPercent = best.rawFinal < 0 ? 0 : round1(best.rawFinal)
+  return {
+    effPercent,
+    effArchetype: best.a.label,
+    effArchetypeId: best.a.id,
+    winnerDetail: { ...best.detail, finalPercent: effPercent },
+    runnerUp,
+  }
+}
+
 export function computeBestEffectiveness(getAttr: (name: string) => number): {
   effPercent: number
   effArchetype: string
 } {
-  let best = -1
-  let bestLabel = ''
-  for (const a of EFFECTIVENESS_ARCHETYPES) {
-    const s = archetypeScore(a, getAttr)
-    if (s > best) {
-      best = s
-      bestLabel = a.label
-    }
-  }
-  const effPercent = best < 0 ? 0 : Math.round(best * 10) / 10
-  return { effPercent, effArchetype: bestLabel }
+  const f = computeEffectivenessFull(getAttr)
+  return { effPercent: f.effPercent, effArchetype: f.effArchetype }
 }
