@@ -1,6 +1,14 @@
 # CM Scout Next
 
+**Repository:** [github.com/billytalbutt/cm-scout-next](https://github.com/billytalbutt/cm-scout-next)
+
 Cross-platform **Electron + React + TypeScript** scout for **Championship Manager 01/02** `index.dat` (Windows and macOS).
+
+## Demo player (no save required)
+
+**Maxime Segalco** is always injected as the first list row (tagged **Demo**) with wonderkid-style striker stats so you can **double-click** him and preview the profile panel before opening any `index.dat`. He is not read from your game files.
+
+After you load a real database, Maxime stays at the top of the list (until filters hide him).
 
 ## Features (milestone 1)
 
