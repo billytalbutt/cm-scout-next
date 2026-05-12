@@ -176,8 +176,9 @@ export interface UiPlayerRow {
   /** Cached 1–20 in-match–normalized vector for attribute filters */
   cmAttrNorm?: number[]
   /**
-   * Heuristic regen hint (same-save): young player shares PA + primary nation + natural
-   * position bytes with an older player in the DB. Not proof — see `regenDetection.ts`.
+   * Heuristic regen hint (same-save): young player shares PA, nationalities, natural-position
+   * vector, and **date-of-birth signal** (full ISO or month–day) with an older player in the DB;
+   * see `regenDetection.ts`. Not proof — no height/weight in parsed `player.dat` rows.
    */
   isRegenLikely?: boolean
   /** Display name of the older player used for the regen heuristic (if `isRegenLikely`). */

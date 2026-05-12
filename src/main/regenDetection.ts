@@ -1,15 +1,24 @@
 /**
- * Heuristic “regen” hints for a single index.dat snapshot (no historical saves).
+ * Same-save “regen” hints (no historical saves, no retired rows unless still in `staff.dat`).
  *
- * Community wisdom (champman0102.net, etc.): regens often reuse the retired player’s
- * potential ability, primary nationality, and natural-position suitability bytes; names differ.
+ * Community checks (champman0102.net, CM wiki, scout threads): regens typically reuse the
+ * retired player’s **PA**, **nationality**, **natural-position suitability**, and especially
+ * **date of birth** (same calendar date, or at least same month/day vs the lineage player).
+ * `TPlayer` / `TStaff` in vanilla CM0102 index blocks do **not** include height/weight in the
+ * 70 / 110-byte rows we parse — those live outside this path in other tools, so we cannot match
+ * on height/weight without a separate layout investigation.
  *
- * We cannot see truly retired non-player staff cleanly in this loader, so we approximate:
- * group all **active** named players by `PA + first nation id + full natural-position vector`.
- * Within a group, if there is at least one **older** player (age ≥ OLD_MIN) and at least one
- * **young** player (age ≤ 23, still developing vs PA), we flag each young player as a
- * likely regen of the **oldest** player in that group (by age). Ambiguous megagroups
- * (many old and many young) are skipped to reduce false positives.
+ * Algorithm (hardened vs PA+nation+pos only):
+ * 1. Bucket active players by `PA + first nation + second nation (when set) + full natural-position vector`.
+ * 2. Within a bucket, require at least one **old** (age ≥ OLD_MIN) and one **young** (age ≤ YOUNG_MAX,
+ *    still developing: CA + MIN_PA_CA_GAP ≤ PA).
+ * 3. **Source assignment** (must pass name-dup guard):
+ *    - Prefer **full `dob_iso` match** between young and an old in the bucket (strongest community signal).
+ *    - Else **month–day match** on valid ISO strings (wiki’s “day and month” emphasis).
+ *    - Else if the young row has **no DOB** and the bucket has **exactly one** old, use legacy single-source
+ *      behaviour (very narrow; avoids dropping everyone when DOB bytes are unset).
+ * 4. Among eligible olds for that young, pick the **oldest by age** as `regenOf`.
+ * 5. Skip huge buckets and highly ambiguous many-old × many-young groups.
  */
 import type { PlayerRecord, UiPlayerRow } from './database/types'
 
@@ -17,10 +26,12 @@ const YOUNG_MAX_AGE = 23
 const OLD_MIN_AGE = 30
 /** Require young players to still be notably below their PA (typical regen / youth). */
 const MIN_PA_CA_GAP = 5
-/** Skip huge collision buckets (unrelated players sharing a signature). */
-const MAX_GROUP = 12
+/** With DOB / MD matching, collisions are rarer — allow slightly larger buckets before skipping. */
+const MAX_GROUP = 24
 const MAX_AMBIG_OLD = 2
 const MAX_AMBIG_YOUNG = 2
+/** Legacy fallback: only when young has no DOB and the bucket is tiny with a single old. */
+const MAX_GROUP_NULL_DOB_FALLBACK = 6
 
 function posSig(p: PlayerRecord): string {
   return [
@@ -39,12 +50,53 @@ function posSig(p: PlayerRecord): string {
   ].join(',')
 }
 
-function regenKey(pa: number, firstNationId: number, p: PlayerRecord): string {
-  return `${pa}|${firstNationId}|${posSig(p)}`
+/** Second nation only when distinct from first — tightens unrelated PA+nation collisions. */
+function regenKey(pa: number, firstNationId: number, secondNationId: number, p: PlayerRecord): string {
+  const sec =
+    secondNationId > 0 && secondNationId !== firstNationId ? secondNationId : 0
+  return `${pa}|${firstNationId}|${sec}|${posSig(p)}`
 }
 
 function normName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function validDob(iso: string | null): iso is string {
+  return iso != null && iso.length >= 10 && iso[4] === '-' && iso[7] === '-'
+}
+
+function dobFullMatch(a: string | null, b: string | null): boolean {
+  if (!validDob(a) || !validDob(b)) return false
+  return a === b
+}
+
+/** Month–day (wiki: same day/month as lineage); ignores birth year. */
+function dobMonthDayMatch(a: string | null, b: string | null): boolean {
+  if (!validDob(a) || !validDob(b)) return false
+  return a.slice(5, 10) === b.slice(5, 10)
+}
+
+/**
+ * Pick the lineage “source” old for this young row: DOB-first, then month–day, then tiny-bucket fallback.
+ */
+function pickSourceForYoung(young: UiPlayerRow, olds: UiPlayerRow[], groupSize: number): UiPlayerRow | null {
+  const full = olds.filter((o) => dobFullMatch(o.staff.dob_iso, young.staff.dob_iso))
+  const pool = full.length > 0 ? full : olds.filter((o) => dobMonthDayMatch(o.staff.dob_iso, young.staff.dob_iso))
+
+  if (pool.length > 0) {
+    return [...pool].sort((a, b) => (b.age ?? 0) - (a.age ?? 0))[0]!
+  }
+
+  if (
+    !validDob(young.staff.dob_iso) &&
+    olds.length === 1 &&
+    olds[0] &&
+    groupSize <= MAX_GROUP_NULL_DOB_FALLBACK
+  ) {
+    return olds[0]
+  }
+
+  return null
 }
 
 export function applyRegenHints(rows: UiPlayerRow[]): void {
@@ -61,7 +113,7 @@ export function applyRegenHints(rows: UiPlayerRow[]): void {
   for (const r of dataRows) {
     const pa = r.player.potential_ability
     if (pa < 1) continue
-    const k = regenKey(pa, r.staff.first_nation_id, r.player)
+    const k = regenKey(pa, r.staff.first_nation_id, r.staff.second_nation_id, r.player)
     let arr = byKey.get(k)
     if (!arr) {
       arr = []
@@ -84,11 +136,13 @@ export function applyRegenHints(rows: UiPlayerRow[]): void {
 
     if (olds.length > MAX_AMBIG_OLD && youngs.length > MAX_AMBIG_YOUNG) continue
 
-    const source = [...olds].sort((a, b) => (b.age ?? 0) - (a.age ?? 0))[0]!
-    const srcName = normName(source.name)
+    const nullDobYoungs = youngs.filter((y) => !validDob(y.staff.dob_iso))
+    if (nullDobYoungs.length > 1) continue
 
     for (const y of youngs) {
-      if (normName(y.name) === srcName) continue
+      const source = pickSourceForYoung(y, olds, group.length)
+      if (!source) continue
+      if (normName(y.name) === normName(source.name)) continue
       y.isRegenLikely = true
       y.regenOfName = source.name
       y.regenOfStaffIndex = source.staffIndex

@@ -1109,8 +1109,9 @@ export function App() {
                         The table virtualizes rows.
                       </p>
                       <p className="text-zinc-400">
-                        Right-click column headers to add or remove columns. “Is regen” is a same-save heuristic (PA +
-                        primary nation + natural positions, young vs older); not guaranteed.
+                        Right-click column headers to add or remove columns. “Is regen” uses PA + nationalities +
+                        natural positions + DOB (full date, else month–day) vs an older player in the same save; not
+                        guaranteed.
                       </p>
                     </div>
                   }
