@@ -6,7 +6,7 @@ Cross-platform **Electron + React + TypeScript** scout for **Championship Manage
 
 ## Demo player (no save required)
 
-**Maxim Tsigalko** is always injected as the first list row (tagged **Demo**) with typical wonderkid striker stats so you can **click the row** to preview the profile panel before opening any `index.dat`. He is not read from your game files.
+**Maxim Tsigalko** is always injected as the first list row (tagged **Demo**) with typical wonderkid striker stats. **Single-click** the row to select it; **double-click** to open the profile panel before opening any `index.dat`. He is not read from your game files.
 
 After you load a real database, Maxim stays at the top of the list (until filters hide him).
 

@@ -24,6 +24,22 @@ type Row = {
 
 const columnHelper = createColumnHelper<Row>()
 
+/** Shown immediately and if IPC fails — same as main-process demo row. */
+const DEMO_FALLBACK: Row[] = [
+  {
+    staffId: -1,
+    staffIndex: -1,
+    name: 'Maxim Tsigalko',
+    nation: 'Belarus',
+    club: 'Dinamo Minsk',
+    ca: 187,
+    pa: 200,
+    wage: 18500,
+    value: 12_500_000,
+    isDemo: true,
+  },
+]
+
 function fmtMoney(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`
   if (n >= 1000) return `${(n / 1000).toFixed(0)}k`
@@ -47,7 +63,7 @@ export function App() {
     playerCount: number
   } | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [rows, setRows] = useState<Row[]>([])
+  const [rows, setRows] = useState<Row[]>(DEMO_FALLBACK)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'ca', desc: true }])
   const [q, setQ] = useState('')
   const [nation, setNation] = useState('')
@@ -69,13 +85,29 @@ export function App() {
     if (Number.isFinite(caHi)) f.caMax = caHi
     if (Number.isFinite(paLo)) f.paMin = paLo
     if (Number.isFinite(paHi)) f.paMax = paHi
-    const r = await window.cmapi.getRows(f)
-    setRows(r)
-  }, [q, nation, club, caMin, caMax, paMin, paMax])
+    try {
+      if (typeof window.cmapi?.getRows !== 'function') {
+        setErr('Open this app via the Electron window from npm run dev (not a browser tab).')
+        setRows(DEMO_FALLBACK)
+        return
+      }
+      const r = await window.cmapi.getRows(f)
+      const list = Array.isArray(r) ? r : []
+      setErr(null)
+      if (list.length > 0) {
+        setRows(list)
+        return
+      }
+      setRows(loadInfo ? [] : DEMO_FALLBACK)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setErr(msg)
+      setRows(loadInfo ? [] : DEMO_FALLBACK)
+    }
+  }, [q, nation, club, caMin, caMax, paMin, paMax, loadInfo])
 
   useEffect(() => {
-    const t = setTimeout(() => void refresh(), 120)
-    return () => clearTimeout(t)
+    void refresh()
   }, [refresh])
 
   const open = async () => {
@@ -91,7 +123,14 @@ export function App() {
       gameDate: r.gameDate,
       playerCount: r.playerCount,
     })
-    setRows(await window.cmapi.getRows({}))
+    try {
+      const list = await window.cmapi.getRows({})
+      setRows(Array.isArray(list) && list.length ? list : DEMO_FALLBACK)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setErr(msg)
+      setRows(DEMO_FALLBACK)
+    }
   }
 
   const columns = useMemo(
@@ -132,10 +171,12 @@ export function App() {
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getRowId: (row) => String(row.staffIndex),
   })
 
   const pick = async (staffIndex: number) => {
     setSel(staffIndex)
+    if (typeof window.cmapi?.getProfile !== 'function') return
     const p = await window.cmapi.getProfile(staffIndex)
     setProfile(p)
   }
@@ -245,6 +286,18 @@ export function App() {
 
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="cm-scroll min-h-0 flex-1 overflow-auto p-3">
+            <p className="mb-3 rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-2 text-xs leading-relaxed text-zinc-400">
+              <span className="font-medium text-zinc-300">How to open a profile:</span> single-click a row to select it;
+              <span className="text-zinc-200"> double-click </span>
+              the row to load the profile on the right.
+              {!loadInfo && (
+                <>
+                  {' '}
+                  Before you open <code className="text-emerald-400/90">index.dat</code>, use the first row —{' '}
+                  <span className="text-amber-200/90">Maxim Tsigalko (Demo)</span>.
+                </>
+              )}
+            </p>
             <table className="w-full border-collapse text-left text-sm">
               <thead className="sticky top-0 z-10 bg-zinc-900/95 backdrop-blur">
                 {table.getHeaderGroups().map((hg) => (
@@ -266,8 +319,9 @@ export function App() {
                 {table.getRowModel().rows.map((row) => (
                   <tr
                     key={row.id}
-                    onClick={() => {
-                      setSel(row.original.staffIndex)
+                    onClick={() => setSel(row.original.staffIndex)}
+                    onDoubleClick={(e) => {
+                      e.preventDefault()
                       void pick(row.original.staffIndex)
                     }}
                     className={`cursor-pointer border-b border-zinc-800/50 hover:bg-zinc-800/40 ${
@@ -283,12 +337,6 @@ export function App() {
                 ))}
               </tbody>
             </table>
-            {!loadInfo && (
-              <p className="mt-8 text-center text-sm text-zinc-500">
-                <span className="text-amber-200/90">Maxim Tsigalko (demo)</span> is in the list — click a row to open that
-                player&apos;s profile. Or open your <code className="text-emerald-400/80">index.dat</code> for your full database.
-              </p>
-            )}
           </div>
         </main>
 
