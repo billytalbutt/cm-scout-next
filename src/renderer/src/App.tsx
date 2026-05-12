@@ -1312,20 +1312,29 @@ export function App() {
                     </p>
                     <p>
                       <span className="font-medium text-emerald-200/90">Goalkeeper</span> — natural GK: handling,
-                      reflexes, one‑on‑ones, positioning, anticipation, decisions, agility, jumping, consistency.
+                      reflexes, one‑on‑ones, positioning, anticipation, decisions, agility, jumping; player{' '}
+                      <strong className="text-zinc-400">consistency</strong> / <strong className="text-zinc-400">important matches</strong>; staff{' '}
+                      <strong className="text-zinc-400">determination</strong>, <strong className="text-zinc-400">professionalism</strong>,{' '}
+                      <strong className="text-zinc-400">pressure</strong>.
                     </p>
                     <p>
                       <span className="font-medium text-emerald-200/90">Defender</span> — centre‑back / libero (Nesta‑style):
-                      marking, tackling, positioning, anticipation, bravery, heading, strength, jumping, pace, balance.
+                      marking, tackling, positioning, anticipation, bravery, heading, strength, jumping, pace, balance;{' '}
+                      <strong className="text-zinc-400">consistency</strong>, <strong className="text-zinc-400">important matches</strong>; staff{' '}
+                      <strong className="text-zinc-400">determination</strong>, <strong className="text-zinc-400">professionalism</strong>.
                     </p>
                     <p>
                       <span className="font-medium text-emerald-200/90">Defensive midfielder</span> — natural DMC: tackling,
-                      positioning, marking, work rate, stamina, passing, decisions, anticipation, teamwork, aggression.
+                      positioning, marking, work rate, stamina, passing, decisions, anticipation, teamwork, aggression;{' '}
+                      <strong className="text-zinc-400">consistency</strong>, <strong className="text-zinc-400">important matches</strong>; staff{' '}
+                      <strong className="text-zinc-400">determination</strong>, <strong className="text-zinc-400">professionalism</strong>.
                     </p>
                     <p>
                       <span className="font-medium text-emerald-200/90">Attacking midfielder</span> — natural AMC / wide
                       creator (not lone ST): creativity, technique, passing, decisions, anticipation, off the ball,
-                      flair, stamina, balance.
+                      flair, stamina, balance; <strong className="text-zinc-400">consistency</strong>,{' '}
+                      <strong className="text-zinc-400">important matches</strong>; staff{' '}
+                      <strong className="text-zinc-400">determination</strong>, <strong className="text-zinc-400">professionalism</strong>.
                     </p>
                     <p>
                       Picking any row below fills <strong className="text-zinc-400">Attribute minimums</strong> with that

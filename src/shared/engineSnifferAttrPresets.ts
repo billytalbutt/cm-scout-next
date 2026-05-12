@@ -54,7 +54,10 @@ export const ENGINE_SNIFFER_ATTR_PRESETS: Record<
     { i: 19, min: 14 },
     { i: 24, min: 14 },
     { i: 36, min: 15 },
+    { i: 39, min: 14 },
     { i: 37, min: 15 },
+    { i: 42, min: 13 },
+    { i: 43, min: 14 },
   ],
   defender: [
     { i: 8, min: 16 },
@@ -68,7 +71,9 @@ export const ENGINE_SNIFFER_ATTR_PRESETS: Record<
     { i: 26, min: 14 },
     { i: 20, min: 15 },
     { i: 36, min: 15 },
+    { i: 39, min: 14 },
     { i: 37, min: 15 },
+    { i: 43, min: 14 },
   ],
   defensive_mid: [
     { i: 13, min: 16 },
@@ -81,7 +86,10 @@ export const ENGINE_SNIFFER_ATTR_PRESETS: Record<
     { i: 0, min: 15 },
     { i: 45, min: 16 },
     { i: 33, min: 14 },
+    { i: 36, min: 15 },
+    { i: 39, min: 14 },
     { i: 37, min: 15 },
+    { i: 43, min: 14 },
   ],
   attacking_mid: [
     { i: 1, min: 16 },
@@ -93,7 +101,10 @@ export const ENGINE_SNIFFER_ATTR_PRESETS: Record<
     { i: 22, min: 15 },
     { i: 28, min: 15 },
     { i: 20, min: 15 },
+    { i: 36, min: 15 },
+    { i: 39, min: 14 },
     { i: 37, min: 15 },
+    { i: 43, min: 14 },
   ],
 }
 

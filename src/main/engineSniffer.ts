@@ -4,7 +4,9 @@
  * Community lore: the match engine is harsh below ~17–18 on key stats; **19–20** are disproportionately strong.
  * Raw bytes can exceed 20 in editors / rare saves — `atLeast` treats **21+** as elite overflow.
  *
- * Thresholds read **on‑disk** `player.dat` / `staff.dat` bytes (same as the rest of this app).
+ * Thresholds read **on‑disk** `player.dat` / `staff.dat` bytes (same as the rest of this app). Where noted, “hidden”
+ * style fields include player **consistency** / **important matches** and staff **determination**, **professionalism**,
+ * **pressure** (GK), **adaptability** (assist path) — not the full CM Scout Intrinsic / Eff engine matrix.
  * Tuned so real world‑class CMs / AMs (e.g. Xavi‑shaped profiles) can match **Assist prospect** without needing
  * every mental at 19; **Striker finisher** favours elite ST/FC including poacher shapes (pace/finishing spine, softer flair/dribbling).
  */
@@ -152,8 +154,8 @@ export function matchesGoalkeeperMeta(row: UiPlayerRow): boolean {
   if (!atLeast(p.handling, 16) || !atLeast(p.reflexes, 16) || !atLeast(p.one_on_ones, 15)) return false
   if (!atLeast(p.positioning, 15) || !atLeast(p.anticipation, 15) || !atLeast(p.decisions, 15)) return false
   if (!atLeast(p.agility, 14) || !atLeast(p.jumping, 14)) return false
-  if (!atLeast(p.consistency, 15)) return false
-  if (!atLeast(s.determination, 15)) return false
+  if (!atLeast(p.consistency, 15) || !atLeast(p.important_matches, 14)) return false
+  if (!atLeast(s.determination, 15) || !atLeast(s.professionalism, 14) || !atLeast(s.pressure, 13)) return false
   return true
 }
 
@@ -169,7 +171,8 @@ export function matchesDefenderNesta(row: UiPlayerRow): boolean {
   if (!atLeast(p.anticipation, 16) || !atLeast(p.bravery, 15) || !atLeast(p.heading, 15)) return false
   if (!atLeast(p.strength, 15) || !atLeast(p.jumping, 15) || !atLeast(p.pace, 14)) return false
   if (!atLeast(p.balance, 15)) return false
-  if (!atLeast(p.consistency, 15) || !atLeast(s.determination, 15)) return false
+  if (!atLeast(p.consistency, 15) || !atLeast(p.important_matches, 14)) return false
+  if (!atLeast(s.determination, 15) || !atLeast(s.professionalism, 14)) return false
   return true
 }
 
@@ -183,7 +186,8 @@ export function matchesDefensiveMid(row: UiPlayerRow): boolean {
   if (!atLeast(p.marking, 15) || !atLeast(p.work_rate, 16) || !atLeast(p.stamina, 16)) return false
   if (!atLeast(p.passing, 15) || !atLeast(p.decisions, 16) || !atLeast(p.anticipation, 15)) return false
   if (!atLeast(p.teamwork, 16) || !atLeast(p.aggression, 14)) return false
-  if (!atLeast(s.determination, 15)) return false
+  if (!atLeast(p.consistency, 15) || !atLeast(p.important_matches, 14)) return false
+  if (!atLeast(s.determination, 15) || !atLeast(s.professionalism, 14)) return false
   return true
 }
 
@@ -198,7 +202,8 @@ export function matchesAttackingMid(row: UiPlayerRow): boolean {
   if (!atLeast(p.decisions, 16) || !atLeast(p.anticipation, 15)) return false
   if (!atLeast(p.off_the_ball, 15) || !atLeast(p.flair, 15)) return false
   if (!atLeast(p.stamina, 15) || !atLeast(p.balance, 15)) return false
-  if (!atLeast(s.determination, 15)) return false
+  if (!atLeast(p.consistency, 15) || !atLeast(p.important_matches, 14)) return false
+  if (!atLeast(s.determination, 15) || !atLeast(s.professionalism, 14)) return false
   return true
 }
 
