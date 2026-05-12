@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   createColumnHelper,
   flexRender,
@@ -74,6 +74,8 @@ export function App() {
   const [paMax, setPaMax] = useState('')
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
   const [sel, setSel] = useState<number | null>(null)
+  const [opening, setOpening] = useState(false)
+  const dblGuard = useRef<{ t: number; sid: number }>({ t: 0, sid: -1 })
 
   const refresh = useCallback(async () => {
     const f: Record<string, unknown> = { q, nation, club }
@@ -110,28 +112,40 @@ export function App() {
     void refresh()
   }, [refresh])
 
-  const open = async () => {
+  const loadDatabase = useCallback(async () => {
     setErr(null)
-    const r = await window.cmapi.openDatabase()
-    if (!r.ok) {
-      if (r.error !== 'cancelled') setErr(r.error)
+    if (typeof window.cmapi?.openDatabase !== 'function') {
+      setErr(
+        'CM Scout Next must run inside the Electron app window (the packaged .app or npm run dev). A normal browser tab cannot open files.',
+      )
       return
     }
-    setLoadInfo({
-      path: r.path,
-      compressed: r.compressed,
-      gameDate: r.gameDate,
-      playerCount: r.playerCount,
-    })
+    setOpening(true)
     try {
-      const list = await window.cmapi.getRows({})
-      setRows(Array.isArray(list) && list.length ? list : DEMO_FALLBACK)
+      const r = await window.cmapi.openDatabase()
+      if (!r || typeof r !== 'object' || !('ok' in r)) {
+        setErr('Unexpected response from the app. Try restarting CM Scout Next.')
+        return
+      }
+      if (!r.ok) {
+        if (r.error !== 'cancelled') setErr(r.error)
+        return
+      }
+      setLoadInfo({
+        path: r.path,
+        compressed: r.compressed,
+        gameDate: r.gameDate,
+        playerCount: r.playerCount,
+      })
+      setErr(null)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setErr(msg)
       setRows(DEMO_FALLBACK)
+    } finally {
+      setOpening(false)
     }
-  }
+  }, [])
 
   const columns = useMemo(
     () => [
@@ -174,12 +188,36 @@ export function App() {
     getRowId: (row) => String(row.staffIndex),
   })
 
-  const pick = async (staffIndex: number) => {
+  const pick = useCallback(async (staffIndex: number) => {
     setSel(staffIndex)
     if (typeof window.cmapi?.getProfile !== 'function') return
     const p = await window.cmapi.getProfile(staffIndex)
     setProfile(p)
-  }
+  }, [])
+
+  const activateProfile = useCallback(
+    (staffIndex: number) => {
+      const now = Date.now()
+      const g = dblGuard.current
+      if (g.sid === staffIndex && now - g.t < 450) return
+      g.t = now
+      g.sid = staffIndex
+      void pick(staffIndex)
+    },
+    [pick],
+  )
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || sel == null) return
+      const t = e.target as HTMLElement
+      if (t.closest('input, textarea, select, button')) return
+      e.preventDefault()
+      void pick(sel)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [sel, pick])
 
   return (
     <div className="flex h-screen flex-col bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
@@ -190,10 +228,11 @@ export function App() {
         </div>
         <button
           type="button"
-          onClick={() => void open()}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500"
+          disabled={opening}
+          onClick={() => void loadDatabase()}
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Open index.dat
+          {opening ? 'Opening…' : 'Load Database'}
         </button>
       </header>
 
@@ -287,17 +326,32 @@ export function App() {
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="cm-scroll min-h-0 flex-1 overflow-auto p-3">
             <p className="mb-3 rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-2 text-xs leading-relaxed text-zinc-400">
-              <span className="font-medium text-zinc-300">How to open a profile:</span> single-click a row to select it;
-              <span className="text-zinc-200"> double-click </span>
-              the row to load the profile on the right.
+              <span className="font-medium text-zinc-300">Players:</span> the table lists playable staff from the loaded
+              database. Use filters to narrow the list.{' '}
+              <span className="font-medium text-zinc-300">Profile:</span> single-click a row, double-click a row or cell,
+              press <kbd className="rounded bg-zinc-800 px-1 font-mono text-zinc-300">Enter</kbd>, or use{' '}
+              <span className="text-zinc-200">Open profile</span> below.
               {!loadInfo && (
                 <>
                   {' '}
-                  Before you open <code className="text-emerald-400/90">index.dat</code>, use the first row —{' '}
-                  <span className="text-amber-200/90">Maxim Tsigalko (Demo)</span>.
+                  Before you load <code className="text-emerald-400/90">index.dat</code> (from the game{' '}
+                  <code className="text-emerald-400/90">Data</code> folder or a <code className="text-emerald-400/90">.sav</code>
+                  ), try the demo row — <span className="text-amber-200/90">Maxim Tsigalko (Demo)</span>.
                 </>
               )}
             </p>
+            {sel != null && (
+              <div className="mb-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void pick(sel)}
+                  className="rounded-md border border-emerald-700/60 bg-emerald-950/40 px-3 py-1.5 text-xs font-medium text-emerald-200 hover:bg-emerald-900/50"
+                >
+                  Open profile
+                </button>
+                <span className="text-[11px] text-zinc-500">for selected row</span>
+              </div>
+            )}
             <table className="w-full border-collapse text-left text-sm">
               <thead className="sticky top-0 z-10 bg-zinc-900/95 backdrop-blur">
                 {table.getHeaderGroups().map((hg) => (
@@ -322,14 +376,21 @@ export function App() {
                     onClick={() => setSel(row.original.staffIndex)}
                     onDoubleClick={(e) => {
                       e.preventDefault()
-                      void pick(row.original.staffIndex)
+                      activateProfile(row.original.staffIndex)
                     }}
-                    className={`cursor-pointer border-b border-zinc-800/50 hover:bg-zinc-800/40 ${
+                    className={`cursor-pointer select-none border-b border-zinc-800/50 hover:bg-zinc-800/40 ${
                       sel === row.original.staffIndex ? 'bg-emerald-950/35' : ''
                     }`}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-2 py-1.5 text-zinc-200">
+                      <td
+                        key={cell.id}
+                        className="select-none px-2 py-1.5 text-zinc-200"
+                        onDoubleClick={(e) => {
+                          e.preventDefault()
+                          activateProfile(row.original.staffIndex)
+                        }}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}

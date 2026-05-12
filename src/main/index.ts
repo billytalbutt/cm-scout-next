@@ -1,8 +1,10 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
-import { join, dirname } from 'path'
+import { join, dirname, basename } from 'path'
 import { fileURLToPath } from 'url'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
+import { homedir } from 'os'
 import { buildUiRows, parseIndexDat } from './database/parser'
+import { getSuggestedDatabaseFolder, getSuggestedSaveGameFolder } from './cm0102Paths'
 import type { ParsedDatabase, UiPlayerRow } from './database/types'
 import { DEMO_STAFF_INDEX, getDemoUiPlayerRow } from './demoTsigalko'
 import { buildProfilePayload } from './profilePayload'
@@ -10,6 +12,24 @@ import { buildProfilePayload } from './profilePayload'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 let loaded: { db: ParsedDatabase; rows: UiPlayerRow[] } | null = null
+
+/** CM Scout–style: open *.sav or index.dat; same block directory format. */
+function parseSaveOrIndex(selectedPath: string): ParsedDatabase {
+  const buf = readFileSync(selectedPath)
+  try {
+    return parseIndexDat(buf)
+  } catch (e) {
+    const lower = basename(selectedPath).toLowerCase()
+    if (lower.endsWith('.sav')) {
+      const alt = join(dirname(selectedPath), 'index.dat')
+      if (existsSync(alt)) {
+        const b2 = readFileSync(alt)
+        return parseIndexDat(b2)
+      }
+    }
+    throw e
+  }
+}
 
 function allRowsWithDemo(): UiPlayerRow[] {
   const demo = getDemoUiPlayerRow()
@@ -49,16 +69,27 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-ipcMain.handle('open-database', async () => {
-  const r = await dialog.showOpenDialog({
-    title: 'Open index.dat',
-    properties: ['openFile'],
-    filters: [{ name: 'CM0102 index', extensions: ['dat'] }],
-  })
+ipcMain.handle('open-database', async (event) => {
+  const suggested =
+    getSuggestedDatabaseFolder() ?? getSuggestedSaveGameFolder() ?? homedir()
+  const parent =
+    BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
+
+  const opts = {
+    title: 'Load database',
+    defaultPath: suggested,
+    buttonLabel: 'Load',
+    properties: ['openFile'] as const,
+    filters: [
+      { name: 'index.dat (CM0102 database)', extensions: ['dat'] },
+      { name: 'Save games', extensions: ['sav'] },
+      { name: 'All files', extensions: ['*'] },
+    ],
+  }
+  const r = parent ? await dialog.showOpenDialog(parent, opts) : await dialog.showOpenDialog(opts)
   if (r.canceled || !r.filePaths[0]) return { ok: false as const, error: 'cancelled' }
   try {
-    const buf = readFileSync(r.filePaths[0])
-    const db = parseIndexDat(buf)
+    const db = parseSaveOrIndex(r.filePaths[0])
     const rows = buildUiRows(db)
     loaded = { db, rows }
     return {
