@@ -123,11 +123,6 @@ export interface ProfileSeasonStats {
   savePerformanceHint?: string
 }
 
-export interface StaffProfileAttrRow {
-  label: string
-  value: number
-}
-
 export interface StaffProfilePayload {
   staffIndex: number
   staffId: number
@@ -139,11 +134,13 @@ export interface StaffProfilePayload {
   dobIso: string | null
   age: number | null
   determination: number
-  staffMentals: StaffProfileAttrRow[]
-  nonPlayer: null | {
-    coachingAttrs: StaffProfileAttrRow[]
-    positionPrefs: StaffProfileAttrRow[]
-  }
+  /** True when `nonplayer.dat` row is linked — coaching grid + hidden position prefs. */
+  hasNonPlayer: boolean
+  currentAbility: number | null
+  potentialAbility: number | null
+  reputation: { home: number; current: number; world: number } | null
+  attrColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
+  hiddenColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
   contract: null | {
     wage: number
     dateStarted: string | null

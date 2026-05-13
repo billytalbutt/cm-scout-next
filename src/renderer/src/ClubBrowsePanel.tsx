@@ -60,49 +60,54 @@ type Props = {
   onClubSelectForTactics?: (clubId: number | null) => void
 }
 
+const SUGGEST_LIMIT = 40
+
 export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectForTactics }: Props) {
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
-  const [rows, setRows] = useState<ClubListRow[]>([])
-  const [total, setTotal] = useState(0)
+  const [suggestions, setSuggestions] = useState<ClubListRow[]>([])
+  const [lockedName, setLockedName] = useState<string | null>(null)
   const [selId, setSelId] = useState<number | null>(null)
   const [detail, setDetail] = useState<ClubDetailPayload | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loadingSuggest, setLoadingSuggest] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
   const seqRef = useRef(0)
+  const blurCloseRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQ(q.trim()), 120)
     return () => window.clearTimeout(id)
   }, [q])
 
-  const loadList = useCallback(async () => {
+  const loadSuggestions = useCallback(async () => {
     if (!loadInfo || typeof window.cmapi?.getClubRows !== 'function') {
-      setRows([])
-      setTotal(0)
+      setSuggestions([])
+      return
+    }
+    if (!debouncedQ) {
+      setSuggestions([])
       return
     }
     const seq = ++seqRef.current
-    setLoading(true)
+    setLoadingSuggest(true)
     setErr(null)
     try {
-      const out = await window.cmapi.getClubRows({ q: debouncedQ, offset: 0, limit: 5000 })
+      const out = await window.cmapi.getClubRows({ q: debouncedQ, offset: 0, limit: SUGGEST_LIMIT })
       if (seq !== seqRef.current) return
-      setRows((out.rows ?? []) as ClubListRow[])
-      setTotal(typeof out.total === 'number' ? out.total : 0)
+      setSuggestions((out.rows ?? []) as ClubListRow[])
     } catch (e) {
       if (seq !== seqRef.current) return
       setErr(e instanceof Error ? e.message : String(e))
-      setRows([])
-      setTotal(0)
+      setSuggestions([])
     } finally {
-      if (seq === seqRef.current) setLoading(false)
+      if (seq === seqRef.current) setLoadingSuggest(false)
     }
   }, [loadInfo, debouncedQ])
 
   useEffect(() => {
-    void loadList()
-  }, [loadList])
+    void loadSuggestions()
+  }, [loadSuggestions])
 
   const loadDetail = useCallback(async (id: number) => {
     if (typeof window.cmapi?.getClubDetail !== 'function') return
@@ -126,54 +131,93 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
     void loadDetail(selId)
   }, [selId, loadDetail, onClubSelectForTactics])
 
+  const onInputChange = (next: string) => {
+    setQ(next)
+    if (lockedName != null && next !== lockedName) {
+      setLockedName(null)
+      setSelId(null)
+    }
+  }
+
+  const pickClub = (c: ClubListRow) => {
+    setLockedName(c.name)
+    setQ(c.name)
+    setSelId(c.id)
+    setMenuOpen(false)
+  }
+
+  const onInputBlur = () => {
+    blurCloseRef.current = window.setTimeout(() => setMenuOpen(false), 150)
+  }
+
+  const onInputFocus = () => {
+    if (blurCloseRef.current) window.clearTimeout(blurCloseRef.current)
+    setMenuOpen(true)
+  }
+
   if (!loadInfo) {
     return <p className="text-sm text-zinc-500">Load a database to browse clubs.</p>
   }
 
+  const showSuggestPanel = menuOpen && debouncedQ.length > 0 && suggestions.length > 0
+
   return (
-    <div className="grid min-h-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-      <div className="flex min-h-0 flex-col rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-        <label className="mb-2 block">
-          <span className="mb-1 block text-xs text-zinc-500">Search club</span>
-          <input
-            className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-600"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="e.g. Blackburn"
-            spellCheck={false}
-          />
-        </label>
-        {loading && <p className="text-xs text-zinc-500">Loading…</p>}
-        {err && <p className="text-xs text-rose-300">{err}</p>}
-        <p className="mb-1 text-[10px] text-zinc-600">
-          {total} clubs · funds &amp; reputation from <span className="font-mono">club.dat</span>
-        </p>
-        <div className="cm-scroll min-h-0 flex-1 overflow-y-auto rounded border border-zinc-800/80">
-          <ul className="divide-y divide-zinc-800/80">
-            {rows.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelId(c.id)}
-                  className={`flex w-full flex-col items-start gap-0.5 px-2 py-2 text-left text-xs transition hover:bg-zinc-800/50 ${
-                    selId === c.id ? 'bg-emerald-950/25 text-emerald-100' : 'text-zinc-300'
-                  }`}
-                >
-                  <span className="font-medium text-zinc-100">{c.name}</span>
-                  <span className="text-[10px] text-zinc-500">
-                    {c.nation} · {c.division} · rep{' '}
-                    <span className="font-mono text-zinc-400">{c.reputation}</span> · funds{' '}
-                    <span className="font-mono text-zinc-400">{c.cash.toLocaleString()}</span> · stadium id{' '}
-                    <span className="font-mono text-zinc-400">{c.stadiumId}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+    <div className="grid min-h-0 gap-3 lg:grid-cols-[minmax(0,280px)_minmax(0,1.15fr)]">
+      <div className="self-start rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+        <div className="relative">
+          <label className="block">
+            <span className="mb-1 block text-xs text-zinc-500">Search club</span>
+            <div className="relative">
+              <input
+                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 pr-8 text-xs text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-600"
+                value={q}
+                onChange={(e) => onInputChange(e.target.value)}
+                onFocus={onInputFocus}
+                onBlur={onInputBlur}
+                placeholder="Type a club name…"
+                spellCheck={false}
+                autoComplete="off"
+              />
+              {loadingSuggest && (
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500">
+                  …
+                </span>
+              )}
+            </div>
+          </label>
+          {showSuggestPanel && (
+            <ul
+              className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950 py-0.5 shadow-lg cm-scroll"
+              role="listbox"
+            >
+              {suggestions.map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    className={`flex w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left text-xs transition hover:bg-zinc-800/80 ${
+                      selId === c.id ? 'bg-emerald-950/30 text-emerald-100' : 'text-zinc-300'
+                    }`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => pickClub(c)}
+                  >
+                    <span className="font-medium text-zinc-100">{c.name}</span>
+                    <span className="text-[10px] text-zinc-500">
+                      {c.nation} · {c.division}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+        {err && <p className="mt-2 text-xs text-rose-300">{err}</p>}
+        {debouncedQ && !loadingSuggest && suggestions.length === 0 && !err && (
+          <p className="mt-2 text-[11px] text-zinc-500">No clubs match that text.</p>
+        )}
       </div>
       <div className="flex min-h-0 flex-col rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-        {!detail && <p className="text-sm text-zinc-500">Select a club for squad list and finances.</p>}
+        {!detail && <p className="text-sm text-zinc-500">Search and pick a club for squad, stadium, and tactics.</p>}
         {detail && (
           <div className="flex min-h-0 flex-1 flex-col gap-2">
             <div>
@@ -263,11 +307,6 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
                   </ol>
                 </div>
               )}
-              <p className="mt-2 text-[10px] leading-snug text-zinc-600">
-                <span className="font-mono text-zinc-500">TClub.Cash</span> is the on-disk club money value; editors and
-                forum tools usually treat it as bank balance. Live transfer budgets move with the match world and are not
-                stored as a second integer in this vanilla <span className="font-mono">club.dat</span> layout.
-              </p>
             </div>
             <h4 className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Squad (from club slots)</h4>
             <div className="cm-scroll min-h-0 flex-1 overflow-y-auto rounded border border-zinc-800/80">

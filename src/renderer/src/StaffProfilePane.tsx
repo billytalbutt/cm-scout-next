@@ -1,3 +1,4 @@
+import { ProfileAttrColumn } from './ProfileAttrBlocks'
 import type { StaffProfilePayload } from './vite-env.d'
 
 function fmtMoney(n: number) {
@@ -9,25 +10,9 @@ function fmtMoney(n: number) {
   return `${sign}£${abs.toLocaleString()}`
 }
 
-function AttrGrid({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
-  return (
-    <div>
-      <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{title}</h3>
-      <dl className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-0.5 text-[11px] text-zinc-400">
-        {rows.map((r) => (
-          <div key={r.label} className="contents">
-            <dt className="truncate text-zinc-500" title={r.label}>
-              {r.label}
-            </dt>
-            <dd className="font-mono text-zinc-200">{r.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  )
-}
+export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayload; showEngineAttrs?: boolean }) {
+  const hasHidden = p.hasNonPlayer && p.hiddenColumns.some((col) => col.length > 0)
 
-export function StaffProfilePane({ p }: { p: StaffProfilePayload }) {
   return (
     <div className="space-y-4">
       <div className="border-b border-zinc-800/80 pb-3">
@@ -50,22 +35,55 @@ export function StaffProfilePane({ p }: { p: StaffProfilePayload }) {
             )}
           </p>
         )}
-        <p className="mt-1 text-xs text-zinc-400">
-          Determination <span className="font-mono text-zinc-200">{p.determination}</span>
-        </p>
+        {p.hasNonPlayer && (p.currentAbility != null || p.potentialAbility != null) && (
+          <p className="mt-2 text-sm">
+            <span className="text-zinc-500">CA</span>{' '}
+            <span className="font-mono text-emerald-300">{p.currentAbility ?? '—'}</span>
+            <span className="mx-2 text-zinc-600">|</span>
+            <span className="text-zinc-500">PA</span>{' '}
+            <span className="font-mono text-emerald-300">{p.potentialAbility ?? '—'}</span>
+          </p>
+        )}
+        {p.reputation && (
+          <p className="mt-1.5 text-[11px] text-zinc-400">
+            <span className="text-zinc-500">Rep</span>{' '}
+            <span className="text-zinc-600">home</span>{' '}
+            <span className="font-mono text-zinc-200">{p.reputation.home.toLocaleString()}</span>
+            <span className="mx-1.5 text-zinc-700">·</span>
+            <span className="text-zinc-600">current</span>{' '}
+            <span className="font-mono text-zinc-200">{p.reputation.current.toLocaleString()}</span>
+            <span className="mx-1.5 text-zinc-700">·</span>
+            <span className="text-zinc-600">world</span>{' '}
+            <span className="font-mono text-zinc-200">{p.reputation.world.toLocaleString()}</span>
+          </p>
+        )}
       </div>
 
-      <AttrGrid title="Staff attributes" rows={p.staffMentals} />
+      <div>
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Attributes</h3>
+        <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+          <ProfileAttrColumn cells={p.attrColumns[0]} showEngineAttrs={showEngineAttrs} />
+          <ProfileAttrColumn cells={p.attrColumns[1]} showEngineAttrs={showEngineAttrs} />
+          <ProfileAttrColumn cells={p.attrColumns[2]} showEngineAttrs={showEngineAttrs} />
+        </div>
+      </div>
 
-      {p.nonPlayer && (
-        <>
-          <AttrGrid title="Backroom profile (nonplayer.dat)" rows={p.nonPlayer.coachingAttrs} />
-          <AttrGrid title="Position / formation preferences" rows={p.nonPlayer.positionPrefs} />
-        </>
+      {hasHidden && (
+        <div>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hidden</h3>
+          <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+            <ProfileAttrColumn cells={p.hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
+            <ProfileAttrColumn cells={p.hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />
+            <ProfileAttrColumn cells={p.hiddenColumns[2]} showEngineAttrs={showEngineAttrs} />
+          </div>
+        </div>
       )}
 
-      {!p.nonPlayer && (
-        <p className="text-[11px] text-zinc-500">No linked backroom coaching profile for this person.</p>
+      {!p.hasNonPlayer && (
+        <p className="text-[11px] text-zinc-500">
+          No linked backroom coaching profile (<span className="font-mono">nonplayer.dat</span>) for this person —
+          attributes show staff mentals and determination only.
+        </p>
       )}
 
       {p.contract && (
