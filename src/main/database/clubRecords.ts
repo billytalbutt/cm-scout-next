@@ -7,6 +7,9 @@ import type { ClubRecord } from './types'
 
 export const CLUB_ROW_BYTES = 581
 
+/** Byte offset of `TClub.Squad[0]` (50 × int32). Sequential `TClub` @ Pack=1 (CM0102Patcher). */
+export const CLUB_SQUAD_STAFF_IDS_OFF = 215
+
 /** Byte offset of `TClub.TeamSelected[0]` (20 × int32). */
 export const CLUB_TEAM_SELECTED_OFF = 480
 /** Byte offset of `TClub.TacticTraining[0]` (4 × int32). */
