@@ -1200,12 +1200,17 @@ export function App() {
               </label>
             </div>
             <details className="rounded-md border border-zinc-800 bg-zinc-900/40">
-              <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400">
-                Attribute minimums (1–20 on screen; enter <span className="font-mono text-zinc-300">21+</span> for
-                uncapped CA18 / raw bytes — right-click a box: 5 → 10 → 15 → 20 → clear)
+              <summary
+                className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400"
+                title="Same 1–20 scale as on-screen attribute bars. Enter 21+ for uncapped CA18 / raw-byte overflow (editor-style intrinsics). Right-click a minimum box: 5 → 10 → 15 → 20 → clear."
+              >
+                Attributes
               </summary>
               <div className="space-y-1 border-t border-zinc-800 px-2 py-2">
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+                <div
+                  className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500"
+                  title="Match ≥: empty = every active attribute minimum must pass; otherwise at least N of them must pass."
+                >
                   <span className="text-zinc-400">Active</span>
                   <span
                     className="inline-flex h-6 w-12 shrink-0 items-center justify-center rounded border border-zinc-600 bg-zinc-950 font-mono text-[11px] text-emerald-200/90"
@@ -1214,10 +1219,6 @@ export function App() {
                     {activeAttrFilterCount}
                   </span>
                 </div>
-                <p className="text-[10px] leading-snug text-zinc-600">
-                  <span className="text-zinc-500">Match ≥</span> empty = all active filters must pass; otherwise at least
-                  N must pass.
-                </p>
                 <div className="mt-1 flex items-center gap-0.5">
                   <span className="shrink-0 pr-0.5 text-[10px] text-zinc-500">≥</span>
                   <button
@@ -1298,61 +1299,26 @@ export function App() {
               <HoverTip
                 tip={
                   <div className="space-y-2 text-zinc-300">
-                    <p className="font-medium text-white">Heuristic only</p>
+                    <p className="font-medium text-white">Engine sniffer (DNA)</p>
                     <p>
-                      Thresholds use raw bytes from your save (normally 1–20 on screen). Values{' '}
-                      <span className="font-mono text-zinc-300">21+</span> match editor “intrinsic” overflow (e.g. 23–24)
-                      and are treated as top-tier for that attribute.
+                      Heuristic row filter and attribute floors — not decompiled match AI. Thresholds use save bytes
+                      (normally 1–20 on screen); <span className="font-mono text-zinc-300">21+</span> treats editor-style
+                      overflow as top-tier for that attribute.
                     </p>
                     <p>
-                      <span className="font-medium text-emerald-200/90">Assist prospect</span> — Playmaker / distributor
-                      lane (not lone ST/GK). Either the <strong className="text-zinc-400">technique + teamwork hub</strong>{' '}
-                      path (18+ technique &amp; teamwork, passing 15+, creativity 13+, decisions/anticipation 15+, set
-                      pieces, legs, consistency, important matches, adaptability) for Xavi‑shaped hubs, or the standard
-                      path (slightly softer passing/creativity floors with strong‑brain count).{' '}
-                      <span className="font-mono text-zinc-300">22+</span> spike shortcut unchanged.
+                      Picking a preset fills <strong className="text-zinc-400">Attributes</strong> (minimums) with that
+                      archetype’s baseline floors. While any minimum is set, the grid uses{' '}
+                      <strong className="text-zinc-400">only those bars</strong> (and optional <strong className="text-zinc-400">Match ≥</strong>); clear every minimum to use the sniffer heuristic alone. Right-click a minimum box: 5 → 10 → 15 → 20
+                      → clear.
                     </p>
                     <p>
-                      <span className="font-medium text-emerald-200/90">Striker finisher</span> — ST / FC: pace,
-                      acceleration, finishing, off the ball, technique as the hard spine (16+ with three at 18+ unless
-                      overflow); flair / dribbling only soft floors so poacher‑shaped elites (e.g. Tsigalko‑style) match;
-                      balance, consistency, important matches, determination.
+                      <span className="font-medium text-sky-200/90">MC hub presets</span> (regulator / volume) also require
+                      midfield naturals and CM Scout % to favour M/AM over a pure centre-back read — elite CBs with big
+                      passing numbers are excluded.
                     </p>
-                    <p>
-                      <span className="font-medium text-emerald-200/90">Goalkeeper</span> — natural GK: handling,
-                      reflexes, one‑on‑ones, positioning, anticipation, decisions, agility, jumping; player{' '}
-                      <strong className="text-zinc-400">consistency</strong> / <strong className="text-zinc-400">important matches</strong>; staff{' '}
-                      <strong className="text-zinc-400">determination</strong>, <strong className="text-zinc-400">professionalism</strong>,{' '}
-                      <strong className="text-zinc-400">pressure</strong>.
-                    </p>
-                    <p>
-                      <span className="font-medium text-emerald-200/90">Defender</span> — centre‑back / libero (Nesta‑style):
-                      marking, tackling, positioning, anticipation, bravery, heading, strength, jumping, pace, balance;{' '}
-                      <strong className="text-zinc-400">consistency</strong>, <strong className="text-zinc-400">important matches</strong>; staff{' '}
-                      <strong className="text-zinc-400">determination</strong>, <strong className="text-zinc-400">professionalism</strong>.
-                    </p>
-                    <p>
-                      <span className="font-medium text-emerald-200/90">Defensive midfielder</span> — natural DMC: tackling,
-                      positioning, marking, work rate, stamina, passing, decisions, anticipation, teamwork, aggression;{' '}
-                      <strong className="text-zinc-400">consistency</strong>, <strong className="text-zinc-400">important matches</strong>; staff{' '}
-                      <strong className="text-zinc-400">determination</strong>, <strong className="text-zinc-400">professionalism</strong>.
-                    </p>
-                    <p>
-                      <span className="font-medium text-emerald-200/90">Attacking midfielder</span> — natural AMC / wide
-                      creator (not lone ST): creativity, technique, passing, decisions, anticipation, off the ball,
-                      flair, stamina, balance; <strong className="text-zinc-400">consistency</strong>,{' '}
-                      <strong className="text-zinc-400">important matches</strong>; staff{' '}
-                      <strong className="text-zinc-400">determination</strong>, <strong className="text-zinc-400">professionalism</strong>.
-                    </p>
-                    <p>
-                      Picking any row below fills <strong className="text-zinc-400">Attribute minimums</strong> with that
-                      archetype’s baseline floors. While any attribute min is set, the grid uses <strong className="text-zinc-400">only those bars</strong> (and optional <strong className="text-zinc-400">Match ≥</strong>); clear every attribute min to use the sniffer heuristic alone.
-                    </p>
-                    <p>
-                      <span className="font-medium text-sky-200/90">DNA meta profiles</span> — Outlier shapes (regulator
-                      hub CM, volume playmaker, DMC anchor vs regista, reader DC, libero passer, poacher/target ST, WB
-                      motor, wide carrier, AMC shadow runner, commanding GK). Same filter rule: sniffer runs only when
-                      attribute mins are all cleared.
+                    <p className="text-zinc-400">
+                      Presets: regulator hub CM, volume playmaker, DMC anchor, DMC regista, reader DC, libero passer,
+                      poacher/target ST, WB motor, wide carrier, AMC shadow, commanding GK.
                     </p>
                   </div>
                 }
@@ -1374,25 +1340,12 @@ export function App() {
                 }}
               >
                 <option value="off">Off</option>
-                <option value="assist_prospect">Assist prospect (playmaker meta)</option>
-                <option value="striker_finisher">Striker finisher (elite ST / FC)</option>
-                <option value="goalkeeper">Goalkeeper</option>
-                <option value="defender">Defender (Nesta-style CB)</option>
-                <option value="defensive_mid">Defensive midfielder</option>
-                <option value="attacking_mid">Attacking midfielder</option>
-                <optgroup label="DNA meta profiles (outliers)">
-                  {ENGINE_META_PROFILE_IDS.map((id) => (
-                    <option key={id} value={id}>
-                      {ENGINE_META_PROFILE_LABELS[id]}
-                    </option>
-                  ))}
-                </optgroup>
+                {ENGINE_META_PROFILE_IDS.map((id) => (
+                  <option key={id} value={id}>
+                    {ENGINE_META_PROFILE_LABELS[id]}
+                  </option>
+                ))}
               </select>
-              <p className="mt-1 text-[10px] leading-snug text-zinc-600">
-                Each option fills attribute minimums; the sniffer row filter runs only when{' '}
-                <strong className="text-zinc-500">all</strong> those mins are cleared. Right-click an attribute box: 5 →
-                10 → 15 → 20 → clear.
-              </p>
             </div>
           </div>
           </aside>
@@ -1776,11 +1729,19 @@ export function App() {
               </div>
 
               <div className="mt-2 rounded-lg border border-sky-900/40 bg-sky-950/20 p-3 text-xs">
-                <h3 className="mb-1.5 font-semibold text-sky-200/95">Scouting DNA &amp; Player Instructions</h3>
-                <p className="mb-2 text-[10px] leading-snug text-zinc-500">
-                  Instruction names match the CM0102 manual Player Instruction dialog (Run with the Ball, Try Through
-                  Balls, etc.). Yes / No is heuristic scout advice only — not decompiled match AI.
-                </p>
+                <HoverTip
+                  tip={
+                    <p className="text-zinc-300">
+                      Instruction names match the CM0102 manual Player Instruction dialog (Run with the Ball, Try Through
+                      Balls, etc.). Yes / No is heuristic scout advice only — not decompiled match AI.
+                    </p>
+                  }
+                >
+                  <h3 className="mb-1.5 flex cursor-default items-center font-semibold text-sky-200/95">
+                    Scouting DNA &amp; Player Instructions
+                    <InfoDot />
+                  </h3>
+                </HoverTip>
                 {profile.engineMetaProfiles.length > 0 && (
                   <div className="mb-2">
                     <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-500">Meta profile DNA</p>
@@ -2142,11 +2103,19 @@ export function App() {
                   tip={
                     <div className="space-y-2 text-zinc-300">
                       <p>
-                        Loaded from <code className="text-emerald-400/80">staff_history.dat</code> (one row per club per
-                        season-year tag in the save; league and cups are aggregated into that row). Rows whose{' '}
-                        <code className="text-zinc-400">year</code> matches the highlighted season are tinted. Extra
-                        columns (assists, average rating, tackles, passes, headers) are not in this block — they need{' '}
-                        <code className="text-zinc-400">player stats.dat</code> decoded (shown as — until then).
+                        Career and season totals come from <code className="text-emerald-400/80">staff_history.dat</code>{' '}
+                        (one row per club per season-year in the save). Rows whose year matches the highlighted season are
+                        tinted. Assists, average rating, tackles, passes, and headers stay as — until{' '}
+                        <code className="text-zinc-400">player stats.dat</code> is decoded for this archive.
+                      </p>
+                      <p className="text-zinc-400">
+                        If the season table is empty: the index may not have loaded staff_history (missing block or
+                        unexpected layout — try reloading after the game writes history, or an uncompressed save), or this
+                        player has no history rows yet. International caps from staff.dat still appear above when set.
+                      </p>
+                      <p>
+                        By competition: league vs cups split and extra columns need save performance blocks joined to
+                        staff id and competition id (names from <code className="text-zinc-400">club_comp.dat</code>).
                       </p>
                       {profile.seasonStats.saveCalendarYear != null && (
                         <p className="text-[11px]">
@@ -2170,15 +2139,13 @@ export function App() {
                       )}
                       {profile.seasonStats.currentYearResolution === 'calendar_fallback' && (
                         <p className="text-amber-200/90">
-                          No <code className="text-amber-200/70">staff_history</code> rows matched the season-tagged
-                          year; totals use the save&apos;s calendar year instead. If your DB uses a different convention,
-                          tell us what you see in-game.
+                          No staff_history rows matched the season-tagged year; totals use the save&apos;s calendar year
+                          instead.
                         </p>
                       )}
                       {profile.seasonStats.inferredDomesticLeague && (
                         <p>
-                          Primary league from <code className="text-zinc-500">club.dat</code> division →{' '}
-                          <code className="text-zinc-500">club_comp.dat</code>:{' '}
+                          Primary league from club division → club_comp:{' '}
                           <span className="font-medium text-zinc-100">
                             {profile.seasonStats.inferredDomesticLeague.name}
                           </span>{' '}
@@ -2208,8 +2175,7 @@ export function App() {
                   </span>
                   {profile.seasonStats.highlightHistoryYear != null && (
                     <span>
-                      Season <code className="text-zinc-500">year</code>{' '}
-                      <span className="font-mono text-emerald-200/90">{profile.seasonStats.highlightHistoryYear}</span>:
+                      Season {profile.seasonStats.highlightHistoryYear}:
                       <span className="font-mono text-emerald-200/90">
                         {' '}
                         {profile.seasonStats.currentSeasonTotals.apps}
@@ -2222,25 +2188,6 @@ export function App() {
                     </span>
                   )}
                 </div>
-                {profile.seasonStats.allSeasons.length === 0 && (
-                  <p className="mb-2 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-2 text-[11px] leading-snug text-zinc-400">
-                    {!profile.seasonStats.staffHistoryParsed ? (
-                      <>
-                        This index did not load <code className="text-zinc-500">staff_history.dat</code> (block
-                        missing, empty, or decompressed size is not a multiple of 17-byte rows — some saves use a
-                        4-byte prefix, which we now skip automatically when it fits). Reload after a game has written
-                        history, or try an uncompressed save.
-                      </>
-                    ) : (
-                      <>
-                        No rows in <code className="text-zinc-500">staff_history.dat</code> for this staff id yet —
-                        common before they register competitive minutes, or if this database omits history for them.
-                        International caps from <code className="text-zinc-500">staff.dat</code> still show above when
-                        non-zero.
-                      </>
-                    )}
-                  </p>
-                )}
                 <div className="overflow-x-auto rounded border border-zinc-800/80">
                   <table className="w-full min-w-[19rem] border-collapse text-left text-[11px]">
                     <thead>
@@ -2260,10 +2207,8 @@ export function App() {
                     <tbody>
                       {profile.seasonStats.allSeasons.length === 0 ? (
                         <tr>
-                          <td colSpan={10} className="px-2 py-3 text-zinc-500">
-                            {profile.seasonStats.staffHistoryParsed
-                              ? 'No table rows for this player (totals above are zero).'
-                              : 'History block not available — see the note above.'}
+                          <td colSpan={10} className="px-2 py-3 text-center text-zinc-500">
+                            —
                           </td>
                         </tr>
                       ) : (
@@ -2298,18 +2243,14 @@ export function App() {
                 <div className="mt-3 border-t border-zinc-800/80 pt-2">
                   <HoverTip
                     tip={
-                      <p>
-                        CM-style league vs cups split, assists, average rating, and defensive counts live in save
-                        performance blocks (typically <code className="text-zinc-400">player stats.dat</code> inside the
-                        loaded archive). CM Scout Next shows the same column layout as the game; values fill in once that
-                        block is decoded and joined to <code className="text-zinc-400">staff id</code> +{' '}
-                        <code className="text-zinc-400">competition id</code> (names from{' '}
-                        <code className="text-zinc-400">club_comp.dat</code>).
+                      <p className="text-zinc-300">
+                        Same data sources as Season &amp; career record (see that heading&apos;s tooltip). Extra columns
+                        fill when per-competition performance is decoded for this save.
                       </p>
                     }
                   >
                     <h4 className="mb-1 flex cursor-default items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                      By competition (detail)
+                      By competition
                       <InfoDot />
                     </h4>
                   </HoverTip>
@@ -2348,9 +2289,8 @@ export function App() {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={8} className="px-2 py-2.5 text-[11px] leading-snug text-zinc-500">
-                              {profile.seasonStats.savePerformanceHint ??
-                                'Per-competition rows are not decoded for this database yet.'}
+                            <td colSpan={8} className="px-2 py-2.5 text-center text-zinc-500">
+                              —
                             </td>
                           </tr>
                         )}

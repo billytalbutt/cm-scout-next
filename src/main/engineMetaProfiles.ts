@@ -37,11 +37,31 @@ function rowPlayer(row: UiPlayerRow) {
   return row.player
 }
 
+/**
+ * MC hub DNA (volume / regulator) should not match elite CBs who merely have strong passing bytes and a
+ * decent midfield natural — naturals must favour midfield over defence, and CM Scout % for M/AM should not
+ * trail the defender column by a wide margin (same scale as the profile role grid).
+ */
+export function hubMidfieldDnaRoleFit(row: UiPlayerRow): boolean {
+  const p = row.player
+  const defNat = Math.max(p.defender, p.sweeper)
+  const midNat = Math.max(p.midfielder, p.attacking_midfielder)
+  if (midNat <= defNat) return false
+  const r = row.cmScoutRolePercents
+  if (r && r.length === 7) {
+    const midPct = Math.max(r[3] ?? 0, r[4] ?? 0)
+    const defPct = r[1] ?? 0
+    if (defPct >= midPct + 5) return false
+  }
+  return true
+}
+
 /** Xavi-shaped: mentals + technique lead; passing/creativity “good” not necessarily 18+. */
 export function matchesMetaMcRegulator(row: UiPlayerRow): boolean {
   const p = rowPlayer(row)
   const s = row.staff
   if (!naturalMcHub(p)) return false
+  if (!hubMidfieldDnaRoleFit(row)) return false
 
   if (!atLeast(p.technique, 16) || !atLeast(p.teamwork, 16)) return false
   if (!atLeast(p.decisions, 16) || !atLeast(p.anticipation, 16)) return false
@@ -57,6 +77,7 @@ export function matchesMetaMcVolume(row: UiPlayerRow): boolean {
   const p = rowPlayer(row)
   const s = row.staff
   if (!naturalMcHub(p)) return false
+  if (!hubMidfieldDnaRoleFit(row)) return false
 
   if (!atLeast(p.passing, 17) || !atLeast(p.creativity, 16)) return false
   if (!atLeast(p.stamina, 16) || !atLeast(p.work_rate, 15)) return false

@@ -1,5 +1,14 @@
 import { ListFilterCombo } from './ListFilterCombo'
 
+const CLUB_PLACEHOLDER_EXAMPLES = [
+  'Real Madrid',
+  'Manchester United',
+  'AC Milan',
+  'Barcelona',
+  'Juventus',
+  'Bayern Munich',
+] as const
+
 type Props = {
   clubs: string[]
   value: string
@@ -13,6 +22,7 @@ export function ClubFilterCombo({ clubs, value, onChange }: Props) {
       value={value}
       onChange={onChange}
       emptyPlaceholder="Club (load database for club list)"
+      exampleCandidates={CLUB_PLACEHOLDER_EXAMPLES}
     />
   )
 }

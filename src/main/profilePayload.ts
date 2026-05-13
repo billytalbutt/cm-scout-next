@@ -415,7 +415,7 @@ export function buildProfilePayload(
       label: ENGINE_META_PROFILE_LABELS[id as EngineMetaProfileId] ?? id,
     })) ?? []
 
-  const freeRoleHint = computeFreeRoleHint(p)
+  const freeRoleHint = computeFreeRoleHint(p, s)
   const tacticalInstructionHints = computeTacticalInstructionHints(p, s)
 
   return {

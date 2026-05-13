@@ -3,6 +3,8 @@
  *
  * Instruction labels match the CM3 / CM0102 manual “Player Instruction” dialog (e.g. Run with the Ball,
  * Hold Up the Ball, Try Through Balls). Yes / No here is scout advice only (not read from the game executable).
+ *
+ * Values use `scoutDisplayVector48` (same 1–20 display as CM Scout % / profile), not raw disk bytes alone.
  */
 import type { PlayerRecord, StaffRecord } from './database/types'
 import {
@@ -14,6 +16,7 @@ import {
   isMidfielder,
   isStriker,
   isWingBack,
+  scoutDisplayVector48,
 } from './cmScoutRating'
 
 export type InstructionTier = 'strong' | 'ok' | 'avoid'
@@ -41,17 +44,22 @@ export function freeRolePreference(p: PlayerRecord): number {
   return g(p, 'free_role')
 }
 
-export function computeFreeRoleHint(p: PlayerRecord): FreeRoleHint {
+export function computeFreeRoleHint(p: PlayerRecord, s: StaffRecord): FreeRoleHint {
   const pref = freeRolePreference(p)
+  const scr = scoutDisplayVector48(p, s)
+  const D = (i: number) => {
+    const v = scr[i]
+    return typeof v === 'number' && Number.isFinite(v) ? v : 0
+  }
   const roaming =
-    g(p, 'flair') >= 15 &&
-    g(p, 'anticipation') >= 15 &&
-    g(p, 'decisions') >= 15 &&
-    g(p, 'technique') >= 15 &&
-    g(p, 'versatility') >= 13
+    D(22) >= 15 &&
+    D(0) >= 15 &&
+    D(3) >= 15 &&
+    D(30) >= 15 &&
+    D(47) >= 13
 
   const attacking =
-    isAttackingMidfielder(p) || (isMidfielder(p) && g(p, 'creativity') >= 14) || isForward(p) || isStriker(p)
+    isAttackingMidfielder(p) || (isMidfielder(p) && D(1) >= 14) || isForward(p) || isStriker(p)
 
   if (pref >= 16) {
     return {
@@ -84,52 +92,65 @@ export function computeFreeRoleHint(p: PlayerRecord): FreeRoleHint {
   }
 }
 
-function tier(
-  strong: boolean,
-  ok: boolean,
-  avoid: boolean,
-): InstructionTier {
+/**
+ * @param softOkIfEligible — when strong and ok both fail but we are not hard-avoiding, still recommend
+ *   borderline Yes for roles where the instruction is meaningful (avoids “all No” on elite creators who miss one leg threshold).
+ */
+function tier(strong: boolean, ok: boolean, avoid: boolean, softOkIfEligible = false): InstructionTier {
   if (avoid) return 'avoid'
   if (strong) return 'strong'
   if (ok) return 'ok'
+  if (softOkIfEligible) return 'ok'
   return 'avoid'
 }
 
 export function computeTacticalInstructionHints(p: PlayerRecord, s: StaffRecord): TacticalInstructionHint[] {
   const out: TacticalInstructionHint[] = []
 
-  const drib = g(p, 'dribbling')
-  const flair = g(p, 'flair')
-  const tech = g(p, 'technique')
-  const bal = g(p, 'balance')
-  const acc = g(p, 'acceleration')
-  const pace = g(p, 'pace')
-  const ls = g(p, 'long_shots')
-  const pass = g(p, 'passing')
-  const cre = g(p, 'creativity')
-  const dec = g(p, 'decisions')
-  const ant = g(p, 'anticipation')
-  const otb = g(p, 'off_the_ball')
-  const sta = g(p, 'stamina')
-  const wr = g(p, 'work_rate')
-  const str = g(p, 'strength')
-  const fin = g(p, 'finishing')
-  const det = s.determination
-  const cross = g(p, 'crossing')
+  const scr = scoutDisplayVector48(p, s)
+  const D = (i: number) => {
+    const v = scr[i]
+    return typeof v === 'number' && Number.isFinite(v) ? v : 0
+  }
+
+  const drib = D(4)
+  const flair = D(22)
+  const tech = D(30)
+  const bal = D(20)
+  const acc = D(18)
+  const pace = D(26)
+  const ls = D(7)
+  const pass = D(10)
+  const cre = D(1)
+  const dec = D(3)
+  const anticip = D(0)
+  const otb = D(9)
+  const sta = D(28)
+  const wr = D(31)
+  const str = D(29)
+  const fin = D(5)
+  const det = D(37)
+  const cross = D(2)
+  const agg = D(33)
 
   const midAtt = isAttackingMidfielder(p) || isMidfielder(p)
   const wideNatural =
     isWingBack(p) || (isAttackingMidfielder(p) && (g(p, 'left_side') > 14 || g(p, 'right_side') > 14))
 
   const runStrong =
-    drib >= 16 && tech >= 15 && bal >= 14 && (flair >= 14 || acc >= 15) && pace >= 14
+    drib >= 16 &&
+    tech >= 15 &&
+    bal >= 14 &&
+    (flair >= 14 || acc >= 15 || (pass >= 17 && cre >= 16)) &&
+    (pace >= 13 || (pace >= 11 && (acc >= 14 || tech >= 17)))
   const runOk = drib >= 14 && tech >= 14 && bal >= 13
   const runAvoid = drib <= 11 || (dec <= 11 && tech <= 12)
+  const runEligible = !isGoalkeeper(p)
 
   out.push({
     id: 'run_with_ball',
     label: 'Run with the Ball',
-    tier: tier(runStrong, runOk && !runAvoid, runAvoid),
+    tier: tier(runStrong, runOk && !runAvoid, runAvoid, runEligible && !runAvoid),
     reason: runStrong
       ? 'Manual: Pace, Acceleration and Dribbling — this profile fits. High Flair also supports the unexpected.'
       : runAvoid
@@ -144,7 +165,7 @@ export function computeTacticalInstructionHints(p: PlayerRecord, s: StaffRecord)
   out.push({
     id: 'long_shots',
     label: 'Long Shots',
-    tier: tier(shotStrong, shotOk && !shotAvoid, shotAvoid),
+    tier: tier(shotStrong, shotOk && !shotAvoid, shotAvoid, !shotAvoid && ls >= 12),
     reason: shotStrong
       ? 'Manual: “attempt long-shots when given the chance” — Long Shots + technique support it.'
       : shotAvoid
@@ -152,42 +173,79 @@ export function computeTacticalInstructionHints(p: PlayerRecord, s: StaffRecord)
         : 'Borderline shooting stack — occasional attempts only.',
   })
 
-  const tbStrong = pass >= 16 && cre >= 15 && dec >= 16 && ant >= 15
-  const tbOk = pass >= 14 && cre >= 13 && dec >= 14
+  const tbStrong =
+    (pass >= 16 && cre >= 15 && dec >= 16 && anticip >= 15) ||
+    (pass >= 18 && cre >= 16 && dec >= 14 && anticip >= 13) ||
+    (pass >= 17 && cre >= 16 && dec >= 15 && tech >= 16 && anticip >= 13)
+  const tbOk =
+    (pass >= 14 && cre >= 13 && dec >= 14) || (pass >= 16 && cre >= 14 && dec >= 13 && anticip >= 13)
+  const tbAvoid = pass <= 11 || dec <= 10
 
   out.push({
     id: 'through_balls',
     label: 'Try Through Balls',
-    tier: tier(tbStrong, tbOk, pass <= 12 || dec <= 12),
+    tier: tier(tbStrong, tbOk, tbAvoid, !tbAvoid && pass >= 14 && cre >= 12),
     reason: tbStrong
       ? 'Manual: high Creativity and Passing for passes in front of forwards.'
-      : pass <= 12
+      : pass <= 11
         ? 'Passing too low for line-breaking balls.'
         : 'Use selectively when shape creates lanes.',
   })
 
-  const lateRunnerMid = midAtt && fin >= 15 && otb >= 15 && (pace >= 14 || acc >= 14) && tech >= 14
+  const creatorForwardRuns =
+    (isAttackingMidfielder(p) || isMidfielder(p) || isForward(p)) &&
+    !isGoalkeeper(p) &&
+    pass >= 17 &&
+    cre >= 15 &&
+    tech >= 16 &&
+    otb >= 13 &&
+    sta >= 11
+
+  const lateRunnerMid =
+    midAtt &&
+    fin >= 15 &&
+    otb >= 14 &&
+    tech >= 15 &&
+    (pace >= 14 || acc >= 14 || (pass >= 17 && cre >= 15 && otb >= 15))
+
   const fwdStrong =
-    ((isDefensiveMidfielder(p) || isMidfielder(p) || isWingBack(p)) && otb >= 16 && sta >= 15 && wr >= 15 && ant >= 14) ||
-    lateRunnerMid
+    ((isDefensiveMidfielder(p) || isMidfielder(p) || isWingBack(p)) &&
+      otb >= 16 &&
+      sta >= 15 &&
+      wr >= 15 &&
+      anticip >= 14) ||
+    lateRunnerMid ||
+    creatorForwardRuns
   const fwdOk =
     (otb >= 15 && sta >= 14 && wr >= 14) ||
-    (midAtt && fin >= 14 && otb >= 14 && sta >= 14)
+    (midAtt && fin >= 14 && otb >= 14 && sta >= 14) ||
+    (isStriker(p) && otb >= 14 && sta >= 13 && wr >= 13 && fin >= 14)
   const fwdAvoid = isDefender(p) && !isWingBack(p) && g(p, 'defender') > 14 && otb <= 12
+
+  const pureCentreBackOnly =
+    isDefender(p) &&
+    !isWingBack(p) &&
+    !isMidfielder(p) &&
+    !isAttackingMidfielder(p) &&
+    !isDefensiveMidfielder(p) &&
+    !isForward(p) &&
+    !isStriker(p) &&
+    !isGoalkeeper(p)
 
   out.push({
     id: 'gets_forward',
     label: 'Forward Runs',
-    tier: tier(fwdStrong, fwdOk && !fwdAvoid, fwdAvoid),
+    tier: tier(fwdStrong, fwdOk && !fwdAvoid, fwdAvoid, !pureCentreBackOnly && !isGoalkeeper(p) && !fwdAvoid),
     reason: fwdStrong
-      ? 'Forum / tactics screen: Forward Runs — off-the-ball plus legs (and AMC/CM late runners with finishing).'
+      ? 'Forum / tactics screen: Forward Runs — legs, hub creators, or AMC/CM late runners.'
       : fwdAvoid
         ? 'Pure defensive CB shape — Forward Runs risks leaving gaps.'
         : 'Moderate runs possible; watch stamina if set to Yes.',
   })
 
+  const head = D(6)
   const holdStrong =
-    (isForward(p) || isStriker(p)) && str >= 16 && bal >= 15 && tech >= 14 && (g(p, 'heading') >= 14 || str >= 17)
+    (isForward(p) || isStriker(p)) && str >= 16 && bal >= 15 && tech >= 14 && (head >= 14 || str >= 17)
   const holdOk = (isForward(p) || isStriker(p)) && str >= 15 && bal >= 14 && tech >= 13
 
   out.push({
@@ -219,13 +277,13 @@ export function computeTacticalInstructionHints(p: PlayerRecord, s: StaffRecord)
   })
 
   const pressStrong =
-    wr >= 16 && sta >= 16 && g(p, 'aggression') >= 15 && ant >= 15 && det >= 14 && !isGoalkeeper(p) && !isStriker(p)
-  const pressOk = wr >= 15 && sta >= 15 && g(p, 'aggression') >= 14
+    wr >= 16 && sta >= 16 && agg >= 15 && anticip >= 15 && det >= 14 && !isGoalkeeper(p) && !isStriker(p)
+  const pressOk = wr >= 15 && sta >= 15 && agg >= 14
 
   out.push({
     id: 'closing_down',
     label: 'Pressing',
-    tier: tier(pressStrong, pressOk, isGoalkeeper(p)),
+    tier: tier(pressStrong, pressOk, isGoalkeeper(p), !isGoalkeeper(p) && !isStriker(p) && (pressOk || wr >= 13)),
     reason: pressStrong
       ? 'Manual / tactics: Pressing — work rate, stamina, aggression, anticipation (manual warns it tires players).'
       : isGoalkeeper(p)

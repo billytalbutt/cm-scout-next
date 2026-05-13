@@ -4,6 +4,8 @@ import { ListFilterCombo } from './ListFilterCombo'
 
 export type CommittedTextFilters = { q: string; nation: string; club: string }
 
+const NATION_PLACEHOLDER_EXAMPLES = ['France', 'Brazil', 'England', 'Italy', 'Spain', 'Germany', 'Argentina'] as const
+
 type Props = {
   nationList: string[]
   clubList: string[]
@@ -50,7 +52,7 @@ export function DebouncedTextFilters({
       <label className="block">
         <span className="mb-1 block text-xs text-zinc-500">Search name</span>
         <input
-          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-zinc-100 outline-none focus:border-emerald-600"
+          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-600"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="e.g. Zidane"
@@ -66,6 +68,7 @@ export function DebouncedTextFilters({
           value={nation}
           onChange={setNation}
           emptyPlaceholder="Nation (load database for nation list)"
+          exampleCandidates={NATION_PLACEHOLDER_EXAMPLES}
         />
       </label>
       <label className="block">
