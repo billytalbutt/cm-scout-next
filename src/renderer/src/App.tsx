@@ -24,6 +24,7 @@ import { StaffBrowsePanel } from './StaffBrowsePanel'
 import { StaffProfilePane } from './StaffProfilePane'
 import { ClubBrowsePanel } from './ClubBrowsePanel'
 import { TacticsLabPanel } from './TacticsLabPanel'
+import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { attrColor, engineBracketClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 
 const gridColHelper = createGridColumnHelper()
@@ -298,7 +299,7 @@ export function App() {
       return false
     }
   })
-  const [browseTab, setBrowseTab] = useState<'players' | 'regens' | 'staff' | 'clubs' | 'tactics'>('players')
+  const [browseTab, setBrowseTab] = useState<'players' | 'regens' | 'staff' | 'clubs' | 'tactics' | 'editor'>('players')
   /** Last club selected in Clubs tab — Tactics Lab uses this for save tactic wiring. */
   const [tacticsSeedClubId, setTacticsSeedClubId] = useState<number | null>(null)
   const [regenOnly, setRegenOnly] = useState(false)
@@ -397,7 +398,7 @@ export function App() {
   const refreshSeq = useRef(0)
 
   const refresh = useCallback(async () => {
-    if (browseTab === 'staff' || browseTab === 'clubs' || browseTab === 'tactics') {
+    if (browseTab === 'staff' || browseTab === 'clubs' || browseTab === 'tactics' || browseTab === 'editor') {
       setGridRefreshing(false)
       return
     }
@@ -1254,9 +1255,13 @@ export function App() {
               <span className="text-xs font-medium text-zinc-400">Regens</span>
               <label
                 className={`flex items-center gap-2 text-xs ${
-                  browseTab === 'regens' || browseTab === 'staff' || browseTab === 'clubs' || browseTab === 'tactics'
-                  ? 'cursor-not-allowed text-zinc-500'
-                  : 'cursor-pointer text-zinc-300'
+                  browseTab === 'regens' ||
+                  browseTab === 'staff' ||
+                  browseTab === 'clubs' ||
+                  browseTab === 'tactics' ||
+                  browseTab === 'editor'
+                    ? 'cursor-not-allowed text-zinc-500'
+                    : 'cursor-pointer text-zinc-300'
                 }`}
               >
                 <input
@@ -1266,7 +1271,8 @@ export function App() {
                     browseTab === 'regens' ||
                     browseTab === 'staff' ||
                     browseTab === 'clubs' ||
-                    browseTab === 'tactics'
+                    browseTab === 'tactics' ||
+                    browseTab === 'editor'
                   }
                   onChange={(e) => setRegenOnly(e.target.checked)}
                 />
@@ -1393,6 +1399,17 @@ export function App() {
             >
               Tactics
             </button>
+            <button
+              type="button"
+              onClick={() => setBrowseTab('editor')}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                browseTab === 'editor'
+                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
+                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+              }`}
+            >
+              Editor
+            </button>
             {browseTab === 'regens' && loadInfo && (
               <span className="text-[10px] text-zinc-500">
                 Heuristic list only — grid columns can still show Is regen / Regen of.
@@ -1446,6 +1463,13 @@ export function App() {
             )}
             {browseTab === 'tactics' && (
               <TacticsLabPanel loadInfo={!!loadInfo} tacticsSeedClubId={tacticsSeedClubId} />
+            )}
+            {browseTab === 'editor' && (
+              <AttributeEditorPanel
+                loadInfo={!!loadInfo}
+                compressed={!!loadInfo?.compressed}
+                staffIndex={sel}
+              />
             )}
             {(browseTab === 'players' || browseTab === 'regens') && (
             <>

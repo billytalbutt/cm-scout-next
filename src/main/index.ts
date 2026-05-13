@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
-import { join, dirname, basename } from 'path'
+import { join, dirname, basename, extname } from 'path'
 import { fileURLToPath } from 'url'
-import { readFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
 import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
@@ -29,23 +29,38 @@ import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
 import { filterStaffGridRows } from './staffBrowse'
 import { buildClubSquadPlayerRows, buildClubDetailPayload, filterClubListRows } from './clubBrowse'
 import { buildStaffProfilePayload } from './staffProfilePayload'
+import {
+  buildEditorValueMap,
+  buildPatchedArchiveBuffer,
+  editorSubjectLabel,
+} from './attributeEditorSave'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-let loaded: { db: ParsedDatabase; rows: UiPlayerRow[]; indexPath: string; pathKey: string } | null = null
+let loaded: {
+  db: ParsedDatabase
+  rows: UiPlayerRow[]
+  indexPath: string
+  pathKey: string
+  /** Bytes of the archive that was parsed (same buffer we patch for saves). */
+  archiveBuf: Buffer
+} | null = null
 
-/** CM Scout–style: open *.sav or index.dat; same block directory format. */
-function parseSaveOrIndex(selectedPath: string): ParsedDatabase {
-  const buf = readFileSync(selectedPath)
+/**
+ * CM Scout–style: open *.sav or index.dat; same block directory format.
+ * Returns the DB plus the exact buffer that was parsed (for later attribute patching).
+ */
+function loadArchiveForPath(selectedPath: string): { db: ParsedDatabase; archiveBuf: Buffer } {
+  let archiveBuf = readFileSync(selectedPath)
   try {
-    return parseIndexDat(buf)
+    return { db: parseIndexDat(archiveBuf), archiveBuf }
   } catch (e) {
     const lower = basename(selectedPath).toLowerCase()
     if (lower.endsWith('.sav')) {
       const alt = join(dirname(selectedPath), 'index.dat')
       if (existsSync(alt)) {
-        const b2 = readFileSync(alt)
-        return parseIndexDat(b2)
+        archiveBuf = readFileSync(alt)
+        return { db: parseIndexDat(archiveBuf), archiveBuf }
       }
     }
     throw e
@@ -129,7 +144,7 @@ ipcMain.handle('open-database', async (event) => {
   if (r.canceled || !r.filePaths[0]) return { ok: false as const, error: 'cancelled' }
   try {
     const indexPath = r.filePaths[0]
-    const db = parseSaveOrIndex(indexPath)
+    const { db, archiveBuf } = loadArchiveForPath(indexPath)
     const rows = buildUiRows(db)
     applyCmScoutRatings(rows)
     applyEffectivenessRatings(rows)
@@ -137,7 +152,7 @@ ipcMain.handle('open-database', async (event) => {
     const pathKey = pathKeyForDb(indexPath)
     const baseline = loadBaselineFromDisk(pathKey)
     applyRegenPipeline(rows, baseline, pathKey)
-    loaded = { db, rows, indexPath, pathKey }
+    loaded = { db, rows, indexPath, pathKey, archiveBuf }
     return {
       ok: true as const,
       path: indexPath,
@@ -300,4 +315,72 @@ ipcMain.handle('clear-regen-baseline', async () => {
   deleteBaselineFromDisk(loaded.pathKey)
   applyRegenPipeline(loaded.rows, null, loaded.pathKey)
   return { ok: true as const, ...baselineStatusForPath(loaded.pathKey) }
+})
+
+ipcMain.handle('get-editor-snapshot', async (_e, staffIndex: unknown) => {
+  if (!loaded) return null
+  const idx = Math.floor(Number(staffIndex))
+  if (!Number.isFinite(idx) || idx < 0) return null
+  const values = buildEditorValueMap(loaded.db, idx)
+  if (!values) return null
+  const s = loaded.db.staff[idx]!
+  return {
+    staffIndex: idx,
+    staffId: s.id,
+    name: editorSubjectLabel(loaded.db, idx) ?? '',
+    playerRow: s.player_id,
+    values,
+  }
+})
+
+ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
+  if (!loaded) return { ok: false as const, error: 'No database loaded.' }
+  const p = payload as { staffIndex?: unknown; changes?: unknown }
+  const staffIndex = Math.floor(Number(p.staffIndex))
+  const ch = p.changes
+  if (!Number.isFinite(staffIndex) || staffIndex < 0 || typeof ch !== 'object' || ch === null) {
+    return { ok: false as const, error: 'Invalid save payload.' }
+  }
+  const changes = ch as Record<string, number>
+  const built = buildPatchedArchiveBuffer(
+    loaded.archiveBuf,
+    loaded.db.blocks,
+    loaded.db.compressed,
+    loaded.db,
+    staffIndex,
+    changes,
+  )
+  if (!built.ok) return { ok: false as const, error: built.error }
+
+  const parent =
+    BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
+  const base = basename(loaded.indexPath)
+  const ext = extname(base) || '.dat'
+  const stem = ext.length > 0 ? base.slice(0, -ext.length) : base
+  const suggested = join(dirname(loaded.indexPath), `${stem}-edited${ext}`)
+  const dlg = parent
+    ? await dialog.showSaveDialog(parent, {
+        title: 'Save edited database',
+        defaultPath: suggested,
+        filters: [
+          { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      })
+    : await dialog.showSaveDialog({
+        title: 'Save edited database',
+        defaultPath: suggested,
+        filters: [
+          { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      })
+  if (dlg.canceled || !dlg.filePath) return { ok: false as const, error: 'cancelled' }
+  try {
+    writeFileSync(dlg.filePath, built.buffer)
+    return { ok: true as const, path: dlg.filePath }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { ok: false as const, error: msg }
+  }
 })

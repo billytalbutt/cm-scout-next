@@ -57,6 +57,17 @@ declare global {
       getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>
       saveRegenBaseline: () => Promise<RegenBaselineMutationResult>
       clearRegenBaseline: () => Promise<RegenBaselineMutationResult>
+      getEditorSnapshot: (staffIndex: number) => Promise<{
+        staffIndex: number
+        staffId: number
+        name: string
+        playerRow: number
+        values: Record<string, number>
+      } | null>
+      saveAttributeEdits: (
+        staffIndex: number,
+        changes: Record<string, number>,
+      ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
     }
   }
 }

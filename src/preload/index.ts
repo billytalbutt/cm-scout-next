@@ -49,4 +49,7 @@ contextBridge.exposeInMainWorld('cmapi', {
   getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),
   clearRegenBaseline: () => ipcRenderer.invoke('clear-regen-baseline'),
+  getEditorSnapshot: (staffIndex: number) => ipcRenderer.invoke('get-editor-snapshot', staffIndex),
+  saveAttributeEdits: (staffIndex: number, changes: Record<string, number>) =>
+    ipcRenderer.invoke('save-attribute-edits', { staffIndex, changes }),
 })

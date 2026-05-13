@@ -1,0 +1,332 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  EDITOR_HIDDEN_ORDER,
+  EDITOR_MAIN_ATTR_COLS,
+  EDITOR_POSITION_KEYS,
+  editorAttrLabel,
+} from '../../shared/attributeEditorOrder'
+
+export type EditorSnapshot = {
+  staffIndex: number
+  staffId: number
+  name: string
+  playerRow: number
+  values: Record<string, number>
+}
+
+function NumField({
+  k,
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  k: string
+  label: string
+  value: string
+  onChange: (key: string, v: string) => void
+  disabled: boolean
+}) {
+  return (
+    <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
+      <span className="truncate text-[10px] font-medium uppercase tracking-wide text-zinc-500" title={k}>
+        {label}
+      </span>
+      <input
+        type="number"
+        disabled={disabled}
+        className="w-full min-w-0 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-xs text-zinc-100 outline-none focus:border-emerald-600 disabled:opacity-40"
+        value={value}
+        onChange={(e) => onChange(k, e.target.value)}
+      />
+    </label>
+  )
+}
+
+export function AttributeEditorPanel({
+  loadInfo,
+  compressed,
+  staffIndex,
+}: {
+  loadInfo: boolean
+  compressed: boolean
+  staffIndex: number | null
+}) {
+  const [snap, setSnap] = useState<EditorSnapshot | null>(null)
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [err, setErr] = useState<string | null>(null)
+  const [saveMsg, setSaveMsg] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const baselineRef = useRef<Record<string, number> | null>(null)
+
+  useEffect(() => {
+    setSaveMsg(null)
+    setErr(null)
+    if (!loadInfo || staffIndex == null || typeof window.cmapi?.getEditorSnapshot !== 'function') {
+      setSnap(null)
+      setDraft({})
+      baselineRef.current = null
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    void window.cmapi
+      .getEditorSnapshot(staffIndex)
+      .then((r) => {
+        if (cancelled) return
+        if (!r || typeof r !== 'object' || !('values' in r)) {
+          setSnap(null)
+          setDraft({})
+          baselineRef.current = null
+          setErr('Could not load editor data for this row (not a playable player?).')
+          return
+        }
+        const s = r as EditorSnapshot
+        setSnap(s)
+        baselineRef.current = { ...s.values }
+        const d: Record<string, string> = {}
+        for (const [key, v] of Object.entries(s.values)) {
+          d[key] = String(v)
+        }
+        setDraft(d)
+        setErr(null)
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setErr(e instanceof Error ? e.message : String(e))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [loadInfo, staffIndex])
+
+  const onField = useCallback((key: string, v: string) => {
+    setDraft((prev) => ({ ...prev, [key]: v }))
+  }, [])
+
+  const hasChanges = useMemo(() => {
+    const base = baselineRef.current
+    if (!base) return false
+    for (const key of Object.keys(base)) {
+      const cur = draft[key]
+      if (cur === undefined) continue
+      const n = Number(cur)
+      if (!Number.isFinite(n)) return true
+      if (Math.trunc(n) !== base[key]) return true
+    }
+    return false
+  }, [draft])
+
+  const saveDisabled = compressed || !snap || saving || !hasChanges
+
+  const onSave = useCallback(async () => {
+    if (!snap || compressed || typeof window.cmapi?.saveAttributeEdits !== 'function') return
+    const base = baselineRef.current
+    if (!base) return
+    const changes: Record<string, number> = {}
+    for (const key of Object.keys(base)) {
+      const raw = draft[key]
+      if (raw === undefined) continue
+      const n = Number(raw)
+      if (!Number.isFinite(n)) {
+        setErr(`Invalid number for ${editorAttrLabel(key)}`)
+        return
+      }
+      const t = Math.trunc(n)
+      if (t !== base[key]) changes[key] = t
+    }
+    if (Object.keys(changes).length === 0) {
+      setSaveMsg('No changes to save.')
+      return
+    }
+    setSaving(true)
+    setErr(null)
+    setSaveMsg(null)
+    try {
+      const out = await window.cmapi.saveAttributeEdits(snap.staffIndex, changes)
+      if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
+        setSaveMsg(`Saved to ${String((out as { path: string }).path)}`)
+        baselineRef.current = { ...base, ...changes }
+      } else if (out && typeof out === 'object' && 'error' in out) {
+        const er = (out as { error?: string }).error
+        if (er === 'cancelled') setSaveMsg('Save cancelled.')
+        else setErr(er ?? 'Save failed.')
+      } else setErr('Save failed.')
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSaving(false)
+    }
+  }, [compressed, draft, snap])
+
+  if (!loadInfo) {
+    return <p className="text-sm text-zinc-500">Load a database first.</p>
+  }
+
+  if (compressed) {
+    return (
+      <div className="max-w-xl space-y-2 text-sm text-zinc-300">
+        <p className="font-medium text-amber-200/95">This archive is compressed.</p>
+        <p className="text-zinc-400">
+          Attribute editing only supports <strong className="text-zinc-200">uncompressed</strong> index.dat / save
+          files (e.g. Game Settings → Save Compressed = No, or an uncompressed data pack such as Blackburn).
+        </p>
+      </div>
+    )
+  }
+
+  if (staffIndex == null) {
+    return (
+      <div className="max-w-xl space-y-2 text-sm text-zinc-400">
+        <p className="font-medium text-zinc-200">No player selected</p>
+        <p>
+          Select a row on <span className="text-zinc-300">All players</span> or <span className="text-zinc-300">Regens</span>{' '}
+          (or open a profile from Staff / Clubs), then return here. Values are the on-disk bytes (same as the profile
+          “intrinsic” column); CA18 “in-game” numbers are derived in-game from CA + these bytes.
+        </p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return <p className="text-sm text-zinc-500">Loading editor…</p>
+  }
+
+  if (err && !snap) {
+    return <p className="text-sm text-rose-300/90">{err}</p>
+  }
+
+  if (!snap) return null
+
+  const coreKeys = [
+    'squad_number',
+    'current_ability',
+    'potential_ability',
+    'home_reputation',
+    'current_reputation',
+    'world_reputation',
+  ] as const
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 pb-8">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-800 pb-4">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-100">Attribute editor</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            <span className="font-medium text-emerald-200/90">{snap.name}</span>
+            <span className="text-zinc-600"> · </span>
+            staff row <span className="font-mono text-zinc-400">{snap.staffIndex}</span>
+            <span className="text-zinc-600"> · </span>
+            player.dat row <span className="font-mono text-zinc-400">{snap.playerRow}</span>
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {err && <span className="text-xs text-rose-300/90">{err}</span>}
+          {saveMsg && !err && <span className="max-w-md truncate text-xs text-emerald-300/90">{saveMsg}</span>}
+          <button
+            type="button"
+            disabled={saveDisabled}
+            onClick={() => void onSave()}
+            className="rounded-md border border-emerald-600/50 bg-emerald-950/50 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:bg-emerald-900/60 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {saving ? 'Saving…' : 'Save copy…'}
+          </button>
+        </div>
+      </div>
+
+      <section>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">CA / PA / squad / reputation</h3>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+          {coreKeys.map((k) => (
+            <NumField
+              key={k}
+              k={k}
+              label={editorAttrLabel(k)}
+              value={draft[k] ?? ''}
+              onChange={onField}
+              disabled={false}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Natural positions &amp; sides</h3>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {EDITOR_POSITION_KEYS.map((k) => (
+            <NumField
+              key={k}
+              k={k}
+              label={editorAttrLabel(k)}
+              value={draft[k] ?? ''}
+              onChange={onField}
+              disabled={false}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Main attributes</h3>
+        <div className="grid gap-4 md:grid-cols-3">
+          {EDITOR_MAIN_ATTR_COLS.map((col, ci) => (
+            <div key={ci} className="grid grid-cols-1 gap-2">
+              {col.map((k) => (
+                <NumField
+                  key={k}
+                  k={k}
+                  label={editorAttrLabel(k)}
+                  value={draft[k] ?? ''}
+                  onChange={onField}
+                  disabled={false}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          Hidden / staff mentals <span className="font-normal text-zinc-600">(player bytes + staff.dat)</span>
+        </h3>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {EDITOR_HIDDEN_ORDER.map((k) => (
+            <NumField
+              key={k}
+              k={k}
+              label={editorAttrLabel(k)}
+              value={draft[k] ?? ''}
+              onChange={onField}
+              disabled={false}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Feet &amp; morale</h3>
+        <div className="grid max-w-xl grid-cols-3 gap-2">
+          {(['left_foot', 'right_foot', 'morale'] as const).map((k) => (
+            <NumField
+              key={k}
+              k={k}
+              label={editorAttrLabel(k)}
+              value={draft[k] ?? ''}
+              onChange={onField}
+              disabled={false}
+            />
+          ))}
+        </div>
+      </section>
+
+      <p className="text-[11px] leading-relaxed text-zinc-500">
+        Writes a <strong className="text-zinc-400">new file</strong> only; your loaded copy in memory is unchanged until you reload.
+        Close CM0102 before overwriting a file it has open. Prefer testing on a copy of an uncompressed database (e.g. Blackburn data pack).
+      </p>
+    </div>
+  )
+}
