@@ -5,6 +5,10 @@ import {
   EDITOR_POSITION_KEYS,
   editorAttrLabel,
 } from '../../shared/attributeEditorOrder'
+import {
+  getEditorFieldGamePreview,
+  type EditorFieldGamePreview,
+} from '../../shared/editorFieldGamePreview'
 
 export type EditorSnapshot = {
   staffIndex: number
@@ -14,18 +18,66 @@ export type EditorSnapshot = {
   values: Record<string, number>
 }
 
+function mergeEditorNumericMap(snap: EditorSnapshot, draft: Record<string, string>): Record<string, number> {
+  const out = { ...snap.values }
+  for (const key of Object.keys(out)) {
+    const s = draft[key]
+    if (s === undefined || s === '') continue
+    const n = Number(s)
+    if (Number.isFinite(n)) out[key] = Math.trunc(n)
+  }
+  return out
+}
+
+function PreviewLines({ preview }: { preview: EditorFieldGamePreview }) {
+  if (preview.kind === 'direct') {
+    return (
+      <p className="text-[10px] leading-snug text-zinc-500">
+        CM uses this value directly <span className="font-mono text-zinc-400">({preview.inGame})</span>.
+      </p>
+    )
+  }
+  return (
+    <div className="space-y-0.5">
+      <p className="text-[10px] leading-snug text-zinc-400">
+        On attributes screen:{' '}
+        <span className="font-mono font-semibold text-emerald-200/95">{preview.inGame}</span>
+        <span className="text-zinc-600"> · 1–20 style</span>
+        {preview.kind === 'ca18' && (
+          <span className="text-zinc-600"> (from current CA + this raw byte; GK flips high/low mix)</span>
+        )}
+        {preview.kind === 'clamped' && (
+          <span className="text-zinc-600"> (clamped from raw for display)</span>
+        )}
+      </p>
+      {preview.inGameUncapped !== preview.inGame && (
+        <p className="text-[10px] leading-snug text-amber-200/90" title="Same ‘engine’ bracket as profile when uncapped &gt; 20">
+          Uncapped engine display: <span className="font-mono">{preview.inGameUncapped}</span>
+        </p>
+      )}
+      {preview.inMatch != null && preview.inMatch !== preview.inGame && (
+        <p className="text-[10px] leading-snug text-zinc-600">
+          In-match helper (profile tooltip): <span className="font-mono text-zinc-400">{preview.inMatch}</span>
+        </p>
+      )}
+    </div>
+  )
+}
+
 function NumField({
   k,
   label,
   value,
   onChange,
   disabled,
+  preview,
 }: {
   k: string
   label: string
   value: string
   onChange: (key: string, v: string) => void
   disabled: boolean
+  preview: EditorFieldGamePreview | null
 }) {
   return (
     <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
@@ -39,6 +91,11 @@ function NumField({
         value={value}
         onChange={(e) => onChange(k, e.target.value)}
       />
+      {preview != null && (
+        <div className="mt-1 border-t border-zinc-800/60 pt-1">
+          <PreviewLines preview={preview} />
+        </div>
+      )}
     </label>
   )
 }
@@ -106,6 +163,19 @@ export function AttributeEditorPanel({
   const onField = useCallback((key: string, v: string) => {
     setDraft((prev) => ({ ...prev, [key]: v }))
   }, [])
+
+  const mergedForPreview = useMemo(() => {
+    if (!snap) return null
+    return mergeEditorNumericMap(snap, draft)
+  }, [snap, draft])
+
+  const previewFor = useCallback(
+    (key: string): EditorFieldGamePreview | null => {
+      if (!mergedForPreview) return null
+      return getEditorFieldGamePreview(mergedForPreview, key)
+    },
+    [mergedForPreview],
+  )
 
   const hasChanges = useMemo(() => {
     const base = baselineRef.current
@@ -237,6 +307,14 @@ export function AttributeEditorPanel({
         </div>
       </div>
 
+      <p className="rounded-md border border-zinc-800/80 bg-zinc-900/30 px-3 py-2 text-[11px] leading-relaxed text-zinc-400">
+        The <span className="font-mono text-zinc-300">number in the box</span> is the{' '}
+        <strong className="text-zinc-300">raw on-disk byte</strong> (can be negative or above 20 in edited databases).{' '}
+        <strong className="text-emerald-200/90">On attributes screen</strong> is what you would see as the usual 1–20 style
+        value in CM / CM Scout Next profile — it updates live as you type, using the same math as the profile (CA18
+        curve for technicals, clamp for mentals, etc.).
+      </p>
+
       <section>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">CA / PA / squad / reputation</h3>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
@@ -248,6 +326,7 @@ export function AttributeEditorPanel({
               value={draft[k] ?? ''}
               onChange={onField}
               disabled={false}
+              preview={previewFor(k)}
             />
           ))}
         </div>
@@ -264,6 +343,7 @@ export function AttributeEditorPanel({
               value={draft[k] ?? ''}
               onChange={onField}
               disabled={false}
+              preview={previewFor(k)}
             />
           ))}
         </div>
@@ -282,6 +362,7 @@ export function AttributeEditorPanel({
                   value={draft[k] ?? ''}
                   onChange={onField}
                   disabled={false}
+                  preview={previewFor(k)}
                 />
               ))}
             </div>
@@ -302,6 +383,7 @@ export function AttributeEditorPanel({
               value={draft[k] ?? ''}
               onChange={onField}
               disabled={false}
+              preview={previewFor(k)}
             />
           ))}
         </div>
@@ -318,6 +400,7 @@ export function AttributeEditorPanel({
               value={draft[k] ?? ''}
               onChange={onField}
               disabled={false}
+              preview={previewFor(k)}
             />
           ))}
         </div>
