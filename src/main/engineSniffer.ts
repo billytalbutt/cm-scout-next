@@ -11,6 +11,8 @@
  * every mental at 19; **Striker finisher** favours elite ST/FC including poacher shapes (pace/finishing spine, softer flair/dribbling).
  */
 import type { UiPlayerRow } from './database/types'
+import { ENGINE_META_PROFILE_IDS, type EngineMetaProfileId } from '../shared/engineMetaProfileCatalog'
+import { matchesMetaProfile } from './engineMetaProfiles'
 import {
   isAttackingMidfielder,
   isDefender,
@@ -23,21 +25,20 @@ import {
   isWingBack,
 } from './cmScoutRating'
 
-export type EngineSnifferId =
-  | 'assist_prospect'
-  | 'striker_finisher'
-  | 'goalkeeper'
-  | 'defender'
-  | 'defensive_mid'
-  | 'attacking_mid'
-
-export const ENGINE_SNIFFER_IDS: readonly EngineSnifferId[] = [
+const BASE_ENGINE_SNIFFER_IDS = [
   'assist_prospect',
   'striker_finisher',
   'goalkeeper',
   'defender',
   'defensive_mid',
   'attacking_mid',
+] as const
+
+export type EngineSnifferId = (typeof BASE_ENGINE_SNIFFER_IDS)[number] | EngineMetaProfileId
+
+export const ENGINE_SNIFFER_IDS: readonly EngineSnifferId[] = [
+  ...BASE_ENGINE_SNIFFER_IDS,
+  ...ENGINE_META_PROFILE_IDS,
 ]
 
 /** Forum / editor lore: intrinsic-style values often shown as 21+ in third-party tools. */
@@ -73,6 +74,25 @@ export function matchesAssistProspect(row: UiPlayerRow): boolean {
 
   const brainDelivery = [p.decisions, p.anticipation, p.passing, p.technique, p.creativity] as const
 
+  /**
+   * Technique + teamwork “hub” (e.g. Xavi): high assist output with passing/creativity merely strong, not 17+.
+   * Community lore stresses decisions / anticipation / teamwork / technique for central distribution.
+   */
+  const techniqueTeamworkHub =
+    atLeast(p.technique, 18) &&
+    atLeast(p.teamwork, 18) &&
+    atLeast(p.passing, 15) &&
+    atLeast(p.creativity, 13) &&
+    atLeast(p.decisions, 15) &&
+    atLeast(p.anticipation, 15)
+  if (techniqueTeamworkHub) {
+    if (!atLeast(p.corners, 14) && !atLeast(p.free_kicks, 14)) return false
+    if (!atLeast(p.stamina, 15) || !atLeast(p.balance, 15)) return false
+    if (!atLeast(p.consistency, 15) || !atLeast(p.important_matches, 13)) return false
+    if (!atLeast(s.adaptability, 14)) return false
+    return true
+  }
+
   /** Still‑rare “monster” shortcut: any brain stat 22+ with coherent support. */
   if (brainDelivery.some((v) => v >= 22)) {
     if (!atLeast(p.teamwork, 16)) return false
@@ -85,8 +105,8 @@ export function matchesAssistProspect(row: UiPlayerRow): boolean {
     return true
   }
 
-  if (!atLeast(p.decisions, 17) || !atLeast(p.anticipation, 17) || !atLeast(p.teamwork, 17)) return false
-  if (!atLeast(p.passing, 17) || !atLeast(p.technique, 17) || !atLeast(p.creativity, 16)) return false
+  if (!atLeast(p.decisions, 16) || !atLeast(p.anticipation, 16) || !atLeast(p.teamwork, 17)) return false
+  if (!atLeast(p.passing, 16) || !atLeast(p.technique, 17) || !atLeast(p.creativity, 14)) return false
   if (!atLeast(p.corners, 15) && !atLeast(p.free_kicks, 15)) return false
   if (!atLeast(p.stamina, 16) || !atLeast(p.agility, 16) || !atLeast(p.balance, 16)) return false
   if (!atLeast(p.consistency, 16) || !atLeast(p.important_matches, 16)) return false
@@ -94,9 +114,8 @@ export function matchesAssistProspect(row: UiPlayerRow): boolean {
 
   const strongBrain = countAtLeast(brainDelivery, 18)
   const anyOverflow = brainDelivery.some((v) => v >= OVERFLOW)
-  if (anyOverflow) {
-    if (strongBrain < 2) return false
-  } else if (strongBrain < 3) return false
+  const needStrong = anyOverflow ? 2 : p.creativity >= 16 ? 3 : 2
+  if (strongBrain < needStrong) return false
 
   return true
 }
@@ -222,6 +241,9 @@ export function matchesEngineSniffer(row: UiPlayerRow, id: EngineSnifferId): boo
     case 'attacking_mid':
       return matchesAttackingMid(row)
     default:
-      return true
+      if ((ENGINE_META_PROFILE_IDS as readonly string[]).includes(id as string)) {
+        return matchesMetaProfile(row, id as EngineMetaProfileId)
+      }
+      return false
   }
 }

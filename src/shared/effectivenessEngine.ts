@@ -8,7 +8,8 @@
  * model that as a **separate multiplier** on the winning archetype score (after brain, if any), so low
  * consistency clearly pulls Eff % down without mixing raw file bytes into the breakdown.
  *
- * **Natural gate:** Only archetypes natural for the player (>14) are scored; else **Unsure**.
+ * **Natural gate:** Only archetypes natural for the player (>14) are scored; else **Unsure** — Eff % is always
+ * among position‑appropriate recipes (MC vs DMC vs AMC, etc.), never a generic “all roles” blend.
  *
  * @see https://champman0102.net/viewtopic.php?t=3350 — hidden attributes (community reference)
  */
@@ -95,16 +96,19 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
   {
     id: 'mc',
     label: 'MC',
-    primary: ['passing', 'creativity', 'stamina'],
-    secondary: ['off_the_ball', 'work_rate', 'technique'],
-    brain: 'assist',
+    /** Forum-weighted “hub” CM: technique / decisions / teamwork first; passing/creativity supportive (Xavi-shaped ok). */
+    primary: ['technique', 'decisions', 'teamwork'],
+    secondary: ['passing', 'anticipation', 'stamina'],
+    brain: 'none',
     engineExtras: [
-      { key: 'corners', weight: 2 },
-      { key: 'important_matches', weight: 2 },
-      { key: 'teamwork', weight: 2 },
-      { key: 'influence', weight: 1 },
+      { key: 'creativity', weight: 1.5 },
+      { key: 'off_the_ball', weight: 1.5 },
+      { key: 'work_rate', weight: 1.5 },
+      { key: 'corners', weight: 1.5 },
+      { key: 'important_matches', weight: 0.75 },
       { key: 'determination', weight: 2 },
-      { key: 'professionalism', weight: 1.5 },
+      { key: 'professionalism', weight: 0.75 },
+      { key: 'influence', weight: 0.75 },
       { key: 'injury_proneness', weight: 1, invert: true },
     ],
   },
@@ -127,16 +131,17 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
   {
     id: 'amc',
     label: 'AMC',
-    primary: ['creativity', 'off_the_ball', 'passing'],
-    secondary: ['decisions', 'anticipation', 'finishing'],
-    brain: 'assist',
+    primary: ['technique', 'decisions', 'passing'],
+    secondary: ['creativity', 'off_the_ball', 'anticipation'],
+    brain: 'none',
     engineExtras: [
-      { key: 'corners', weight: 2 },
-      { key: 'important_matches', weight: 2 },
-      { key: 'teamwork', weight: 2 },
-      { key: 'influence', weight: 1 },
+      { key: 'finishing', weight: 1 },
+      { key: 'corners', weight: 1.5 },
+      { key: 'important_matches', weight: 0.75 },
+      { key: 'teamwork', weight: 1.5 },
+      { key: 'influence', weight: 0.75 },
       { key: 'determination', weight: 2 },
-      { key: 'professionalism', weight: 1.5 },
+      { key: 'professionalism', weight: 0.75 },
       { key: 'injury_proneness', weight: 1, invert: true },
     ],
   },
@@ -202,6 +207,16 @@ export interface EffectivenessWinnerDetail {
   /** After brain (if any), before consistency reliability */
   preConsistencyPercent: number
   brainMult?: { decisions: number; anticipation: number; factor: number }
+  /**
+   * After recipe + brain mult (if any), **before** {@link synergyBoost}.
+   * Set only when synergy &gt; 0 so the UI can show an intermediate step.
+   */
+  preSynergyPercent?: number
+  /**
+   * Small **profile synergy** bump when attribute *relationships* match a community story
+   * (e.g. MC hub: strong mentals + technique with “good” not elite passing). Capped; shown in profile.
+   */
+  synergyBoost?: number
   /** Final % after consistency multiplier */
   finalPercent: number
   consistencyReliability?: { consistency: number; factor: number }
@@ -211,6 +226,85 @@ export interface EffectivenessWinnerDetail {
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10
+}
+
+function clamp01(x: number): number {
+  return Math.max(0, Math.min(1, x))
+}
+
+function clamp20(get: (name: string) => number, key: string): number {
+  const v = get(key)
+  return Number.isFinite(v) ? Math.max(0, Math.min(20, v)) : 0
+}
+
+/**
+ * Bounded synergy on top of recipe+brain (0–100 scale before consistency mult).
+ */
+export function archetypeSynergyPercent(archetypeId: string, get: (name: string) => number): number {
+  switch (archetypeId) {
+    case 'mc': {
+      const d = clamp20(get, 'decisions')
+      const a = clamp20(get, 'anticipation')
+      const t = clamp20(get, 'teamwork')
+      const pass = clamp20(get, 'passing')
+      const tech = clamp20(get, 'technique')
+      const brainAvg = (d + a + t) / 60
+      if (brainAvg < 0.8) return 0
+      if (pass > 17.5) return 0
+      if (pass < 13 || tech < 15) return 0
+      const passGap = clamp01((17 - pass) / 4)
+      const brainExcess = clamp01((brainAvg - 0.8) / 0.1)
+      return round1(Math.min(4.5, 4.2 * passGap * brainExcess * (tech >= 16 ? 1 : 0.85)))
+    }
+    case 'amc': {
+      const dec = clamp20(get, 'decisions')
+      const ant = clamp20(get, 'anticipation')
+      const pass = clamp20(get, 'passing')
+      const tech = clamp20(get, 'technique')
+      const cre = clamp20(get, 'creativity')
+      if (cre >= 17) return 0
+      if (pass < 15 || tech < 15) return 0
+      const brain = (dec + ant) / 40
+      if (brain < 0.8) return 0
+      const creGap = clamp01((16 - cre) / 5)
+      const brainEx = clamp01((brain - 0.78) / 0.12)
+      return round1(Math.min(4, 3.5 * creGap * brainEx))
+    }
+    case 'st': {
+      const fin = clamp20(get, 'finishing')
+      const otb = clamp20(get, 'off_the_ball')
+      const pac = clamp20(get, 'pace')
+      const acc = clamp20(get, 'acceleration')
+      if (fin < 15 || otb < 15) return 0
+      if (pac >= 16 && acc >= 16) return 0
+      const move = (fin + otb) / 40
+      if (move < 0.78) return 0
+      const paceSoft = clamp01((17 - Math.max(pac, acc)) / 5)
+      return round1(Math.min(3.5, 3 * paceSoft * clamp01((move - 0.75) / 0.15)))
+    }
+    case 'dmc': {
+      const pass = clamp20(get, 'passing')
+      const ant = clamp20(get, 'anticipation')
+      const dec = clamp20(get, 'decisions')
+      const tac = clamp20(get, 'tackling')
+      if (pass < 15 || ant < 15 || dec < 15) return 0
+      if (tac >= 17) return 0
+      const mid = (pass + ant + dec) / 60
+      return round1(Math.min(3.5, 3 * clamp01((mid - 0.75) / 0.12) * clamp01((16.5 - tac) / 4)))
+    }
+    case 'dc': {
+      const pass = clamp20(get, 'passing')
+      const ant = clamp20(get, 'anticipation')
+      const dec = clamp20(get, 'decisions')
+      const tech = clamp20(get, 'technique')
+      if (pass < 13 || ant < 16) return 0
+      const dist = (pass + tech + dec) / 60
+      if (dist < 0.75) return 0
+      return round1(Math.min(3.5, 2.8 * clamp01((dist - 0.72) / 0.15) * clamp01((ant - 15) / 5)))
+    }
+    default:
+      return 0
+  }
 }
 
 function accumulateArchetype(
@@ -286,13 +380,18 @@ function accumulateArchetype(
     afterBrain = basePct * factor
   }
   afterBrain = Math.min(100, afterBrain)
+  const preSynValue = afterBrain
+  const syn = archetypeSynergyPercent(a.id, get)
+  afterBrain = Math.min(100, afterBrain + syn)
   const detail: EffectivenessWinnerDetail = {
     archetypeId: a.id,
     archetypeLabel: a.label,
     basePercent: round1(basePct),
+    preSynergyPercent: syn > 0 ? round1(preSynValue) : undefined,
     preConsistencyPercent: round1(afterBrain),
     finalPercent: round1(afterBrain),
     brainMult,
+    synergyBoost: syn > 0 ? round1(syn) : undefined,
     lines,
     engineLines,
   }

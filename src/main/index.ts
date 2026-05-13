@@ -10,6 +10,7 @@ import { buildUiRows, parseIndexDat } from './database/parser'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
 import { applyCmScoutRatings } from './cmScoutRating'
 import { applyEffectivenessRatings } from './effectivenessRating'
+import { applyEngineMetaProfiles } from './engineMetaProfiles'
 import type { ParsedDatabase, UiPlayerRow } from './database/types'
 import { buildProfilePayload } from './profilePayload'
 import { mapUiRowToGridPayload } from './gridRowPayload'
@@ -129,6 +130,7 @@ ipcMain.handle('open-database', async (event) => {
     const rows = buildUiRows(db)
     applyCmScoutRatings(rows)
     applyEffectivenessRatings(rows)
+    applyEngineMetaProfiles(rows)
     const pathKey = pathKeyForDb(indexPath)
     const baseline = loadBaselineFromDisk(pathKey)
     applyRegenPipeline(rows, baseline, pathKey)

@@ -222,6 +222,8 @@ export interface UiPlayerRow {
   staffHistCareerGoals: number
   staffHistSeasonApps: number
   staffHistSeasonGoals: number
+  /** Meta-profile DNA tags (`engineMetaProfiles.ts`) — filled after load. */
+  engineMetaProfileIds?: readonly string[]
   /** joined player blob for profile */
   player: PlayerRecord
   staff: StaffRecord

@@ -191,6 +191,21 @@ export interface ProfilePayload {
   hiddenColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
   highlightRolesLabel: string
   seasonStats: ProfileSeasonStats
+  /** Meta-profile DNA tags from `engineMetaProfiles` (grid filter + profile). */
+  engineMetaProfiles: { id: string; label: string }[]
+  /** Free-role database preference + roaming attribute signal. */
+  freeRoleHint: {
+    recommend: boolean
+    headline: string
+    detail: string
+  }
+  /** Heuristic CM0102 individual-instruction hints (not from decompiled EXE). */
+  tacticalInstructionHints: {
+    id: string
+    label: string
+    tier: 'strong' | 'ok' | 'avoid'
+    reason: string
+  }[]
   contract: {
     wage: number
     clubId: number

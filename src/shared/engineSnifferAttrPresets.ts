@@ -9,16 +9,28 @@ export type EngineSnifferPresetId =
   | 'defender'
   | 'defensive_mid'
   | 'attacking_mid'
+  | 'meta_mc_regulator'
+  | 'meta_mc_volume'
+  | 'meta_dmc_anchor'
+  | 'meta_dmc_regista'
+  | 'meta_dc_reader'
+  | 'meta_dc_libero_passer'
+  | 'meta_st_poacher'
+  | 'meta_st_target'
+  | 'meta_wb_motor'
+  | 'meta_wide_carrier'
+  | 'meta_amc_shadow'
+  | 'meta_gk_commanding'
 
 export const ENGINE_SNIFFER_ATTR_PRESETS: Record<
   EngineSnifferPresetId,
   readonly { i: number; min: number }[]
 > = {
   assist_prospect: [
-    { i: 0, min: 17 },
-    { i: 1, min: 16 },
-    { i: 3, min: 17 },
-    { i: 10, min: 17 },
+    { i: 0, min: 16 },
+    { i: 1, min: 14 },
+    { i: 3, min: 16 },
+    { i: 10, min: 16 },
     { i: 30, min: 17 },
     { i: 21, min: 15 },
     { i: 27, min: 15 },
@@ -105,6 +117,113 @@ export const ENGINE_SNIFFER_ATTR_PRESETS: Record<
     { i: 39, min: 14 },
     { i: 37, min: 15 },
     { i: 43, min: 14 },
+  ],
+  meta_mc_regulator: [
+    { i: 30, min: 16 },
+    { i: 45, min: 16 },
+    { i: 3, min: 16 },
+    { i: 0, min: 16 },
+    { i: 10, min: 14 },
+    { i: 1, min: 14 },
+    { i: 20, min: 15 },
+    { i: 4, min: 14 },
+    { i: 37, min: 14 },
+  ],
+  meta_mc_volume: [
+    { i: 10, min: 17 },
+    { i: 1, min: 16 },
+    { i: 31, min: 16 },
+    { i: 33, min: 15 },
+    { i: 3, min: 15 },
+    { i: 30, min: 16 },
+    { i: 37, min: 15 },
+  ],
+  meta_dmc_anchor: [
+    { i: 13, min: 17 },
+    { i: 8, min: 16 },
+    { i: 2, min: 15 },
+    { i: 33, min: 16 },
+    { i: 31, min: 16 },
+    { i: 12, min: 16 },
+    { i: 29, min: 15 },
+    { i: 37, min: 15 },
+  ],
+  meta_dmc_regista: [
+    { i: 10, min: 16 },
+    { i: 0, min: 16 },
+    { i: 3, min: 16 },
+    { i: 1, min: 10 },
+    { i: 31, min: 15 },
+    { i: 45, min: 15 },
+    { i: 37, min: 14 },
+  ],
+  meta_dc_reader: [
+    { i: 0, min: 17 },
+    { i: 12, min: 17 },
+    { i: 3, min: 15 },
+    { i: 13, min: 14 },
+    { i: 8, min: 14 },
+    { i: 26, min: 13 },
+    { i: 37, min: 14 },
+  ],
+  meta_dc_libero_passer: [
+    { i: 10, min: 15 },
+    { i: 30, min: 15 },
+    { i: 3, min: 15 },
+    { i: 0, min: 16 },
+    { i: 12, min: 15 },
+  ],
+  meta_st_poacher: [
+    { i: 5, min: 16 },
+    { i: 9, min: 16 },
+    { i: 0, min: 15 },
+    { i: 30, min: 14 },
+    { i: 4, min: 14 },
+    { i: 37, min: 14 },
+  ],
+  meta_st_target: [
+    { i: 6, min: 16 },
+    { i: 29, min: 16 },
+    { i: 24, min: 15 },
+    { i: 5, min: 14 },
+    { i: 4, min: 14 },
+    { i: 0, min: 14 },
+  ],
+  meta_wb_motor: [
+    { i: 31, min: 17 },
+    { i: 32, min: 14 },
+    { i: 26, min: 15 },
+    { i: 33, min: 16 },
+    { i: 13, min: 14 },
+    { i: 7, min: 14 },
+    { i: 37, min: 14 },
+  ],
+  meta_wide_carrier: [
+    { i: 22, min: 16 },
+    { i: 18, min: 15 },
+    { i: 26, min: 15 },
+    { i: 30, min: 15 },
+    { i: 4, min: 14 },
+    { i: 21, min: 14 },
+  ],
+  meta_amc_shadow: [
+    { i: 9, min: 17 },
+    { i: 0, min: 16 },
+    { i: 5, min: 14 },
+    { i: 31, min: 15 },
+    { i: 3, min: 15 },
+    { i: 30, min: 15 },
+    { i: 37, min: 14 },
+  ],
+  meta_gk_commanding: [
+    { i: 0, min: 16 },
+    { i: 3, min: 16 },
+    { i: 12, min: 16 },
+    { i: 15, min: 15 },
+    { i: 16, min: 15 },
+    { i: 17, min: 14 },
+    { i: 37, min: 15 },
+    { i: 42, min: 14 },
   ],
 }
 

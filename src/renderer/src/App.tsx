@@ -17,6 +17,7 @@ import { loadGridColumnOrder, saveGridColumnOrder } from './grid/gridPersistence
 import { cm0102FootWord, cm0102MoraleWord } from '../../shared/cm0102Bands'
 import { CM_SCOUT_ATTR_LABELS } from '../../shared/cmScoutAttrLabels'
 import { attrMinsStringsFromEnginePreset, type EngineSnifferPresetId } from '../../shared/engineSnifferAttrPresets'
+import { ENGINE_META_PROFILE_IDS, ENGINE_META_PROFILE_LABELS } from '../../shared/engineMetaProfileCatalog'
 import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
 import { DebouncedTextFilters } from './DebouncedTextFilters'
 
@@ -48,6 +49,13 @@ function fmtMoney(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`
   if (n >= 1000) return `${(n / 1000).toFixed(0)}k`
   return String(n)
+}
+
+/** Scout advice in the spirit of CM0102 instruction Yes/No columns — not read from the executable. */
+function playerInstructionAdvice(tier: 'strong' | 'ok' | 'avoid'): string {
+  if (tier === 'strong') return 'Yes'
+  if (tier === 'ok') return 'Yes (borderline)'
+  return 'No'
 }
 
 function formatProfileStatCell(v: number | null | undefined, kind: 'int' | 'rating' = 'int'): ReactNode {
@@ -1298,11 +1306,11 @@ export function App() {
                     </p>
                     <p>
                       <span className="font-medium text-emerald-200/90">Assist prospect</span> — Playmaker / distributor
-                      lane (not lone ST/GK): decisions / anticipation / teamwork 17+; passing / technique 17+, creativity
-                      16+; corners or free kicks 15+; stamina / agility / balance 16+; consistency / important matches /
-                      adaptability 16+; three of (decisions, anticipation, passing, technique, creativity) at 18+ unless
-                      raw overflow (<span className="font-mono text-zinc-300">21+</span>) relaxes that count. Any of
-                      those five at <span className="font-mono text-zinc-300">22+</span> uses a shorter overflow path.
+                      lane (not lone ST/GK). Either the <strong className="text-zinc-400">technique + teamwork hub</strong>{' '}
+                      path (18+ technique &amp; teamwork, passing 15+, creativity 13+, decisions/anticipation 15+, set
+                      pieces, legs, consistency, important matches, adaptability) for Xavi‑shaped hubs, or the standard
+                      path (slightly softer passing/creativity floors with strong‑brain count).{' '}
+                      <span className="font-mono text-zinc-300">22+</span> spike shortcut unchanged.
                     </p>
                     <p>
                       <span className="font-medium text-emerald-200/90">Striker finisher</span> — ST / FC: pace,
@@ -1340,6 +1348,12 @@ export function App() {
                       Picking any row below fills <strong className="text-zinc-400">Attribute minimums</strong> with that
                       archetype’s baseline floors. While any attribute min is set, the grid uses <strong className="text-zinc-400">only those bars</strong> (and optional <strong className="text-zinc-400">Match ≥</strong>); clear every attribute min to use the sniffer heuristic alone.
                     </p>
+                    <p>
+                      <span className="font-medium text-sky-200/90">DNA meta profiles</span> — Outlier shapes (regulator
+                      hub CM, volume playmaker, DMC anchor vs regista, reader DC, libero passer, poacher/target ST, WB
+                      motor, wide carrier, AMC shadow runner, commanding GK). Same filter rule: sniffer runs only when
+                      attribute mins are all cleared.
+                    </p>
                   </div>
                 }
               >
@@ -1366,6 +1380,13 @@ export function App() {
                 <option value="defender">Defender (Nesta-style CB)</option>
                 <option value="defensive_mid">Defensive midfielder</option>
                 <option value="attacking_mid">Attacking midfielder</option>
+                <optgroup label="DNA meta profiles (outliers)">
+                  {ENGINE_META_PROFILE_IDS.map((id) => (
+                    <option key={id} value={id}>
+                      {ENGINE_META_PROFILE_LABELS[id]}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
               <p className="mt-1 text-[10px] leading-snug text-zinc-600">
                 Each option fills attribute minimums; the sniffer row filter runs only when{' '}
@@ -1754,6 +1775,61 @@ export function App() {
                 </div>
               </div>
 
+              <div className="mt-2 rounded-lg border border-sky-900/40 bg-sky-950/20 p-3 text-xs">
+                <h3 className="mb-1.5 font-semibold text-sky-200/95">Scouting DNA &amp; Player Instructions</h3>
+                <p className="mb-2 text-[10px] leading-snug text-zinc-500">
+                  Instruction names match the CM0102 manual Player Instruction dialog (Run with the Ball, Try Through
+                  Balls, etc.). Yes / No is heuristic scout advice only — not decompiled match AI.
+                </p>
+                {profile.engineMetaProfiles.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-500">Meta profile DNA</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {profile.engineMetaProfiles.map((m) => (
+                        <span
+                          key={m.id}
+                          className="rounded border border-sky-600/35 bg-sky-950/40 px-1.5 py-0.5 font-mono text-[10px] text-sky-100/95"
+                          title={m.id}
+                        >
+                          {m.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="mb-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2">
+                  <p
+                    className={`text-[11px] font-medium ${
+                      profile.freeRoleHint.recommend ? 'text-emerald-300/95' : 'text-zinc-400'
+                    }`}
+                  >
+                    {profile.freeRoleHint.headline}
+                  </p>
+                  <p className="mt-1 text-[10px] leading-snug text-zinc-500">{profile.freeRoleHint.detail}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-500">Player Instructions</p>
+                  <ul className="mt-1 space-y-1.5">
+                    {profile.tacticalInstructionHints.map((h) => (
+                      <li
+                        key={h.id}
+                        className={`rounded border px-2 py-1.5 text-[10px] leading-snug ${
+                          h.tier === 'strong'
+                            ? 'border-emerald-700/40 bg-emerald-950/30 text-emerald-100/95'
+                            : h.tier === 'ok'
+                              ? 'border-amber-700/35 bg-amber-950/25 text-amber-100/90'
+                              : 'border-zinc-800/80 bg-zinc-950/50 text-zinc-500'
+                        }`}
+                      >
+                        <span className="font-medium text-zinc-300">{h.label}</span>
+                        <span className="ml-1.5 font-mono text-zinc-400">{playerInstructionAdvice(h.tier)}</span>
+                        <span className="mt-0.5 block text-zinc-500">{h.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
               <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
                 <h3 className="mb-2 font-semibold text-zinc-300">Transfer</h3>
                 <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-zinc-400">
@@ -1853,15 +1929,51 @@ export function App() {
                                 {profile.effWinnerDetail.brainMult.decisions}/20 ×{' '}
                                 {profile.effWinnerDetail.brainMult.anticipation}/20) →{' '}
                                 <span className="font-mono text-zinc-200">
-                                  {profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}%
+                                  {profile.effWinnerDetail.synergyBoost != null &&
+                                  profile.effWinnerDetail.preSynergyPercent != null
+                                    ? profile.effWinnerDetail.preSynergyPercent.toFixed(1)
+                                    : profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}
+                                  %
                                 </span>
+                                {profile.effWinnerDetail.synergyBoost != null &&
+                                  profile.effWinnerDetail.preSynergyPercent != null && (
+                                    <>
+                                      {' '}
+                                      + profile synergy{' '}
+                                      <span className="font-mono text-sky-200/95">
+                                        +{profile.effWinnerDetail.synergyBoost.toFixed(1)}%
+                                      </span>{' '}
+                                      →{' '}
+                                      <span className="font-mono text-zinc-200">
+                                        {profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}%
+                                      </span>
+                                    </>
+                                  )}
                               </p>
                             ) : (
                               <p className="mt-1 text-zinc-500">
                                 Base (recipe + engine){' '}
                                 <span className="font-mono text-zinc-200">
-                                  {profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}%
+                                  {profile.effWinnerDetail.synergyBoost != null &&
+                                  profile.effWinnerDetail.preSynergyPercent != null
+                                    ? profile.effWinnerDetail.preSynergyPercent.toFixed(1)
+                                    : profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}
+                                  %
                                 </span>
+                                {profile.effWinnerDetail.synergyBoost != null &&
+                                  profile.effWinnerDetail.preSynergyPercent != null && (
+                                    <>
+                                      {' '}
+                                      + profile synergy{' '}
+                                      <span className="font-mono text-sky-200/95">
+                                        +{profile.effWinnerDetail.synergyBoost.toFixed(1)}%
+                                      </span>{' '}
+                                      →{' '}
+                                      <span className="font-mono text-zinc-200">
+                                        {profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}%
+                                      </span>
+                                    </>
+                                  )}
                               </p>
                             )}
                             {profile.effWinnerDetail.consistencyReliability && profile.effPercent != null && (

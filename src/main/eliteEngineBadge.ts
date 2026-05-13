@@ -152,11 +152,11 @@ function matchesTemplate(get: (k: string) => number, tmpl: Record<string, number
 }
 
 function mcRecipeKeys(): string[] {
-  return ['passing', 'creativity', 'stamina', 'off_the_ball', 'work_rate', 'technique']
+  return ['technique', 'decisions', 'teamwork', 'passing', 'anticipation', 'stamina']
 }
 
 function amcRecipeKeys(): string[] {
-  return ['creativity', 'off_the_ball', 'passing', 'decisions', 'anticipation', 'finishing']
+  return ['technique', 'decisions', 'passing', 'creativity', 'off_the_ball', 'anticipation']
 }
 
 function playmakerBench(get: (k: string) => number, winnerId: string): boolean {

@@ -23,6 +23,8 @@ import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
 import { computeHighlightSets, footMoraleHighlightTier, formatHighlightRoles } from './positionHighlights'
+import { ENGINE_META_PROFILE_LABELS, type EngineMetaProfileId } from '../shared/engineMetaProfileCatalog'
+import { computeFreeRoleHint, computeTacticalInstructionHints } from './playerTacticalHints'
 
 /**
  * Main profile — CM0102 three-column stack (12 / 12 / 7). `free_kicks` is the on-disk “Set pieces” byte.
@@ -407,6 +409,15 @@ export function buildProfilePayload(
     eligibleEffectivenessArchetypeIds(p),
   )
 
+  const engineMetaProfiles =
+    row.engineMetaProfileIds?.map((id) => ({
+      id,
+      label: ENGINE_META_PROFILE_LABELS[id as EngineMetaProfileId] ?? id,
+    })) ?? []
+
+  const freeRoleHint = computeFreeRoleHint(p)
+  const tacticalInstructionHints = computeTacticalInstructionHints(p, s)
+
   return {
     name: row.name,
     nation: row.nation,
@@ -434,9 +445,12 @@ export function buildProfilePayload(
     eliteEngineBadgeKind: row.eliteEngineBadgeKind,
     eliteEngineBadgeTitle: row.eliteEngineBadgeTitle,
     eliteEngineBadgeDetail: row.eliteEngineBadgeDetail,
+    engineMetaProfiles,
+    freeRoleHint,
+    tacticalInstructionHints,
     effRatingDisclaimer: effFull.relaxedNaturalGate
       ? undefined
-      : 'Eff % = recipe + vetted engine hiddens (profile 1–20), then brain mult where applicable, then a consistency reliability factor (community heuristic, not decompiled). CM Scout % uses the full WeightsSet — different measure.',
+      : 'Eff % = recipe + vetted engine hiddens (profile 1–20), then brain mult where applicable, optional small profile-synergy when attribute relationships fit (e.g. hub CM), then consistency reliability (community heuristic, not decompiled). CM Scout % uses the full WeightsSet — different measure.',
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
     transfer: {
