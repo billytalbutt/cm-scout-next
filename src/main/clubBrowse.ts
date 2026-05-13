@@ -1,3 +1,5 @@
+import { staffDisplayName } from './database/parser'
+import { tryExperimentalPitchFromTacticRow } from './database/tacticsDat'
 import type { ParsedDatabase } from './database/types'
 
 export interface ClubListRow {
@@ -73,4 +75,76 @@ export function buildClubSquadPlayerRows(db: ParsedDatabase, clubId: number): Cl
   }
   out.sort((a, b) => b.ca - a.ca || a.name.localeCompare(b.name))
   return out
+}
+
+function hexPrefix(buf: Buffer, maxBytes: number): string {
+  const n = Math.min(maxBytes, buf.length)
+  return buf.subarray(0, n).toString('hex')
+}
+
+/** Full club detail for IPC / tactics lab (stadium + `tactics.dat` wire when present). */
+export function buildClubDetailPayload(db: ParsedDatabase, clubId: number): Record<string, unknown> | null {
+  const club = db.clubsById?.get(clubId)
+  if (!club) return null
+  const nation = db.nationNames.get(club.nationId) ?? ''
+  const comp = db.clubCompsById?.get(club.divisionCompId)
+  const squad = buildClubSquadPlayerRows(db, clubId)
+  const stadiumRec = db.stadiumsById?.get(club.stadiumId)
+  const stadium = stadiumRec
+    ? {
+        name: stadiumRec.name,
+        cityId: stadiumRec.cityId,
+        capacity: stadiumRec.capacity,
+        seatingCapacity: stadiumRec.seatingCapacity,
+        expansionCapacity: stadiumRec.expansionCapacity,
+        nearbyStadiumId: stadiumRec.nearbyStadiumId,
+        covered: stadiumRec.covered !== 0,
+        underSoilHeating: stadiumRec.underSoilHeating !== 0,
+      }
+    : null
+
+  const tacticRow = db.tacticsIndex?.byId.get(club.tacticSelectedId)
+  const experimentalSlots = tacticRow ? tryExperimentalPitchFromTacticRow(tacticRow) : null
+
+  const xiNames: { staffId: number; name: string }[] = []
+  const { staff, firstNames, secondNames, commonNames } = db
+  for (const sid of club.teamSelectedStaffIds) {
+    if (sid <= 0 || xiNames.length >= 11) continue
+    const staffIndex = staff.findIndex((s) => s.id === sid)
+    if (staffIndex < 0) {
+      xiNames.push({ staffId: sid, name: `#${sid}` })
+      continue
+    }
+    const s = staff[staffIndex]!
+    xiNames.push({
+      staffId: sid,
+      name: staffDisplayName(s, firstNames, secondNames, commonNames).trim() || `#${sid}`,
+    })
+  }
+
+  return {
+    id: club.id,
+    name: club.name,
+    nation,
+    division: comp?.name ?? (club.divisionCompId ? `#${club.divisionCompId}` : '—'),
+    reputation: club.reputation,
+    cash: club.cash,
+    stadiumId: club.stadiumId,
+    attendance: club.attendance,
+    training: club.training,
+    squad,
+    stadium,
+    tacticSelectedId: club.tacticSelectedId,
+    tacticTrainingIds: club.tacticTrainingIds,
+    teamSelectedStaffIds: club.teamSelectedStaffIds,
+    tacticsWire: {
+      tacticsBlockPresent: !!db.tacticsIndex,
+      tacticsRowBytes: db.tacticsIndex?.rowBytes ?? null,
+      tacticsRowCount: db.tacticsIndex?.rowCount ?? null,
+      tacticRowFound: !!tacticRow,
+      tacticRowHexPrefix: tacticRow ? hexPrefix(tacticRow, 64) : null,
+      experimentalSlots,
+    },
+    xiNames,
+  }
 }

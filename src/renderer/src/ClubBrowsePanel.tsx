@@ -29,14 +29,38 @@ export type ClubDetailPayload = {
   attendance: number
   training: number
   squad: ClubDetailSquadRow[]
+  stadium?: {
+    name: string
+    cityId: number
+    capacity: number
+    seatingCapacity: number
+    expansionCapacity: number
+    nearbyStadiumId: number
+    covered: boolean
+    underSoilHeating: boolean
+  } | null
+  tacticSelectedId?: number
+  tacticTrainingIds?: number[]
+  teamSelectedStaffIds?: number[]
+  tacticsWire?: {
+    tacticsBlockPresent: boolean
+    tacticsRowBytes: number | null
+    tacticsRowCount: number | null
+    tacticRowFound: boolean
+    tacticRowHexPrefix: string | null
+    experimentalSlots: { x: number; y: number; label: string }[] | null
+  }
+  xiNames?: { staffId: number; name: string }[]
 }
 
 type Props = {
   loadInfo: boolean
   onOpenPlayerProfile: (staffIndex: number) => void
+  /** When set, selecting a club updates the tactics tab “seed” club for save wiring. */
+  onClubSelectForTactics?: (clubId: number | null) => void
 }
 
-export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile }: Props) {
+export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectForTactics }: Props) {
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const [rows, setRows] = useState<ClubListRow[]>([])
@@ -95,10 +119,12 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile }: Props) {
   useEffect(() => {
     if (selId == null) {
       setDetail(null)
+      onClubSelectForTactics?.(null)
       return
     }
+    onClubSelectForTactics?.(selId)
     void loadDetail(selId)
-  }, [selId, loadDetail])
+  }, [selId, loadDetail, onClubSelectForTactics])
 
   if (!loadInfo) {
     return <p className="text-sm text-zinc-500">Load a database to browse clubs.</p>
@@ -135,7 +161,7 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile }: Props) {
                 >
                   <span className="font-medium text-zinc-100">{c.name}</span>
                   <span className="text-[10px] text-zinc-500">
-                    {c.nation} · {c.division} ·                     rep{' '}
+                    {c.nation} · {c.division} · rep{' '}
                     <span className="font-mono text-zinc-400">{c.reputation}</span> · funds{' '}
                     <span className="font-mono text-zinc-400">{c.cash.toLocaleString()}</span> · stadium id{' '}
                     <span className="font-mono text-zinc-400">{c.stadiumId}</span>
@@ -171,8 +197,72 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile }: Props) {
                   {detail.training} <span className="text-zinc-500">/ 20</span>
                 </dd>
                 <dt>Youth / other facilities</dt>
-                <dd className="text-zinc-500">Not a single field in club.dat here; training byte is the usual proxy.</dd>
+                <dd className="text-zinc-500">
+                  {detail.stadium
+                    ? `Ground data from stadium.dat (capacity ${detail.stadium.capacity.toLocaleString()}; youth/training complex scores are not separate fields in this parser).`
+                    : 'No stadium.dat row for this stadium id — ground breakdown unavailable.'}
+                </dd>
               </dl>
+              {detail.stadium && (
+                <div className="mt-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2 text-[11px] text-zinc-400">
+                  <h4 className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">Stadium (stadium.dat)</h4>
+                  <p className="font-medium text-zinc-200">{detail.stadium.name}</p>
+                  <dl className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5">
+                    <dt>Capacity</dt>
+                    <dd className="font-mono text-zinc-200">{detail.stadium.capacity.toLocaleString()}</dd>
+                    <dt>Seating</dt>
+                    <dd className="font-mono text-zinc-200">{detail.stadium.seatingCapacity.toLocaleString()}</dd>
+                    <dt>Expansion cap.</dt>
+                    <dd className="font-mono text-zinc-200">{detail.stadium.expansionCapacity.toLocaleString()}</dd>
+                    <dt>City id</dt>
+                    <dd className="font-mono text-zinc-200">{detail.stadium.cityId}</dd>
+                    <dt>Covered</dt>
+                    <dd className="text-zinc-200">{detail.stadium.covered ? 'Yes' : 'No'}</dd>
+                    <dt>Soil heating</dt>
+                    <dd className="text-zinc-200">{detail.stadium.underSoilHeating ? 'Yes' : 'No'}</dd>
+                    <dt>Nearby stadium id</dt>
+                    <dd className="font-mono text-zinc-200">{detail.stadium.nearbyStadiumId}</dd>
+                  </dl>
+                </div>
+              )}
+              {(detail.tacticSelectedId != null || detail.tacticsWire) && (
+                <div className="mt-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2 text-[11px] text-zinc-400">
+                  <h4 className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">Tactics (club.dat + tactics.dat)</h4>
+                  <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                    <dt>TacticSelected id</dt>
+                    <dd className="font-mono text-zinc-200">{detail.tacticSelectedId ?? '—'}</dd>
+                    <dt>TacticTraining ids</dt>
+                    <dd className="font-mono text-zinc-200">{(detail.tacticTrainingIds ?? []).join(', ') || '—'}</dd>
+                    <dt>tactics.dat</dt>
+                    <dd className="text-zinc-200">
+                      {detail.tacticsWire?.tacticsBlockPresent
+                        ? `${detail.tacticsWire.tacticsRowCount ?? '?'} rows × ${detail.tacticsWire.tacticsRowBytes ?? '?'} bytes`
+                        : 'block not in index'}
+                    </dd>
+                    <dt>Row match</dt>
+                    <dd className="text-zinc-200">{detail.tacticsWire?.tacticRowFound ? 'Found' : 'Not found'}</dd>
+                  </dl>
+                  {detail.tacticsWire?.tacticRowHexPrefix && (
+                    <p className="mt-1 break-all font-mono text-[10px] text-zinc-500" title="First bytes of tactic row">
+                      {detail.tacticsWire.tacticRowHexPrefix}
+                    </p>
+                  )}
+                </div>
+              )}
+              {detail.xiNames && detail.xiNames.length > 0 && (
+                <div className="mt-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2 text-[11px] text-zinc-400">
+                  <h4 className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">
+                    TeamSelected (first names, up to 11 ids)
+                  </h4>
+                  <ol className="list-inside list-decimal text-zinc-300">
+                    {detail.xiNames.map((x) => (
+                      <li key={x.staffId}>
+                        {x.name} <span className="font-mono text-zinc-500">({x.staffId})</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
               <p className="mt-2 text-[10px] leading-snug text-zinc-600">
                 <span className="font-mono text-zinc-500">TClub.Cash</span> is the on-disk club money value; editors and
                 forum tools usually treat it as bank balance. Live transfer budgets move with the match world and are not

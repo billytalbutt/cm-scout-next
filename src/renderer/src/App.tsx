@@ -355,6 +355,8 @@ export function App() {
     }
   })
   const [browseTab, setBrowseTab] = useState<'players' | 'regens' | 'staff' | 'clubs' | 'tactics'>('players')
+  /** Last club selected in Clubs tab — Tactics Lab uses this for save tactic wiring. */
+  const [tacticsSeedClubId, setTacticsSeedClubId] = useState<number | null>(null)
   const [regenOnly, setRegenOnly] = useState(false)
   const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
   const [showEngineAttrs, setShowEngineAttrs] = useState(() => {
@@ -725,6 +727,7 @@ export function App() {
         playerBlobRows: r.playerBlobRows,
         regenBaseline: r.regenBaseline,
       })
+      setTacticsSeedClubId(null)
       setClubList(r.clubs)
       setNationList(r.nations ?? [])
       setCommittedText({ q: '', nation: '', club: '' })
@@ -1491,9 +1494,15 @@ export function App() {
               />
             )}
             {browseTab === 'clubs' && (
-              <ClubBrowsePanel loadInfo={!!loadInfo} onOpenPlayerProfile={(si) => void pick(si)} />
+              <ClubBrowsePanel
+                loadInfo={!!loadInfo}
+                onOpenPlayerProfile={(si) => void pick(si)}
+                onClubSelectForTactics={(id) => setTacticsSeedClubId(id)}
+              />
             )}
-            {browseTab === 'tactics' && <TacticsLabPanel />}
+            {browseTab === 'tactics' && (
+              <TacticsLabPanel loadInfo={!!loadInfo} tacticsSeedClubId={tacticsSeedClubId} />
+            )}
             {(browseTab === 'players' || browseTab === 'regens') && (
             <>
             <div className="mb-3">

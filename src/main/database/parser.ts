@@ -15,6 +15,8 @@ import {
   parseStaffCompData,
 } from './clubComp'
 import { parseNonPlayerData } from './nonplayer'
+import { parseStadiumRecords } from './stadiumRecords'
+import { parseTacticsDatIndex } from './tacticsDat'
 import {
   refineHighlightYearWithHistoryFallback,
   resolveStaffHistoryHighlightYear,
@@ -32,8 +34,8 @@ import type {
  * CM0102 `index.dat` is a block archive (same on-disk format the game and CM Scout read).
  * This parser loads the blocks we need for a player-centric scout view:
  * general.dat (game date), nation.dat, club.dat, first/second/common_names.dat,
- * player.dat, staff.dat, contract.dat, and optional staff_history.dat (club-year apps/goals).
- * Optional `club_comp.dat` / `staff_comp.dat` are read when present (competition metadata).
+ * player.dat, staff.dat, contract.dat, optional staff_history.dat, optional stadium.dat,
+ * optional tactics.dat (inferred row index), and optional nonplayer.dat.
  * The player table lists playable humans (staff rows tied to player.dat); it does not
  * list every non-player staff row. CM Scout (the original app) has many extra screens
  * and may touch other blocks — feature parity with that entire program is not claimed here.
@@ -472,6 +474,30 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     }
   }
 
+  let stadiumsById = undefined as ReturnType<typeof parseStadiumRecords> | undefined
+  const stBlock = find('stadium.dat') ?? findBlockLoose('stadium.dat')
+  if (stBlock && stBlock.size > 0) {
+    try {
+      const sbuf = blockData(file, compressed, stBlock)
+      const m = parseStadiumRecords(sbuf)
+      if (m.size > 0) stadiumsById = m
+    } catch {
+      stadiumsById = undefined
+    }
+  }
+
+  let tacticsIndex = undefined as ReturnType<typeof parseTacticsDatIndex> | undefined
+  const tacBlock = find('tactics.dat') ?? findBlockLoose('tactics.dat')
+  if (tacBlock && tacBlock.size > 0) {
+    try {
+      const tbuf = blockData(file, compressed, tacBlock)
+      const meta = parseTacticsDatIndex(tbuf)
+      if (meta) tacticsIndex = meta
+    } catch {
+      tacticsIndex = undefined
+    }
+  }
+
   return {
     compressed,
     blocks,
@@ -486,6 +512,8 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     nationEuEligible,
     clubNames,
     clubsById,
+    stadiumsById,
+    tacticsIndex,
     nonPlayersById,
     firstNames,
     secondNames,

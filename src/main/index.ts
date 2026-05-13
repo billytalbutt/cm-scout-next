@@ -27,7 +27,7 @@ import type { GridIncludeFlags } from '../shared/gridTypes'
 import { ENGINE_SNIFFER_IDS, type EngineSnifferId } from './engineSniffer'
 import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
 import { filterStaffGridRows } from './staffBrowse'
-import { buildClubSquadPlayerRows, filterClubListRows } from './clubBrowse'
+import { buildClubSquadPlayerRows, buildClubDetailPayload, filterClubListRows } from './clubBrowse'
 import { buildStaffProfilePayload } from './staffProfilePayload'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -238,23 +238,7 @@ ipcMain.handle('get-club-rows', async (_e, payload: unknown) => {
 ipcMain.handle('get-club-detail', async (_e, clubId: unknown) => {
   if (!loaded) return null
   const id = Math.floor(Number(clubId))
-  const club = loaded.db.clubsById?.get(id)
-  if (!club) return null
-  const nation = loaded.db.nationNames.get(club.nationId) ?? ''
-  const comp = loaded.db.clubCompsById?.get(club.divisionCompId)
-  const squad = buildClubSquadPlayerRows(loaded.db, id)
-  return {
-    id: club.id,
-    name: club.name,
-    nation,
-    division: comp?.name ?? (club.divisionCompId ? `#${club.divisionCompId}` : '—'),
-    reputation: club.reputation,
-    cash: club.cash,
-    stadiumId: club.stadiumId,
-    attendance: club.attendance,
-    training: club.training,
-    squad,
-  }
+  return buildClubDetailPayload(loaded.db, id)
 })
 
 ipcMain.handle('get-staff-profile', async (_e, staffIndex: unknown) => {

@@ -1,5 +1,6 @@
 import type { StaffHistoryRecord } from './staffHistory'
 import type { ClubCompRecord, StaffCompRecord } from './clubComp'
+import type { TacticsIndexMeta } from './tacticsDat'
 
 export interface BlockInfo {
   position: number
@@ -152,6 +153,19 @@ export interface NonPlayerRecord {
   formation: number
 }
 
+/** Parsed `stadium.dat` row (`TStadiums`, 78 bytes). */
+export interface StadiumRecord {
+  id: number
+  name: string
+  cityId: number
+  capacity: number
+  seatingCapacity: number
+  expansionCapacity: number
+  nearbyStadiumId: number
+  covered: number
+  underSoilHeating: number
+}
+
 /** Parsed `club.dat` row (581 bytes). */
 export interface ClubRecord {
   id: number
@@ -165,6 +179,12 @@ export interface ClubRecord {
   reputation: number
   /** `TClub.Squad` — staff ids (same id space as `StaffRecord.id`). */
   squadStaffIds: number[]
+  /** `TClub.TeamSelected` — 20 ints (match selection / team state; often includes XI staff ids). */
+  teamSelectedStaffIds: number[]
+  /** `TClub.TacticTraining` — four tactic ids used for scheduled training rotations. */
+  tacticTrainingIds: number[]
+  /** `TClub.TacticSelected` — active tactic id into `tactics.dat` rows when that block exists. */
+  tacticSelectedId: number
 }
 
 export interface ContractRecord {
@@ -228,6 +248,10 @@ export interface ParsedDatabase {
   nonPlayersById?: Map<number, NonPlayerRecord>
   /** Full `club.dat` rows keyed by club id (includes squad staff ids). */
   clubsById?: Map<number, ClubRecord>
+  /** Optional `stadium.dat` keyed by stadium id (`TClub.Stadium`). */
+  stadiumsById?: Map<number, StadiumRecord>
+  /** Optional parsed `tactics.dat` index (row size inferred). */
+  tacticsIndex?: TacticsIndexMeta
 }
 
 export interface UiPlayerRow {

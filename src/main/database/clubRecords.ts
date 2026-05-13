@@ -7,8 +7,12 @@ import type { ClubRecord } from './types'
 
 export const CLUB_ROW_BYTES = 581
 
-/** Byte offset of first `Squad[0]` int32 (50 entries) in `club.dat` row. */
-export const CLUB_SQUAD_STAFF_IDS_OFF = 215
+/** Byte offset of `TClub.TeamSelected[0]` (20 × int32). */
+export const CLUB_TEAM_SELECTED_OFF = 480
+/** Byte offset of `TClub.TacticTraining[0]` (4 × int32). */
+export const CLUB_TACTIC_TRAINING_OFF = 560
+/** Byte offset of `TClub.TacticSelected` (int32). */
+export const CLUB_TACTIC_SELECTED_OFF = 576
 
 export function parseClubRecords(data: Buffer): Map<number, ClubRecord> {
   const m = new Map<number, ClubRecord>()
@@ -32,6 +36,19 @@ export function parseClubRecords(data: Buffer): Map<number, ClubRecord> {
       squadStaffIds.push(row.readInt32LE(sq))
       sq += 4
     }
+    const teamSelectedStaffIds: number[] = []
+    let ts = CLUB_TEAM_SELECTED_OFF
+    for (let j = 0; j < 20; j++) {
+      teamSelectedStaffIds.push(row.readInt32LE(ts))
+      ts += 4
+    }
+    const tacticTrainingIds: number[] = []
+    let tt = CLUB_TACTIC_TRAINING_OFF
+    for (let j = 0; j < 4; j++) {
+      tacticTrainingIds.push(row.readInt32LE(tt))
+      tt += 4
+    }
+    const tacticSelectedId = row.readInt32LE(CLUB_TACTIC_SELECTED_OFF)
     m.set(id, {
       id,
       name,
@@ -43,6 +60,9 @@ export function parseClubRecords(data: Buffer): Map<number, ClubRecord> {
       training,
       reputation,
       squadStaffIds,
+      teamSelectedStaffIds,
+      tacticTrainingIds,
+      tacticSelectedId,
     })
   }
   return m
