@@ -99,6 +99,72 @@ export interface StaffRecord {
   professionalism: number
   sportsmanship: number
   temperament: number
+  /** `TStaff.PlayingSquad` — senior / reserve, etc. */
+  playing_squad: number
+  /** `TStaff.Classification` — player / non-player / both (see CM0102Patcher). */
+  classification: number
+  /** `TStaff.ClubValuation` */
+  club_valuation: number
+  /** `TStaff.StaffPreferences` id (favourite clubs/staff live in separate table). */
+  staff_preferences_id: number
+  /** Links to `nonplayer.dat` row id for coaching / scout / physio attributes. */
+  non_player_id: number
+  squad_selected_for: number
+}
+
+/** Backroom profile (`nonplayer.dat`, `TNonPlayer`). */
+export interface NonPlayerRecord {
+  id: number
+  currentAbility: number
+  potentialAbility: number
+  homeReputation: number
+  currentReputation: number
+  worldReputation: number
+  attacking: number
+  business: number
+  coaching: number
+  coachingGks: number
+  coachingTechnique: number
+  directness: number
+  discipline: number
+  freeRoles: number
+  interference: number
+  judgement: number
+  judgingPotential: number
+  manHandling: number
+  marking: number
+  motivating: number
+  offside: number
+  patience: number
+  physiotherapy: number
+  pressing: number
+  resources: number
+  tactics: number
+  youngsters: number
+  goalKeeperPref: number
+  sweeperPref: number
+  defenderPref: number
+  defensiveMidfielderPref: number
+  midfielderPref: number
+  attackingMidfielderPref: number
+  attackerPref: number
+  wingBackPref: number
+  formation: number
+}
+
+/** Parsed `club.dat` row (581 bytes). */
+export interface ClubRecord {
+  id: number
+  name: string
+  nationId: number
+  divisionCompId: number
+  cash: number
+  stadiumId: number
+  attendance: number
+  training: number
+  reputation: number
+  /** `TClub.Squad` — staff ids (same id space as `StaffRecord.id`). */
+  squadStaffIds: number[]
 }
 
 export interface ContractRecord {
@@ -158,6 +224,10 @@ export interface ParsedDatabase {
   gameDateIso: string | null
   /** True when the loaded archive contains a `player stats.dat` block (typical of `.sav`; not decoded yet). */
   playerStatsDatPresent?: boolean
+  /** `nonplayer.dat` keyed by non-player id (from `StaffRecord.non_player_id`). */
+  nonPlayersById?: Map<number, NonPlayerRecord>
+  /** Full `club.dat` rows keyed by club id (includes squad staff ids). */
+  clubsById?: Map<number, ClubRecord>
 }
 
 export interface UiPlayerRow {

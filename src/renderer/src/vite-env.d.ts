@@ -33,14 +33,25 @@ declare global {
   interface Window {
     cmapi: {
       openDatabase: () => Promise<OpenResult>
-      getRows: (filter: Record<string, unknown>) => Promise<
-        | {
-            total: number
-            rows: GridPlayerRow[]
-            capped?: boolean
-          }
-        | Array<GridPlayerRow>
-      >
+      getRows: (filter: Record<string, unknown>) => Promise<{
+        total: number
+        rows: GridPlayerRow[]
+        offset?: number
+        capped?: boolean
+      }>
+      getStaffRows: (filter: Record<string, unknown>) => Promise<{
+        total: number
+        rows: Array<Record<string, unknown>>
+        offset: number
+        capped: boolean
+      }>
+      getClubRows: (filter: Record<string, unknown>) => Promise<{
+        total: number
+        rows: Array<Record<string, unknown>>
+        offset: number
+        capped: boolean
+      }>
+      getClubDetail: (clubId: number) => Promise<Record<string, unknown> | null>
       getProfile: (staffIndex: number) => Promise<ProfilePayload | null>
       getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>
       saveRegenBaseline: () => Promise<RegenBaselineMutationResult>

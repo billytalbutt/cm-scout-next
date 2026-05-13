@@ -6,7 +6,7 @@ import { homedir } from 'os'
 import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
-import { buildUiRows, parseIndexDat } from './database/parser'
+import { buildUiRows, parseIndexDat, buildUiPlayerRowAtIndex } from './database/parser'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
 import { applyCmScoutRatings } from './cmScoutRating'
 import { applyEffectivenessRatings } from './effectivenessRating'
@@ -26,6 +26,8 @@ import { applyRegenPipeline } from './regenDetection'
 import type { GridIncludeFlags } from '../shared/gridTypes'
 import { ENGINE_SNIFFER_IDS, type EngineSnifferId } from './engineSniffer'
 import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
+import { filterStaffGridRows } from './staffBrowse'
+import { buildClubSquadPlayerRows, filterClubListRows } from './clubBrowse'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -195,10 +197,70 @@ ipcMain.handle('get-rows', async (_e, payload: unknown) => {
   }
 })
 
+ipcMain.handle('get-staff-rows', async (_e, payload: unknown) => {
+  if (!loaded) return { total: 0, rows: [], offset: 0, capped: false }
+  const raw = { ...(payload as Record<string, unknown>) }
+  const offset = Math.max(0, Math.floor(Number(raw.offset) || 0))
+  const limit = Math.max(1, Math.floor(Number(raw.limit) || 80))
+  delete raw.offset
+  delete raw.limit
+  const all = filterStaffGridRows(loaded.db, {
+    q: String(raw.q ?? ''),
+    nation: String(raw.nation ?? ''),
+    club: String(raw.club ?? ''),
+    job: String(raw.job ?? ''),
+    includePlayers: !!raw.includePlayers,
+  })
+  const total = all.length
+  const page = all.slice(offset, offset + limit)
+  return { total, rows: page, offset, capped: offset + page.length < total }
+})
+
+ipcMain.handle('get-club-rows', async (_e, payload: unknown) => {
+  if (!loaded) return { total: 0, rows: [], offset: 0, capped: false }
+  const raw = payload as Record<string, unknown>
+  const offset = Math.max(0, Math.floor(Number(raw.offset) || 0))
+  const limit = Math.max(1, Math.floor(Number(raw.limit) || 80))
+  const q = String(raw.q ?? '')
+  const all = filterClubListRows(loaded.db, q)
+  const total = all.length
+  const page = all.slice(offset, offset + limit)
+  return { total, rows: page, offset, capped: offset + page.length < total }
+})
+
+ipcMain.handle('get-club-detail', async (_e, clubId: unknown) => {
+  if (!loaded) return null
+  const id = Math.floor(Number(clubId))
+  const club = loaded.db.clubsById?.get(id)
+  if (!club) return null
+  const nation = loaded.db.nationNames.get(club.nationId) ?? ''
+  const comp = loaded.db.clubCompsById?.get(club.divisionCompId)
+  const squad = buildClubSquadPlayerRows(loaded.db, id)
+  return {
+    id: club.id,
+    name: club.name,
+    nation,
+    division: comp?.name ?? (club.divisionCompId ? `#${club.divisionCompId}` : '—'),
+    reputation: club.reputation,
+    cash: club.cash,
+    stadiumId: club.stadiumId,
+    attendance: club.attendance,
+    training: club.training,
+    squad,
+  }
+})
+
 ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
   if (!loaded) return null
-  const row = loaded.rows.find((r) => r.staffIndex === staffIndex)
-  if (!row) return null
+  let row = loaded.rows.find((r) => r.staffIndex === staffIndex)
+  if (!row) {
+    const built = buildUiPlayerRowAtIndex(loaded.db, staffIndex)
+    if (!built) return null
+    applyCmScoutRatings([built])
+    applyEffectivenessRatings([built])
+    applyEngineMetaProfiles([built])
+    row = built
+  }
   return {
     ...buildProfilePayload(row, loaded.db.clubNames, loaded.db.gameDateIso, {
       nationSeasonUpdateDaySamples: loaded.db.nationSeasonUpdateDaySamples,
@@ -213,8 +275,14 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
 
 ipcMain.handle('get-effectiveness-detail', async (_e, staffIndex: number) => {
   if (!loaded) return null
-  const row = loaded.rows.find((r) => r.staffIndex === staffIndex)
-  if (!row) return null
+  let row = loaded.rows.find((r) => r.staffIndex === staffIndex)
+  if (!row) {
+    const built = buildUiPlayerRowAtIndex(loaded.db, staffIndex)
+    if (!built) return null
+    applyCmScoutRatings([built])
+    applyEffectivenessRatings([built])
+    row = built
+  }
   return computeEffectivenessFull(
     effectivenessAttrGetter(row.player, row.staff),
     eligibleEffectivenessArchetypeIds(row.player),

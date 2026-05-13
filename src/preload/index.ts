@@ -26,8 +26,24 @@ contextBridge.exposeInMainWorld('cmapi', {
     ipcRenderer.invoke('get-rows', filter) as Promise<{
       total: number
       rows: Array<Record<string, unknown>>
+      offset: number
       capped: boolean
     }>,
+  getStaffRows: (filter: Record<string, unknown>) =>
+    ipcRenderer.invoke('get-staff-rows', filter) as Promise<{
+      total: number
+      rows: Array<Record<string, unknown>>
+      offset: number
+      capped: boolean
+    }>,
+  getClubRows: (filter: Record<string, unknown>) =>
+    ipcRenderer.invoke('get-club-rows', filter) as Promise<{
+      total: number
+      rows: Array<Record<string, unknown>>
+      offset: number
+      capped: boolean
+    }>,
+  getClubDetail: (clubId: number) => ipcRenderer.invoke('get-club-detail', clubId),
   getProfile: (staffIndex: number) => ipcRenderer.invoke('get-profile', staffIndex),
   getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),

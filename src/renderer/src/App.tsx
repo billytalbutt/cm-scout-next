@@ -20,6 +20,9 @@ import { attrMinsStringsFromEnginePreset, type EngineSnifferPresetId } from '../
 import { ENGINE_META_PROFILE_IDS, ENGINE_META_PROFILE_LABELS } from '../../shared/engineMetaProfileCatalog'
 import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
 import { DebouncedTextFilters } from './DebouncedTextFilters'
+import { StaffBrowsePanel } from './StaffBrowsePanel'
+import { ClubBrowsePanel } from './ClubBrowsePanel'
+import { TacticsLabPanel } from './TacticsLabPanel'
 
 const gridColHelper = createGridColumnHelper()
 
@@ -348,7 +351,7 @@ export function App() {
       return false
     }
   })
-  const [browseTab, setBrowseTab] = useState<'players' | 'regens'>('players')
+  const [browseTab, setBrowseTab] = useState<'players' | 'regens' | 'staff' | 'clubs' | 'tactics'>('players')
   const [regenOnly, setRegenOnly] = useState(false)
   const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
   const [showEngineAttrs, setShowEngineAttrs] = useState(() => {
@@ -445,6 +448,10 @@ export function App() {
   const refreshSeq = useRef(0)
 
   const refresh = useCallback(async () => {
+    if (browseTab === 'staff' || browseTab === 'clubs' || browseTab === 'tactics') {
+      setGridRefreshing(false)
+      return
+    }
     const seq = ++refreshSeq.current
     setGridRefreshing(true)
     const f: Record<string, unknown> = {
@@ -1278,13 +1285,20 @@ export function App() {
               <span className="text-xs font-medium text-zinc-400">Regens</span>
               <label
                 className={`flex items-center gap-2 text-xs ${
-                  browseTab === 'regens' ? 'cursor-not-allowed text-zinc-500' : 'cursor-pointer text-zinc-300'
+                  browseTab === 'regens' || browseTab === 'staff' || browseTab === 'clubs' || browseTab === 'tactics'
+                  ? 'cursor-not-allowed text-zinc-500'
+                  : 'cursor-pointer text-zinc-300'
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={regenOnly}
-                  disabled={browseTab === 'regens'}
+                  disabled={
+                    browseTab === 'regens' ||
+                    browseTab === 'staff' ||
+                    browseTab === 'clubs' ||
+                    browseTab === 'tactics'
+                  }
                   onChange={(e) => setRegenOnly(e.target.checked)}
                 />
                 Likely regen only <span className="text-zinc-600">(heuristic)</span>
@@ -1377,6 +1391,39 @@ export function App() {
             >
               Regens
             </button>
+            <button
+              type="button"
+              onClick={() => setBrowseTab('staff')}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                browseTab === 'staff'
+                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
+                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+              }`}
+            >
+              Staff
+            </button>
+            <button
+              type="button"
+              onClick={() => setBrowseTab('clubs')}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                browseTab === 'clubs'
+                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
+                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+              }`}
+            >
+              Clubs
+            </button>
+            <button
+              type="button"
+              onClick={() => setBrowseTab('tactics')}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                browseTab === 'tactics'
+                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
+                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+              }`}
+            >
+              Tactics
+            </button>
             {browseTab === 'regens' && loadInfo && (
               <span className="text-[10px] text-zinc-500">
                 Heuristic list only — grid columns can still show Is regen / Regen of.
@@ -1384,7 +1431,9 @@ export function App() {
             )}
           </div>
           <div ref={scrollParentRef} className="cm-scroll relative min-h-0 flex-1 overflow-auto p-3">
-            {(textFiltersPending || gridRefreshing) && loadInfo && (
+            {(textFiltersPending || gridRefreshing) &&
+              loadInfo &&
+              (browseTab === 'players' || browseTab === 'regens') && (
               <div
                 className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center bg-zinc-950/35 pt-16 backdrop-blur-[2px]"
                 aria-live="polite"
@@ -1406,6 +1455,20 @@ export function App() {
                 </div>
               </div>
             )}
+            {browseTab === 'staff' && (
+              <StaffBrowsePanel
+                loadInfo={!!loadInfo}
+                nationList={nationList}
+                clubList={clubList}
+                onOpenPlayerProfile={(si) => void pick(si)}
+              />
+            )}
+            {browseTab === 'clubs' && (
+              <ClubBrowsePanel loadInfo={!!loadInfo} onOpenPlayerProfile={(si) => void pick(si)} />
+            )}
+            {browseTab === 'tactics' && <TacticsLabPanel />}
+            {(browseTab === 'players' || browseTab === 'regens') && (
+            <>
             <div className="mb-3">
               <HoverTip
                 tip={
@@ -1569,6 +1632,8 @@ export function App() {
                 )}
               </tbody>
             </table>
+            </>
+            )}
           </div>
         </main>
 

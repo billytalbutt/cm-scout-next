@@ -8,11 +8,13 @@ import {
   sumStaffHistoryCareerAndSeason,
   type StaffHistoryRecord,
 } from './staffHistory'
+import { parseClubRecords } from './clubRecords'
 import {
   parseClubCompData,
   parseClubPrimaryDivisionIds,
   parseStaffCompData,
 } from './clubComp'
+import { parseNonPlayerData } from './nonplayer'
 import {
   refineHighlightYearWithHistoryFallback,
   resolveStaffHistoryHighlightYear,
@@ -190,8 +192,16 @@ function parseStaff(buf: Buffer, off: number): StaffRecord {
   const professionalism = buf.readInt8(o++)
   const sportsmanship = buf.readInt8(o++)
   const temperament = buf.readInt8(o++)
-  o += 3 // playing squad, classification, club valuation
+  const playing_squad = buf.readUInt8(o++)
+  const classification = buf.readUInt8(o++)
+  const club_valuation = buf.readUInt8(o++)
   const player_id = buf.readInt32LE(o)
+  o += 4
+  const staff_preferences_id = buf.readInt32LE(o)
+  o += 4
+  const non_player_id = buf.readInt32LE(o)
+  o += 4
+  const squad_selected_for = buf.readUInt8(o++)
   return {
     id,
     first_name_id,
@@ -216,6 +226,12 @@ function parseStaff(buf: Buffer, off: number): StaffRecord {
     professionalism,
     sportsmanship,
     temperament,
+    playing_squad,
+    classification,
+    club_valuation,
+    staff_preferences_id,
+    non_player_id,
+    squad_selected_for,
   }
 }
 
@@ -254,19 +270,6 @@ function parseNations(data: Buffer): {
   return { names, euEligible, seasonUpdateDaySamples }
 }
 
-function parseClubs(data: Buffer): Map<number, string> {
-  const ROW = 581
-  const n = Math.floor(data.length / ROW)
-  const m = new Map<number, string>()
-  for (let i = 0; i < n; i++) {
-    const row = data.subarray(i * ROW, (i + 1) * ROW)
-    const id = row.readInt32LE(0)
-    const nm = readLatin1String(row.subarray(4, 55), 51)
-    m.set(id, nm)
-  }
-  return m
-}
-
 export function staffDisplayName(
   s: StaffRecord,
   firstNames: string[],
@@ -280,7 +283,7 @@ export function staffDisplayName(
   return `${fn} ${sn}`.trim() || `#${s.id}`
 }
 
-function isValidPlayerRow(
+export function isValidPlayerRow(
   s: StaffRecord,
   firstNames: string[],
   secondNames: string[],
@@ -323,7 +326,9 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     readBlock('nation.dat'),
   )
   const clubBuf = readBlock('club.dat')
-  const clubNames = parseClubs(clubBuf)
+  const clubsById = parseClubRecords(clubBuf)
+  const clubNames = new Map<number, string>()
+  for (const [id, c] of clubsById) clubNames.set(id, c.name)
   const clubDivisionCompIdByClubId = parseClubPrimaryDivisionIds(clubBuf)
 
   let clubCompsById = undefined as ReturnType<typeof parseClubCompData> | undefined
@@ -455,6 +460,18 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
   const playerStatsBlock = find('player stats.dat') ?? findBlockLoose('player stats.dat')
   const playerStatsDatPresent = !!(playerStatsBlock && playerStatsBlock.size > 0)
 
+  let nonPlayersById = undefined as ReturnType<typeof parseNonPlayerData> | undefined
+  const npBlock = find('nonplayer.dat') ?? findBlockLoose('nonplayer.dat')
+  if (npBlock && npBlock.size > 0) {
+    try {
+      const npbuf = blockData(file, compressed, npBlock)
+      const m = parseNonPlayerData(npbuf)
+      if (m.size > 0) nonPlayersById = m
+    } catch {
+      nonPlayersById = undefined
+    }
+  }
+
   return {
     compressed,
     blocks,
@@ -468,6 +485,8 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     nationNames,
     nationEuEligible,
     clubNames,
+    clubsById,
+    nonPlayersById,
     firstNames,
     secondNames,
     commonNames,
@@ -540,4 +559,67 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
     })
   })
   return rows
+}
+
+/** Build a player-linked `UiPlayerRow` for a staff index (same rules as `buildUiRows`). */
+export function buildUiPlayerRowAtIndex(db: ParsedDatabase, staffIndex: number): UiPlayerRow | null {
+  const {
+    players,
+    staff,
+    nationNames,
+    nationEuEligible,
+    clubNames,
+    firstNames,
+    secondNames,
+    commonNames,
+    contractsByStaffIndex,
+    gameDateIso,
+    staffHistoryByStaffId,
+    nationSeasonUpdateDaySamples,
+  } = db
+  if (staffIndex < 0 || staffIndex >= staff.length) return null
+  const s = staff[staffIndex]!
+  if (!isValidPlayerRow(s, firstNames, secondNames, commonNames, players.length)) return null
+  const player = players[s.player_id]
+  if (!player) return null
+  const baseYearPick = resolveStaffHistoryHighlightYear(gameDateIso, nationSeasonUpdateDaySamples)
+  const name = staffDisplayName(s, firstNames, secondNames, commonNames)
+  const nation = nationNames.get(s.first_nation_id) ?? ''
+  const secondNation =
+    s.second_nation_id > 0 && s.second_nation_id !== s.first_nation_id
+      ? (nationNames.get(s.second_nation_id) ?? '')
+      : ''
+  const club = clubNames.get(s.club_job_id) ?? ''
+  const c = contractsByStaffIndex.get(staffIndex) ?? null
+  const wage = c?.wage ?? s.wage
+  const ageFromDob = ageOnGameDate(s.dob_iso, gameDateIso)
+  const age = ageFromDob != null ? ageFromDob : ageFromBirthYearOnly(s.year_of_birth, gameDateIso)
+  const euPassport =
+    !!nationEuEligible.get(s.first_nation_id) ||
+    (s.second_nation_id > 0 && !!nationEuEligible.get(s.second_nation_id))
+  const hist = staffHistoryByStaffId?.get(s.id)
+  const yearPick = refineHighlightYearWithHistoryFallback(hist ?? [], baseYearPick)
+  const sums = sumStaffHistoryCareerAndSeason(hist, yearPick.highlightHistoryYear)
+  return {
+    staffId: s.id,
+    staffIndex,
+    name,
+    nation,
+    secondNation,
+    club,
+    ca: player.current_ability,
+    pa: player.potential_ability,
+    wage,
+    value: s.value,
+    age,
+    euPassport,
+    staffHistory: hist,
+    staffHistCareerApps: sums.careerApps,
+    staffHistCareerGoals: sums.careerGoals,
+    staffHistSeasonApps: sums.seasonApps,
+    staffHistSeasonGoals: sums.seasonGoals,
+    player,
+    staff: s,
+    contract: c,
+  }
 }
