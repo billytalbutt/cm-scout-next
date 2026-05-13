@@ -120,7 +120,7 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile }: Props) {
         {loading && <p className="text-xs text-zinc-500">Loading…</p>}
         {err && <p className="text-xs text-rose-300">{err}</p>}
         <p className="mb-1 text-[10px] text-zinc-600">
-          {total} clubs · cash &amp; reputation from <span className="font-mono">club.dat</span>
+          {total} clubs · funds &amp; reputation from <span className="font-mono">club.dat</span>
         </p>
         <div className="cm-scroll min-h-0 flex-1 overflow-y-auto rounded border border-zinc-800/80">
           <ul className="divide-y divide-zinc-800/80">
@@ -135,8 +135,8 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile }: Props) {
                 >
                   <span className="font-medium text-zinc-100">{c.name}</span>
                   <span className="text-[10px] text-zinc-500">
-                    {c.nation} · {c.division} · rep{' '}
-                    <span className="font-mono text-zinc-400">{c.reputation}</span> · cash{' '}
+                    {c.nation} · {c.division} ·                     rep{' '}
+                    <span className="font-mono text-zinc-400">{c.reputation}</span> · funds{' '}
                     <span className="font-mono text-zinc-400">{c.cash.toLocaleString()}</span> · stadium id{' '}
                     <span className="font-mono text-zinc-400">{c.stadiumId}</span>
                   </span>
@@ -158,15 +158,26 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile }: Props) {
               <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-zinc-400">
                 <dt>Reputation</dt>
                 <dd className="font-mono text-zinc-200">{detail.reputation}</dd>
-                <dt>Cash</dt>
+                <dt>Club funds</dt>
                 <dd className="font-mono text-zinc-200">{detail.cash.toLocaleString()}</dd>
+                <dt>Transfer budget (save)</dt>
+                <dd className="text-zinc-500">Not in this row — in-game board / finances</dd>
                 <dt>Stadium id</dt>
                 <dd className="font-mono text-zinc-200">{detail.stadiumId}</dd>
                 <dt>Attendance</dt>
                 <dd className="font-mono text-zinc-200">{detail.attendance.toLocaleString()}</dd>
-                <dt>Training (byte)</dt>
-                <dd className="font-mono text-zinc-200">{detail.training}</dd>
+                <dt>Training facilities</dt>
+                <dd className="font-mono text-zinc-200">
+                  {detail.training} <span className="text-zinc-500">/ 20</span>
+                </dd>
+                <dt>Youth / other facilities</dt>
+                <dd className="text-zinc-500">Not a single field in club.dat here; training byte is the usual proxy.</dd>
               </dl>
+              <p className="mt-2 text-[10px] leading-snug text-zinc-600">
+                <span className="font-mono text-zinc-500">TClub.Cash</span> is the on-disk club money value; editors and
+                forum tools usually treat it as bank balance. Live transfer budgets move with the match world and are not
+                stored as a second integer in this vanilla <span className="font-mono">club.dat</span> layout.
+              </p>
             </div>
             <h4 className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Squad (from club slots)</h4>
             <div className="cm-scroll min-h-0 flex-1 overflow-y-auto rounded border border-zinc-800/80">

@@ -7,7 +7,8 @@ export type StaffBrowseFilter = {
   q: string
   nation: string
   club: string
-  job: string
+  /** When set, only rows with this `TStaff.JobForClub` byte. */
+  jobForClub?: number
   includePlayers: boolean
 }
 
@@ -53,7 +54,7 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
   const q = f.q.trim().toLowerCase()
   const nation = f.nation.trim().toLowerCase()
   const club = f.club.trim().toLowerCase()
-  const job = f.job.trim().toLowerCase()
+  const jobForClub = f.jobForClub
 
   const out: StaffGridRow[] = []
   staff.forEach((s, staffIndex) => {
@@ -78,7 +79,7 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
     if (club && !clubName.toLowerCase().includes(club)) return
 
     const jobLabel = staffJobForClubLabel(s.job_for_club)
-    if (job && !jobLabel.toLowerCase().includes(job) && !String(s.job_for_club).includes(job)) return
+    if (jobForClub != null && Number.isFinite(jobForClub) && s.job_for_club !== jobForClub) return
 
     const np = s.non_player_id > 0 ? nonPlayersById?.get(s.non_player_id) : undefined
     const score = staffRoleHeuristicScore(s.job_for_club, np) + Math.min(10, Math.max(0, s.determination - 10))

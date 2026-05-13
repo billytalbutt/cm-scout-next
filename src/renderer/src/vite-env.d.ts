@@ -53,6 +53,7 @@ declare global {
       }>
       getClubDetail: (clubId: number) => Promise<Record<string, unknown> | null>
       getProfile: (staffIndex: number) => Promise<ProfilePayload | null>
+      getStaffProfile: (staffIndex: number) => Promise<StaffProfilePayload | null>
       getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>
       saveRegenBaseline: () => Promise<RegenBaselineMutationResult>
       clearRegenBaseline: () => Promise<RegenBaselineMutationResult>
@@ -120,6 +121,35 @@ export interface ProfileSeasonStats {
   playerStatsDatPresent?: boolean
   /** Short explanation for performance columns (goals/assists/rating per competition). */
   savePerformanceHint?: string
+}
+
+export interface StaffProfileAttrRow {
+  label: string
+  value: number
+}
+
+export interface StaffProfilePayload {
+  staffIndex: number
+  staffId: number
+  name: string
+  jobLabel: string
+  jobForClub: number
+  club: string
+  nation: string
+  dobIso: string | null
+  age: number | null
+  determination: number
+  staffMentals: StaffProfileAttrRow[]
+  nonPlayer: null | {
+    coachingAttrs: StaffProfileAttrRow[]
+    positionPrefs: StaffProfileAttrRow[]
+  }
+  contract: null | {
+    wage: number
+    dateStarted: string | null
+    contractExpires: string | null
+    type: number
+  }
 }
 
 export interface ProfilePayload {

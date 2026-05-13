@@ -7,7 +7,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import type { ProfileAttrCell, ProfilePayload } from './vite-env.d'
+import type { ProfileAttrCell, ProfilePayload, StaffProfilePayload } from './vite-env.d'
 import type { GridPlayerRow } from '../../shared/gridTypes'
 import { gridFlagsForVisibleColumnIds, GRID_DEFAULT_COLUMN_ORDER, sanitizeGridColumnOrder } from '../../shared/gridColumnCatalog'
 import { buildGridColumns, createGridColumnHelper } from './grid/gridColumns'
@@ -21,6 +21,7 @@ import { ENGINE_META_PROFILE_IDS, ENGINE_META_PROFILE_LABELS } from '../../share
 import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
 import { DebouncedTextFilters } from './DebouncedTextFilters'
 import { StaffBrowsePanel } from './StaffBrowsePanel'
+import { StaffProfilePane } from './StaffProfilePane'
 import { ClubBrowsePanel } from './ClubBrowsePanel'
 import { TacticsLabPanel } from './TacticsLabPanel'
 
@@ -333,6 +334,8 @@ export function App() {
     })
   }, [attrMins, activeAttrFilterCount])
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
+  const [staffProfile, setStaffProfile] = useState<StaffProfilePayload | null>(null)
+  const [staffTableSel, setStaffTableSel] = useState<number | null>(null)
   const [sel, setSel] = useState<number | null>(null)
   const [opening, setOpening] = useState(false)
   const [gridMeta, setGridMeta] = useState<{ total: number } | null>(null)
@@ -726,6 +729,10 @@ export function App() {
       setNationList(r.nations ?? [])
       setCommittedText({ q: '', nation: '', club: '' })
       setErr(null)
+      setProfile(null)
+      setStaffProfile(null)
+      setStaffTableSel(null)
+      setSel(null)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setErr(msg)
@@ -771,12 +778,27 @@ export function App() {
     scrollParentRef.current?.scrollTo({ top: 0 })
   }, [rows])
 
+  const loadStaffProfile = useCallback(async (staffIndex: number) => {
+    setProfile(null)
+    if (typeof window.cmapi?.getStaffProfile !== 'function') return
+    const p = await window.cmapi.getStaffProfile(staffIndex)
+    setStaffProfile(p)
+  }, [])
+
   const pick = useCallback(async (staffIndex: number) => {
     setSel(staffIndex)
+    setStaffProfile(null)
     if (typeof window.cmapi?.getProfile !== 'function') return
     const p = await window.cmapi.getProfile(staffIndex)
     setProfile(p)
   }, [])
+
+  useEffect(() => {
+    if (browseTab !== 'staff') {
+      setStaffProfile(null)
+      setStaffTableSel(null)
+    }
+  }, [browseTab])
 
   const activateProfile = useCallback(
     (staffIndex: number) => {
@@ -1460,6 +1482,11 @@ export function App() {
                 loadInfo={!!loadInfo}
                 nationList={nationList}
                 clubList={clubList}
+                selectedStaffIndex={staffTableSel}
+                onSelectStaff={(si) => {
+                  setStaffTableSel(si)
+                  void loadStaffProfile(si)
+                }}
                 onOpenPlayerProfile={(si) => void pick(si)}
               />
             )}
@@ -1654,7 +1681,14 @@ export function App() {
           style={{ width: profilePanePx, maxWidth: 'min(720px, 92vw)' }}
           className="min-w-[240px] shrink-0 overflow-y-auto overflow-x-hidden border-l border-zinc-800/80 bg-zinc-950/60 p-4 cm-scroll"
         >
-          {!profile && <p className="text-sm text-zinc-500">Select a player for profile & attributes.</p>}
+          {!profile && !(browseTab === 'staff' && staffProfile) && (
+            <p className="text-sm text-zinc-500">
+              {browseTab === 'staff'
+                ? 'Select a staff member from the table.'
+                : 'Select a player for profile & attributes.'}
+            </p>
+          )}
+          {browseTab === 'staff' && staffProfile && <StaffProfilePane p={staffProfile} />}
           {profile && (
             <div className="space-y-4">
               <div className="border-b border-zinc-800/80 pb-3">

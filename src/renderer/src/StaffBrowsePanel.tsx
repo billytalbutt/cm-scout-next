@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DebouncedTextFilters, type CommittedTextFilters } from './DebouncedTextFilters'
+import { staffJobForClubDropdownEntries } from '../../shared/staffJobCatalog'
 
 export type StaffGridApiRow = {
   staffIndex: number
@@ -15,16 +16,27 @@ export type StaffGridApiRow = {
   nonPlayerCa: number | null
 }
 
+const JOB_OPTIONS = staffJobForClubDropdownEntries()
+
 type Props = {
   loadInfo: boolean
   nationList: string[]
   clubList: string[]
+  selectedStaffIndex: number | null
+  onSelectStaff: (staffIndex: number) => void
   onOpenPlayerProfile: (staffIndex: number) => void
 }
 
-export function StaffBrowsePanel({ loadInfo, nationList, clubList, onOpenPlayerProfile }: Props) {
+export function StaffBrowsePanel({
+  loadInfo,
+  nationList,
+  clubList,
+  selectedStaffIndex,
+  onSelectStaff,
+  onOpenPlayerProfile,
+}: Props) {
   const [committed, setCommitted] = useState<CommittedTextFilters>({ q: '', nation: '', club: '' })
-  const [job, setJob] = useState('')
+  const [jobForClub, setJobForClub] = useState<string>('')
   const [includePlayers, setIncludePlayers] = useState(false)
   const [rows, setRows] = useState<StaffGridApiRow[]>([])
   const [total, setTotal] = useState(0)
@@ -42,15 +54,16 @@ export function StaffBrowsePanel({ loadInfo, nationList, clubList, onOpenPlayerP
     setLoading(true)
     setErr(null)
     try {
-      const out = await window.cmapi.getStaffRows({
+      const filter: Record<string, unknown> = {
         q: committed.q,
         nation: committed.nation,
         club: committed.club,
-        job,
         includePlayers,
         offset: 0,
         limit: 8000,
-      })
+      }
+      if (jobForClub !== '') filter.jobForClub = Number(jobForClub)
+      const out = await window.cmapi.getStaffRows(filter)
       if (seq !== seqRef.current) return
       setRows((out.rows ?? []) as StaffGridApiRow[])
       setTotal(typeof out.total === 'number' ? out.total : 0)
@@ -62,7 +75,7 @@ export function StaffBrowsePanel({ loadInfo, nationList, clubList, onOpenPlayerP
     } finally {
       if (seq === seqRef.current) setLoading(false)
     }
-  }, [loadInfo, committed, job, includePlayers])
+  }, [loadInfo, committed, jobForClub, includePlayers])
 
   useEffect(() => {
     void load()
@@ -75,27 +88,23 @@ export function StaffBrowsePanel({ loadInfo, nationList, clubList, onOpenPlayerP
   return (
     <div className="space-y-3">
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-        <p className="mb-2 text-[11px] leading-snug text-zinc-500">
-          Backroom staff from <span className="font-mono text-zinc-400">staff.dat</span> joined to{' '}
-          <span className="font-mono text-zinc-400">nonplayer.dat</span> for coaching / scout / physio attributes. Score is a
-          heuristic (forum-style primaries + determination), not decompiled training effectiveness.
-        </p>
         <div className="grid gap-3 md:grid-cols-2">
-          <DebouncedTextFilters
-            nationList={nationList}
-            clubList={clubList}
-            onCommit={setCommitted}
-          />
+          <DebouncedTextFilters nationList={nationList} clubList={clubList} onCommit={setCommitted} />
           <div className="space-y-2">
             <label className="block">
-              <span className="mb-1 block text-xs text-zinc-500">Job contains</span>
-              <input
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-emerald-600"
-                value={job}
-                onChange={(e) => setJob(e.target.value)}
-                placeholder="e.g. Coach"
-                spellCheck={false}
-              />
+              <span className="mb-1 block text-xs text-zinc-500">Job role</span>
+              <select
+                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-emerald-600"
+                value={jobForClub}
+                onChange={(e) => setJobForClub(e.target.value)}
+              >
+                <option value="">Any role</option>
+                {JOB_OPTIONS.map((o) => (
+                  <option key={o.id} value={String(o.id)}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
               <input type="checkbox" checked={includePlayers} onChange={(e) => setIncludePlayers(e.target.checked)} />
@@ -127,7 +136,21 @@ export function StaffBrowsePanel({ loadInfo, nationList, clubList, onOpenPlayerP
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.staffIndex} className="border-b border-zinc-800/60 hover:bg-zinc-800/30">
+              <tr
+                key={r.staffIndex}
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectStaff(r.staffIndex)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelectStaff(r.staffIndex)
+                  }
+                }}
+                className={`cursor-pointer border-b border-zinc-800/60 hover:bg-zinc-800/30 ${
+                  selectedStaffIndex === r.staffIndex ? 'bg-emerald-950/25' : ''
+                }`}
+              >
                 <td className="px-2 py-1.5 font-mono text-emerald-200/90">{r.score}</td>
                 <td className="px-2 py-1.5 font-medium text-zinc-200">{r.name}</td>
                 <td className="px-2 py-1.5 text-zinc-400">{r.jobLabel}</td>
@@ -149,9 +172,12 @@ export function StaffBrowsePanel({ loadInfo, nationList, clubList, onOpenPlayerP
                     <button
                       type="button"
                       className="rounded border border-emerald-700/50 bg-emerald-950/40 px-2 py-1 text-[10px] font-medium text-emerald-200 hover:bg-emerald-900/50"
-                      onClick={() => onOpenPlayerProfile(r.staffIndex)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onOpenPlayerProfile(r.staffIndex)
+                      }}
                     >
-                      Profile
+                      Player profile
                     </button>
                   )}
                 </td>

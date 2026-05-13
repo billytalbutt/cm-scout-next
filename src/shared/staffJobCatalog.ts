@@ -26,3 +26,12 @@ export const STAFF_JOB_FOR_CLUB_LABELS: Record<number, string> = {
 export function staffJobForClubLabel(job: number): string {
   return STAFF_JOB_FOR_CLUB_LABELS[job] ?? `Job ${job}`
 }
+
+/** Sorted ids for filter dropdowns (includes all on-disk roles). */
+export function staffJobForClubDropdownEntries(): { id: number; label: string }[] {
+  return Object.keys(STAFF_JOB_FOR_CLUB_LABELS)
+    .map((k) => Number(k))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => a - b)
+    .map((id) => ({ id, label: STAFF_JOB_FOR_CLUB_LABELS[id]! }))
+}

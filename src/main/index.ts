@@ -28,6 +28,7 @@ import { ENGINE_SNIFFER_IDS, type EngineSnifferId } from './engineSniffer'
 import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
 import { filterStaffGridRows } from './staffBrowse'
 import { buildClubSquadPlayerRows, filterClubListRows } from './clubBrowse'
+import { buildStaffProfilePayload } from './staffProfilePayload'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -204,11 +205,17 @@ ipcMain.handle('get-staff-rows', async (_e, payload: unknown) => {
   const limit = Math.max(1, Math.floor(Number(raw.limit) || 80))
   delete raw.offset
   delete raw.limit
+  const jobRaw = raw.jobForClub ?? raw.job
+  let jobForClub: number | undefined
+  if (jobRaw !== undefined && jobRaw !== null && jobRaw !== '') {
+    const jn = Math.floor(Number(jobRaw))
+    if (Number.isFinite(jn)) jobForClub = jn
+  }
   const all = filterStaffGridRows(loaded.db, {
     q: String(raw.q ?? ''),
     nation: String(raw.nation ?? ''),
     club: String(raw.club ?? ''),
-    job: String(raw.job ?? ''),
+    jobForClub,
     includePlayers: !!raw.includePlayers,
   })
   const total = all.length
@@ -248,6 +255,13 @@ ipcMain.handle('get-club-detail', async (_e, clubId: unknown) => {
     training: club.training,
     squad,
   }
+})
+
+ipcMain.handle('get-staff-profile', async (_e, staffIndex: unknown) => {
+  if (!loaded) return null
+  const idx = Math.floor(Number(staffIndex))
+  if (!Number.isFinite(idx) || idx < 0) return null
+  return buildStaffProfilePayload(loaded.db, idx)
 })
 
 ipcMain.handle('get-profile', async (_e, staffIndex: number) => {

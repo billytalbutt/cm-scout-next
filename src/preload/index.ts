@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('cmapi', {
     }>,
   getClubDetail: (clubId: number) => ipcRenderer.invoke('get-club-detail', clubId),
   getProfile: (staffIndex: number) => ipcRenderer.invoke('get-profile', staffIndex),
+  getStaffProfile: (staffIndex: number) => ipcRenderer.invoke('get-staff-profile', staffIndex),
   getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),
   clearRegenBaseline: () => ipcRenderer.invoke('clear-regen-baseline'),
