@@ -2326,7 +2326,7 @@ export function App() {
                               ? profile.seasonStats.allSeasons.length > 0
                                 ? 'No row for this club in the current season year'
                                 : 'No staff history for this player'
-                              : 'No staff history in this file — use CM Data index.dat for career rows, or wait for save performance decode'}
+                              : 'No staff history — place staff_history.dat next to your index file and reload'}
                           </td>
                         </tr>
                       )}

@@ -277,7 +277,7 @@ function buildProfileSeasonStats(
   const playerStatsDatPresent = ctx.playerStatsDatPresent === true
 
   const savePerformanceHint = !ctx.staffHistoryParsed
-    ? 'No staff history block in this archive. Career/season apps and goals live in `staff_history.dat` (CM Data `index.dat`) or in save-only blocks we are still mapping (`staff history.tmp` / `player stats.dat`).'
+    ? 'No staff history found. CM usually keeps `staff_history.dat` in the same folder as `CMDATA_INDEX.DAT` / `index.dat` (not inside the index file). Put both in one folder and reload, or use a save once live stats decode is ready.'
     : !hist.length
       ? 'No staff history rows for this player yet.'
       : currentSeasonPerformance && currentAtEmployerClub

@@ -7,6 +7,7 @@ import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import { buildUiRows, parseIndexDat, buildUiPlayerRowAtIndex } from './database/parser'
+import { staffHistorySearchDirsForArchivePath } from './database/staffHistory'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
 import { applyCmScoutRatings } from './cmScoutRating'
 import { applyEffectivenessRatings } from './effectivenessRating'
@@ -52,15 +53,20 @@ let loaded: {
  */
 function loadArchiveForPath(selectedPath: string): { db: ParsedDatabase; archiveBuf: Buffer } {
   let archiveBuf = readFileSync(selectedPath)
+  const parseOpts = { staffHistorySearchDirs: staffHistorySearchDirsForArchivePath(selectedPath) }
   try {
-    return { db: parseIndexDat(archiveBuf), archiveBuf }
+    return { db: parseIndexDat(archiveBuf, parseOpts), archiveBuf }
   } catch (e) {
     const lower = basename(selectedPath).toLowerCase()
     if (lower.endsWith('.sav')) {
       const alt = join(dirname(selectedPath), 'index.dat')
       if (existsSync(alt)) {
         archiveBuf = readFileSync(alt)
-        return { db: parseIndexDat(archiveBuf), archiveBuf }
+        const altPath = alt
+        return {
+          db: parseIndexDat(archiveBuf, { staffHistorySearchDirs: staffHistorySearchDirsForArchivePath(altPath) }),
+          archiveBuf,
+        }
       }
     }
     throw e

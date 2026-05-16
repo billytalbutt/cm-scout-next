@@ -1,3 +1,7 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { indexStaffHistoryBuffer } from './staffHistoryIndex'
+
 /**
  * `staff_history.dat` — one row per staff member per club per season-year.
  * Layout matches community tools (e.g. CM0102Patcher `TStaffHistory`, agevak/CM0102 `TStaffHistory`): 17 bytes, pack 1.
@@ -54,7 +58,8 @@ export function parseStaffHistoryData(data: Buffer): StaffHistoryRecord[] {
 
 /** Drop obvious mis-aligned rows when a block is not a clean TStaffHistory array (e.g. misread `.tmp` heap). */
 export function isPlausibleStaffHistoryRow(r: StaffHistoryRecord, maxStaffId: number): boolean {
-  if (r.staffId <= 0 || r.staffId > maxStaffId) return false
+  if (r.staffId <= 0) return false
+  if (maxStaffId > 0 && r.staffId > maxStaffId) return false
   if (r.year < 1950 || r.year > 2035) return false
   if (r.clubId < -1 || r.clubId > 500_000) return false
   if (r.apps < 0 || r.apps > 80) return false
@@ -84,15 +89,94 @@ export function mergeStaffHistoryByStaffId(
 
 /**
  * Parse a staff-history block. When the buffer is mostly garbage (mis-sized `.tmp`), keep only plausible rows.
+ * Use `trusted: true` for standalone `staff_history.dat` (CM Data folder sibling file).
  */
-export function parseStaffHistoryBlock(raw: Buffer, maxStaffId: number): StaffHistoryRecord[] {
+export function parseStaffHistoryBlock(
+  raw: Buffer,
+  maxStaffId: number,
+  opts?: { trusted?: boolean },
+): StaffHistoryRecord[] {
   const rows = parseStaffHistoryData(raw)
   if (!rows.length) return []
+  if (opts?.trusted) return rows
   const plausible = filterPlausibleStaffHistoryRows(rows, maxStaffId)
   if (rows.length > Math.max(maxStaffId * 30, 50_000) && plausible.length < rows.length * 0.02) {
     return plausible
   }
   return rows
+}
+
+const STAFF_HISTORY_SIBLING_NAMES = ['staff_history.dat'] as const
+
+function normalizeSiblingFileName(name: string): string {
+  return name.replace(/\0+$/g, '').trim().toLowerCase().replace(/_/g, '')
+}
+
+/** CM Data / CMDATA layouts store `staff_history.dat` beside the index archive, not inside it. */
+export function tryReadStaffHistorySiblingFile(dataDirectory: string): Buffer | null {
+  if (!dataDirectory) return null
+  for (const name of STAFF_HISTORY_SIBLING_NAMES) {
+    const path = join(dataDirectory, name)
+    if (existsSync(path)) {
+      try {
+        const buf = readFileSync(path)
+        if (buf.length >= STAFF_HISTORY_ROW_BYTES) return buf
+      } catch {
+        /* next */
+      }
+    }
+  }
+  try {
+    for (const entry of readdirSync(dataDirectory)) {
+      if (normalizeSiblingFileName(entry) !== 'staffhistory.dat') continue
+      const path = join(dataDirectory, entry)
+      const buf = readFileSync(path)
+      if (buf.length >= STAFF_HISTORY_ROW_BYTES) return buf
+    }
+  } catch {
+    /* unreadable directory */
+  }
+  return null
+}
+
+/** Typical folders when the user opens `CMDATA_INDEX.DAT` or `index.dat` from CM Data. */
+export function staffHistorySearchDirsForArchivePath(archivePath: string): string[] {
+  const dir = dirname(archivePath)
+  const candidates = [dir, join(dir, 'Data'), join(dir, '..', 'Data')]
+  const out: string[] = []
+  for (const p of candidates) {
+    const key = p.trim()
+    if (key && !out.includes(key)) out.push(key)
+  }
+  return out
+}
+
+/** Load external `staff_history.dat` into a staff-id map (fast single-pass index). */
+export function tryLoadStaffHistoryMapFromDataDirectories(
+  directories: readonly string[],
+): Map<number, StaffHistoryRecord[]> | null {
+  const seen = new Set<string>()
+  for (const dir of directories) {
+    const key = dir.trim()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    const raw = tryReadStaffHistorySiblingFile(key)
+    if (!raw) continue
+    const map = indexStaffHistoryBuffer(raw)
+    if (map.size > 0) return map
+  }
+  return null
+}
+
+/** Small-test helper — production code should use `tryLoadStaffHistoryMapFromDataDirectories`. */
+export function loadStaffHistoryFromDataDirectories(
+  directories: readonly string[],
+): { rows: StaffHistoryRecord[]; path: string } | null {
+  const map = tryLoadStaffHistoryMapFromDataDirectories(directories)
+  if (!map) return null
+  const rows: StaffHistoryRecord[] = []
+  for (const list of map.values()) rows.push(...list)
+  return { rows, path: 'staff_history.dat' }
 }
 
 export function indexStaffHistoryByStaffId(rows: StaffHistoryRecord[]): Map<number, StaffHistoryRecord[]> {

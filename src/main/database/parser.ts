@@ -2,11 +2,13 @@ import { CmBinaryReader, readLatin1String } from './cmBinaryReader'
 import { ageFromBirthYearOnly, ageOnGameDate, tcmDateToIso } from './dates'
 import {
   indexStaffHistoryByStaffId,
+  tryLoadStaffHistoryMapFromDataDirectories,
   mergeStaffHistoryByStaffId,
   parseStaffHistoryBlock,
   sumStaffHistoryCareerAndSeason,
   type StaffHistoryRecord,
 } from './staffHistory'
+import { indexStaffHistoryBuffer } from './staffHistoryIndex'
 import { parseClubRecords } from './clubRecords'
 import {
   parseClubCompData,
@@ -321,7 +323,42 @@ export function isValidPlayerRow(
   return !!(fn || sn || cn)
 }
 
-export function parseIndexDat(file: Buffer): ParsedDatabase {
+export type ParseIndexDatOptions = {
+  /** Folders to search for `staff_history.dat` when it is not embedded in the archive (normal CM Data layout). */
+  staffHistorySearchDirs?: readonly string[]
+}
+
+function findStaffHistoryArchiveBlock(
+  blocks: BlockInfo[],
+  find: (n: string) => BlockInfo | undefined,
+  findBlockLoose: (canonicalLower: string) => BlockInfo | undefined,
+): { block: BlockInfo; trusted: boolean } | null {
+  const exact = [
+    { name: 'staff_history.dat', trusted: true },
+    { name: 'staff history.tmp', trusted: false },
+  ] as const
+  for (const { name, trusted } of exact) {
+    const block = find(name) ?? findBlockLoose(name)
+    if (block && block.size > 0) return { block, trusted }
+  }
+  const fuzzy = blocks.find((b) => {
+    const n = b.name
+      .replace(/\0+$/g, '')
+      .trim()
+      .toLowerCase()
+    return (
+      b.size > 0 &&
+      n.includes('staff') &&
+      n.includes('history') &&
+      n.endsWith('.dat') &&
+      !n.includes('comp')
+    )
+  })
+  if (fuzzy) return { block: fuzzy, trusted: true }
+  return null
+}
+
+export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}): ParsedDatabase {
   const { compressed, blocks } = readBlocksDirectory(file)
   const find = (n: string) => blocks.find((b) => b.name === n)
   const findBlockLoose = (canonicalLower: string) =>
@@ -466,19 +503,33 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
   let staffHistoryByStaffId: Map<number, StaffHistoryRecord[]> | undefined
   let staffHistoryParsed = false
   const maxStaffId = staff.reduce((m, s) => Math.max(m, s.id), 0)
-  const staffHistoryBlockNames = ['staff_history.dat', 'staff history.tmp'] as const
-  for (const blockName of staffHistoryBlockNames) {
-    const histBlock = find(blockName) ?? findBlockLoose(blockName)
-    if (!histBlock || histBlock.size <= 0) continue
+  const archiveHist = findStaffHistoryArchiveBlock(blocks, find, findBlockLoose)
+  if (archiveHist) {
     try {
-      const raw = blockData(file, compressed, histBlock)
-      const rows = parseStaffHistoryBlock(raw, maxStaffId)
-      if (!rows.length) continue
-      const chunk = indexStaffHistoryByStaffId(rows)
-      staffHistoryByStaffId = mergeStaffHistoryByStaffId(staffHistoryByStaffId, chunk)
-      staffHistoryParsed = true
+      const raw = blockData(file, compressed, archiveHist.block)
+      if (archiveHist.trusted) {
+        const map = indexStaffHistoryBuffer(raw)
+        if (map.size > 0) {
+          staffHistoryByStaffId = map
+          staffHistoryParsed = true
+        }
+      } else {
+        const rows = parseStaffHistoryBlock(raw, maxStaffId, { trusted: false })
+        if (rows.length) {
+          staffHistoryByStaffId = indexStaffHistoryByStaffId(rows)
+          staffHistoryParsed = true
+        }
+      }
     } catch {
-      /* try next block name */
+      staffHistoryByStaffId = undefined
+      staffHistoryParsed = false
+    }
+  }
+  if (!staffHistoryParsed && options.staffHistorySearchDirs?.length) {
+    const siblingMap = tryLoadStaffHistoryMapFromDataDirectories(options.staffHistorySearchDirs)
+    if (siblingMap) {
+      staffHistoryByStaffId = mergeStaffHistoryByStaffId(staffHistoryByStaffId, siblingMap)
+      staffHistoryParsed = true
     }
   }
 
