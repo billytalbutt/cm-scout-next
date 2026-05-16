@@ -1,6 +1,7 @@
 /**
  * Phase C — fixed field map on 128-byte `player stats.dat` rows (grid V0).
- * See `docs/PLAYER_STATS_DECODING_SPEC.md` and `PLAYER_STATS_FIELD_MAP_V0`.
+ * Research mode: expose every decoded row in the profile table for CM comparison.
+ * Summary line (`savePerformance`) uses heuristic v1 only — not grid “primary” picks.
  */
 
 import {
@@ -14,19 +15,14 @@ import { parsePlayerSavePerformance } from './playerStatsDat'
 import type { ClubCompRecord, StaffCompRecord } from './clubComp'
 import type { PlayerRecord, PlayerSavePerformanceStats, PlayerStatsPerCompetitionRow } from './types'
 
-/** Bump when field offsets or row-pick rules change. */
-export const PLAYER_STATS_FIELD_MAP_VERSION = 2
+export const PLAYER_STATS_FIELD_MAP_VERSION = 1
 
-/**
- * Byte offsets within a 128-byte row (grid V0, `player.dat` id @ 40).
- * Goals @ 51 (id+11) — rel 44 is the low byte of the magic int32 at id+4, not goals.
- */
+/** Byte offsets within a 128-byte row (grid V0, `player.dat` id @ 40). */
 export const PLAYER_STATS_FIELD_MAP_V0 = {
   competitionId: { rel: 8, type: 'int32' as const },
-  goals: { rel: 51, type: 'u8' as const },
+  goals: { rel: 44, type: 'u8' as const },
   apps: { rel: 52, type: 'u8' as const },
   assists: { rel: 53, type: 'u8' as const },
-  /** Experimental: u8 10–100 interpreted as rating / 10 (6.0–10.0). */
   averageRating: { rel: 76, type: 'u8' as const, scale: 0.1 as const },
   tackles: { rel: 115, type: 'u8' as const },
   headers: { rel: 116, type: 'u8' as const },
@@ -37,23 +33,10 @@ export const PLAYER_STATS_FIELD_MAP_V0 = {
 const F = PLAYER_STATS_FIELD_MAP_V0
 const GRID = PLAYER_STATS_RESEARCH_GRID_V0
 
-/** int32 @ rel 8 is not a reliable competition key — used only with heavy filtering. */
-const BOGUS_COMP_NAME =
-  /\b(manager|award|month|year|of the year|of the month)\b|trophy|gala|vote/i
+/** Shown in profile table for heuristic-only players (not a real competition id). */
+export const PLAYER_STATS_HEURISTIC_RESEARCH_COMP_ID = -2
 
-export function isBogusCompetitionLabel(name: string): boolean {
-  return BOGUS_COMP_NAME.test(name)
-}
-
-export function isPlausibleGridStatRow(r: DecodedPlayerStatsGridRow): boolean {
-  const apps = r.apps ?? 0
-  const goals = r.goals ?? 0
-  const ast = r.assists ?? 0
-  if (apps > 120 || goals > 120 || ast > 80) return false
-  if (apps > 0 && goals > apps) return false
-  if (apps > 0 && ast > apps) return false
-  return r.apps != null || r.goals != null || r.assists != null
-}
+const MAX_RESEARCH_ROWS_PER_PLAYER = 48
 
 function readU8(buf: Buffer, rowStart: number, rel: number): number | null {
   const i = rowStart + rel
@@ -89,7 +72,6 @@ export interface DecodedPlayerStatsGridRow {
   headers: number | null
 }
 
-/** Decode one 128-byte row using field map V0 (no competition name). */
 export function decodePlayerStatsGridRow(
   buf: Buffer,
   rowStart: number,
@@ -129,13 +111,17 @@ function rowHasAnyStat(r: DecodedPlayerStatsGridRow): boolean {
   )
 }
 
-export function competitionNameForId(
+function competitionName(
   competitionId: number | null,
+  playerDatId: number,
   clubCompsById?: Map<number, ClubCompRecord>,
   staffCompsById?: Map<number, StaffCompRecord>,
 ): string {
   if (competitionId == null) return 'Unknown competition'
-  if (competitionId === 0) return 'Unknown competition'
+  if (competitionId === 0) return 'Unknown competition (id 0)'
+  if (competitionId === playerDatId) {
+    return `Label collision (comp id = player id ${playerDatId})`
+  }
   const cc = clubCompsById?.get(competitionId)
   if (cc) {
     const n = (cc.name ?? '').trim() || (cc.shortName ?? '').trim()
@@ -149,70 +135,16 @@ export function competitionNameForId(
   return `Competition #${competitionId}`
 }
 
-function isTrustedCompetitionId(
-  competitionId: number | null,
-  playerDatId: number,
-  competitionName: string,
-): boolean {
-  if (competitionId == null || competitionId === 0) return false
-  if (competitionId === playerDatId) return false
-  if (isBogusCompetitionLabel(competitionName)) return false
-  return true
-}
-
-function scoreSeasonRow(
-  r: DecodedPlayerStatsGridRow,
-  divCompId: number | undefined,
-  clubCompsById?: Map<number, ClubCompRecord>,
-  staffCompsById?: Map<number, StaffCompRecord>,
-): number {
-  if (!isPlausibleGridStatRow(r)) return -1
-  const name = competitionNameForId(r.competitionId, clubCompsById, staffCompsById)
-  if (r.competitionId != null && r.competitionId === r.playerDatId) return -1
-  if (isBogusCompetitionLabel(name)) return -1
-
-  let score = 0
-  const apps = r.apps ?? 0
-  const goals = r.goals ?? 0
-  score += apps * 3 + goals + (r.assists ?? 0) * 2
-  if (divCompId != null && r.competitionId === divCompId) score += 10_000
-  if (r.competitionId != null && isTrustedCompetitionId(r.competitionId, r.playerDatId, name)) {
-    score += 200
-  }
-  return score
-}
-
-/** Pick the grid row most likely to be current-season league stats (not max-apps noise). */
-export function pickBestSeasonGridRow(
-  rows: DecodedPlayerStatsGridRow[],
-  divCompId: number | undefined,
-  clubCompsById?: Map<number, ClubCompRecord>,
-  staffCompsById?: Map<number, StaffCompRecord>,
-): DecodedPlayerStatsGridRow | null {
-  let best: DecodedPlayerStatsGridRow | null = null
-  let bestScore = -1
-  for (const r of rows) {
-    const s = scoreSeasonRow(r, divCompId, clubCompsById, staffCompsById)
-    if (s > bestScore) {
-      bestScore = s
-      best = r
-    }
-  }
-  return best
-}
-
-function toPerCompRow(
+function toResearchGridRow(
   r: DecodedPlayerStatsGridRow,
   clubCompsById?: Map<number, ClubCompRecord>,
   staffCompsById?: Map<number, StaffCompRecord>,
 ): PlayerStatsPerCompetitionRow | null {
-  if (!rowHasAnyStat(r) || !isPlausibleGridStatRow(r)) return null
-  const cid = r.competitionId ?? 0
-  const name = competitionNameForId(r.competitionId, clubCompsById, staffCompsById)
-  if (!isTrustedCompetitionId(r.competitionId, r.playerDatId, name)) return null
+  if (!rowHasAnyStat(r)) return null
+  const baseName = competitionName(r.competitionId, r.playerDatId, clubCompsById, staffCompsById)
   return {
-    competitionId: cid,
-    competitionName: name,
+    competitionId: r.competitionId ?? 0,
+    competitionName: `${baseName} · grid @${r.rowStart}`,
     apps: r.apps ?? 0,
     goals: r.goals ?? 0,
     assists: r.assists,
@@ -223,24 +155,40 @@ function toPerCompRow(
   }
 }
 
-function gridRowToSavePerformance(
-  r: DecodedPlayerStatsGridRow,
-  displayCompetitionId?: number | null,
-): PlayerSavePerformanceStats {
+function heuristicResearchRow(h: PlayerSavePerformanceStats): PlayerStatsPerCompetitionRow | null {
+  const hasAny = h.apps != null || h.goals != null || h.assists != null
+  if (!hasAny) return null
   return {
-    apps: r.apps,
-    goals: r.goals,
-    assists: r.assists,
-    averageRating: r.averageRating,
-    tackles: r.tackles,
-    passes: r.passes,
-    headers: r.headers,
-    layout: 'gridV0',
-    competitionId: displayCompetitionId ?? r.competitionId,
+    competitionId: PLAYER_STATS_HEURISTIC_RESEARCH_COMP_ID,
+    competitionName: `Heuristic v1 (${h.layout})`,
+    apps: h.apps ?? 0,
+    goals: h.goals ?? 0,
+    assists: h.assists,
+    averageRating: h.averageRating ?? null,
+    tackles: h.tackles ?? null,
+    passes: h.passes ?? null,
+    headers: h.headers ?? null,
   }
 }
 
-/** `player.dat` id → employer `club.dat` id (first linked staff row). */
+/** All grid rows for one player (no dedupe) — for side-by-side CM verification. */
+export function buildResearchPerCompetitionRows(
+  decodedRows: DecodedPlayerStatsGridRow[],
+  clubCompsById?: Map<number, ClubCompRecord>,
+  staffCompsById?: Map<number, StaffCompRecord>,
+): PlayerStatsPerCompetitionRow[] {
+  const out: PlayerStatsPerCompetitionRow[] = []
+  for (const r of decodedRows) {
+    const row = toResearchGridRow(r, clubCompsById, staffCompsById)
+    if (row) out.push(row)
+  }
+  out.sort((a, b) => {
+    if (b.apps !== a.apps) return b.apps - a.apps
+    return a.competitionName.localeCompare(b.competitionName)
+  })
+  return out.slice(0, MAX_RESEARCH_ROWS_PER_PLAYER)
+}
+
 export function buildPlayerDatIdToClubId(
   players: readonly { id: number }[],
   staff: readonly { player_id: number; club_job_id: number }[],
@@ -254,49 +202,6 @@ export function buildPlayerDatIdToClubId(
   return out
 }
 
-/** Per-competition rows: member division only, or synthetic division row from best season stats. */
-export function buildMemberPerCompetitionRows(
-  decodedRows: DecodedPlayerStatsGridRow[],
-  best: DecodedPlayerStatsGridRow | null,
-  playerDatId: number,
-  divCompId: number | undefined,
-  clubCompsById?: Map<number, ClubCompRecord>,
-  staffCompsById?: Map<number, StaffCompRecord>,
-): PlayerStatsPerCompetitionRow[] {
-  const out: PlayerStatsPerCompetitionRow[] = []
-  if (divCompId != null && divCompId !== 0) {
-    for (const r of decodedRows) {
-      if (r.competitionId !== divCompId) continue
-      const row = toPerCompRow(r, clubCompsById, staffCompsById)
-      if (row) out.push(row)
-    }
-  }
-
-  if (out.length === 0 && best && divCompId != null && divCompId !== 0) {
-    const name = competitionNameForId(divCompId, clubCompsById, staffCompsById)
-    if (!isBogusCompetitionLabel(name)) {
-      out.push({
-        competitionId: divCompId,
-        competitionName: name,
-        apps: best.apps ?? 0,
-        goals: best.goals ?? 0,
-        assists: best.assists,
-        averageRating: best.averageRating,
-        tackles: best.tackles,
-        passes: best.passes,
-        headers: best.headers,
-      })
-    }
-  }
-
-  const byComp = new Map<number, PlayerStatsPerCompetitionRow>()
-  for (const r of out) {
-    const prev = byComp.get(r.competitionId)
-    if (!prev || r.apps > prev.apps) byComp.set(r.competitionId, r)
-  }
-  return [...byComp.values()].sort((a, b) => a.competitionName.localeCompare(b.competitionName))
-}
-
 export interface PlayerStatsSaveParseContext {
   clubCompsById?: Map<number, ClubCompRecord>
   staffCompsById?: Map<number, StaffCompRecord>
@@ -308,26 +213,8 @@ export interface PlayerStatsSaveParseResult {
   perCompByPlayerDatId: Map<number, PlayerStatsPerCompetitionRow[]>
 }
 
-function mergeHeuristicGoals(
-  grid: PlayerSavePerformanceStats,
-  heuristic: PlayerSavePerformanceStats,
-): PlayerSavePerformanceStats {
-  const gGoals = grid.goals
-  const hGoals = heuristic.goals
-  if (
-    gGoals != null &&
-    hGoals != null &&
-    gGoals > hGoals &&
-    (grid.apps ?? 0) <= 20 &&
-    gGoals > (grid.apps ?? 0)
-  ) {
-    return { ...grid, goals: hGoals, layout: 'gridV0' }
-  }
-  return grid
-}
-
 /**
- * Structured grid decode (Phase C) with heuristic v1 fallback for players with no grid row.
+ * Grid rows → research table per player. Heuristic v1 → summary map + extra table row when useful.
  */
 export function parsePlayerStatsFromSave(
   buf: Buffer,
@@ -336,8 +223,6 @@ export function parsePlayerStatsFromSave(
   ctx: PlayerStatsSaveParseContext,
 ): PlayerStatsSaveParseResult {
   const playerIds = new Set(players.map((p) => p.id))
-  const playerToClub = buildPlayerDatIdToClubId(players, staff)
-  const byPlayer = new Map<number, PlayerSavePerformanceStats>()
   const perCompByPlayer = new Map<number, PlayerStatsPerCompetitionRow[]>()
   const rowsByPlayer = new Map<number, DecodedPlayerStatsGridRow[]>()
 
@@ -352,38 +237,27 @@ export function parsePlayerStatsFromSave(
     rowsByPlayer.set(decoded.playerDatId, list)
   }
 
-  const heuristic = parsePlayerSavePerformance(buf, players)
-
   for (const [playerDatId, decodedRows] of rowsByPlayer) {
-    const clubId = playerToClub.get(playerDatId)
-    const divCompId =
-      clubId != null ? ctx.clubDivisionCompIdByClubId.get(clubId) : undefined
-    const best = pickBestSeasonGridRow(
+    const research = buildResearchPerCompetitionRows(
       decodedRows,
-      divCompId,
       ctx.clubCompsById,
       ctx.staffCompsById,
     )
-    if (best) {
-      let perf = gridRowToSavePerformance(best, divCompId ?? best.competitionId)
-      const h = heuristic.get(playerDatId)
-      if (h) perf = mergeHeuristicGoals(perf, h)
-      byPlayer.set(playerDatId, perf)
-    }
-
-    const memberRows = buildMemberPerCompetitionRows(
-      decodedRows,
-      best,
-      playerDatId,
-      divCompId,
-      ctx.clubCompsById,
-      ctx.staffCompsById,
-    )
-    if (memberRows.length) perCompByPlayer.set(playerDatId, memberRows)
+    if (research.length) perCompByPlayer.set(playerDatId, research)
   }
 
+  const byPlayer = new Map<number, PlayerSavePerformanceStats>()
+  const heuristic = parsePlayerSavePerformance(buf, players)
   for (const [id, h] of heuristic) {
-    if (!byPlayer.has(id)) byPlayer.set(id, h)
+    byPlayer.set(id, h)
+    const research = perCompByPlayer.get(id) ?? []
+    const hRow = heuristicResearchRow(h)
+    if (hRow) {
+      const merged = [...research, hRow]
+      perCompByPlayer.set(id, merged)
+    } else if (!research.length && hRow) {
+      perCompByPlayer.set(id, [hRow])
+    }
   }
 
   return { byPlayerDatId: byPlayer, perCompByPlayerDatId: perCompByPlayer }

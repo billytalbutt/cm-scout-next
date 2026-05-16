@@ -262,12 +262,10 @@ function buildProfileSeasonStats(
   const savePerformanceHint = !playerStatsDatPresent
     ? 'The in-game table (goals, assists, average rating, tackles, etc. per competition) lives in save performance data (`player stats.dat` in a `.sav`). A small `Data/index.dat` without that block cannot supply those columns. `staff_history.dat` only has apps and goals per club-year (league + cups combined).'
     : hasPerComp
-      ? 'Save performance from `player stats.dat` (grid V0). Shown under your club’s division competition when the save row’s competition key is unreliable. Apps/assists use fixed row offsets; goals use byte 51 (not the int32 beside the player id). Rating/tackles are experimental — confirm in CM.'
+      ? 'Research view: every decoded `player stats.dat` grid row for this player (competition labels are often wrong — compare apps/goals/assists to CM). The “Save file (est.)” line above uses the separate heuristic scanner only, not these rows.'
       : hasSavePerf
-        ? sp!.layout === 'gridV0'
-          ? 'Save file stats from grid V0. No division-competition row was stored in the blob for this player; summary uses the best plausible season row we could find.'
-          : 'Save file summary uses legacy heuristic v1 (scan-based). Grid rows were not found for this player — compare apps/goals/assists carefully.'
-        : 'This save includes `player stats.dat`, but no decoded row was found for this player yet (or the block layout did not match). Assists / detailed performance columns may stay as —.'
+        ? 'Heuristic scan only — no grid rows matched for this player. Compare to CM; grid research table is empty.'
+        : 'This save includes `player stats.dat`, but no decoded row was found for this player yet. Assists / detailed performance columns may stay as —.'
 
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },

@@ -11,6 +11,8 @@ Use these `player.dat` row ids when comparing CM in-game stats to CM Scout Next.
 
 All listed players were at **Blackburn Rovers** with division comp id **7** (Premier League in this save) on the research save.
 
+**Profile UI (research mode):** the per-competition table lists every decoded grid row (labels are often wrong). The “Save file (est.)” line uses heuristic v1 only. Cole / Xavi / Tsigalko usually show a **Heuristic v1** table row if the blob scan finds them.
+
 Verify with:
 
 ```bash

@@ -61,7 +61,7 @@ Until all three hold, the decoder is **research-grade** or **heuristic**, not so
 | Field | Row rel | Type | Notes |
 |-------|---------|------|--------|
 | `competitionId` | 8 | int32 | Phase B candidate; name from `club_comp` / `staff_comp` |
-| `goals` | 51 | u8 | id+11 (chainPrevId-aligned); **not** rel 44 (low byte of magic int32) |
+| `goals` | 44 | u8 | Research offset (may be wrong — compare rows in UI) |
 | `apps` | 52 | u8 | Heuristic `id+12` on grid |
 | `assists` | 53 | u8 | Paired-save +1 (not heuristic `id+106`, which is outside 128 B row) |
 | `averageRating` | 76 | u8 ÷ 10 | **Experimental** (10–100 → 6.0–10.0) — needs UI golden |
@@ -72,10 +72,9 @@ Until all three hold, the decoder is **research-grade** or **heuristic**, not so
 
 **Production behaviour:**
 
-- Parser walks grid V0 rows, builds `savePerformancePerCompByPlayerDatId` (deduped by competition id, highest apps wins).
-- `savePerformanceByPlayerDatId` primary row = player’s club division `club_comp` id when present, else max-apps row.
-- Players with no grid row still use **heuristic v1** (`parsePlayerSavePerformance`).
-- Profile **per-competition table** populated from structured rows; hint text reflects grid vs heuristic.
+- **Research UI:** `savePerformancePerCompByPlayerDatId` lists **every** decoded grid row (no dedupe; labels often wrong). `savePerformanceByPlayerDatId` uses **heuristic v1 only** for the summary line (not a picked grid row).
+- Heuristic row also appended to the research table when the blob scan finds the player.
+- Players with no grid rows may still show a **Heuristic v1** table row (Cole, Xavi, etc. on test saves).
 
 - [x] **Partial:** fixed offsets for core counting stats on grid V0; wired to UI per-comp table.
 - [ ] **Average rating / defensive bytes:** offsets assigned; require CM UI goldens before “source of truth”.
