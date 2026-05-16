@@ -1,14 +1,11 @@
 import { CmBinaryReader, readLatin1String } from './cmBinaryReader'
 import { ageFromBirthYearOnly, ageOnGameDate, tcmDateToIso } from './dates'
+import { sumStaffHistoryCareerAndSeason, type StaffHistoryRecord } from './staffHistory'
 import {
-  indexStaffHistoryByStaffId,
-  tryLoadStaffHistoryMapFromDataDirectories,
-  mergeStaffHistoryByStaffId,
-  parseStaffHistoryBlock,
-  sumStaffHistoryCareerAndSeason,
-  type StaffHistoryRecord,
-} from './staffHistory'
-import { indexStaffHistoryBuffer } from './staffHistoryIndex'
+  collectStaffHistorySearchDirs,
+  findEmbeddedStaffHistoryDatBlock,
+  loadStaffHistoryForArchive,
+} from './staffHistoryLoad'
 import { parseClubRecords } from './clubRecords'
 import {
   parseClubCompData,
@@ -328,36 +325,6 @@ export type ParseIndexDatOptions = {
   staffHistorySearchDirs?: readonly string[]
 }
 
-function findStaffHistoryArchiveBlock(
-  blocks: BlockInfo[],
-  find: (n: string) => BlockInfo | undefined,
-  findBlockLoose: (canonicalLower: string) => BlockInfo | undefined,
-): { block: BlockInfo; trusted: boolean } | null {
-  const exact = [
-    { name: 'staff_history.dat', trusted: true },
-    { name: 'staff history.tmp', trusted: false },
-  ] as const
-  for (const { name, trusted } of exact) {
-    const block = find(name) ?? findBlockLoose(name)
-    if (block && block.size > 0) return { block, trusted }
-  }
-  const fuzzy = blocks.find((b) => {
-    const n = b.name
-      .replace(/\0+$/g, '')
-      .trim()
-      .toLowerCase()
-    return (
-      b.size > 0 &&
-      n.includes('staff') &&
-      n.includes('history') &&
-      n.endsWith('.dat') &&
-      !n.includes('comp')
-    )
-  })
-  if (fuzzy) return { block: fuzzy, trusted: true }
-  return null
-}
-
 export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}): ParsedDatabase {
   const { compressed, blocks } = readBlocksDirectory(file)
   const find = (n: string) => blocks.find((b) => b.name === n)
@@ -500,38 +467,21 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     }
   }
 
-  let staffHistoryByStaffId: Map<number, StaffHistoryRecord[]> | undefined
-  let staffHistoryParsed = false
-  const maxStaffId = staff.reduce((m, s) => Math.max(m, s.id), 0)
-  const archiveHist = findStaffHistoryArchiveBlock(blocks, find, findBlockLoose)
-  if (archiveHist) {
+  const embeddedHistBlock = findEmbeddedStaffHistoryDatBlock(blocks)
+  let embeddedHistRaw: Buffer | null = null
+  if (embeddedHistBlock) {
     try {
-      const raw = blockData(file, compressed, archiveHist.block)
-      if (archiveHist.trusted) {
-        const map = indexStaffHistoryBuffer(raw)
-        if (map.size > 0) {
-          staffHistoryByStaffId = map
-          staffHistoryParsed = true
-        }
-      } else {
-        const rows = parseStaffHistoryBlock(raw, maxStaffId, { trusted: false })
-        if (rows.length) {
-          staffHistoryByStaffId = indexStaffHistoryByStaffId(rows)
-          staffHistoryParsed = true
-        }
-      }
+      embeddedHistRaw = blockData(file, compressed, embeddedHistBlock)
     } catch {
-      staffHistoryByStaffId = undefined
-      staffHistoryParsed = false
+      embeddedHistRaw = null
     }
   }
-  if (!staffHistoryParsed && options.staffHistorySearchDirs?.length) {
-    const siblingMap = tryLoadStaffHistoryMapFromDataDirectories(options.staffHistorySearchDirs)
-    if (siblingMap) {
-      staffHistoryByStaffId = mergeStaffHistoryByStaffId(staffHistoryByStaffId, siblingMap)
-      staffHistoryParsed = true
-    }
-  }
+  const historyDirs =
+    options.staffHistorySearchDirs?.length
+      ? options.staffHistorySearchDirs
+      : []
+  const { byStaffId: staffHistoryByStaffId, parsed: staffHistoryParsed, sourcePath: staffHistorySourcePath } =
+    loadStaffHistoryForArchive(embeddedHistRaw, historyDirs)
 
   const playerStatsBlock = find('player stats.dat') ?? findBlockLoose('player stats.dat')
   const playerStatsDatPresent = !!(playerStatsBlock && playerStatsBlock.size > 0)
@@ -613,6 +563,7 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     blocks,
     staffHistoryByStaffId,
     staffHistoryParsed,
+    staffHistorySourcePath,
     playerStatsDatPresent,
     savePerformanceByPlayerDatId,
     savePerformancePerCompByPlayerDatId,

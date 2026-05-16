@@ -189,6 +189,8 @@ function windowsCandidates(home: string): string[] {
     programFiles && join(programFiles, 'Championship Manager 01-02'),
     'C:\\Program Files (x86)\\Championship Manager 01-02',
     profile && join(profile, 'Documents'),
+    profile && join(profile, 'Downloads', 'Game', 'Game'),
+    profile && join(profile, 'Downloads', 'Game'),
     local && join(local, 'VirtualStore/Program Files (x86)/Championship Manager 01-02'),
     'C:\\CM0102',
   ]

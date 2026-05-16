@@ -7,7 +7,7 @@ import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import { buildUiRows, parseIndexDat, buildUiPlayerRowAtIndex } from './database/parser'
-import { staffHistorySearchDirsForArchivePath } from './database/staffHistory'
+import { collectStaffHistorySearchDirs } from './database/staffHistoryLoad'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
 import { applyCmScoutRatings } from './cmScoutRating'
 import { applyEffectivenessRatings } from './effectivenessRating'
@@ -53,7 +53,8 @@ let loaded: {
  */
 function loadArchiveForPath(selectedPath: string): { db: ParsedDatabase; archiveBuf: Buffer } {
   let archiveBuf = readFileSync(selectedPath)
-  const parseOpts = { staffHistorySearchDirs: staffHistorySearchDirsForArchivePath(selectedPath) }
+  const historyDirs = collectStaffHistorySearchDirs(selectedPath)
+  const parseOpts = { staffHistorySearchDirs: historyDirs }
   try {
     return { db: parseIndexDat(archiveBuf, parseOpts), archiveBuf }
   } catch (e) {
@@ -62,9 +63,10 @@ function loadArchiveForPath(selectedPath: string): { db: ParsedDatabase; archive
       const alt = join(dirname(selectedPath), 'index.dat')
       if (existsSync(alt)) {
         archiveBuf = readFileSync(alt)
-        const altPath = alt
         return {
-          db: parseIndexDat(archiveBuf, { staffHistorySearchDirs: staffHistorySearchDirsForArchivePath(altPath) }),
+          db: parseIndexDat(archiveBuf, {
+            staffHistorySearchDirs: collectStaffHistorySearchDirs(alt),
+          }),
           archiveBuf,
         }
       }
@@ -170,6 +172,8 @@ ipcMain.handle('open-database', async (event) => {
       clubs: sortedUniqueClubNames(db),
       nations: sortedUniqueNationNames(db),
       regenBaseline: baselineStatusForPath(pathKey),
+      staffHistoryParsed: db.staffHistoryParsed ?? false,
+      staffHistorySourcePath: db.staffHistorySourcePath,
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
@@ -286,6 +290,7 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
       clubCompsById: loaded.db.clubCompsById,
       clubDivisionCompIdByClubId: loaded.db.clubDivisionCompIdByClubId,
       staffHistoryParsed: loaded.db.staffHistoryParsed ?? false,
+      staffHistorySourcePath: loaded.db.staffHistorySourcePath,
       playerStatsDatPresent: loaded.db.playerStatsDatPresent ?? false,
       savePerformancePerCompByPlayerDatId: loaded.db.savePerformancePerCompByPlayerDatId,
     }),

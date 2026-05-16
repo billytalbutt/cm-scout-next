@@ -139,17 +139,8 @@ export function tryReadStaffHistorySiblingFile(dataDirectory: string): Buffer | 
   return null
 }
 
-/** Typical folders when the user opens `CMDATA_INDEX.DAT` or `index.dat` from CM Data. */
-export function staffHistorySearchDirsForArchivePath(archivePath: string): string[] {
-  const dir = dirname(archivePath)
-  const candidates = [dir, join(dir, 'Data'), join(dir, '..', 'Data')]
-  const out: string[] = []
-  for (const p of candidates) {
-    const key = p.trim()
-    if (key && !out.includes(key)) out.push(key)
-  }
-  return out
-}
+/** @deprecated Use `collectStaffHistorySearchDirs` from `staffHistoryLoad.ts`. */
+export { collectStaffHistorySearchDirs as staffHistorySearchDirsForArchivePath } from './staffHistoryLoad'
 
 /** Load external `staff_history.dat` into a staff-id map (fast single-pass index). */
 export function tryLoadStaffHistoryMapFromDataDirectories(

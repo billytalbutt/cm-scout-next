@@ -176,6 +176,7 @@ export type ProfileDbContext = {
   clubDivisionCompIdByClubId: Map<number, number>
   /** Whether `staff_history.dat` was present and row-aligned in this index (per-player rows may still be empty). */
   staffHistoryParsed: boolean
+  staffHistorySourcePath?: string
   /** Archive includes `player stats.dat` (not decoded yet — assists / rating / per-competition splits). */
   playerStatsDatPresent?: boolean
   /** Structured grid V0 per-competition rows keyed by `player.dat` id. */
@@ -277,9 +278,9 @@ function buildProfileSeasonStats(
   const playerStatsDatPresent = ctx.playerStatsDatPresent === true
 
   const savePerformanceHint = !ctx.staffHistoryParsed
-    ? 'No staff history found. CM usually keeps `staff_history.dat` in the same folder as `CMDATA_INDEX.DAT` / `index.dat` (not inside the index file). Put both in one folder and reload, or use a save once live stats decode is ready.'
+    ? 'No staff_history.dat found. CM stores career apps/goals there (in Game/Data/, not inside most .sav files). Load a .sav from your Game folder or set CM_SCOUT_DATA_PATH to your Data folder.'
     : !hist.length
-      ? 'No staff history rows for this player yet.'
+      ? 'No career rows for this staff id in staff_history.dat (regens and some players have none in the database file).'
       : currentSeasonPerformance && currentAtEmployerClub
         ? 'Apps and goals from staff history (league + cups combined — CM “Senior club” style). Assists and average rating need a further decode.'
         : currentSeasonPerformance
@@ -299,6 +300,7 @@ function buildProfileSeasonStats(
     allSeasons,
     inferredDomesticLeague,
     staffHistoryParsed: ctx.staffHistoryParsed,
+    staffHistorySourcePath: ctx.staffHistorySourcePath,
     playerStatsDatPresent,
     savePerformanceHint,
     /** Wrong until player stats.dat layout is verified — do not surface in UI. */

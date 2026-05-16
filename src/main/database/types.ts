@@ -250,6 +250,8 @@ export interface ParsedDatabase {
    * False when the block is missing, empty, or the decompressed size is not a valid row multiple even after optional 4-byte prefix skip.
    */
   staffHistoryParsed?: boolean
+  /** Path to `staff_history.dat` used when career history loaded (external Data file or embedded). */
+  staffHistorySourcePath?: string
   /** Raw `SeasonUpdateDay` samples from nation.dat (1–366); used for staff_history season tagging. */
   nationSeasonUpdateDaySamples: number[]
   /** Optional `club_comp.dat` (domestic league / cup competition definitions). */
