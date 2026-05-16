@@ -2,9 +2,8 @@ import { CmBinaryReader, readLatin1String } from './cmBinaryReader'
 import { ageFromBirthYearOnly, ageOnGameDate, tcmDateToIso } from './dates'
 import {
   indexStaffHistoryByStaffId,
-  normalizeStaffHistoryBuffer,
-  parseStaffHistoryData,
-  STAFF_HISTORY_ROW_BYTES,
+  mergeStaffHistoryByStaffId,
+  parseStaffHistoryBlock,
   sumStaffHistoryCareerAndSeason,
   type StaffHistoryRecord,
 } from './staffHistory'
@@ -466,19 +465,20 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
 
   let staffHistoryByStaffId: Map<number, StaffHistoryRecord[]> | undefined
   let staffHistoryParsed = false
-  const histBlock = find('staff_history.dat') ?? findBlockLoose('staff_history.dat')
-  if (histBlock && histBlock.size > 0) {
+  const maxStaffId = staff.reduce((m, s) => Math.max(m, s.id), 0)
+  const staffHistoryBlockNames = ['staff_history.dat', 'staff history.tmp'] as const
+  for (const blockName of staffHistoryBlockNames) {
+    const histBlock = find(blockName) ?? findBlockLoose(blockName)
+    if (!histBlock || histBlock.size <= 0) continue
     try {
       const raw = blockData(file, compressed, histBlock)
-      const norm = normalizeStaffHistoryBuffer(raw)
-      if (norm.length > 0 && norm.length % STAFF_HISTORY_ROW_BYTES === 0) {
-        const rows = parseStaffHistoryData(raw)
-        staffHistoryByStaffId = indexStaffHistoryByStaffId(rows)
-        staffHistoryParsed = true
-      }
+      const rows = parseStaffHistoryBlock(raw, maxStaffId)
+      if (!rows.length) continue
+      const chunk = indexStaffHistoryByStaffId(rows)
+      staffHistoryByStaffId = mergeStaffHistoryByStaffId(staffHistoryByStaffId, chunk)
+      staffHistoryParsed = true
     } catch {
-      staffHistoryByStaffId = undefined
-      staffHistoryParsed = false
+      /* try next block name */
     }
   }
 

@@ -5,7 +5,10 @@ import {
   transferListedByRequest,
 } from './cmScoutRating'
 import type { ClubCompRecord } from './database/clubComp'
-import { buildCurrentSeasonPerformance, pickCurrentSeasonStaffHistoryAtClub } from './database/currentSeasonPerformance'
+import {
+  currentSeasonPerformanceFromRows,
+  pickCurrentSeasonStaffHistoryAtClub,
+} from './database/currentSeasonPerformance'
 import type { StaffHistoryRecord } from './database/staffHistory'
 import {
   buildCa18Display,
@@ -185,6 +188,17 @@ function calendarYearFromGameIso(iso: string | null): number | null {
   return Number.isFinite(y) ? y : null
 }
 
+/** `staff.club_job_id` and `contract.club_id` can differ on some saves. */
+function employerClubIdsForRow(row: UiPlayerRow): number[] {
+  const ids: number[] = []
+  const add = (id: number) => {
+    if (id > 0 && !ids.includes(id)) ids.push(id)
+  }
+  add(row.staff.club_job_id)
+  if (row.contract?.club_id != null) add(row.contract.club_id)
+  return ids
+}
+
 function historyToSeasonRow(h: StaffHistoryRecord, clubNames: Map<number, string>) {
   const name = clubNames.get(h.clubId)?.trim()
   return {
@@ -208,14 +222,20 @@ function buildProfileSeasonStats(
   ctx: ProfileDbContext,
 ) {
   const hist = row.staffHistory ?? []
-  const employerClubId = row.contract?.club_id ?? row.staff.club_job_id
-  const clubLabel = clubNames.get(employerClubId)?.trim() || `Club #${employerClubId}`
+  const clubIds = employerClubIdsForRow(row)
+  const employerClubId = clubIds[0] ?? row.staff.club_job_id
+  const alternateClubIds = clubIds.slice(1)
+  const clubLabel =
+    clubNames.get(employerClubId)?.trim() ||
+    clubNames.get(row.staff.club_job_id)?.trim() ||
+    `Club #${employerClubId}`
 
   const { rows: currentHist, pick: seasonPick } = pickCurrentSeasonStaffHistoryAtClub(
     hist,
     employerClubId,
     gameDateIso,
     ctx.nationSeasonUpdateDaySamples,
+    alternateClubIds,
   )
   const saveCalendarYear = seasonPick.saveCalendarYear ?? calendarYearFromGameIso(gameDateIso)
   const highlightHistoryYear = seasonPick.highlightHistoryYear
@@ -238,13 +258,14 @@ function buildProfileSeasonStats(
     cGoals += h.goals
   }
 
-  const currentSeasonPerformance = buildCurrentSeasonPerformance(
-    hist,
+  const currentSeasonPerformance = currentSeasonPerformanceFromRows(
+    currentHist,
     employerClubId,
     clubLabel,
-    gameDateIso,
-    ctx.nationSeasonUpdateDaySamples,
+    alternateClubIds,
   )
+  const currentAtEmployerClub =
+    currentHist.length > 0 && currentHist.some((h) => clubIds.includes(h.clubId))
   const divCompId = ctx.clubDivisionCompIdByClubId.get(employerClubId)
   let inferredDomesticLeague: { competitionId: number; name: string } | null = null
   if (divCompId != null && divCompId !== 0 && ctx.clubCompsById) {
@@ -256,10 +277,14 @@ function buildProfileSeasonStats(
   const playerStatsDatPresent = ctx.playerStatsDatPresent === true
 
   const savePerformanceHint = !ctx.staffHistoryParsed
-    ? 'Load a saved game that includes `staff_history.dat` for season apps and goals. Assists and average rating are not in that file yet.'
-    : currentSeasonPerformance
-      ? 'Current season apps and goals come from `staff_history.dat` at this club (league and cups combined — matches CM “Senior club” apps/goals). Assists and average rating need a further save decode.'
-      : 'No `staff_history` row matched this player’s current club and season year yet.'
+    ? 'No staff history block in this archive. Career/season apps and goals live in `staff_history.dat` (CM Data `index.dat`) or in save-only blocks we are still mapping (`staff history.tmp` / `player stats.dat`).'
+    : !hist.length
+      ? 'No staff history rows for this player yet.'
+      : currentSeasonPerformance && currentAtEmployerClub
+        ? 'Apps and goals from staff history (league + cups combined — CM “Senior club” style). Assists and average rating need a further decode.'
+        : currentSeasonPerformance
+          ? 'Showing the best matching season-year from career history; there is no row for the current club in staff history yet. Live match totals in a `.sav` are updated in save blocks still being decoded.'
+          : 'Career rows exist but none match the resolved current season year — check highlighted rows in the table below.'
 
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },

@@ -47,6 +47,15 @@ function candidateHistoryYears(
   return out
 }
 
+function uniqueClubIds(...ids: Array<number | null | undefined>): number[] {
+  const out: number[] = []
+  for (const id of ids) {
+    if (id == null || !Number.isFinite(id) || id <= 0) continue
+    if (!out.includes(id)) out.push(id)
+  }
+  return out
+}
+
 /**
  * Pick the best `staff_history` row(s) for “this season” at the player’s current club.
  * CM often tags `year` as season-start (e.g. 2004 for a game dated Sep 2005 in the 04/05 season).
@@ -56,15 +65,20 @@ export function pickCurrentSeasonStaffHistoryAtClub(
   employerClubId: number,
   gameDateIso: string | null,
   nationSeasonUpdateDays: readonly number[],
+  alternateClubIds: readonly number[] = [],
 ): { rows: StaffHistoryRecord[]; pick: StaffHistoryYearPick } {
   const rawPick = resolveStaffHistoryHighlightYear(gameDateIso, nationSeasonUpdateDays)
   const pick = refineHighlightYearWithHistoryFallback(hist, rawPick)
 
   if (!hist.length) return { rows: [], pick }
 
+  const clubIds = uniqueClubIds(employerClubId, ...alternateClubIds)
+
   for (const y of candidateHistoryYears(hist, pick)) {
-    const atClub = hist.filter((h) => h.year === y && h.clubId === employerClubId)
-    if (atClub.length) return { rows: atClub, pick: { ...pick, highlightHistoryYear: y } }
+    for (const clubId of clubIds) {
+      const atClub = hist.filter((h) => h.year === y && h.clubId === clubId)
+      if (atClub.length) return { rows: atClub, pick: { ...pick, highlightHistoryYear: y } }
+    }
   }
 
   for (const y of candidateHistoryYears(hist, pick)) {
@@ -72,24 +86,24 @@ export function pickCurrentSeasonStaffHistoryAtClub(
     if (any.length) return { rows: any, pick: { ...pick, highlightHistoryYear: y } }
   }
 
+  const maxYear = Math.max(...hist.map((h) => h.year))
+  const latest = hist.filter((h) => h.year === maxYear)
+  if (latest.length) {
+    return {
+      rows: latest,
+      pick: { ...pick, highlightHistoryYear: maxYear, resolution: 'calendar_fallback' },
+    }
+  }
+
   return { rows: [], pick }
 }
 
-export function buildCurrentSeasonPerformance(
-  hist: readonly StaffHistoryRecord[] | undefined,
+export function currentSeasonPerformanceFromRows(
+  rows: readonly StaffHistoryRecord[],
   employerClubId: number,
   clubLabel: string,
-  gameDateIso: string | null,
-  nationSeasonUpdateDays: readonly number[],
+  alternateClubIds: readonly number[] = [],
 ): CurrentSeasonPerformance | null {
-  if (!hist?.length) return null
-
-  const { rows } = pickCurrentSeasonStaffHistoryAtClub(
-    hist,
-    employerClubId,
-    gameDateIso,
-    nationSeasonUpdateDays,
-  )
   if (!rows.length) return null
 
   let apps = 0
@@ -100,11 +114,14 @@ export function buildCurrentSeasonPerformance(
   }
 
   const historyYear = rows[0]!.year
+  const clubIds = uniqueClubIds(employerClubId, ...alternateClubIds)
+  const atCurrentClub = rows.every((h) => clubIds.includes(h.clubId))
   const clubId = rows.length === 1 ? rows[0]!.clubId : employerClubId
-  const atCurrentClub = rows.every((h) => h.clubId === employerClubId)
   const label = atCurrentClub
     ? clubLabel.trim() || `Club #${employerClubId}`
-    : `Season ${historyYear} (all clubs)`
+    : rows.length === 1
+      ? clubLabel.trim() || `Club #${rows[0]!.clubId}`
+      : `Season ${historyYear} (all clubs)`
 
   return {
     label,
@@ -116,4 +133,24 @@ export function buildCurrentSeasonPerformance(
     clubId,
     source: 'staff_history',
   }
+}
+
+export function buildCurrentSeasonPerformance(
+  hist: readonly StaffHistoryRecord[] | undefined,
+  employerClubId: number,
+  clubLabel: string,
+  gameDateIso: string | null,
+  nationSeasonUpdateDays: readonly number[],
+  alternateClubIds: readonly number[] = [],
+): CurrentSeasonPerformance | null {
+  if (!hist?.length) return null
+
+  const { rows } = pickCurrentSeasonStaffHistoryAtClub(
+    hist,
+    employerClubId,
+    gameDateIso,
+    nationSeasonUpdateDays,
+    alternateClubIds,
+  )
+  return currentSeasonPerformanceFromRows(rows, employerClubId, clubLabel, alternateClubIds)
 }

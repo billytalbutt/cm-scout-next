@@ -44,12 +44,55 @@ export function parseStaffHistoryData(data: Buffer): StaffHistoryRecord[] {
       year: slice.readInt16LE(8),
       clubId: slice.readInt32LE(10),
       onLoan: slice.readInt8(14),
-      /** Stored as byte; use unsigned so values above 127 are not shown as negative. */
-      apps: slice.readUInt8(15),
-      goals: slice.readUInt8(16),
+      /** TStaffHistory uses signed bytes; clamp so negative bytes do not display as huge unsigned values. */
+      apps: Math.max(0, slice.readInt8(15)),
+      goals: Math.max(0, slice.readInt8(16)),
     })
   }
   return out
+}
+
+/** Drop obvious mis-aligned rows when a block is not a clean TStaffHistory array (e.g. misread `.tmp` heap). */
+export function isPlausibleStaffHistoryRow(r: StaffHistoryRecord, maxStaffId: number): boolean {
+  if (r.staffId <= 0 || r.staffId > maxStaffId) return false
+  if (r.year < 1950 || r.year > 2035) return false
+  if (r.clubId < -1 || r.clubId > 500_000) return false
+  if (r.apps < 0 || r.apps > 80) return false
+  if (r.goals < 0 || r.goals > 80) return false
+  return true
+}
+
+export function filterPlausibleStaffHistoryRows(
+  rows: StaffHistoryRecord[],
+  maxStaffId: number,
+): StaffHistoryRecord[] {
+  return rows.filter((r) => isPlausibleStaffHistoryRow(r, maxStaffId))
+}
+
+export function mergeStaffHistoryByStaffId(
+  base: Map<number, StaffHistoryRecord[]> | undefined,
+  extra: Map<number, StaffHistoryRecord[]>,
+): Map<number, StaffHistoryRecord[]> {
+  if (!base) return extra
+  for (const [staffId, rows] of extra) {
+    const list = base.get(staffId)
+    if (list) list.push(...rows)
+    else base.set(staffId, [...rows])
+  }
+  return base
+}
+
+/**
+ * Parse a staff-history block. When the buffer is mostly garbage (mis-sized `.tmp`), keep only plausible rows.
+ */
+export function parseStaffHistoryBlock(raw: Buffer, maxStaffId: number): StaffHistoryRecord[] {
+  const rows = parseStaffHistoryData(raw)
+  if (!rows.length) return []
+  const plausible = filterPlausibleStaffHistoryRows(rows, maxStaffId)
+  if (rows.length > Math.max(maxStaffId * 30, 50_000) && plausible.length < rows.length * 0.02) {
+    return plausible
+  }
+  return rows
 }
 
 export function indexStaffHistoryByStaffId(rows: StaffHistoryRecord[]): Map<number, StaffHistoryRecord[]> {

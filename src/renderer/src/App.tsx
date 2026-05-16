@@ -2304,10 +2304,29 @@ export function App() {
                             )}
                           </td>
                         </tr>
+                      ) : profile.seasonStats.currentSeasonRows.length > 0 ? (
+                        profile.seasonStats.currentSeasonRows.map((r, i) => (
+                          <tr key={`${r.year}-${r.club}-${i}`} className="border-b border-zinc-800/40">
+                            <td className="max-w-[12rem] truncate px-2 py-1.5 text-zinc-100" title={r.club}>
+                              {r.club}
+                              <span className="ml-1 text-zinc-500">({r.year})</span>
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-mono text-emerald-200">{r.apps}</td>
+                            <td className="px-2 py-1.5 text-right font-mono text-emerald-200">{r.goals}</td>
+                            <td className="px-2 py-1.5 text-right">{formatProfileStatCell(r.assists)}</td>
+                            <td className="px-2 py-1.5 text-right">
+                              {formatProfileStatCell(r.averageRating, 'rating')}
+                            </td>
+                          </tr>
+                        ))
                       ) : (
                         <tr>
                           <td colSpan={5} className="px-2 py-2.5 text-center text-zinc-500">
-                            No season row in staff_history for this club
+                            {profile.seasonStats.staffHistoryParsed
+                              ? profile.seasonStats.allSeasons.length > 0
+                                ? 'No row for this club in the current season year'
+                                : 'No staff history for this player'
+                              : 'No staff history in this file — use CM Data index.dat for career rows, or wait for save performance decode'}
                           </td>
                         </tr>
                       )}
