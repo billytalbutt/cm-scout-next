@@ -27,8 +27,10 @@ Data layout and attribute math follow **CM0102Patcher** (`SaveChanger` / structu
 ```bash
 cd cm-scout-next
 npm install
-npm run dev
+npm start
 ```
+
+`npm install` runs a production build automatically (`postinstall`). Use `npm run dev` for hot-reload while developing.
 
 Use **Load Database** and pick **`index.dat`** (often `…/Game/Data/index.dat` in the Starter Kit, or your install’s `Data` folder).
 

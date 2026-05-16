@@ -120,6 +120,17 @@ export interface ProfileSeasonStats {
   boundaryDayOfYearUsed: number | null
   currentSeasonRows: ProfileSeasonStatsRow[]
   currentSeasonTotals: { apps: number; goals: number }
+  /** One row: current club season from `staff_history.dat` (CM “senior club” style apps/goals). */
+  currentSeasonPerformance: {
+    label: string
+    apps: number
+    goals: number
+    assists: number | null
+    averageRating: number | null
+    historyYear: number
+    clubId: number
+    source: 'staff_history'
+  } | null
   careerTotals: { apps: number; goals: number }
   allSeasons: ProfileSeasonStatsRow[]
   /** Primary domestic league from `club.dat` division → `club_comp.dat` (name only). */

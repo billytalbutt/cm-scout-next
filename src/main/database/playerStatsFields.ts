@@ -7,11 +7,9 @@
 import {
   PLAYER_STATS_RESEARCH_GRID_V0,
   type PlayerStatsResearchGrid,
-  isEligibleResearchStatsRow,
   iterPlayerStatsRowStarts,
 } from './playerStatsJoins'
-import { plausiblePlayerStatsInt32AtPlus4 } from './playerStatsLayout'
-import { parsePlayerSavePerformance } from './playerStatsDat'
+import { collectPlayerDatIdOccurrences, parsePlayerSavePerformance } from './playerStatsDat'
 import type { ClubCompRecord, StaffCompRecord } from './clubComp'
 import type { PlayerRecord, PlayerSavePerformanceStats, PlayerStatsPerCompetitionRow } from './types'
 
@@ -37,6 +35,8 @@ const GRID = PLAYER_STATS_RESEARCH_GRID_V0
 export const PLAYER_STATS_HEURISTIC_RESEARCH_COMP_ID = -2
 
 const MAX_RESEARCH_ROWS_PER_PLAYER = 48
+/** Skip off-grid scan when id appears everywhere in the blob (dense `player.dat` ids). */
+const MAX_OFFGRID_ID_OCCURRENCES = 16
 
 function readU8(buf: Buffer, rowStart: number, rel: number): number | null {
   const i = rowStart + rel
@@ -61,6 +61,8 @@ function decodeAverageRatingU8(v: number | null): number | null {
 
 export interface DecodedPlayerStatsGridRow {
   rowStart: number
+  /** Buffer offset of this player's `player.dat` id (int32); may be off the 128-byte grid. */
+  idAnchor?: number
   playerDatId: number
   competitionId: number | null
   apps: number | null
@@ -111,6 +113,71 @@ function rowHasAnyStat(r: DecodedPlayerStatsGridRow): boolean {
   )
 }
 
+/** When comp tables are loaded, only keep rows whose competition id resolves in save data. */
+export function shouldGateResearchRowsByCompetition(
+  clubCompsById?: Map<number, ClubCompRecord>,
+  staffCompsById?: Map<number, StaffCompRecord>,
+): boolean {
+  return (clubCompsById?.size ?? 0) > 0 || (staffCompsById?.size ?? 0) > 0
+}
+
+/** Competition id must map to `club_comp.dat` or `staff_comp.dat` (not 0 / player id / unknown). */
+export function isResolvedCompetitionId(
+  competitionId: number | null,
+  playerDatId: number,
+  clubCompsById?: Map<number, ClubCompRecord>,
+  staffCompsById?: Map<number, StaffCompRecord>,
+): boolean {
+  if (competitionId == null || competitionId <= 0) return false
+  if (competitionId === playerDatId) return false
+  return (
+    (clubCompsById?.has(competitionId) ?? false) || (staffCompsById?.has(competitionId) ?? false)
+  )
+}
+
+function isGridAlignedRowStart(rowStart: number, g: PlayerStatsResearchGrid = GRID): boolean {
+  return rowStart >= g.headerBytes && (rowStart - g.headerBytes) % g.stride === 0
+}
+
+function researchRowRank(r: DecodedPlayerStatsGridRow, g: PlayerStatsResearchGrid = GRID): number {
+  let score = (r.apps ?? 0) * 10 + (r.goals ?? 0) * 5 + (r.assists ?? 0)
+  if (isGridAlignedRowStart(r.rowStart, g)) score += 10_000
+  return score
+}
+
+/** One row per resolved competition id — prefer grid-aligned, then higher apps. */
+export function dedupeResearchRowsByCompetition(
+  rows: readonly DecodedPlayerStatsGridRow[],
+  g: PlayerStatsResearchGrid = GRID,
+): DecodedPlayerStatsGridRow[] {
+  const byComp = new Map<number, DecodedPlayerStatsGridRow>()
+  for (const r of rows) {
+    if (r.competitionId == null) continue
+    const existing = byComp.get(r.competitionId)
+    if (!existing || researchRowRank(r, g) > researchRowRank(existing, g)) {
+      byComp.set(r.competitionId, r)
+    }
+  }
+  return [...byComp.values()]
+}
+
+export function filterDecodedRowsWithResolvedCompetition(
+  rows: readonly DecodedPlayerStatsGridRow[],
+  playerDatId: number,
+  clubCompsById?: Map<number, ClubCompRecord>,
+  staffCompsById?: Map<number, StaffCompRecord>,
+  options?: { dedupeByCompetition?: boolean },
+): DecodedPlayerStatsGridRow[] {
+  if (!shouldGateResearchRowsByCompetition(clubCompsById, staffCompsById)) {
+    return [...rows]
+  }
+  const filtered = rows.filter((r) =>
+    isResolvedCompetitionId(r.competitionId, playerDatId, clubCompsById, staffCompsById),
+  )
+  if (options?.dedupeByCompetition === false) return filtered
+  return dedupeResearchRowsByCompetition(filtered)
+}
+
 function competitionName(
   competitionId: number | null,
   playerDatId: number,
@@ -135,6 +202,14 @@ function competitionName(
   return `Competition #${competitionId}`
 }
 
+function researchRowLocationTag(r: DecodedPlayerStatsGridRow, g = GRID): string {
+  const anchor = r.idAnchor ?? r.rowStart + g.idOffsetInRow
+  const aligned =
+    r.rowStart >= g.headerBytes && (r.rowStart - g.headerBytes) % g.stride === 0
+  if (aligned) return `grid @${r.rowStart}`
+  return `id @${anchor} (off-grid, row ${r.rowStart})`
+}
+
 function toResearchGridRow(
   r: DecodedPlayerStatsGridRow,
   clubCompsById?: Map<number, ClubCompRecord>,
@@ -144,7 +219,7 @@ function toResearchGridRow(
   const baseName = competitionName(r.competitionId, r.playerDatId, clubCompsById, staffCompsById)
   return {
     competitionId: r.competitionId ?? 0,
-    competitionName: `${baseName} · grid @${r.rowStart}`,
+    competitionName: `${baseName} · ${researchRowLocationTag(r)}`,
     apps: r.apps ?? 0,
     goals: r.goals ?? 0,
     assists: r.assists,
@@ -171,14 +246,71 @@ function heuristicResearchRow(h: PlayerSavePerformanceStats): PlayerStatsPerComp
   }
 }
 
-/** All grid rows for one player (no dedupe) — for side-by-side CM verification. */
+/**
+ * Every research row for one player: grid-aligned slots first; if none, decode at each
+ * `player.dat` id occurrence using the same V0 field map (off-grid anchors).
+ */
+export function collectResearchGridRowsForPlayer(
+  buf: Buffer,
+  playerDatId: number,
+  playerIds: ReadonlySet<number>,
+  g: PlayerStatsResearchGrid = GRID,
+  knownIdOccurrences?: readonly number[],
+  compCtx?: Pick<PlayerStatsSaveParseContext, 'clubCompsById' | 'staffCompsById'>,
+): DecodedPlayerStatsGridRow[] {
+  const byRowStart = new Map<number, DecodedPlayerStatsGridRow>()
+
+  for (const rowStart of iterPlayerStatsRowStarts(buf, g)) {
+    if (buf.readInt32LE(rowStart + g.idOffsetInRow) !== playerDatId) continue
+    const decoded = decodePlayerStatsGridRow(buf, rowStart)
+    if (!decoded || !rowHasAnyStat(decoded)) continue
+    byRowStart.set(rowStart, { ...decoded, idAnchor: rowStart + g.idOffsetInRow })
+  }
+
+  if (byRowStart.size === 0) {
+    const occ =
+      knownIdOccurrences ??
+      collectPlayerDatIdOccurrences(buf, playerIds).get(playerDatId) ??
+      []
+    if (occ.length > MAX_OFFGRID_ID_OCCURRENCES) return []
+    for (const anchor of occ) {
+      const rowStart = anchor - g.idOffsetInRow
+      if (rowStart < 0 || rowStart + g.stride > buf.length) continue
+      if (byRowStart.has(rowStart)) continue
+      const decoded = decodePlayerStatsGridRow(buf, rowStart)
+      if (!decoded || decoded.playerDatId !== playerDatId) continue
+      if (!rowHasAnyStat(decoded)) continue
+      byRowStart.set(rowStart, { ...decoded, idAnchor: anchor })
+    }
+  }
+
+  const raw = [...byRowStart.values()].sort((a, b) => a.rowStart - b.rowStart)
+  return filterDecodedRowsWithResolvedCompetition(
+    raw,
+    playerDatId,
+    compCtx?.clubCompsById,
+    compCtx?.staffCompsById,
+  )
+}
+
+/** Research table rows — gated on resolved competition id, deduped per competition. */
 export function buildResearchPerCompetitionRows(
   decodedRows: DecodedPlayerStatsGridRow[],
   clubCompsById?: Map<number, ClubCompRecord>,
   staffCompsById?: Map<number, StaffCompRecord>,
+  playerDatId?: number,
 ): PlayerStatsPerCompetitionRow[] {
+  const gated =
+    playerDatId != null
+      ? filterDecodedRowsWithResolvedCompetition(
+          decodedRows,
+          playerDatId,
+          clubCompsById,
+          staffCompsById,
+        )
+      : decodedRows
   const out: PlayerStatsPerCompetitionRow[] = []
-  for (const r of decodedRows) {
+  for (const r of gated) {
     const row = toResearchGridRow(r, clubCompsById, staffCompsById)
     if (row) out.push(row)
   }
@@ -225,16 +357,39 @@ export function parsePlayerStatsFromSave(
   const playerIds = new Set(players.map((p) => p.id))
   const perCompByPlayer = new Map<number, PlayerStatsPerCompetitionRow[]>()
   const rowsByPlayer = new Map<number, DecodedPlayerStatsGridRow[]>()
+  const occById = collectPlayerDatIdOccurrences(buf, playerIds)
 
   for (const rowStart of iterPlayerStatsRowStarts(buf, GRID)) {
-    if (!isEligibleResearchStatsRow(buf, rowStart, GRID, playerIds)) continue
-    const idOff = rowStart + GRID.idOffsetInRow
-    if (!plausiblePlayerStatsInt32AtPlus4(buf.readInt32LE(idOff + 4))) continue
+    const playerDatId = readI32(buf, rowStart, F.playerDatId.rel)
+    if (playerDatId == null || !playerIds.has(playerDatId)) continue
     const decoded = decodePlayerStatsGridRow(buf, rowStart)
     if (!decoded || !rowHasAnyStat(decoded)) continue
-    const list = rowsByPlayer.get(decoded.playerDatId) ?? []
-    list.push(decoded)
-    rowsByPlayer.set(decoded.playerDatId, list)
+    const list = rowsByPlayer.get(playerDatId) ?? []
+    list.push({ ...decoded, idAnchor: rowStart + GRID.idOffsetInRow })
+    rowsByPlayer.set(playerDatId, list)
+  }
+
+  for (const [playerDatId, occ] of occById) {
+    if (rowsByPlayer.get(playerDatId)?.length) continue
+    if (!occ.length || occ.length > MAX_OFFGRID_ID_OCCURRENCES) continue
+    const fallback = collectResearchGridRowsForPlayer(buf, playerDatId, playerIds, GRID, occ, {
+      clubCompsById: ctx.clubCompsById,
+      staffCompsById: ctx.staffCompsById,
+    })
+    if (fallback.length) rowsByPlayer.set(playerDatId, fallback)
+  }
+
+  if (shouldGateResearchRowsByCompetition(ctx.clubCompsById, ctx.staffCompsById)) {
+    for (const [playerDatId, list] of rowsByPlayer) {
+      const gated = filterDecodedRowsWithResolvedCompetition(
+        list,
+        playerDatId,
+        ctx.clubCompsById,
+        ctx.staffCompsById,
+      )
+      if (gated.length) rowsByPlayer.set(playerDatId, gated)
+      else rowsByPlayer.delete(playerDatId)
+    }
   }
 
   for (const [playerDatId, decodedRows] of rowsByPlayer) {
@@ -242,6 +397,7 @@ export function parsePlayerStatsFromSave(
       decodedRows,
       ctx.clubCompsById,
       ctx.staffCompsById,
+      playerDatId,
     )
     if (research.length) perCompByPlayer.set(playerDatId, research)
   }
@@ -252,10 +408,7 @@ export function parsePlayerStatsFromSave(
     byPlayer.set(id, h)
     const research = perCompByPlayer.get(id) ?? []
     const hRow = heuristicResearchRow(h)
-    if (hRow) {
-      const merged = [...research, hRow]
-      perCompByPlayer.set(id, merged)
-    } else if (!research.length && hRow) {
+    if (hRow && !research.length) {
       perCompByPlayer.set(id, [hRow])
     }
   }

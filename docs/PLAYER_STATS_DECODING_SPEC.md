@@ -72,7 +72,7 @@ Until all three hold, the decoder is **research-grade** or **heuristic**, not so
 
 **Production behaviour:**
 
-- **Research UI:** `savePerformancePerCompByPlayerDatId` lists **every** decoded grid row (no dedupe; labels often wrong). `savePerformanceByPlayerDatId` uses **heuristic v1 only** for the summary line (not a picked grid row).
+- **Research UI:** `savePerformancePerCompByPlayerDatId` lists decoded rows whose **competition id** exists in `club_comp.dat` / `staff_comp.dat` (one row per comp after dedupe; stat offsets still experimental). `savePerformanceByPlayerDatId` uses **heuristic v1 only** for the summary line.
 - Heuristic row also appended to the research table when the blob scan finds the player.
 - Players with no grid rows may still show a **Heuristic v1** table row (Cole, Xavi, etc. on test saves).
 

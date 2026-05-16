@@ -7,11 +7,8 @@
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { parseIndexDat, readArchiveBlock, staffDisplayName } from '../src/main/database/parser.ts'
-import {
-  PLAYER_STATS_RESEARCH_GRID_V0,
-  listEligibleRowStartsForPlayerDatId,
-} from '../src/main/database/playerStatsJoins.ts'
-import { decodePlayerStatsGridRow } from '../src/main/database/playerStatsFields.ts'
+import { PLAYER_STATS_RESEARCH_GRID_V0 } from '../src/main/database/playerStatsJoins.ts'
+import { collectResearchGridRowsForPlayer } from '../src/main/database/playerStatsFields.ts'
 
 const TARGET_NAMES = new Set([
   'Kieron Dyer',
@@ -93,10 +90,13 @@ function main(): void {
     }
 
     if (statsBuf) {
-      const rowStarts = listEligibleRowStartsForPlayerDatId(statsBuf, g, playerIds, m.playerDatId, 30)
-      console.log(`  Raw eligible grid rows (first ${Math.min(rowStarts.length, 12)}):`)
-      for (const rs of rowStarts.slice(0, 12)) {
-        const row = decodePlayerStatsGridRow(statsBuf, rs)!
+      const researchRows = collectResearchGridRowsForPlayer(statsBuf, m.playerDatId, playerIds, g, undefined, {
+        clubCompsById: db.clubCompsById,
+        staffCompsById: db.staffCompsById,
+      })
+      console.log(`  Research decode rows (${researchRows.length}, first ${Math.min(researchRows.length, 12)}):`)
+      for (const row of researchRows.slice(0, 12)) {
+        const rs = row.rowStart
         const cc = row.competitionId != null ? db.clubCompsById?.get(row.competitionId) : undefined
         const sc = row.competitionId != null ? db.staffCompsById?.get(row.competitionId) : undefined
         const label =

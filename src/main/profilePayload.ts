@@ -5,11 +5,8 @@ import {
   transferListedByRequest,
 } from './cmScoutRating'
 import type { ClubCompRecord } from './database/clubComp'
+import { buildCurrentSeasonPerformance, pickCurrentSeasonStaffHistoryAtClub } from './database/currentSeasonPerformance'
 import type { StaffHistoryRecord } from './database/staffHistory'
-import {
-  refineHighlightYearWithHistoryFallback,
-  resolveStaffHistoryHighlightYear,
-} from './database/seasonYear'
 import {
   buildCa18Display,
   CA18_KEYS,
@@ -211,10 +208,18 @@ function buildProfileSeasonStats(
   ctx: ProfileDbContext,
 ) {
   const hist = row.staffHistory ?? []
-  const rawPick = resolveStaffHistoryHighlightYear(gameDateIso, ctx.nationSeasonUpdateDaySamples)
-  const pick = refineHighlightYearWithHistoryFallback(hist, rawPick)
-  const saveCalendarYear = pick.saveCalendarYear ?? calendarYearFromGameIso(gameDateIso)
-  const highlightHistoryYear = pick.highlightHistoryYear
+  const employerClubId = row.contract?.club_id ?? row.staff.club_job_id
+  const clubLabel = clubNames.get(employerClubId)?.trim() || `Club #${employerClubId}`
+
+  const { rows: currentHist, pick: seasonPick } = pickCurrentSeasonStaffHistoryAtClub(
+    hist,
+    employerClubId,
+    gameDateIso,
+    ctx.nationSeasonUpdateDaySamples,
+  )
+  const saveCalendarYear = seasonPick.saveCalendarYear ?? calendarYearFromGameIso(gameDateIso)
+  const highlightHistoryYear = seasonPick.highlightHistoryYear
+
   const toRow = (h: StaffHistoryRecord) => historyToSeasonRow(h, clubNames)
   const allSeasons = [...hist].map(toRow).sort((a, b) => {
     if (b.year !== a.year) return b.year - a.year
@@ -226,7 +231,6 @@ function buildProfileSeasonStats(
     careerApps += h.apps
     careerGoals += h.goals
   }
-  const currentHist = highlightHistoryYear != null ? hist.filter((h) => h.year === highlightHistoryYear) : []
   let cApps = 0
   let cGoals = 0
   for (const h of currentHist) {
@@ -234,7 +238,13 @@ function buildProfileSeasonStats(
     cGoals += h.goals
   }
 
-  const employerClubId = row.contract?.club_id ?? row.staff.club_job_id
+  const currentSeasonPerformance = buildCurrentSeasonPerformance(
+    hist,
+    employerClubId,
+    clubLabel,
+    gameDateIso,
+    ctx.nationSeasonUpdateDaySamples,
+  )
   const divCompId = ctx.clubDivisionCompIdByClubId.get(employerClubId)
   let inferredDomesticLeague: { competitionId: number; name: string } | null = null
   if (divCompId != null && divCompId !== 0 && ctx.clubCompsById) {
@@ -244,47 +254,32 @@ function buildProfileSeasonStats(
   }
 
   const playerStatsDatPresent = ctx.playerStatsDatPresent === true
-  const sp = row.savePerformance
-  const perCompFromSave =
-    ctx.savePerformancePerCompByPlayerDatId?.get(row.player.id) ?? []
-  const hasSavePerf =
-    !!sp && (sp.apps != null || sp.goals != null || sp.assists != null)
-  const hasPerComp = perCompFromSave.length > 0
-  const saveFilePerformance = hasSavePerf
-    ? {
-        apps: sp!.apps,
-        goals: sp!.goals,
-        assists: sp!.assists,
-        averageRating: sp!.averageRating ?? null,
-      }
-    : null
 
-  const savePerformanceHint = !playerStatsDatPresent
-    ? 'The in-game table (goals, assists, average rating, tackles, etc. per competition) lives in save performance data (`player stats.dat` in a `.sav`). A small `Data/index.dat` without that block cannot supply those columns. `staff_history.dat` only has apps and goals per club-year (league + cups combined).'
-    : hasPerComp
-      ? 'Research view: every decoded `player stats.dat` grid row for this player (competition labels are often wrong — compare apps/goals/assists to CM). The “Save file (est.)” line above uses the separate heuristic scanner only, not these rows.'
-      : hasSavePerf
-        ? 'Heuristic scan only — no grid rows matched for this player. Compare to CM; grid research table is empty.'
-        : 'This save includes `player stats.dat`, but no decoded row was found for this player yet. Assists / detailed performance columns may stay as —.'
+  const savePerformanceHint = !ctx.staffHistoryParsed
+    ? 'Load a saved game that includes `staff_history.dat` for season apps and goals. Assists and average rating are not in that file yet.'
+    : currentSeasonPerformance
+      ? 'Current season apps and goals come from `staff_history.dat` at this club (league and cups combined — matches CM “Senior club” apps/goals). Assists and average rating need a further save decode.'
+      : 'No `staff_history` row matched this player’s current club and season year yet.'
 
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },
     saveCalendarYear,
     highlightHistoryYear,
-    currentYearResolution: pick.resolution,
-    boundaryDayOfYearUsed: pick.boundaryDayOfYearUsed,
+    currentYearResolution: seasonPick.resolution,
+    boundaryDayOfYearUsed: seasonPick.boundaryDayOfYearUsed,
     currentSeasonRows: currentHist.map(toRow).sort((a, b) => a.club.localeCompare(b.club)),
     currentSeasonTotals: { apps: cApps, goals: cGoals },
+    currentSeasonPerformance,
     careerTotals: { apps: careerApps, goals: careerGoals },
     allSeasons,
     inferredDomesticLeague,
     staffHistoryParsed: ctx.staffHistoryParsed,
     playerStatsDatPresent,
     savePerformanceHint,
-    /** Populated when a per-staff competition stats block is mapped (not `staff_history.dat`). */
-    perCompetitionRows: perCompFromSave,
-    perCompetitionStatsInSave: hasPerComp,
-    saveFilePerformance,
+    /** Wrong until player stats.dat layout is verified — do not surface in UI. */
+    perCompetitionRows: [],
+    perCompetitionStatsInSave: false,
+    saveFilePerformance: null,
   }
 }
 

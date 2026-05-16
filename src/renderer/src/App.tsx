@@ -2181,12 +2181,9 @@ export function App() {
                   tip={
                     <div className="space-y-2 text-zinc-300">
                       <p>
-                        Career and season totals come from <code className="text-emerald-400/80">staff_history.dat</code>{' '}
-                        (one row per club per season-year in the save). Rows whose year matches the highlighted season are
-                        tinted. When this save includes <code className="text-zinc-400">player stats.dat</code>, CM Scout
-                        Next shows heuristic save-file apps / goals / assists in the season summary when a row is
-                        decoded for that player. Average rating, tackles, passes, headers, and per-competition splits are
-                        still TODO.
+                        The <strong>Current season</strong> row uses <code className="text-emerald-400/80">staff_history.dat</code>{' '}
+                        at this player&apos;s club (league + cups combined — same as CM &quot;Senior club&quot; apps/goals).
+                        Assists and average rating are not in that file yet. Career table below lists every club/year row.
                       </p>
                       <p className="text-zinc-400">
                         If the season table is empty: the index may not have loaded staff_history (missing block or
@@ -2267,36 +2264,55 @@ export function App() {
                       goals
                     </span>
                   )}
-                  {profile.seasonStats.saveFilePerformance && (
-                    <span className="text-zinc-300">
-                      {' '}
-                      · Save file (est.):{' '}
-                      {profile.seasonStats.saveFilePerformance.apps != null ? (
-                        <span className="font-mono text-sky-200/90">
-                          {profile.seasonStats.saveFilePerformance.apps}
-                        </span>
+                </div>
+                <div className="mb-3 overflow-x-auto rounded border border-emerald-900/40 bg-emerald-950/20">
+                  <table className="w-full min-w-[16rem] border-collapse text-left text-[11px]">
+                    <thead>
+                      <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
+                        <th className="px-2 py-1.5 font-medium">Current season</th>
+                        <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
+                        <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
+                        <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
+                        <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profile.seasonStats.currentSeasonPerformance ? (
+                        <tr className="border-b border-zinc-800/40">
+                          <td
+                            className="max-w-[12rem] truncate px-2 py-1.5 text-zinc-100"
+                            title={profile.seasonStats.currentSeasonPerformance.label}
+                          >
+                            {profile.seasonStats.currentSeasonPerformance.label}
+                            <span className="ml-1 text-zinc-500">
+                              ({profile.seasonStats.currentSeasonPerformance.historyYear})
+                            </span>
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-mono text-emerald-200">
+                            {profile.seasonStats.currentSeasonPerformance.apps}
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-mono text-emerald-200">
+                            {profile.seasonStats.currentSeasonPerformance.goals}
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            {formatProfileStatCell(profile.seasonStats.currentSeasonPerformance.assists)}
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            {formatProfileStatCell(
+                              profile.seasonStats.currentSeasonPerformance.averageRating,
+                              'rating',
+                            )}
+                          </td>
+                        </tr>
                       ) : (
-                        <span className="text-zinc-600">—</span>
-                      )}{' '}
-                      apps ·{' '}
-                      {profile.seasonStats.saveFilePerformance.goals != null ? (
-                        <span className="font-mono text-sky-200/90">
-                          {profile.seasonStats.saveFilePerformance.goals}
-                        </span>
-                      ) : (
-                        <span className="text-zinc-600">—</span>
-                      )}{' '}
-                      goals ·{' '}
-                      {profile.seasonStats.saveFilePerformance.assists != null ? (
-                        <span className="font-mono text-sky-200/90">
-                          {profile.seasonStats.saveFilePerformance.assists}
-                        </span>
-                      ) : (
-                        <span className="text-zinc-600">—</span>
-                      )}{' '}
-                      ast
-                    </span>
-                  )}
+                        <tr>
+                          <td colSpan={5} className="px-2 py-2.5 text-center text-zinc-500">
+                            No season row in staff_history for this club
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
                 <div className="overflow-x-auto rounded border border-zinc-800/80">
                   <table className="w-full min-w-[19rem] border-collapse text-left text-[11px]">
@@ -2350,17 +2366,17 @@ export function App() {
                     </tbody>
                   </table>
                 </div>
+                {profile.seasonStats.perCompetitionStatsInSave && (
                 <div className="mt-3 border-t border-zinc-800/80 pt-2">
                   <HoverTip
                     tip={
                       <p className="text-zinc-300">
-                        Same data sources as Season &amp; career record (see that heading&apos;s tooltip). Extra columns
-                        fill when per-competition performance is decoded for this save.
+                        Experimental decode from player stats.dat (dev only). Not shown in normal use.
                       </p>
                     }
                   >
                     <h4 className="mb-1 flex cursor-default items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                      By competition
+                      By competition (research)
                       <InfoDot />
                     </h4>
                   </HoverTip>
@@ -2408,6 +2424,7 @@ export function App() {
                     </table>
                   </div>
                 </div>
+                )}
               </div>
             </div>
           )}

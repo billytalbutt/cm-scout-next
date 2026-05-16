@@ -5,9 +5,9 @@ Use these `player.dat` row ids when comparing CM in-game stats to CM Scout Next.
 | Player | player.dat id | staff.dat id | Notes |
 |--------|---------------|--------------|--------|
 | Kieron Dyer | **118** | 152 | Grid rows; apps/assists often correct on plausible rows |
-| Joe Cole | **5451** | 6408 | Often heuristic v1 only (no eligible grid row) |
-| Xavi | **14922** | 17483 | Often heuristic v1 only |
-| Maxim Tsigalko | **27755** | 33263 | Check heuristic / grid coverage |
+| Joe Cole | **5451** | 6408 | Off-grid id anchors → same research table columns as Dyer |
+| Xavi | **14922** | 17483 | Off-grid id anchors |
+| Maxim Tsigalko | **27755** | 33263 | Off-grid id anchors when stats present |
 
 All listed players were at **Blackburn Rovers** with division comp id **7** (Premier League in this save) on the research save.
 
