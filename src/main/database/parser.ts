@@ -488,20 +488,36 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
   let savePerformanceByPlayerDatId: Map<number, PlayerSavePerformanceStats> | undefined
   let savePerformancePerCompByPlayerDatId: Map<number, PlayerStatsPerCompetitionRow[]> | undefined
   if (playerStatsBlock && playerStatsBlock.size > 0) {
-    try {
-      const psbuf = blockData(file, compressed, playerStatsBlock)
-      const parsed = parsePlayerStatsFromSave(psbuf, players, staff, {
-        clubCompsById,
-        staffCompsById,
-        clubDivisionCompIdByClubId,
-      })
-      savePerformanceByPlayerDatId = parsed.byPlayerDatId
-      if (parsed.perCompByPlayerDatId.size > 0) {
-        savePerformancePerCompByPlayerDatId = parsed.perCompByPlayerDatId
+    // Season stats in the UI come from staff_history.dat. Full player stats.dat decode scans the
+    // whole block and can freeze the app for minutes on large saves (CM_SCOUT_PLAYER_STATS_PARSE=research).
+    const statsParseMode =
+      process.env.CM_SCOUT_PLAYER_STATS_PARSE === 'research'
+        ? 'research'
+        : process.env.CM_SCOUT_PLAYER_STATS_PARSE === 'heuristic'
+          ? 'heuristic'
+          : 'off'
+    if (statsParseMode !== 'off') {
+      try {
+        const psbuf = blockData(file, compressed, playerStatsBlock)
+        const parsed = parsePlayerStatsFromSave(
+          psbuf,
+          players,
+          staff,
+          {
+            clubCompsById,
+            staffCompsById,
+            clubDivisionCompIdByClubId,
+          },
+          statsParseMode,
+        )
+        savePerformanceByPlayerDatId = parsed.byPlayerDatId
+        if (parsed.perCompByPlayerDatId.size > 0) {
+          savePerformancePerCompByPlayerDatId = parsed.perCompByPlayerDatId
+        }
+      } catch {
+        savePerformanceByPlayerDatId = undefined
+        savePerformancePerCompByPlayerDatId = undefined
       }
-    } catch {
-      savePerformanceByPlayerDatId = undefined
-      savePerformancePerCompByPlayerDatId = undefined
     }
   }
 

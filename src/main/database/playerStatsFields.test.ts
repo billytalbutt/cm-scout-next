@@ -103,6 +103,16 @@ describe('collectResearchGridRowsForPlayer', () => {
 })
 
 describe('parsePlayerStatsFromSave', () => {
+  it('default mode off returns empty without scanning the buffer', () => {
+    const buf = Buffer.alloc(1_000_000, 0xab)
+    const players = [{ id: 1 } as PlayerRecord]
+    const res = parsePlayerStatsFromSave(buf, players, [], {
+      clubDivisionCompIdByClubId: new Map(),
+    })
+    expect(res.byPlayerDatId.size).toBe(0)
+    expect(res.perCompByPlayerDatId.size).toBe(0)
+  })
+
   it('uses grid-style rows for off-grid players instead of heuristic-only table', () => {
     const buf = Buffer.alloc(15_000, 0)
     const players = [{ id: 5451 } as PlayerRecord]
@@ -113,10 +123,16 @@ describe('parsePlayerStatsFromSave', () => {
     buf.writeInt32LE(7, rowStart + F.competitionId.rel)
     buf.writeUInt8(8, rowStart + F.goals.rel)
     buf.writeUInt8(30, rowStart + F.apps.rel)
-    const res = parsePlayerStatsFromSave(buf, players, staff, {
-      clubDivisionCompIdByClubId: new Map([[1, 7]]),
-      clubCompsById: clubComps([7]),
-    })
+    const res = parsePlayerStatsFromSave(
+      buf,
+      players,
+      staff,
+      {
+        clubDivisionCompIdByClubId: new Map([[1, 7]]),
+        clubCompsById: clubComps([7]),
+      },
+      'research',
+    )
     const rows = res.perCompByPlayerDatId.get(5451) ?? []
     expect(rows.length).toBeGreaterThan(0)
     expect(rows[0]!.competitionId).toBe(7)
@@ -132,10 +148,16 @@ describe('parsePlayerStatsFromSave', () => {
     buf.writeInt32LE(7, r0 + 8)
     buf.writeUInt8(9, r0 + 52)
     buf.writeUInt8(1, r0 + 53)
-    const res = parsePlayerStatsFromSave(buf, players, staff, {
-      clubDivisionCompIdByClubId: new Map([[1, 7]]),
-      clubCompsById: clubComps([7]),
-    })
+    const res = parsePlayerStatsFromSave(
+      buf,
+      players,
+      staff,
+      {
+        clubDivisionCompIdByClubId: new Map([[1, 7]]),
+        clubCompsById: clubComps([7]),
+      },
+      'research',
+    )
     expect(res.perCompByPlayerDatId.get(118)?.length).toBeGreaterThan(0)
     expect(res.byPlayerDatId.get(118)?.layout).not.toBe('gridV0')
   })

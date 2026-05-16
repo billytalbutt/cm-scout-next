@@ -345,15 +345,33 @@ export interface PlayerStatsSaveParseResult {
   perCompByPlayerDatId: Map<number, PlayerStatsPerCompetitionRow[]>
 }
 
+/** `off` = instant (profile uses staff_history). `research` = full grid scan (slow on large saves). */
+export type PlayerStatsParseMode = 'off' | 'heuristic' | 'research'
+
+const EMPTY_PLAYER_STATS_PARSE: PlayerStatsSaveParseResult = {
+  byPlayerDatId: new Map(),
+  perCompByPlayerDatId: new Map(),
+}
+
 /**
- * Grid rows → research table per player. Heuristic v1 → summary map + extra table row when useful.
+ * Decode `player stats.dat`. Default `off` — do not run on every Load Database (multi‑MB scan + per‑player grid walks).
  */
 export function parsePlayerStatsFromSave(
   buf: Buffer,
   players: readonly PlayerRecord[],
   staff: readonly { player_id: number; club_job_id: number }[],
   ctx: PlayerStatsSaveParseContext,
+  mode: PlayerStatsParseMode = 'off',
 ): PlayerStatsSaveParseResult {
+  if (mode === 'off' || !buf.length) return EMPTY_PLAYER_STATS_PARSE
+
+  if (mode === 'heuristic') {
+    return {
+      byPlayerDatId: parsePlayerSavePerformance(buf, players),
+      perCompByPlayerDatId: new Map(),
+    }
+  }
+
   const playerIds = new Set(players.map((p) => p.id))
   const perCompByPlayer = new Map<number, PlayerStatsPerCompetitionRow[]>()
   const rowsByPlayer = new Map<number, DecodedPlayerStatsGridRow[]>()
