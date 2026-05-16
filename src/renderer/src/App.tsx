@@ -2183,8 +2183,10 @@ export function App() {
                       <p>
                         Career and season totals come from <code className="text-emerald-400/80">staff_history.dat</code>{' '}
                         (one row per club per season-year in the save). Rows whose year matches the highlighted season are
-                        tinted. Assists, average rating, tackles, passes, and headers stay as — until{' '}
-                        <code className="text-zinc-400">player stats.dat</code> is decoded for this archive.
+                        tinted. When this save includes <code className="text-zinc-400">player stats.dat</code>, CM Scout
+                        Next shows heuristic save-file apps / goals / assists in the season summary when a row is
+                        decoded for that player. Average rating, tackles, passes, headers, and per-competition splits are
+                        still TODO.
                       </p>
                       <p className="text-zinc-400">
                         If the season table is empty: the index may not have loaded staff_history (missing block or
@@ -2263,6 +2265,36 @@ export function App() {
                         {profile.seasonStats.currentSeasonTotals.goals}
                       </span>{' '}
                       goals
+                    </span>
+                  )}
+                  {profile.seasonStats.saveFilePerformance && (
+                    <span className="text-zinc-300">
+                      {' '}
+                      · Save file (est.):{' '}
+                      {profile.seasonStats.saveFilePerformance.apps != null ? (
+                        <span className="font-mono text-sky-200/90">
+                          {profile.seasonStats.saveFilePerformance.apps}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}{' '}
+                      apps ·{' '}
+                      {profile.seasonStats.saveFilePerformance.goals != null ? (
+                        <span className="font-mono text-sky-200/90">
+                          {profile.seasonStats.saveFilePerformance.goals}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}{' '}
+                      goals ·{' '}
+                      {profile.seasonStats.saveFilePerformance.assists != null ? (
+                        <span className="font-mono text-sky-200/90">
+                          {profile.seasonStats.saveFilePerformance.assists}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}{' '}
+                      ast
                     </span>
                   )}
                 </div>

@@ -17,7 +17,12 @@ import {
   type AttrDisplayBlock,
   type Ca18Key,
 } from './database/attributes'
-import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
+import type {
+  PlayerRecord,
+  PlayerStatsPerCompetitionRow,
+  StaffRecord,
+  UiPlayerRow,
+} from './database/types'
 import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
@@ -173,6 +178,8 @@ export type ProfileDbContext = {
   staffHistoryParsed: boolean
   /** Archive includes `player stats.dat` (not decoded yet — assists / rating / per-competition splits). */
   playerStatsDatPresent?: boolean
+  /** Structured grid V0 per-competition rows keyed by `player.dat` id. */
+  savePerformancePerCompByPlayerDatId?: Map<number, PlayerStatsPerCompetitionRow[]>
 }
 
 function calendarYearFromGameIso(iso: string | null): number | null {
@@ -237,9 +244,30 @@ function buildProfileSeasonStats(
   }
 
   const playerStatsDatPresent = ctx.playerStatsDatPresent === true
-  const savePerformanceHint = playerStatsDatPresent
-    ? 'This save includes `player stats.dat` (where the game stores performance beyond staff_history). CM Scout Next does not decode that block yet, so assists, average rating, tackles, passes, headers, and per-competition splits show as — until the row layout is mapped.'
-    : 'The in-game table (goals, assists, average rating, tackles, etc. per competition) lives in save performance data (`player stats.dat` in a `.sav`). A small `Data/index.dat` without that block cannot supply those columns. `staff_history.dat` only has apps and goals per club-year (league + cups combined).'
+  const sp = row.savePerformance
+  const perCompFromSave =
+    ctx.savePerformancePerCompByPlayerDatId?.get(row.player.id) ?? []
+  const hasSavePerf =
+    !!sp && (sp.apps != null || sp.goals != null || sp.assists != null)
+  const hasPerComp = perCompFromSave.length > 0
+  const saveFilePerformance = hasSavePerf
+    ? {
+        apps: sp!.apps,
+        goals: sp!.goals,
+        assists: sp!.assists,
+        averageRating: sp!.averageRating ?? null,
+      }
+    : null
+
+  const savePerformanceHint = !playerStatsDatPresent
+    ? 'The in-game table (goals, assists, average rating, tackles, etc. per competition) lives in save performance data (`player stats.dat` in a `.sav`). A small `Data/index.dat` without that block cannot supply those columns. `staff_history.dat` only has apps and goals per club-year (league + cups combined).'
+    : hasPerComp
+      ? 'Per-competition stats use the structured 128-byte row map (grid V0) from `player stats.dat`. Primary row prefers your club’s division competition; rating / tackles / passes / headers are experimental byte fields — confirm against CM before treating as exact.'
+      : hasSavePerf
+        ? sp!.layout === 'gridV0'
+          ? 'Save file stats use grid V0 (`player stats.dat`). No per-competition rows were decoded for this player; summary may be from the primary competition row only.'
+          : 'Save file summary uses legacy heuristic v1 (scan-based). Per-competition grid rows were not found for this player. Values can be partial until fully mapped.'
+        : 'This save includes `player stats.dat`, but no decoded row was found for this player yet (or the block layout did not match). Assists / detailed performance columns may stay as —.'
 
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },
@@ -256,18 +284,9 @@ function buildProfileSeasonStats(
     playerStatsDatPresent,
     savePerformanceHint,
     /** Populated when a per-staff competition stats block is mapped (not `staff_history.dat`). */
-    perCompetitionRows: [] as Array<{
-      competitionId: number
-      competitionName: string
-      apps: number
-      goals: number
-      assists?: number | null
-      averageRating?: number | null
-      tackles?: number | null
-      passes?: number | null
-      headers?: number | null
-    }>,
-    perCompetitionStatsInSave: false as const,
+    perCompetitionRows: perCompFromSave,
+    perCompetitionStatsInSave: hasPerComp,
+    saveFilePerformance,
   }
 }
 

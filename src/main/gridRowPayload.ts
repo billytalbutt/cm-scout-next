@@ -35,6 +35,9 @@ function baseRow(r: UiPlayerRow): GridPlayerRow {
     staffHistCareerGoals: r.staffHistCareerGoals,
     staffHistSeasonApps: r.staffHistSeasonApps,
     staffHistSeasonGoals: r.staffHistSeasonGoals,
+    spfApps: r.savePerformance?.apps,
+    spfGoals: r.savePerformance?.goals,
+    spfAst: r.savePerformance?.assists,
   }
 }
 

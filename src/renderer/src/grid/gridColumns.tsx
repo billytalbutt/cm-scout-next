@@ -197,6 +197,33 @@ function defFor(
       return h.accessor('staffHistSeasonApps', { id, header: lab })
     case 'shSeasonGoals':
       return h.accessor('staffHistSeasonGoals', { id, header: lab })
+    case 'spfApps':
+      return h.accessor((r) => r.spfApps ?? null, {
+        id,
+        header: lab,
+        cell: ({ getValue }) => {
+          const v = getValue()
+          return v == null ? <span className="text-zinc-600">—</span> : <span className="font-mono">{v}</span>
+        },
+      })
+    case 'spfGoals':
+      return h.accessor((r) => r.spfGoals ?? null, {
+        id,
+        header: lab,
+        cell: ({ getValue }) => {
+          const v = getValue()
+          return v == null ? <span className="text-zinc-600">—</span> : <span className="font-mono">{v}</span>
+        },
+      })
+    case 'spfAst':
+      return h.accessor((r) => r.spfAst ?? null, {
+        id,
+        header: lab,
+        cell: ({ getValue }) => {
+          const v = getValue()
+          return v == null ? <span className="text-zinc-600">—</span> : <span className="font-mono">{v}</span>
+        },
+      })
     case 'isRegen':
       return h.accessor((r) => (r.isRegenLikely === true ? 1 : 0), {
         id,

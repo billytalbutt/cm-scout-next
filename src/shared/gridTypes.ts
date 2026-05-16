@@ -99,4 +99,8 @@ export type GridPlayerRow = {
   /** Rows whose `year` matches resolved “current season” staff_history tag. */
   staffHistSeasonApps: number
   staffHistSeasonGoals: number
+  /** Heuristic `player stats.dat` (save) — when decoded for this `player.dat` id. */
+  spfApps?: number | null
+  spfGoals?: number | null
+  spfAst?: number | null
 }

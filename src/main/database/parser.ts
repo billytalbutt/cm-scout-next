@@ -17,6 +17,7 @@ import {
 import { parseNonPlayerData } from './nonplayer'
 import { parseStadiumRecords } from './stadiumRecords'
 import { parseTacticsDatIndex } from './tacticsDat'
+import { parsePlayerStatsFromSave } from './playerStatsFields'
 import {
   refineHighlightYearWithHistoryFallback,
   resolveStaffHistoryHighlightYear,
@@ -26,6 +27,8 @@ import type {
   ContractRecord,
   ParsedDatabase,
   PlayerRecord,
+  PlayerSavePerformanceStats,
+  PlayerStatsPerCompetitionRow,
   StaffRecord,
   UiPlayerRow,
 } from './types'
@@ -61,6 +64,26 @@ function readBlocksDirectory(buf: Buffer): { compressed: boolean; blocks: BlockI
     blocks.push({ position, size, name })
   }
   return { compressed, blocks, headerEnd: o }
+}
+
+/**
+ * Raw bytes for a named archive block (same lookup rules as `parseIndexDat`).
+ * Intended for research scripts (e.g. diff two `.sav` files).
+ */
+export function readArchiveBlock(file: Buffer, canonicalName: string): Buffer | null {
+  const { compressed, blocks } = readBlocksDirectory(file)
+  const key = canonicalName.trim().toLowerCase()
+  const loose = (canonicalLower: string) =>
+    blocks.find(
+      (b) =>
+        b.name
+          .replace(/\0+$/g, '')
+          .trim()
+          .toLowerCase() === canonicalLower,
+    )
+  const b = blocks.find((b) => b.name === canonicalName) ?? loose(key)
+  if (!b || b.size <= 0) return null
+  return blockData(file, compressed, b)
 }
 
 function blockData(file: Buffer, compressed: boolean, b: BlockInfo): Buffer {
@@ -462,6 +485,26 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
   const playerStatsBlock = find('player stats.dat') ?? findBlockLoose('player stats.dat')
   const playerStatsDatPresent = !!(playerStatsBlock && playerStatsBlock.size > 0)
 
+  let savePerformanceByPlayerDatId: Map<number, PlayerSavePerformanceStats> | undefined
+  let savePerformancePerCompByPlayerDatId: Map<number, PlayerStatsPerCompetitionRow[]> | undefined
+  if (playerStatsBlock && playerStatsBlock.size > 0) {
+    try {
+      const psbuf = blockData(file, compressed, playerStatsBlock)
+      const parsed = parsePlayerStatsFromSave(psbuf, players, staff, {
+        clubCompsById,
+        staffCompsById,
+        clubDivisionCompIdByClubId,
+      })
+      savePerformanceByPlayerDatId = parsed.byPlayerDatId
+      if (parsed.perCompByPlayerDatId.size > 0) {
+        savePerformancePerCompByPlayerDatId = parsed.perCompByPlayerDatId
+      }
+    } catch {
+      savePerformanceByPlayerDatId = undefined
+      savePerformancePerCompByPlayerDatId = undefined
+    }
+  }
+
   let nonPlayersById = undefined as ReturnType<typeof parseNonPlayerData> | undefined
   const npBlock = find('nonplayer.dat') ?? findBlockLoose('nonplayer.dat')
   if (npBlock && npBlock.size > 0) {
@@ -504,6 +547,8 @@ export function parseIndexDat(file: Buffer): ParsedDatabase {
     staffHistoryByStaffId,
     staffHistoryParsed,
     playerStatsDatPresent,
+    savePerformanceByPlayerDatId,
+    savePerformancePerCompByPlayerDatId,
     nationSeasonUpdateDaySamples: seasonUpdateDaySamples,
     clubCompsById,
     staffCompsById,
@@ -540,6 +585,8 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
     gameDateIso,
     staffHistoryByStaffId,
     nationSeasonUpdateDaySamples,
+    savePerformanceByPlayerDatId,
+    savePerformancePerCompByPlayerDatId,
   } = db
   const baseYearPick = resolveStaffHistoryHighlightYear(gameDateIso, nationSeasonUpdateDaySamples)
   staff.forEach((s, staffIndex) => {
@@ -563,6 +610,7 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
     const hist = staffHistoryByStaffId?.get(s.id)
     const yearPick = refineHighlightYearWithHistoryFallback(hist ?? [], baseYearPick)
     const sums = sumStaffHistoryCareerAndSeason(hist, yearPick.highlightHistoryYear)
+    const savePerformance = savePerformanceByPlayerDatId?.get(player.id) ?? null
     rows.push({
       staffId: s.id,
       staffIndex,
@@ -581,6 +629,7 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
       staffHistCareerGoals: sums.careerGoals,
       staffHistSeasonApps: sums.seasonApps,
       staffHistSeasonGoals: sums.seasonGoals,
+      savePerformance,
       player,
       staff: s,
       contract: c,
@@ -604,6 +653,8 @@ export function buildUiPlayerRowAtIndex(db: ParsedDatabase, staffIndex: number):
     gameDateIso,
     staffHistoryByStaffId,
     nationSeasonUpdateDaySamples,
+    savePerformanceByPlayerDatId,
+    savePerformancePerCompByPlayerDatId,
   } = db
   if (staffIndex < 0 || staffIndex >= staff.length) return null
   const s = staff[staffIndex]!
@@ -628,6 +679,7 @@ export function buildUiPlayerRowAtIndex(db: ParsedDatabase, staffIndex: number):
   const hist = staffHistoryByStaffId?.get(s.id)
   const yearPick = refineHighlightYearWithHistoryFallback(hist ?? [], baseYearPick)
   const sums = sumStaffHistoryCareerAndSeason(hist, yearPick.highlightHistoryYear)
+  const savePerformance = savePerformanceByPlayerDatId?.get(player.id) ?? null
   return {
     staffId: s.id,
     staffIndex,
@@ -646,6 +698,7 @@ export function buildUiPlayerRowAtIndex(db: ParsedDatabase, staffIndex: number):
     staffHistCareerGoals: sums.careerGoals,
     staffHistSeasonApps: sums.seasonApps,
     staffHistSeasonGoals: sums.seasonGoals,
+    savePerformance,
     player,
     staff: s,
     contract: c,

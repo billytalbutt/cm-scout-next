@@ -213,6 +213,33 @@ export interface ContractRecord {
   squad_status: number
 }
 
+/** One competition slice from structured `player stats.dat` (grid V0). */
+export interface PlayerStatsPerCompetitionRow {
+  competitionId: number
+  competitionName: string
+  apps: number
+  goals: number
+  assists: number | null
+  averageRating: number | null
+  tackles: number | null
+  passes: number | null
+  headers: number | null
+}
+
+/** `player stats.dat` row summary (keyed by `PlayerRecord.id`). */
+export interface PlayerSavePerformanceStats {
+  apps: number | null
+  goals: number | null
+  assists: number | null
+  averageRating?: number | null
+  tackles?: number | null
+  passes?: number | null
+  headers?: number | null
+  layout: 'zeroedPrefix' | 'chainPrevId' | 'default' | 'gridV0'
+  /** Present when `layout === 'gridV0'` — primary domestic / picked competition row. */
+  competitionId?: number | null
+}
+
 export interface ParsedDatabase {
   compressed: boolean
   blocks: BlockInfo[]
@@ -244,6 +271,13 @@ export interface ParsedDatabase {
   gameDateIso: string | null
   /** True when the loaded archive contains a `player stats.dat` block (typical of `.sav`; not decoded yet). */
   playerStatsDatPresent?: boolean
+  /**
+   * Heuristic decode of `player stats.dat` keyed by `player.dat` row `id` (`PlayerRecord.id`).
+   * Undefined when the block is missing or parsing failed.
+   */
+  savePerformanceByPlayerDatId?: Map<number, PlayerSavePerformanceStats>
+  /** Grid V0: all decoded per-competition rows per `player.dat` id. */
+  savePerformancePerCompByPlayerDatId?: Map<number, PlayerStatsPerCompetitionRow[]>
   /** `nonplayer.dat` keyed by non-player id (from `StaffRecord.non_player_id`). */
   nonPlayersById?: Map<number, NonPlayerRecord>
   /** Full `club.dat` rows keyed by club id (includes squad staff ids). */
@@ -316,6 +350,11 @@ export interface UiPlayerRow {
   staffHistCareerGoals: number
   staffHistSeasonApps: number
   staffHistSeasonGoals: number
+  /**
+   * Season-style counters from `player stats.dat` when the heuristic decoder found a row
+   * for this `player.dat` id (may be partial — e.g. assists-only on some layouts).
+   */
+  savePerformance?: PlayerSavePerformanceStats | null
   /** Meta-profile DNA tags (`engineMetaProfiles.ts`) — filled after load. */
   engineMetaProfileIds?: readonly string[]
   /** joined player blob for profile */

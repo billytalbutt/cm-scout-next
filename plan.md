@@ -22,5 +22,5 @@
 
 ## Other notes
 
-- `player stats.dat` decode for per-competition / assists / av rating — still TBD (binary layout).
+- `player stats.dat`: **spec + grid V0 field map (Phase C)** — `playerStatsFields.ts` decodes 128 B rows (apps/goals/assists + experimental rating/defensive bytes), fills profile per-competition table; heuristic v1 fallback; optional env golden (`fixtures/player-stats/README.md`). Confirm rating/tackles against CM UI before calling exact.
 - `scripts/try-parse-sav.ts` was left empty; remove or implement if needed.

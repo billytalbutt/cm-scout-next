@@ -126,9 +126,16 @@ export interface ProfileSeasonStats {
   inferredDomesticLeague: { competitionId: number; name: string } | null
   perCompetitionRows: ProfilePerCompetitionRow[]
   perCompetitionStatsInSave: boolean
+  /** Heuristic `player stats.dat` slice when a row was decoded for this player. */
+  saveFilePerformance: {
+    apps: number | null
+    goals: number | null
+    assists: number | null
+    averageRating?: number | null
+  } | null
   /** True when `staff_history.dat` was present and parsed for this save (this player may still have zero rows). */
   staffHistoryParsed: boolean
-  /** Save contains `player stats.dat` block (decoded in a future release). */
+  /** Save contains `player stats.dat`; optional heuristic decode may populate `spf*` columns. */
   playerStatsDatPresent?: boolean
   /** Short explanation for performance columns (goals/assists/rating per competition). */
   savePerformanceHint?: string
