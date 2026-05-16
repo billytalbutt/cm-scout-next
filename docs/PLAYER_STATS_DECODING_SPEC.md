@@ -61,7 +61,7 @@ Until all three hold, the decoder is **research-grade** or **heuristic**, not so
 | Field | Row rel | Type | Notes |
 |-------|---------|------|--------|
 | `competitionId` | 8 | int32 | Phase B candidate; name from `club_comp` / `staff_comp` |
-| `goals` | 44 | u8 | Paired-save +1 with match (Dyer @ row 553276) |
+| `goals` | 51 | u8 | id+11 (chainPrevId-aligned); **not** rel 44 (low byte of magic int32) |
 | `apps` | 52 | u8 | Heuristic `id+12` on grid |
 | `assists` | 53 | u8 | Paired-save +1 (not heuristic `id+106`, which is outside 128 B row) |
 | `averageRating` | 76 | u8 ÷ 10 | **Experimental** (10–100 → 6.0–10.0) — needs UI golden |

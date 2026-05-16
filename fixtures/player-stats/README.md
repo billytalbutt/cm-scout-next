@@ -21,4 +21,4 @@ npm test
 
 The integration test file is `src/main/database/playerStatsGolden.integration.test.ts` and skips when env vars are unset.
 
-Phase A: `npm run research:player-stats-layout -- <path-to.sav>`. Phase B: `npm run research:player-stats-phase-b -- <path-to.sav>` (see `docs/PLAYER_STATS_DECODING_SPEC.md`).
+Phase A: `npm run research:player-stats-layout -- <path-to.sav>`. Phase B: `npm run research:player-stats-phase-b -- <path-to.sav>`. See `blackburn-verification-players.md` for test player ids (Dyer 118, Cole 5451, Xavi 14922, Tsigalko 27755).

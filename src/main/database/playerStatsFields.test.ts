@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { PLAYER_STATS_FIELD_MAP_V0, decodePlayerStatsGridRow, parsePlayerStatsFromSave } from './playerStatsFields'
+import {
+  PLAYER_STATS_FIELD_MAP_V0,
+  buildMemberPerCompetitionRows,
+  decodePlayerStatsGridRow,
+  isBogusCompetitionLabel,
+  isPlausibleGridStatRow,
+  parsePlayerStatsFromSave,
+  pickBestSeasonGridRow,
+} from './playerStatsFields'
 import { PLAYER_STATS_RESEARCH_GRID_V0 } from './playerStatsJoins'
 import type { PlayerRecord } from './types'
 
@@ -12,71 +20,137 @@ function writeEligibleRow(buf: Buffer, rowStart: number, playerDatId: number, pl
 }
 
 describe('PLAYER_STATS_FIELD_MAP_V0', () => {
-  it('documents Blackburn paired-save offsets', () => {
-    expect(PLAYER_STATS_FIELD_MAP_V0.goals.rel).toBe(44)
-    expect(PLAYER_STATS_FIELD_MAP_V0.apps.rel).toBe(52)
-    expect(PLAYER_STATS_FIELD_MAP_V0.assists.rel).toBe(53)
-    expect(PLAYER_STATS_FIELD_MAP_V0.competitionId.rel).toBe(8)
+  it('uses goals at id+11 (rel 51), not magic dword low byte', () => {
+    expect(F.goals.rel).toBe(51)
+    expect(F.apps.rel).toBe(52)
+    expect(F.assists.rel).toBe(53)
+  })
+})
+
+describe('isBogusCompetitionLabel', () => {
+  it('flags manager awards', () => {
+    expect(isBogusCompetitionLabel('Portuguese Second League Manager of the Year')).toBe(true)
+    expect(isBogusCompetitionLabel('English Premier League')).toBe(false)
   })
 })
 
 describe('decodePlayerStatsGridRow', () => {
-  it('decodes goals/apps/assists from synthetic row', () => {
+  it('decodes goals at rel 51 separately from int32 at 44', () => {
     const buf = Buffer.alloc(128, 0)
     writeEligibleRow(buf, 0, 118, 2000)
-    buf.writeInt32LE(42, 8)
-    buf.writeUInt8(0x22, F.goals.rel)
-    buf.writeUInt8(0x18, F.apps.rel)
-    buf.writeUInt8(0x09, F.assists.rel)
+    buf.writeUInt8(99, 44)
+    buf.writeUInt8(1, 51)
+    buf.writeUInt8(9, 52)
+    buf.writeUInt8(1, 53)
     const row = decodePlayerStatsGridRow(buf, 0)!
-    expect(row.playerDatId).toBe(118)
-    expect(row.competitionId).toBe(42)
-    expect(row.goals).toBe(0x22)
-    expect(row.apps).toBe(0x18)
-    expect(row.assists).toBe(9)
+    expect(row.goals).toBe(1)
+    expect(row.apps).toBe(9)
+    expect(row.assists).toBe(1)
   })
 
-  it('matches Blackburn Dyer row deltas (+1 goals/apps/assists)', () => {
-    const buf = Buffer.alloc(128, 0)
-    writeEligibleRow(buf, 0, 118, 3000)
-    buf.writeUInt8(0x22, 44)
-    buf.writeUInt8(0x18, 52)
-    buf.writeUInt8(0x09, 53)
-    const a = decodePlayerStatsGridRow(buf, 0)!
-    buf.writeUInt8(0x23, 44)
-    buf.writeUInt8(0x19, 52)
-    buf.writeUInt8(0x0a, 53)
-    const b = decodePlayerStatsGridRow(buf, 0)!
-    expect(b.goals! - a.goals!).toBe(1)
-    expect(b.apps! - a.apps!).toBe(1)
-    expect(b.assists! - a.assists!).toBe(1)
+  it('rejects rows where goals exceed apps', () => {
+    const row = {
+      rowStart: 0,
+      playerDatId: 1,
+      competitionId: 7,
+      apps: 9,
+      goals: 35,
+      assists: 1,
+      averageRating: null,
+      tackles: null,
+      passes: null,
+      headers: null,
+    }
+    expect(isPlausibleGridStatRow(row)).toBe(false)
+  })
+})
+
+describe('pickBestSeasonGridRow', () => {
+  it('prefers division comp and plausible stats over max-apps noise', () => {
+    const rows = [
+      {
+        rowStart: 0,
+        playerDatId: 118,
+        competitionId: 0,
+        apps: 40,
+        goals: 35,
+        assists: 10,
+        averageRating: null,
+        tackles: null,
+        passes: null,
+        headers: null,
+      },
+      {
+        rowStart: 128,
+        playerDatId: 118,
+        competitionId: 7,
+        apps: 9,
+        goals: 1,
+        assists: 1,
+        averageRating: null,
+        tackles: null,
+        passes: null,
+        headers: null,
+      },
+    ]
+    const clubComps = new Map([
+      [7, { id: 7, name: 'English Premier League', shortName: 'PL', threeLetter: 'PL', nationId: 1, reputation: 90 }],
+    ])
+    const best = pickBestSeasonGridRow(rows, 7, clubComps)!
+    expect(best.competitionId).toBe(7)
+    expect(best.apps).toBe(9)
+    expect(best.goals).toBe(1)
+  })
+})
+
+describe('buildMemberPerCompetitionRows', () => {
+  it('synthesizes division row when int8 comp id never matches division', () => {
+    const best = {
+      rowStart: 0,
+      playerDatId: 118,
+      competitionId: 33,
+      apps: 9,
+      goals: 1,
+      assists: 1,
+      averageRating: null,
+      tackles: null,
+      passes: null,
+      headers: null,
+    }
+    const clubComps = new Map([
+      [7, { id: 7, name: 'English Premier League', shortName: 'PL', threeLetter: 'PL', nationId: 1, reputation: 90 }],
+    ])
+    const rows = buildMemberPerCompetitionRows([best], best, 118, 7, clubComps)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.competitionId).toBe(7)
+    expect(rows[0]!.competitionName).toBe('English Premier League')
+    expect(rows[0]!.apps).toBe(9)
+    expect(rows[0]!.goals).toBe(1)
   })
 })
 
 describe('parsePlayerStatsFromSave', () => {
-  it('builds per-comp rows and primary domestic pick', () => {
-    const buf = Buffer.alloc(g.headerBytes + 2 * g.stride, 0)
-    const players = [{ id: 7 } as PlayerRecord]
+  it('primary uses division comp id for display', () => {
+    const buf = Buffer.alloc(g.headerBytes + g.stride, 0)
+    const players = [{ id: 118 } as PlayerRecord]
     const staff = [{ player_id: 0, club_job_id: 100 }]
     const r0 = g.headerBytes
-    const r1 = g.headerBytes + g.stride
-    writeEligibleRow(buf, r0, 7, 2500)
-    buf.writeInt32LE(500, r0 + 8)
-    buf.writeUInt8(2, r0 + 44)
-    buf.writeUInt8(10, r0 + 52)
+    writeEligibleRow(buf, r0, 118, 2500)
+    buf.writeInt32LE(33, r0 + 8)
+    buf.writeUInt8(1, r0 + 51)
+    buf.writeUInt8(9, r0 + 52)
     buf.writeUInt8(1, r0 + 53)
-    writeEligibleRow(buf, r1, 7, 2500)
-    buf.writeInt32LE(999, r1 + 8)
-    buf.writeUInt8(0, r1 + 44)
-    buf.writeUInt8(1, r1 + 52)
     const res = parsePlayerStatsFromSave(buf, players, staff, {
-      clubDivisionCompIdByClubId: new Map([[100, 500]]),
-      clubCompsById: new Map([[500, { id: 500, name: 'Premier League', shortName: 'PL', threeLetter: 'PL', nationId: 1, reputation: 90 }]]),
+      clubDivisionCompIdByClubId: new Map([[100, 7]]),
+      clubCompsById: new Map([
+        [7, { id: 7, name: 'English Premier League', shortName: 'PL', threeLetter: 'PL', nationId: 1, reputation: 90 }],
+      ]),
     })
-    expect(res.perCompByPlayerDatId.get(7)?.length).toBe(2)
-    const primary = res.byPlayerDatId.get(7)
+    const primary = res.byPlayerDatId.get(118)
     expect(primary?.layout).toBe('gridV0')
-    expect(primary?.competitionId).toBe(500)
-    expect(primary?.apps).toBe(10)
+    expect(primary?.competitionId).toBe(7)
+    expect(primary?.apps).toBe(9)
+    expect(primary?.goals).toBe(1)
+    expect(res.perCompByPlayerDatId.get(118)?.[0]?.competitionName).toContain('Premier')
   })
 })
