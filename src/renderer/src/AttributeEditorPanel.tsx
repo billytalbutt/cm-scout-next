@@ -364,7 +364,7 @@ export function AttributeEditorPanel({
         The <span className="font-mono text-zinc-300">number in the box</span> is the{' '}
         <strong className="text-zinc-300">raw on-disk byte</strong> (can be negative or above 20 in edited databases).{' '}
         <strong className="text-emerald-200/90">On attributes screen</strong> is what you would see as the usual 1–20 style
-        value in CM / CM Scout Next profile — it updates live as you type, using the same math as the profile (CA18
+        value in CM / CM Merlin Scout profile — it updates live as you type, using the same math as the profile (CA18
         curve for technicals, clamp for mentals, etc.).
       </p>
 

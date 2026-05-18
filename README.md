@@ -1,4 +1,4 @@
-# CM Scout Next
+# CM Merlin Scout
 
 **Repository:** [github.com/billytalbutt/cm-scout-next](https://github.com/billytalbutt/cm-scout-next)
 
