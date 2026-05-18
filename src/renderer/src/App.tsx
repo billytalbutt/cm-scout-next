@@ -58,6 +58,12 @@ function fmtMoney(n: number) {
   return String(n)
 }
 
+/** Contract bonuses use −1 in the save when no bonus is set (CM sentinel). */
+function fmtContractMoney(n: number) {
+  if (!Number.isFinite(n) || n < 0) return '—'
+  return fmtMoney(n)
+}
+
 /** Scout advice in the spirit of CM0102 instruction Yes/No columns — not read from the executable. */
 function playerInstructionAdvice(tier: 'strong' | 'ok' | 'avoid'): string {
   if (tier === 'strong') return 'Yes'
@@ -1522,13 +1528,16 @@ export function App() {
                 onOpenPlayerProfile={(si) => void pick(si)}
               />
             )}
-            {browseTab === 'clubs' && (
+            <div
+              className={browseTab === 'clubs' ? 'min-h-0 flex flex-1 flex-col' : 'hidden'}
+              aria-hidden={browseTab !== 'clubs'}
+            >
               <ClubBrowsePanel
                 loadInfo={!!loadInfo}
                 onOpenPlayerProfile={(si) => void pick(si)}
                 onClubSelectForTactics={(id) => setTacticsSeedClubId(id)}
               />
-            )}
+            </div>
             {browseTab === 'tactics' && (
               <TacticsLabPanel loadInfo={!!loadInfo} tacticsSeedClubId={tacticsSeedClubId} />
             )}
@@ -1926,6 +1935,54 @@ export function App() {
                                 column is not a “suitable” role for this player.
                               </p>
                             )}
+                          {profile.effArchetype && (
+                            <div className="border-t border-zinc-700/80 pt-2">
+                              <p className="font-semibold text-zinc-300">Effectiveness %</p>
+                              {profile.effPercent != null ? (
+                                <p className="mt-1 text-zinc-400">
+                                  Best archetype:{' '}
+                                  <span className="font-mono text-emerald-200/90">
+                                    {profile.effPercent.toFixed(1)}% ({profile.effArchetype})
+                                  </span>
+                                </p>
+                              ) : (
+                                <p className="mt-1 italic text-violet-200/95">
+                                  Natural positions did not match any effectiveness recipe — use CM Scout % above.
+                                </p>
+                              )}
+                              {profile.effWinnerDetail && (
+                                <>
+                                  <p className="mt-2 font-semibold text-zinc-300">Why this Eff %</p>
+                                  <p className="mt-1 text-zinc-500">
+                                    Winning recipe{' '}
+                                    <span className="text-emerald-200/90">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
+                                    — primary ×5, secondary ×1.5, engine rows on lighter weights; values are profile
+                                    1–20. ★ = on-screen 20 (1.25×). Consistency multiplies the score.
+                                  </p>
+                                  {profile.effWinnerDetail.brainMult ? (
+                                    <p className="mt-1 text-zinc-500">
+                                      Brain: base {profile.effWinnerDetail.basePercent.toFixed(1)}% × (
+                                      {profile.effWinnerDetail.brainMult.decisions}/20 ×{' '}
+                                      {profile.effWinnerDetail.brainMult.anticipation}/20)
+                                    </p>
+                                  ) : null}
+                                  {profile.effWinnerDetail.consistencyReliability && profile.effPercent != null && (
+                                    <p className="mt-1 text-zinc-500">
+                                      Consistency {profile.effWinnerDetail.consistencyReliability.consistency.toFixed(0)}
+                                      /20 → ×{profile.effWinnerDetail.consistencyReliability.factor.toFixed(3)} →{' '}
+                                      <span className="font-mono text-emerald-200/90">
+                                        {profile.effPercent.toFixed(1)}%
+                                      </span>{' '}
+                                      final
+                                    </p>
+                                  )}
+                                  {profile.effRatingDisclaimer && (
+                                    <p className="mt-2 text-[9px] text-zinc-500">{profile.effRatingDisclaimer}</p>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       }
                     >
@@ -1940,101 +1997,9 @@ export function App() {
                         <span className="text-emerald-200">{profile.cmScoutRatingBp}%</span>
                       </p>
                     )}
-                    {profile.effArchetype && (
-                      <div className="mt-1 space-y-2">
-                        <p className="font-mono text-[11px] text-zinc-300/95">
-                          Eff % (best archetype){' '}
-                          {profile.effPercent != null ? (
-                            <span
-                              className={
-                                profile.cmScoutRatingBp != null && profile.effPercent > profile.cmScoutRatingBp + 15
-                                  ? 'font-semibold text-[#39FF14]'
-                                  : 'text-emerald-200/90'
-                              }
-                            >
-                              {profile.effPercent.toFixed(1)}% ({profile.effArchetype})
-                            </span>
-                          ) : (
-                            <span
-                              className="font-medium italic text-violet-200/95"
-                              title="Natural positions did not match any effectiveness recipe. Use CM Scout % above."
-                            >
-                              Unsure — use CM Scout % above
-                            </span>
-                          )}
-                        </p>
-                        {profile.effWinnerDetail && (
-                          <div className="rounded border border-zinc-800/90 bg-zinc-950/55 p-2 text-[10px] leading-snug text-zinc-400">
-                            <p className="font-semibold text-zinc-300">Why this Eff %</p>
-                            <p className="mt-1 text-zinc-500">
-                              Winning recipe <span className="text-emerald-200/90">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
-                              — primary ×5, secondary ×1.5, engine rows (hiddens / set-pieces / staff mentals) on lighter
-                              weights; all values match <strong className="text-zinc-400">profile 1–20</strong>. ★ =
-                              on-screen 20 (1.25×). Then <strong className="text-zinc-400">consistency</strong> multiplies
-                              the score (forum-style “realizes their level” — not from a decompiled EXE).
-                            </p>
-                            {profile.effWinnerDetail.brainMult ? (
-                              <p className="mt-1 text-zinc-500">
-                                Brain: base {profile.effWinnerDetail.basePercent.toFixed(1)}% × (
-                                {profile.effWinnerDetail.brainMult.decisions}/20 ×{' '}
-                                {profile.effWinnerDetail.brainMult.anticipation}/20) →{' '}
-                                <span className="font-mono text-zinc-200">
-                                  {profile.effWinnerDetail.synergyBoost != null &&
-                                  profile.effWinnerDetail.preSynergyPercent != null
-                                    ? profile.effWinnerDetail.preSynergyPercent.toFixed(1)
-                                    : profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}
-                                  %
-                                </span>
-                                {profile.effWinnerDetail.synergyBoost != null &&
-                                  profile.effWinnerDetail.preSynergyPercent != null && (
-                                    <>
-                                      {' '}
-                                      + profile synergy{' '}
-                                      <span className="font-mono text-sky-200/95">
-                                        +{profile.effWinnerDetail.synergyBoost.toFixed(1)}%
-                                      </span>{' '}
-                                      →{' '}
-                                      <span className="font-mono text-zinc-200">
-                                        {profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}%
-                                      </span>
-                                    </>
-                                  )}
-                              </p>
-                            ) : (
-                              <p className="mt-1 text-zinc-500">
-                                Base (recipe + engine){' '}
-                                <span className="font-mono text-zinc-200">
-                                  {profile.effWinnerDetail.synergyBoost != null &&
-                                  profile.effWinnerDetail.preSynergyPercent != null
-                                    ? profile.effWinnerDetail.preSynergyPercent.toFixed(1)
-                                    : profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}
-                                  %
-                                </span>
-                                {profile.effWinnerDetail.synergyBoost != null &&
-                                  profile.effWinnerDetail.preSynergyPercent != null && (
-                                    <>
-                                      {' '}
-                                      + profile synergy{' '}
-                                      <span className="font-mono text-sky-200/95">
-                                        +{profile.effWinnerDetail.synergyBoost.toFixed(1)}%
-                                      </span>{' '}
-                                      →{' '}
-                                      <span className="font-mono text-zinc-200">
-                                        {profile.effWinnerDetail.preConsistencyPercent.toFixed(1)}%
-                                      </span>
-                                    </>
-                                  )}
-                              </p>
-                            )}
-                            {profile.effWinnerDetail.consistencyReliability && profile.effPercent != null && (
-                              <p className="mt-1 text-zinc-500">
-                                Consistency {profile.effWinnerDetail.consistencyReliability.consistency.toFixed(0)}/20 →
-                                ×{profile.effWinnerDetail.consistencyReliability.factor.toFixed(3)} →{' '}
-                                <span className="font-mono text-emerald-200/90">{profile.effPercent.toFixed(1)}%</span>{' '}
-                                final
-                              </p>
-                            )}
-                            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+                    {profile.effArchetype && profile.effWinnerDetail && (
+                      <div className="mt-2 rounded border border-zinc-800/90 bg-zinc-950/55 p-2 text-[10px] leading-snug text-zinc-400">
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                               <div>
                                 <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">Primary</p>
                                 <ul className="mt-0.5 space-y-0.5 font-mono text-zinc-300">
@@ -2085,30 +2050,8 @@ export function App() {
                                 <span className="font-mono text-zinc-200">{profile.effRunnerUp.score.toFixed(1)}%</span>
                               </p>
                             )}
-                            {profile.effRatingDisclaimer && (
-                              <p className="mt-2 border-t border-zinc-800/80 pt-2 text-[9px] text-zinc-500">
-                                {profile.effRatingDisclaimer}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                        {profile.effRelaxedNaturalGate && profile.effPercent == null && (
-                          <p className="rounded border border-violet-600/35 bg-violet-950/25 px-2 py-1.5 text-[9px] leading-snug text-violet-200/95">
-                            Natural positions did not match any effectiveness recipe — no numeric Eff % is shown. Use
-                            CM Scout % for this player; Eff % still ranks everyone else on matched recipes.
-                          </p>
-                        )}
                       </div>
                     )}
-                    {profile.cmScoutRatingBp != null &&
-                      profile.cmScoutRolePercents &&
-                      Math.max(...profile.cmScoutRolePercents) > profile.cmScoutRatingBp + 0.05 && (
-                        <p className="mt-1 text-[9px] text-zinc-500">
-                          <span className="text-emerald-400/90">Green</span> = best column %;{' '}
-                          <span className="text-amber-300/90">lighter amber</span> = 2nd-best value;{' '}
-                          <span className="text-amber-600/90">darker amber</span> = 3rd-best (hover heading if BP differs).
-                        </p>
-                      )}
                     <div className="mt-2 grid grid-cols-7 gap-1 text-center">
                       {(() => {
                         const percents = profile.cmScoutRolePercents!
@@ -2162,11 +2105,11 @@ export function App() {
                     <span>Wage</span>
                     <span className="text-right text-zinc-200">{fmtMoney(profile.contract.wage)}</span>
                     <span>Goal bonus</span>
-                    <span className="text-right text-zinc-200">{fmtMoney(profile.contract.goalBonus)}</span>
+                    <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.goalBonus)}</span>
                     <span>Assist bonus</span>
-                    <span className="text-right text-zinc-200">{fmtMoney(profile.contract.assistBonus)}</span>
+                    <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.assistBonus)}</span>
                     <span>Release fee</span>
-                    <span className="text-right text-zinc-200">{fmtMoney(profile.contract.releaseFee)}</span>
+                    <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.releaseFee)}</span>
                     <span>Started</span>
                     <span className="text-right font-mono text-zinc-200">
                       {profile.contract.dateStarted ?? '—'}
@@ -2181,8 +2124,6 @@ export function App() {
                     <span className="text-right text-zinc-200">
                       {profile.contract.minimumReleaseClause ? 'Yes' : 'No'}
                     </span>
-                    <span>Type byte</span>
-                    <span className="text-right font-mono text-zinc-200">{profile.contract.type}</span>
                   </div>
                 </div>
               )}
@@ -2255,27 +2196,6 @@ export function App() {
                     <InfoDot />
                   </h3>
                 </HoverTip>
-                <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-400">
-                  <span>
-                    Career:{' '}
-                    <span className="font-mono text-zinc-200">{profile.seasonStats.careerTotals.apps}</span> apps ·{' '}
-                    <span className="font-mono text-zinc-200">{profile.seasonStats.careerTotals.goals}</span> goals
-                  </span>
-                  {profile.seasonStats.highlightHistoryYear != null && (
-                    <span>
-                      Season {profile.seasonStats.highlightHistoryYear}:
-                      <span className="font-mono text-emerald-200/90">
-                        {' '}
-                        {profile.seasonStats.currentSeasonTotals.apps}
-                      </span>{' '}
-                      apps ·{' '}
-                      <span className="font-mono text-emerald-200/90">
-                        {profile.seasonStats.currentSeasonTotals.goals}
-                      </span>{' '}
-                      goals
-                    </span>
-                  )}
-                </div>
                 <div className="mb-3 overflow-x-auto rounded border border-emerald-900/40 bg-emerald-950/20">
                   <table className="w-full min-w-[16rem] border-collapse text-left text-[11px]">
                     <thead>
@@ -2396,65 +2316,6 @@ export function App() {
                     </tbody>
                   </table>
                 </div>
-                {profile.seasonStats.perCompetitionStatsInSave && (
-                <div className="mt-3 border-t border-zinc-800/80 pt-2">
-                  <HoverTip
-                    tip={
-                      <p className="text-zinc-300">
-                        Experimental decode from player stats.dat (dev only). Not shown in normal use.
-                      </p>
-                    }
-                  >
-                    <h4 className="mb-1 flex cursor-default items-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                      By competition (research)
-                      <InfoDot />
-                    </h4>
-                  </HoverTip>
-                  <div className="overflow-x-auto rounded border border-zinc-800/80">
-                    <table className="w-full min-w-[22rem] border-collapse text-left text-[11px]">
-                      <thead>
-                        <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
-                          <th className="px-2 py-1.5 font-medium">Competition</th>
-                          <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
-                          <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
-                          <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
-                          <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
-                          <th className="px-2 py-1.5 text-right font-mono font-medium">Tkl</th>
-                          <th className="px-2 py-1.5 text-right font-mono font-medium">Pass</th>
-                          <th className="px-2 py-1.5 text-right font-mono font-medium">Hdr</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {profile.seasonStats.perCompetitionStatsInSave &&
-                        profile.seasonStats.perCompetitionRows.length > 0 ? (
-                          profile.seasonStats.perCompetitionRows.map((r) => (
-                            <tr key={r.competitionId} className="border-b border-zinc-800/40">
-                              <td className="max-w-[12rem] truncate px-2 py-1 text-zinc-200" title={r.competitionName}>
-                                {r.competitionName}
-                              </td>
-                              <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.apps}</td>
-                              <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.goals}</td>
-                              <td className="px-2 py-1 text-right">{formatProfileStatCell(r.assists)}</td>
-                              <td className="px-2 py-1 text-right">
-                                {formatProfileStatCell(r.averageRating, 'rating')}
-                              </td>
-                              <td className="px-2 py-1 text-right">{formatProfileStatCell(r.tackles)}</td>
-                              <td className="px-2 py-1 text-right">{formatProfileStatCell(r.passes)}</td>
-                              <td className="px-2 py-1 text-right">{formatProfileStatCell(r.headers)}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={8} className="px-2 py-2.5 text-center text-zinc-500">
-                              —
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                )}
               </div>
             </div>
           )}

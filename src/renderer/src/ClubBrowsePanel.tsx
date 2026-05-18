@@ -230,8 +230,6 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
                 <dd className="font-mono text-zinc-200">{detail.cash.toLocaleString()}</dd>
                 <dt>Transfer budget (save)</dt>
                 <dd className="text-zinc-500">Not in this row — in-game board / finances</dd>
-                <dt>Stadium id</dt>
-                <dd className="font-mono text-zinc-200">{detail.stadiumId}</dd>
                 <dt>Attendance</dt>
                 <dd className="font-mono text-zinc-200">{detail.attendance.toLocaleString()}</dd>
                 <dt>Training facilities</dt>
@@ -241,13 +239,13 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
                 <dt>Youth / other facilities</dt>
                 <dd className="text-zinc-500">
                   {detail.stadium
-                    ? `Ground data from stadium.dat (capacity ${detail.stadium.capacity.toLocaleString()}; youth/training complex scores are not separate fields in this parser).`
-                    : 'No stadium.dat row for this stadium id — ground breakdown unavailable.'}
+                    ? `Ground capacity ${detail.stadium.capacity.toLocaleString()}. Youth complex ratings are not in this export.`
+                    : 'Ground details unavailable.'}
                 </dd>
               </dl>
               {detail.stadium && (
                 <div className="mt-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2 text-[11px] text-zinc-400">
-                  <h4 className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">Stadium (stadium.dat)</h4>
+                  <h4 className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">Stadium</h4>
                   <p className="font-medium text-zinc-200">{detail.stadium.name}</p>
                   <dl className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5">
                     <dt>Capacity</dt>
@@ -256,41 +254,17 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
                     <dd className="font-mono text-zinc-200">{detail.stadium.seatingCapacity.toLocaleString()}</dd>
                     <dt>Expansion cap.</dt>
                     <dd className="font-mono text-zinc-200">{detail.stadium.expansionCapacity.toLocaleString()}</dd>
-                    <dt>City id</dt>
-                    <dd className="font-mono text-zinc-200">{detail.stadium.cityId}</dd>
                     <dt>Covered</dt>
                     <dd className="text-zinc-200">{detail.stadium.covered ? 'Yes' : 'No'}</dd>
                     <dt>Soil heating</dt>
                     <dd className="text-zinc-200">{detail.stadium.underSoilHeating ? 'Yes' : 'No'}</dd>
-                    <dt>Nearby stadium id</dt>
-                    <dd className="font-mono text-zinc-200">{detail.stadium.nearbyStadiumId}</dd>
                   </dl>
                 </div>
               )}
-              {(detail.tacticSelectedId != null || detail.tacticsWire) && (
-                <div className="mt-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2 text-[11px] text-zinc-400">
-                  <h4 className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">Tactics (club.dat + tactics.dat)</h4>
-                  <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                    <dt>TacticSelected id</dt>
-                    <dd className="font-mono text-zinc-200">{detail.tacticSelectedId ?? '—'}</dd>
-                    <dt>TacticTraining ids</dt>
-                    <dd className="font-mono text-zinc-200">{(detail.tacticTrainingIds ?? []).join(', ') || '—'}</dd>
-                    <dt>tactics.dat</dt>
-                    <dd className="text-zinc-200">
-                      {detail.tacticsWire?.tacticsBlockPresent
-                        ? `${detail.tacticsWire.tacticsRowCount ?? '?'} rows × ${detail.tacticsWire.tacticsRowBytes ?? '?'} bytes`
-                        : 'block not in index'}
-                    </dd>
-                    <dt>Row match</dt>
-                    <dd className="text-zinc-200">{detail.tacticsWire?.tacticRowFound ? 'Found' : 'Not found'}</dd>
-                  </dl>
-                  {detail.tacticsWire?.tacticRowHexPrefix && (
-                    <p className="mt-1 break-all font-mono text-[10px] text-zinc-500" title="First bytes of tactic row">
-                      {detail.tacticsWire.tacticRowHexPrefix}
-                    </p>
-                  )}
-                </div>
-              )}
+              <div className="mt-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2 text-[11px] text-zinc-400">
+                <h4 className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">Tactics</h4>
+                <p className="text-zinc-500">Tactics info is not available yet.</p>
+              </div>
               {detail.xiNames && detail.xiNames.length > 0 && (
                 <div className="mt-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2 text-[11px] text-zinc-400">
                   <h4 className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">
