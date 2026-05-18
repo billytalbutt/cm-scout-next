@@ -1,48 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import {
+  applyPresetToCm0102Grid,
+  applySlotsToCm0102Grid,
+  CM0102_TACTIC_ROWS,
+  teamRatingFromAssignments,
+  type Cm0102GridSlot,
+  type Cm0102GridSlotId,
+  type TacticsPlayerAssignment,
+} from '../../shared/cm0102TacticsGrid'
 import {
   TACTIC_PRESETS,
   type TacticArrow,
-  type TacticPreset,
   type TacticPresetId,
 } from '../../shared/tacticsCommunityPresets'
+import { TacticsPlayerMarker } from './tactics/TacticsPlayerMarker'
 
 type Mentality = 'defensive' | 'normal' | 'attacking'
 type PassingStyle = 'short' | 'mixed' | 'direct' | 'long'
 type TacklingStyle = 'normal' | 'hard'
-
-type LabSlot = {
-  id: string
-  role: string
-  x: number
-  y: number
-  arrow: TacticArrow
-}
-
-const SNAP_X = [0.1, 0.28, 0.5, 0.72, 0.9]
-const SNAP_Y = [0.06, 0.22, 0.28, 0.3, 0.32, 0.38, 0.4, 0.42, 0.44, 0.48, 0.52, 0.54, 0.56, 0.58, 0.6, 0.62, 0.68, 0.72, 0.8, 0.82, 0.84, 0.9]
-
-function snapTo(n: number, arr: number[]): number {
-  let best = arr[0]!
-  let bd = Infinity
-  for (const v of arr) {
-    const d = Math.abs(v - n)
-    if (d < bd) {
-      bd = d
-      best = v
-    }
-  }
-  return best
-}
-
-function clonePresetSlots(preset: TacticPreset): LabSlot[] {
-  return preset.slots.map((s, i) => ({
-    id: `${preset.id}-${i}`,
-    role: s.role,
-    x: s.x,
-    y: s.y,
-    arrow: s.arrow ?? 'none',
-  }))
-}
 
 function nextArrow(a: TacticArrow): TacticArrow {
   if (a === 'none') return 'forward'
@@ -58,6 +33,7 @@ function tacticBenchmarkScore(args: {
   offside: boolean
   tackling: TacklingStyle
   forwardArrows: number
+  lineupRating: number | null
 }): number {
   let s = 42
   if (args.mentality === 'attacking') s += 8
@@ -70,33 +46,59 @@ function tacticBenchmarkScore(args: {
   if (args.offside) s += 2
   if (args.tackling === 'hard') s -= 4
   s += Math.min(9, args.forwardArrows * 2)
-  if (args.presetId === '4132_press_short' && args.pressing && args.passing === 'short' && args.mentality === 'attacking')
-    s += 14
-  if (args.presetId === '442_narrow') s += 7
-  if (args.presetId === '352_wb') s += 6
-  if (args.presetId === '4321_tree' && args.passing === 'short') s += 5
-  if (args.presetId === '4231_shadow') s += 4
+  if (args.lineupRating != null) s = Math.round(s * 0.45 + args.lineupRating * 0.55)
   return Math.min(99, Math.max(30, s))
 }
 
 export function TacticsLabPanel({
   loadInfo,
   tacticsSeedClubId,
+  gridSlots,
+  onGridSlotsChange,
+  assignments,
 }: {
   loadInfo: boolean
   tacticsSeedClubId: number | null
+  gridSlots: Cm0102GridSlot[]
+  onGridSlotsChange: (slots: Cm0102GridSlot[]) => void
+  assignments: Partial<Record<Cm0102GridSlotId, TacticsPlayerAssignment | null>>
 }) {
   const [preset, setPreset] = useState<TacticPresetId>('4132_press_short')
-  const [slots, setSlots] = useState<LabSlot[]>(() => clonePresetSlots(TACTIC_PRESETS.find((x) => x.id === '4132_press_short')!))
-
   const [pressing, setPressing] = useState(true)
   const [passing, setPassing] = useState<PassingStyle>('short')
   const [mentality, setMentality] = useState<Mentality>('attacking')
   const [offside, setOffside] = useState(false)
   const [tackling, setTackling] = useState<TacklingStyle>('normal')
-
   const [saveWireMsg, setSaveWireMsg] = useState<string | null>(null)
   const [saveWireLoading, setSaveWireLoading] = useState(false)
+
+  const p = useMemo(() => TACTIC_PRESETS.find((x) => x.id === preset)!, [preset])
+  const forwardArrows = useMemo(() => gridSlots.filter((z) => z.arrow === 'forward').length, [gridSlots])
+  const lineupRating = useMemo(() => teamRatingFromAssignments(gridSlots, assignments), [gridSlots, assignments])
+
+  const score = useMemo(
+    () =>
+      tacticBenchmarkScore({
+        presetId: preset,
+        pressing,
+        passing,
+        mentality,
+        offside,
+        tackling,
+        forwardArrows,
+        lineupRating,
+      }),
+    [preset, pressing, passing, mentality, offside, tackling, forwardArrows, lineupRating],
+  )
+
+  const applyPreset = useCallback(
+    (id: TacticPresetId) => {
+      const nextPreset = TACTIC_PRESETS.find((x) => x.id === id)!
+      setPreset(id)
+      onGridSlotsChange(applyPresetToCm0102Grid(nextPreset, gridSlots))
+    },
+    [gridSlots, onGridSlotsChange],
+  )
 
   const pullFromSaveClub = useCallback(async () => {
     if (tacticsSeedClubId == null || typeof window.cmapi?.getClubDetail !== 'function') {
@@ -112,129 +114,42 @@ export function TacticsLabPanel({
         return
       }
       const tw = d.tacticsWire as
-        | {
-            experimentalSlots: { x: number; y: number; label: string }[] | null
-            tacticRowFound: boolean
-            tacticsBlockPresent: boolean
-          }
+        | { experimentalSlots: { x: number; y: number; label: string }[] | null; tacticRowFound: boolean }
         | undefined
       const exp = tw?.experimentalSlots
-      if (exp && exp.length >= 11) {
-        setSlots(
-          exp.map((s, i) => ({
-            id: `save-${i}`,
-            role: s.label,
-            x: s.x,
-            y: s.y,
-            arrow: 'none' as TacticArrow,
-          })),
+      if (exp && exp.length >= 8) {
+        onGridSlotsChange(
+          applySlotsToCm0102Grid(
+            exp.map((s) => ({ role: s.label, x: s.x, y: s.y })),
+            gridSlots,
+          ),
         )
-        setSaveWireMsg(
-          `Experimental: loaded ${exp.length} pitch nodes from tactics.dat for “${String(d.name)}” (heuristic decode — verify in-game).`,
-        )
+        setSaveWireMsg(`Loaded ${exp.length} positions from save for “${String(d.name)}” (snapped to CM grid).`)
       } else {
-        setSaveWireMsg(
-          `Loaded “${String(d.name)}”: tactics.dat ${tw?.tacticsBlockPresent ? 'present' : 'missing'}, tactic row ${tw?.tacticRowFound ? 'found' : 'not found'} — no heuristic pitch window matched (IDs: selected ${String(d.tacticSelectedId ?? '—')}).`,
-        )
+        setSaveWireMsg(`No pitch decode for “${String(d.name)}” — pick a community preset.`)
       }
     } catch (e) {
       setSaveWireMsg(e instanceof Error ? e.message : String(e))
     } finally {
       setSaveWireLoading(false)
     }
-  }, [tacticsSeedClubId])
+  }, [tacticsSeedClubId, gridSlots, onGridSlotsChange])
 
-  const p = useMemo(() => TACTIC_PRESETS.find((x) => x.id === preset)!, [preset])
-  const forwardArrows = useMemo(() => slots.filter((z) => z.arrow === 'forward').length, [slots])
-
-  const score = useMemo(
-    () =>
-      tacticBenchmarkScore({
-        presetId: preset,
-        pressing,
-        passing,
-        mentality,
-        offside,
-        tackling,
-        forwardArrows,
-      }),
-    [preset, pressing, passing, mentality, offside, tackling, forwardArrows],
-  )
-
-  const pitchRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null)
-
-  useEffect(() => {
-    const next = TACTIC_PRESETS.find((x) => x.id === preset)!
-    setSlots(clonePresetSlots(next))
-  }, [preset])
-
-  const onPresetChange = (id: TacticPresetId) => {
-    setPreset(id)
-    const next = TACTIC_PRESETS.find((x) => x.id === id)!
-    setSlots(clonePresetSlots(next))
+  const setSlotArrow = (slotId: Cm0102GridSlotId, arrow: TacticArrow) => {
+    onGridSlotsChange(gridSlots.map((s) => (s.id === slotId ? { ...s, arrow } : s)))
   }
-
-  const onPointerMove = useCallback((e: PointerEvent) => {
-    const d = dragRef.current
-    const el = pitchRef.current
-    if (!d || !el) return
-    const r = el.getBoundingClientRect()
-    const h = r.height
-    const w = r.width
-    const centerPxX = e.clientX - d.dx
-    const centerPxY = e.clientY - d.dy
-    const nx = Math.min(0.94, Math.max(0.06, (centerPxX - r.left) / w))
-    const fracFromTop = (centerPxY - r.top) / h
-    const ny = Math.min(0.92, Math.max(0.04, 1 - fracFromTop))
-    setSlots((prev) => prev.map((s) => (s.id === d.id ? { ...s, x: nx, y: ny } : s)))
-  }, [])
-
-  const endDrag = useCallback(() => {
-    dragRef.current = null
-    window.removeEventListener('pointermove', onPointerMove)
-    window.removeEventListener('pointerup', endDrag)
-    setSlots((prev) =>
-      prev.map((s) => ({
-        ...s,
-        x: snapTo(s.x, SNAP_X),
-        y: snapTo(s.y, SNAP_Y),
-      })),
-    )
-  }, [onPointerMove])
-
-  const onSlotPointerDown = (e: React.PointerEvent, slot: LabSlot) => {
-    if (e.button !== 0) return
-    const el = pitchRef.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    const cx = r.left + slot.x * r.width
-    const cy = r.top + (1 - slot.y) * r.height
-    dragRef.current = { id: slot.id, dx: e.clientX - cx, dy: e.clientY - cy }
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', endDrag)
-  }
-
-  useEffect(() => {
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', endDrag)
-    }
-  }, [onPointerMove, endDrag])
 
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-[11px] leading-snug text-zinc-500">
-        <span className="font-medium text-zinc-300">Tactics Lab</span> — CM0102-style team instructions and a draggable
-        pitch mock (GK at the bottom, forwards at the top). Right-click a chip to cycle forward / backward arrows (like
-        CM). Numbers are a <strong className="text-zinc-400">forum-style heuristic</strong>, not decompiled match AI.
+        <span className="font-medium text-zinc-300">Tactics</span> — CM0102-style rows (sweeper → defence → DM → mid → AM →
+        strikers, GK at bottom). Four columns per row. Right-click a player dot for forward / backward arrows protruding
+        from the circle, like the game.
       </div>
       {loadInfo && (
         <div className="rounded-lg border border-sky-900/30 bg-sky-950/15 p-3 text-[11px] text-zinc-400">
-          <span className="font-medium text-sky-200/90">From save</span> — pick a club in the{' '}
-          <span className="text-zinc-300">Clubs</span> tab, then use the button here to pull{' '}
-          <span className="font-mono text-zinc-300">TClub.TacticSelected</span> /{' '}
-          <span className="font-mono text-zinc-300">tactics.dat</span> into the pitch (experimental slot decode).
+          <span className="font-medium text-sky-200/90">From save</span> — pick a club in{' '}
+          <span className="text-zinc-300">Clubs</span>, then load an experimental snapshot.
           {tacticsSeedClubId != null ? (
             <span className="ml-1 font-mono text-emerald-300/90"> Seed club id {tacticsSeedClubId}</span>
           ) : (
@@ -255,50 +170,52 @@ export function TacticsLabPanel({
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <div className="rounded-xl border border-emerald-900/40 bg-gradient-to-b from-emerald-950/30 to-zinc-950 p-4">
-          <div
-            ref={pitchRef}
-            className="relative mx-auto aspect-[68/105] max-h-[min(52vh,520px)] w-full max-w-md touch-none rounded-lg border border-zinc-700/80 bg-zinc-950 shadow-inner shadow-black/40"
-          >
-            <div className="pointer-events-none absolute inset-2 rounded-md border border-zinc-800/60 opacity-40" />
-            {SNAP_Y.map((yy, i) => (
+          <div className="relative mx-auto aspect-[68/105] max-h-[min(58vh,560px)] w-full max-w-md rounded-lg border border-zinc-700/80 bg-zinc-950 shadow-inner shadow-black/40">
+            {CM0102_TACTIC_ROWS.map((row) => (
               <div
-                key={`band-${i}-${yy}`}
-                className="pointer-events-none absolute left-3 right-3 border-t border-dotted border-zinc-800/50"
-                style={{ top: `${(1 - yy) * 100}%` }}
+                key={row.id}
+                className="pointer-events-none absolute left-2 right-2 border-t border-dotted border-zinc-700/55"
+                style={{ top: `${(1 - row.pitchY) * 100}%` }}
               />
             ))}
-            {slots.map((slot) => (
-              <button
-                key={slot.id}
-                type="button"
-                title={`${slot.role} — drag to move · right-click arrow`}
-                className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-grab select-none flex-col items-center justify-center rounded-full border border-emerald-600/60 bg-emerald-950/85 text-[9px] font-semibold text-emerald-100 shadow hover:bg-emerald-900/90 active:cursor-grabbing"
-                style={{ left: `${slot.x * 100}%`, top: `${(1 - slot.y) * 100}%` }}
-                onPointerDown={(e) => onSlotPointerDown(e, slot)}
-                onContextMenu={(e) => {
-                  e.preventDefault()
-                  setSlots((prev) =>
-                    prev.map((s) => (s.id === slot.id ? { ...s, arrow: nextArrow(s.arrow) } : s)),
-                  )
-                }}
-              >
-                <span className="leading-none">{slot.role.slice(0, 2)}</span>
-                {slot.arrow === 'forward' && <span className="text-[8px] leading-none text-sky-300">▲</span>}
-                {slot.arrow === 'back' && <span className="text-[8px] leading-none text-amber-300">▼</span>}
-              </button>
-            ))}
+            <div className="pointer-events-none absolute inset-2 rounded-md border border-zinc-800/60 opacity-40" />
+            {gridSlots.map((slot) => {
+              const a = assignments[slot.id]
+              const rating = a?.rolePercent ?? a?.cmScoutBp ?? null
+              return (
+                <div
+                  key={slot.id}
+                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                  style={{ left: `${slot.pitchX * 100}%`, top: `${(1 - slot.pitchY) * 100}%` }}
+                >
+                  <TacticsPlayerMarker
+                    role={slot.role}
+                    playerName={a?.name}
+                    rating={rating}
+                    arrow={slot.arrow}
+                    active={slot.active && !!slot.role}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      if (!slot.active) return
+                      setSlotArrow(slot.id, nextArrow(slot.arrow))
+                    }}
+                  />
+                </div>
+              )
+            })}
           </div>
           <p className="mt-2 text-center text-[10px] text-zinc-500">
-            Drag snaps to horizontal bands; five columns (left → right). Right-click: arrow cycle.
+            Assign players in the line-up pane → they appear here. Lineup avg:{' '}
+            <span className="font-mono text-emerald-300/90">{lineupRating ?? '—'}</span>
           </p>
         </div>
         <div className="space-y-3">
           <label className="block">
-            <span className="mb-1 block text-xs text-zinc-500">Community preset</span>
+            <span className="mb-1 block text-xs text-zinc-500">Formation preset</span>
             <select
               className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200"
               value={preset}
-              onChange={(e) => onPresetChange(e.target.value as TacticPresetId)}
+              onChange={(e) => applyPreset(e.target.value as TacticPresetId)}
             >
               {TACTIC_PRESETS.map((x) => (
                 <option key={x.id} value={x.id}>
@@ -308,9 +225,10 @@ export function TacticsLabPanel({
             </select>
           </label>
           <p className="text-[11px] text-zinc-400">{p.blurb}</p>
-
           <div className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-2">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Team instructions (CM0102 labels)</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+              Team instructions (CM0102 labels)
+            </div>
             <label className="flex items-center gap-2 text-xs text-zinc-300">
               <span className="w-28 shrink-0 text-zinc-500">Pressing</span>
               <select
@@ -370,38 +288,13 @@ export function TacticsLabPanel({
               </select>
             </label>
           </div>
-
           <div className="rounded-lg border border-sky-900/40 bg-sky-950/20 p-3">
-            <div className="text-[10px] font-medium uppercase tracking-wide text-sky-300/90">Heuristic benchmark</div>
+            <div className="text-[10px] font-medium uppercase tracking-wide text-sky-300/90">Tactic score</div>
             <div className="mt-1 font-mono text-2xl text-sky-100">{score}</div>
             <p className="mt-1 text-[10px] text-zinc-500">
-              Toy score: preset + CM-style toggles + forward arrows. Tune later against engine research threads.
+              Blends lineup role ratings with team instructions and forward arrows.
             </p>
           </div>
-          <div>
-            <h4 className="mb-1 text-[10px] font-semibold uppercase text-zinc-500">Preset lore (team instructions)</h4>
-            <ul className="list-inside list-disc text-[11px] text-zinc-400">
-              {p.teamInstructions.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-      <div>
-        <h4 className="mb-2 text-[10px] font-semibold uppercase text-zinc-500">Role recruitment hints (static)</h4>
-        <div className="grid gap-2 md:grid-cols-2">
-          {p.roleHints.map((h) => (
-            <div key={h.role} className="rounded border border-zinc-800 bg-zinc-950/50 p-2 text-[11px]">
-              <div className="font-medium text-zinc-200">{h.role}</div>
-              <p className="mt-1 text-zinc-500">
-                <span className="text-zinc-400">Attrs:</span> {h.attrs}
-              </p>
-              <p className="mt-1 text-zinc-500">
-                <span className="text-zinc-400">Instructions:</span> {h.instructions}
-              </p>
-            </div>
-          ))}
         </div>
       </div>
     </div>
