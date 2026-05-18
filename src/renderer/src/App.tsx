@@ -26,13 +26,10 @@ import { ClubBrowsePanel } from './ClubBrowsePanel'
 import { TacticsLabPanel } from './TacticsLabPanel'
 import { TacticsAssignmentPane } from './tactics/TacticsAssignmentPane'
 import {
-  applyPresetToCm0102Grid,
-  createEmptyCm0102Grid,
-  type Cm0102GridSlot,
-  type Cm0102GridSlotId,
+  initialPitchSlots,
+  type PitchSlot,
   type TacticsPlayerAssignment,
-} from '../../shared/cm0102TacticsGrid'
-import { TACTIC_PRESETS } from '../../shared/tacticsCommunityPresets'
+} from '../../shared/tacticsPitchSnap'
 import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { attrColor, engineBracketClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { setCopiedPlayerAttributes } from '../../shared/copiedPlayerAttributes'
@@ -320,14 +317,9 @@ export function App() {
   const [browseTab, setBrowseTab] = useState<'players' | 'regens' | 'staff' | 'clubs' | 'tactics' | 'editor'>('players')
   /** Last club selected in Clubs tab — Tactics Lab uses this for save tactic wiring. */
   const [tacticsSeedClubId, setTacticsSeedClubId] = useState<number | null>(null)
-  const [tacticsGridSlots, setTacticsGridSlots] = useState<Cm0102GridSlot[]>(() =>
-    applyPresetToCm0102Grid(
-      TACTIC_PRESETS.find((x) => x.id === '4132_press_short')!,
-      createEmptyCm0102Grid(),
-    ),
-  )
+  const [tacticsPitchSlots, setTacticsPitchSlots] = useState<PitchSlot[]>(() => initialPitchSlots())
   const [tacticsAssignments, setTacticsAssignments] = useState<
-    Partial<Record<Cm0102GridSlotId, TacticsPlayerAssignment | null>>
+    Partial<Record<string, TacticsPlayerAssignment | null>>
   >({})
   const [regenOnly, setRegenOnly] = useState(false)
   const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
@@ -1568,8 +1560,8 @@ export function App() {
               <TacticsLabPanel
                 loadInfo={!!loadInfo}
                 tacticsSeedClubId={tacticsSeedClubId}
-                gridSlots={tacticsGridSlots}
-                onGridSlotsChange={setTacticsGridSlots}
+                pitchSlots={tacticsPitchSlots}
+                onPitchSlotsChange={setTacticsPitchSlots}
                 assignments={tacticsAssignments}
               />
             )}
@@ -1698,7 +1690,7 @@ export function App() {
           {browseTab === 'tactics' ? (
             <TacticsAssignmentPane
               loadInfo={!!loadInfo}
-              slots={tacticsGridSlots}
+              pitchSlots={tacticsPitchSlots}
               assignments={tacticsAssignments}
               onAssign={(slotId, a) =>
                 setTacticsAssignments((prev) => ({

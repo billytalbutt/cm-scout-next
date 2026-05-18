@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GridPlayerRow } from '../../../shared/gridTypes'
 import {
-  CM0102_TACTIC_COLS,
-  CM0102_TACTIC_ROWS,
   cmScoutRoleIndexForPosition,
+  LINEUP_GROUPS,
+  slotsInLineupGroup,
   teamRatingFromAssignments,
-  type Cm0102GridSlot,
-  type Cm0102GridSlotId,
+  type PitchSlot,
   type TacticsPlayerAssignment,
-} from '../../../shared/cm0102TacticsGrid'
+} from '../../../shared/tacticsPitchSnap'
 
 function rolePercentForPlayer(row: GridPlayerRow, role: string): number | null {
   const idx = cmScoutRoleIndexForPosition(role)
@@ -34,11 +33,11 @@ function SlotAssignRow({
   onAssign,
   onClear,
 }: {
-  slot: Cm0102GridSlot
+  slot: PitchSlot
   assignment: TacticsPlayerAssignment | null | undefined
   loadInfo: boolean
-  onAssign: (slotId: Cm0102GridSlotId, a: TacticsPlayerAssignment | null) => void
-  onClear: (slotId: Cm0102GridSlotId) => void
+  onAssign: (slotId: string, a: TacticsPlayerAssignment | null) => void
+  onClear: (slotId: string) => void
 }) {
   const [q, setQ] = useState(assignment?.name ?? '')
   const [suggestions, setSuggestions] = useState<GridPlayerRow[]>([])
@@ -83,15 +82,11 @@ function SlotAssignRow({
     return () => window.clearTimeout(t)
   }, [q, open, search, assignment?.name])
 
-  if (!slot.active && !slot.role) {
-    return null
-  }
-
   const posLabel = slot.role || '—'
   const pct = assignment?.rolePercent ?? assignment?.cmScoutBp
 
   return (
-    <div className={`grid grid-cols-[4.5rem_minmax(0,1fr)_2.5rem] items-center gap-1.5 ${slot.active ? '' : 'opacity-40'}`}>
+    <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_2.5rem] items-center gap-1.5">
       <span className="font-mono text-[10px] font-semibold text-amber-200/90">{posLabel}</span>
       <div className="relative min-w-0">
         <input
@@ -151,25 +146,29 @@ function SlotAssignRow({
 
 export function TacticsAssignmentPane({
   loadInfo,
-  slots,
+  pitchSlots,
   assignments,
   onAssign,
   onClearSlot,
 }: {
   loadInfo: boolean
-  slots: Cm0102GridSlot[]
-  assignments: Partial<Record<Cm0102GridSlotId, TacticsPlayerAssignment | null>>
-  onAssign: (slotId: Cm0102GridSlotId, a: TacticsPlayerAssignment | null) => void
-  onClearSlot: (slotId: Cm0102GridSlotId) => void
+  pitchSlots: PitchSlot[]
+  assignments: Partial<Record<string, TacticsPlayerAssignment | null>>
+  onAssign: (slotId: string, a: TacticsPlayerAssignment | null) => void
+  onClearSlot: (slotId: string) => void
 }) {
-  const teamRating = useMemo(() => teamRatingFromAssignments(slots, assignments), [slots, assignments])
+  const teamRating = useMemo(
+    () => teamRatingFromAssignments(pitchSlots, assignments),
+    [pitchSlots, assignments],
+  )
 
   return (
     <div className="space-y-3">
       <div>
         <h2 className="text-sm font-semibold text-zinc-200">Line-up</h2>
         <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
-          Assign any player to each position. Ratings use CM Scout % for that role column (GK, D, DM, M, AM, A, WB).
+          Top to bottom: goalkeeper, defenders, midfielders, attackers (pitch still has GK at the bottom). Search and
+          assign any player; ratings use CM Scout % for that role.
         </p>
       </div>
       {!loadInfo && <p className="text-xs text-zinc-500">Load a database to search players.</p>}
@@ -179,28 +178,25 @@ export function TacticsAssignmentPane({
         <p className="text-[10px] text-zinc-500">Average of assigned players’ role % in their slot.</p>
       </div>
       <div className="space-y-3">
-        {CM0102_TACTIC_ROWS.map((row) => {
-          const rowSlots = slots.filter((s) => s.rowId === row.id)
-          const visible = rowSlots.some((s) => s.active || s.role)
-          if (!visible && row.id !== 'gk') return null
+        {LINEUP_GROUPS.map((group) => {
+          const groupSlots = slotsInLineupGroup(pitchSlots, group.id)
+          if (groupSlots.length === 0) return null
           return (
-            <section key={row.id}>
-              <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{row.label}</h3>
+            <section key={group.id}>
+              <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                {group.label}
+              </h3>
               <div className="space-y-1">
-                {CM0102_TACTIC_COLS.map((col) => {
-                  const slot = rowSlots.find((s) => s.colId === col.id)
-                  if (!slot) return null
-                  return (
-                    <SlotAssignRow
-                      key={slot.id}
-                      slot={slot}
-                      assignment={assignments[slot.id]}
-                      loadInfo={loadInfo}
-                      onAssign={onAssign}
-                      onClear={onClearSlot}
-                    />
-                  )
-                })}
+                {groupSlots.map((slot) => (
+                  <SlotAssignRow
+                    key={slot.id}
+                    slot={slot}
+                    assignment={assignments[slot.id]}
+                    loadInfo={loadInfo}
+                    onAssign={onAssign}
+                    onClear={onClearSlot}
+                  />
+                ))}
               </div>
             </section>
           )

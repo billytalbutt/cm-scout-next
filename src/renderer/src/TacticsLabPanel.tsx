@@ -1,19 +1,16 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  applyPresetToCm0102Grid,
-  applySlotsToCm0102Grid,
-  CM0102_TACTIC_ROWS,
+  pitchSlotsFromPreset,
+  snapAndRedistributePitch,
   teamRatingFromAssignments,
-  type Cm0102GridSlot,
-  type Cm0102GridSlotId,
+  type PitchSlot,
   type TacticsPlayerAssignment,
-} from '../../shared/cm0102TacticsGrid'
+} from '../../shared/tacticsPitchSnap'
 import {
   TACTIC_PRESETS,
   type TacticArrow,
   type TacticPresetId,
 } from '../../shared/tacticsCommunityPresets'
-import { TacticsPlayerMarker } from './tactics/TacticsPlayerMarker'
 
 type Mentality = 'defensive' | 'normal' | 'attacking'
 type PassingStyle = 'short' | 'mixed' | 'direct' | 'long'
@@ -47,21 +44,27 @@ function tacticBenchmarkScore(args: {
   if (args.tackling === 'hard') s -= 4
   s += Math.min(9, args.forwardArrows * 2)
   if (args.lineupRating != null) s = Math.round(s * 0.45 + args.lineupRating * 0.55)
+  if (args.presetId === '4132_press_short' && args.pressing && args.passing === 'short' && args.mentality === 'attacking')
+    s += 14
+  if (args.presetId === '442_narrow') s += 7
+  if (args.presetId === '352_wb') s += 6
+  if (args.presetId === '4321_tree' && args.passing === 'short') s += 5
+  if (args.presetId === '4231_shadow') s += 4
   return Math.min(99, Math.max(30, s))
 }
 
 export function TacticsLabPanel({
   loadInfo,
   tacticsSeedClubId,
-  gridSlots,
-  onGridSlotsChange,
+  pitchSlots,
+  onPitchSlotsChange,
   assignments,
 }: {
   loadInfo: boolean
   tacticsSeedClubId: number | null
-  gridSlots: Cm0102GridSlot[]
-  onGridSlotsChange: (slots: Cm0102GridSlot[]) => void
-  assignments: Partial<Record<Cm0102GridSlotId, TacticsPlayerAssignment | null>>
+  pitchSlots: PitchSlot[]
+  onPitchSlotsChange: (slots: PitchSlot[]) => void
+  assignments: Partial<Record<string, TacticsPlayerAssignment | null>>
 }) {
   const [preset, setPreset] = useState<TacticPresetId>('4132_press_short')
   const [pressing, setPressing] = useState(true)
@@ -73,8 +76,11 @@ export function TacticsLabPanel({
   const [saveWireLoading, setSaveWireLoading] = useState(false)
 
   const p = useMemo(() => TACTIC_PRESETS.find((x) => x.id === preset)!, [preset])
-  const forwardArrows = useMemo(() => gridSlots.filter((z) => z.arrow === 'forward').length, [gridSlots])
-  const lineupRating = useMemo(() => teamRatingFromAssignments(gridSlots, assignments), [gridSlots, assignments])
+  const forwardArrows = useMemo(() => pitchSlots.filter((z) => z.arrow === 'forward').length, [pitchSlots])
+  const lineupRating = useMemo(
+    () => teamRatingFromAssignments(pitchSlots, assignments),
+    [pitchSlots, assignments],
+  )
 
   const score = useMemo(
     () =>
@@ -91,14 +97,14 @@ export function TacticsLabPanel({
     [preset, pressing, passing, mentality, offside, tackling, forwardArrows, lineupRating],
   )
 
-  const applyPreset = useCallback(
-    (id: TacticPresetId) => {
-      const nextPreset = TACTIC_PRESETS.find((x) => x.id === id)!
-      setPreset(id)
-      onGridSlotsChange(applyPresetToCm0102Grid(nextPreset, gridSlots))
-    },
-    [gridSlots, onGridSlotsChange],
-  )
+  const pitchRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null)
+
+  const onPresetChange = (id: TacticPresetId) => {
+    setPreset(id)
+    const next = TACTIC_PRESETS.find((x) => x.id === id)!
+    onPitchSlotsChange(pitchSlotsFromPreset(next))
+  }
 
   const pullFromSaveClub = useCallback(async () => {
     if (tacticsSeedClubId == null || typeof window.cmapi?.getClubDetail !== 'function') {
@@ -114,42 +120,94 @@ export function TacticsLabPanel({
         return
       }
       const tw = d.tacticsWire as
-        | { experimentalSlots: { x: number; y: number; label: string }[] | null; tacticRowFound: boolean }
+        | {
+            experimentalSlots: { x: number; y: number; label: string }[] | null
+            tacticRowFound: boolean
+            tacticsBlockPresent: boolean
+          }
         | undefined
       const exp = tw?.experimentalSlots
-      if (exp && exp.length >= 8) {
-        onGridSlotsChange(
-          applySlotsToCm0102Grid(
-            exp.map((s) => ({ role: s.label, x: s.x, y: s.y })),
-            gridSlots,
+      if (exp && exp.length >= 11) {
+        onPitchSlotsChange(
+          snapAndRedistributePitch(
+            exp.map((s, i) => ({
+              id: `save-${i}`,
+              role: s.label,
+              x: s.x,
+              y: s.y,
+              arrow: 'none' as TacticArrow,
+            })),
           ),
         )
-        setSaveWireMsg(`Loaded ${exp.length} positions from save for “${String(d.name)}” (snapped to CM grid).`)
+        setSaveWireMsg(
+          `Experimental: loaded ${exp.length} pitch nodes from tactics.dat for “${String(d.name)}” (heuristic decode — verify in-game).`,
+        )
       } else {
-        setSaveWireMsg(`No pitch decode for “${String(d.name)}” — pick a community preset.`)
+        setSaveWireMsg(
+          `Loaded “${String(d.name)}”: tactics.dat ${tw?.tacticsBlockPresent ? 'present' : 'missing'}, tactic row ${tw?.tacticRowFound ? 'found' : 'not found'} — no heuristic pitch window matched.`,
+        )
       }
     } catch (e) {
       setSaveWireMsg(e instanceof Error ? e.message : String(e))
     } finally {
       setSaveWireLoading(false)
     }
-  }, [tacticsSeedClubId, gridSlots, onGridSlotsChange])
+  }, [tacticsSeedClubId, onPitchSlotsChange])
 
-  const setSlotArrow = (slotId: Cm0102GridSlotId, arrow: TacticArrow) => {
-    onGridSlotsChange(gridSlots.map((s) => (s.id === slotId ? { ...s, arrow } : s)))
+  const onPointerMove = useCallback(
+    (e: PointerEvent) => {
+      const d = dragRef.current
+      const el = pitchRef.current
+      if (!d || !el) return
+      const r = el.getBoundingClientRect()
+      const centerPxX = e.clientX - d.dx
+      const centerPxY = e.clientY - d.dy
+      const nx = Math.min(0.94, Math.max(0.06, (centerPxX - r.left) / r.width))
+      const fracFromTop = (centerPxY - r.top) / r.height
+      const ny = Math.min(0.92, Math.max(0.04, 1 - fracFromTop))
+      onPitchSlotsChange((prev) => prev.map((s) => (s.id === d.id ? { ...s, x: nx, y: ny } : s)))
+    },
+    [onPitchSlotsChange],
+  )
+
+  const endDrag = useCallback(() => {
+    dragRef.current = null
+    window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerup', endDrag)
+    onPitchSlotsChange((prev) => snapAndRedistributePitch(prev))
+  }, [onPointerMove, onPitchSlotsChange])
+
+  const onSlotPointerDown = (e: React.PointerEvent, slot: PitchSlot) => {
+    if (e.button !== 0) return
+    const el = pitchRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const cx = r.left + slot.x * r.width
+    const cy = r.top + (1 - slot.y) * r.height
+    dragRef.current = { id: slot.id, dx: e.clientX - cx, dy: e.clientY - cy }
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', endDrag)
   }
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', endDrag)
+    }
+  }, [onPointerMove, endDrag])
 
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-[11px] leading-snug text-zinc-500">
-        <span className="font-medium text-zinc-300">Tactics</span> — CM0102-style rows (sweeper → defence → DM → mid → AM →
-        strikers, GK at bottom). Four columns per row. Right-click a player dot for forward / backward arrows protruding
-        from the circle, like the game.
+        <span className="font-medium text-zinc-300">Tactics Lab</span> — CM0102-style team instructions and a draggable
+        pitch (GK at the bottom, forwards at the top). Drag players — they snap invisibly to row/column bands (five
+        across, including centre). Right-click for forward / backward arrows.
       </div>
       {loadInfo && (
         <div className="rounded-lg border border-sky-900/30 bg-sky-950/15 p-3 text-[11px] text-zinc-400">
-          <span className="font-medium text-sky-200/90">From save</span> — pick a club in{' '}
-          <span className="text-zinc-300">Clubs</span>, then load an experimental snapshot.
+          <span className="font-medium text-sky-200/90">From save</span> — pick a club in the{' '}
+          <span className="text-zinc-300">Clubs</span> tab, then use the button here to pull{' '}
+          <span className="font-mono text-zinc-300">tactics.dat</span> into the pitch (experimental).
           {tacticsSeedClubId != null ? (
             <span className="ml-1 font-mono text-emerald-300/90"> Seed club id {tacticsSeedClubId}</span>
           ) : (
@@ -170,52 +228,62 @@ export function TacticsLabPanel({
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <div className="rounded-xl border border-emerald-900/40 bg-gradient-to-b from-emerald-950/30 to-zinc-950 p-4">
-          <div className="relative mx-auto aspect-[68/105] max-h-[min(58vh,560px)] w-full max-w-md rounded-lg border border-zinc-700/80 bg-zinc-950 shadow-inner shadow-black/40">
-            {CM0102_TACTIC_ROWS.map((row) => (
-              <div
-                key={row.id}
-                className="pointer-events-none absolute left-2 right-2 border-t border-dotted border-zinc-700/55"
-                style={{ top: `${(1 - row.pitchY) * 100}%` }}
-              />
-            ))}
+          <div
+            ref={pitchRef}
+            className="relative mx-auto aspect-[68/105] max-h-[min(52vh,520px)] w-full max-w-md touch-none rounded-lg border border-zinc-700/80 bg-zinc-950 shadow-inner shadow-black/40"
+          >
             <div className="pointer-events-none absolute inset-2 rounded-md border border-zinc-800/60 opacity-40" />
-            {gridSlots.map((slot) => {
+            {pitchSlots.map((slot) => {
               const a = assignments[slot.id]
-              const rating = a?.rolePercent ?? a?.cmScoutBp ?? null
+              const shortName = a?.name?.split(' ').pop()
+              const rating = a?.rolePercent ?? a?.cmScoutBp
               return (
-                <div
+                <button
                   key={slot.id}
-                  className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: `${slot.pitchX * 100}%`, top: `${(1 - slot.pitchY) * 100}%` }}
+                  type="button"
+                  title={`${slot.role}${a?.name ? ` — ${a.name}` : ''}${rating != null ? ` · ${Math.round(rating)}%` : ''} — drag · right-click arrow`}
+                  className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-grab select-none flex-col items-center justify-center rounded-full border border-emerald-600/60 bg-emerald-950/85 text-[9px] font-semibold text-emerald-100 shadow hover:bg-emerald-900/90 active:cursor-grabbing"
+                  style={{ left: `${slot.x * 100}%`, top: `${(1 - slot.y) * 100}%` }}
+                  onPointerDown={(e) => onSlotPointerDown(e, slot)}
+                  onContextMenu={(e) => {
+                    e.preventDefault()
+                    onPitchSlotsChange((prev) =>
+                      prev.map((s) => (s.id === slot.id ? { ...s, arrow: nextArrow(s.arrow) } : s)),
+                    )
+                  }}
                 >
-                  <TacticsPlayerMarker
-                    role={slot.role}
-                    playerName={a?.name}
-                    rating={rating}
-                    arrow={slot.arrow}
-                    active={slot.active && !!slot.role}
-                    onContextMenu={(e) => {
-                      e.preventDefault()
-                      if (!slot.active) return
-                      setSlotArrow(slot.id, nextArrow(slot.arrow))
-                    }}
-                  />
-                </div>
+                  <span className="leading-none">{slot.role.slice(0, 2)}</span>
+                  {slot.arrow === 'forward' && (
+                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] leading-none text-sky-300">
+                      ▲
+                    </span>
+                  )}
+                  {slot.arrow === 'back' && (
+                    <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[9px] leading-none text-amber-300">
+                      ▼
+                    </span>
+                  )}
+                  {shortName && (
+                    <span className="pointer-events-none absolute -bottom-3.5 max-w-[3rem] truncate text-[7px] font-normal text-zinc-300">
+                      {shortName}
+                    </span>
+                  )}
+                </button>
               )
             })}
           </div>
           <p className="mt-2 text-center text-[10px] text-zinc-500">
-            Assign players in the line-up pane → they appear here. Lineup avg:{' '}
+            Drag to move (invisible snap). Five columns incl. centre; rows auto-space like CM. Lineup avg:{' '}
             <span className="font-mono text-emerald-300/90">{lineupRating ?? '—'}</span>
           </p>
         </div>
         <div className="space-y-3">
           <label className="block">
-            <span className="mb-1 block text-xs text-zinc-500">Formation preset</span>
+            <span className="mb-1 block text-xs text-zinc-500">Community preset</span>
             <select
               className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200"
               value={preset}
-              onChange={(e) => applyPreset(e.target.value as TacticPresetId)}
+              onChange={(e) => onPresetChange(e.target.value as TacticPresetId)}
             >
               {TACTIC_PRESETS.map((x) => (
                 <option key={x.id} value={x.id}>
@@ -289,10 +357,10 @@ export function TacticsLabPanel({
             </label>
           </div>
           <div className="rounded-lg border border-sky-900/40 bg-sky-950/20 p-3">
-            <div className="text-[10px] font-medium uppercase tracking-wide text-sky-300/90">Tactic score</div>
+            <div className="text-[10px] font-medium uppercase tracking-wide text-sky-300/90">Heuristic benchmark</div>
             <div className="mt-1 font-mono text-2xl text-sky-100">{score}</div>
             <p className="mt-1 text-[10px] text-zinc-500">
-              Blends lineup role ratings with team instructions and forward arrows.
+              Preset + team instructions + forward arrows + lineup role ratings.
             </p>
           </div>
         </div>
