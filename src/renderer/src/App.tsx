@@ -874,13 +874,11 @@ export function App() {
   return (
     <div className="flex h-screen flex-col bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-5 py-3 backdrop-blur">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <img
             src="/merlin-mascot.png"
             alt=""
-            width={44}
-            height={44}
-            className="h-11 w-11 shrink-0 rounded-lg object-contain ring-1 ring-zinc-700/60 shadow-md shadow-black/40"
+            className="h-32 w-32 shrink-0 object-contain"
             title="CM Merlin Scout"
           />
           <div>
