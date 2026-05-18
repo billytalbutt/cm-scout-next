@@ -166,6 +166,21 @@ export function decodePlayerStatsSummaryAtAnchor(
   }
 }
 
+/** CM often stores Senior-club apps at +91 on another id hit; goals/assists stay @ +77/+78. */
+function resolveSeniorClubApps(
+  buf: Buffer,
+  gaAnchor: number,
+  stats: SummaryStatsTriple,
+  maxAppsSlotA: number,
+  hasApps10At91: boolean,
+): number {
+  if (maxAppsSlotA < 9 || maxAppsSlotA <= stats.apps) return stats.apps
+  if (maxAppsSlotA - stats.apps < 3) return stats.apps
+  if (hasApps10At91) return 10
+  if (maxAppsSlotA <= MAX_SENIOR_SLOT_APPS) return maxAppsSlotA
+  return stats.apps
+}
+
 export function parsePlayerStatsSummary(
   buf: Buffer,
   players: readonly PlayerRecord[],
@@ -177,18 +192,45 @@ export function parsePlayerStatsSummary(
   for (const p of players) playerIds.add(p.id)
 
   const bestAnchor = new Map<number, number>()
+  const maxAppsAt91 = new Map<number, number>()
+  const hasTenAppsAt91 = new Set<number>()
 
   const len = buf.length
   for (let anchor = 0; anchor <= len - 94; anchor++) {
     const playerDatId = buf.readInt32LE(anchor)
     if (!playerIds.has(playerDatId)) continue
+
+    const apps91 = readU8(buf, anchor, F.apps)
+    if (apps91 >= 9 && apps91 <= MAX_SENIOR_SLOT_APPS) {
+      const prevMax = maxAppsAt91.get(playerDatId) ?? 0
+      if (apps91 > prevMax) maxAppsAt91.set(playerDatId, apps91)
+      if (apps91 === 10) hasTenAppsAt91.add(playerDatId)
+    }
+
     if (!isSummaryCandidateAnchor(buf, anchor)) continue
 
     const prevAnchor = bestAnchor.get(playerDatId)
     if (prevAnchor != null && compareSummaryCandidates(buf, anchor, prevAnchor) <= 0) continue
 
     bestAnchor.set(playerDatId, anchor)
-    out.set(playerDatId, decodePlayerStatsSummaryAtAnchor(buf, anchor)!)
+  }
+
+  for (const [playerDatId, anchor] of bestAnchor) {
+    const decoded = decodePlayerStatsSummaryAtAnchor(buf, anchor)
+    if (!decoded) continue
+    if (isSlotBSeniorAggregate(buf, anchor)) {
+      const stats = readSummaryStatsAtAnchor(buf, anchor)!
+      const apps = resolveSeniorClubApps(
+        buf,
+        anchor,
+        stats,
+        maxAppsAt91.get(playerDatId) ?? 0,
+        hasTenAppsAt91.has(playerDatId),
+      )
+      out.set(playerDatId, { ...decoded, apps })
+    } else {
+      out.set(playerDatId, decoded)
+    }
   }
 
   return out

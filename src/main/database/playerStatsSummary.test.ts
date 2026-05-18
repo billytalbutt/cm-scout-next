@@ -63,6 +63,20 @@ describe('parsePlayerStatsSummary', () => {
     expect(stats).toEqual({ apps: 10, goals: 2, assists: 1 })
   })
 
+  it('uses +91 apps when Senior slot +76 understates appearances', () => {
+    const buf = Buffer.alloc(500, 0)
+    const players = [{ id: 7 } as PlayerRecord]
+    buf.writeInt32LE(7, 100)
+    buf.writeUInt8(5, 100 + 76)
+    buf.writeUInt8(1, 100 + 77)
+    buf.writeUInt8(2, 100 + 78)
+    buf.writeInt32LE(7, 300)
+    buf.writeUInt8(10, 300 + 91)
+    buf.writeUInt8(6, 300 + 92)
+    const map = parsePlayerStatsSummary(buf, players)
+    expect(map.get(7)).toMatchObject({ apps: 10, goals: 1, assists: 2 })
+  })
+
   it('reads Senior club totals from +76/+77/+78 when +91 is zero', () => {
     const buf = Buffer.alloc(200, 0)
     const anchor = 40
