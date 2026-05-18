@@ -883,17 +883,19 @@ export function App() {
 
   return (
     <div className="flex h-screen flex-col bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
-      <header className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-5 py-3 backdrop-blur">
-        <div className="flex items-center gap-4">
+      <header className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-4 py-2 backdrop-blur">
+        <div className="flex min-w-0 items-center gap-3">
           <img
             src="/merlin-mascot.png"
             alt=""
-            className="h-32 w-32 shrink-0 object-contain"
+            className="h-11 w-auto max-h-11 shrink-0 object-contain object-left"
             title="CM Merlin Scout"
           />
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight text-white">CM Merlin Scout</h1>
-            <p className="text-xs text-zinc-500">Championship Manager 01/02 · CM Scout–aligned data</p>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold leading-tight tracking-tight text-white">CM Merlin Scout</h1>
+            <p className="mt-0.5 text-xs leading-snug text-zinc-500">
+              Championship Manager 01/02 · CM Scout–aligned data
+            </p>
           </div>
         </div>
         <button
