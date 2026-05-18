@@ -63,6 +63,17 @@ describe('parsePlayerStatsSummary', () => {
     expect(stats).toEqual({ apps: 10, goals: 2, assists: 1 })
   })
 
+  it('reads Senior club totals from +76/+77/+78 when +91 is zero', () => {
+    const buf = Buffer.alloc(200, 0)
+    const anchor = 40
+    buf.writeInt32LE(118, anchor)
+    buf.writeUInt8(10, anchor + 76)
+    buf.writeUInt8(1, anchor + 77)
+    buf.writeUInt8(2, anchor + 78)
+    const stats = readSummaryStatsAtAnchor(buf, anchor)
+    expect(stats).toEqual({ apps: 10, goals: 1, assists: 2 })
+  })
+
   it.skipIf(!existsSync(BLACKBURN_SAV))('Kieron Dyer matches CM Senior club totals on Blackburn save', () => {
     const file = readFileSync(BLACKBURN_SAV)
     const db = parseIndexDat(file)
@@ -72,6 +83,6 @@ describe('parsePlayerStatsSummary', () => {
     const staff = db.staff.find((s) => s.id === 152)
     expect(staff).toBeTruthy()
     expect(db.players[staff!.player_id]!.id).toBe(118)
-    expect(map.get(118)).toMatchObject({ apps: 10, goals: 2, assists: 1 })
+    expect(map.get(118)).toMatchObject({ apps: 10, goals: 1, assists: 2 })
   })
 })
