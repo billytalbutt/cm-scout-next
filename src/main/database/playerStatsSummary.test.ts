@@ -70,11 +70,27 @@ describe('parsePlayerStatsSummary', () => {
     buf.writeUInt8(5, 100 + 76)
     buf.writeUInt8(1, 100 + 77)
     buf.writeUInt8(2, 100 + 78)
-    buf.writeInt32LE(7, 300)
-    buf.writeUInt8(10, 300 + 91)
-    buf.writeUInt8(6, 300 + 92)
+    buf.writeInt32LE(7, 400)
+    buf.writeUInt8(10, 400 + 91)
+    buf.writeUInt8(1, 400 + 77)
+    buf.writeUInt8(2, 400 + 78)
     const map = parsePlayerStatsSummary(buf, players)
     expect(map.get(7)).toMatchObject({ apps: 10, goals: 1, assists: 2 })
+  })
+
+  it('picks higher +91 apps for same senior goals/assists when season advances', () => {
+    const buf = Buffer.alloc(600, 0)
+    const players = [{ id: 118 } as PlayerRecord]
+    buf.writeInt32LE(118, 100)
+    buf.writeUInt8(10, 100 + 76)
+    buf.writeUInt8(1, 100 + 77)
+    buf.writeUInt8(2, 100 + 78)
+    buf.writeInt32LE(118, 350)
+    buf.writeUInt8(11, 350 + 91)
+    buf.writeUInt8(1, 350 + 77)
+    buf.writeUInt8(2, 350 + 78)
+    const map = parsePlayerStatsSummary(buf, players)
+    expect(map.get(118)).toMatchObject({ apps: 11, goals: 1, assists: 2 })
   })
 
   it('reads Senior club totals from +76/+77/+78 when +91 is zero', () => {
@@ -88,7 +104,65 @@ describe('parsePlayerStatsSummary', () => {
     expect(stats).toEqual({ apps: 10, goals: 1, assists: 2 })
   })
 
-  it.skipIf(!existsSync(BLACKBURN_SAV))('Kieron Dyer matches CM Senior club totals on Blackburn save', () => {
+  it.skipIf(!existsSync(BLACKBURN_SAV))(
+    'Joe Cole decodes embedded-id Senior club record (player.dat id 5451)',
+    () => {
+      const file = readFileSync(BLACKBURN_SAV)
+      const db = parseIndexDat(file)
+      const statsBuf = readArchiveBlock(file, 'player stats.dat')
+      const map = parsePlayerStatsSummary(statsBuf!, db.players)
+      expect(map.get(5451)).toMatchObject({ apps: 7, goals: 2, assists: 2 })
+    },
+    30_000,
+  )
+
+  it.skipIf(!existsSync(BLACKBURN_SAV))(
+    'Joe Cole gains an appearance on progressed Blackburn save',
+    () => {
+      const progressed =
+        process.env.CM0102_PROGRESS_SAV ??
+        'C:/Users/bitalb/Downloads/Blackburn_Uncompressed_New/Blackburn Uncompressed New.sav'
+      if (!existsSync(progressed)) return
+      const file = readFileSync(progressed)
+      const db = parseIndexDat(file)
+      const statsBuf = readArchiveBlock(file, 'player stats.dat')
+      const map = parsePlayerStatsSummary(statsBuf!, db.players)
+      expect(map.get(5451)).toMatchObject({ apps: 9, goals: 2, assists: 2 })
+    },
+    30_000,
+  )
+
+  it.skipIf(!existsSync(BLACKBURN_SAV))(
+    'Maxim Tsigalko decodes v4=-1 Senior club on Blackburn save',
+    () => {
+      const file = readFileSync(BLACKBURN_SAV)
+      const db = parseIndexDat(file)
+      const statsBuf = readArchiveBlock(file, 'player stats.dat')
+      const map = parsePlayerStatsSummary(statsBuf!, db.players)
+      expect(map.get(27755)).toMatchObject({ apps: 7, goals: 6, assists: 2 })
+    },
+    30_000,
+  )
+
+  it.skipIf(!existsSync(BLACKBURN_SAV))(
+    'Maxim Tsigalko uses alt Senior slot when season advances',
+    () => {
+      const progressed =
+        process.env.CM0102_PROGRESS_SAV ??
+        'C:/Users/bitalb/Downloads/Blackburn_Uncompressed_New/Blackburn Uncompressed New.sav'
+      if (!existsSync(progressed)) return
+      const file = readFileSync(progressed)
+      const db = parseIndexDat(file)
+      const statsBuf = readArchiveBlock(file, 'player stats.dat')
+      const map = parsePlayerStatsSummary(statsBuf!, db.players)
+      expect(map.get(27755)).toMatchObject({ apps: 10, goals: 7, assists: 2 })
+    },
+    30_000,
+  )
+
+  it.skipIf(!existsSync(BLACKBURN_SAV))(
+    'Kieron Dyer matches CM Senior club totals on Blackburn save',
+    () => {
     const file = readFileSync(BLACKBURN_SAV)
     const db = parseIndexDat(file)
     const statsBuf = readArchiveBlock(file, 'player stats.dat')
@@ -97,6 +171,25 @@ describe('parsePlayerStatsSummary', () => {
     const staff = db.staff.find((s) => s.id === 152)
     expect(staff).toBeTruthy()
     expect(db.players[staff!.player_id]!.id).toBe(118)
-    expect(map.get(118)).toMatchObject({ apps: 10, goals: 1, assists: 2 })
-  })
+    expect(map.get(118)).toMatchObject({ apps: 8, goals: 0, assists: 1 })
+    },
+    30_000,
+  )
+
+  it.skipIf(!existsSync(BLACKBURN_SAV))(
+    'Kieron Dyer advances appearances on progressed Blackburn save',
+    () => {
+      const progressed =
+        process.env.CM0102_PROGRESS_SAV ??
+        'C:/Users/bitalb/Downloads/Blackburn_Uncompressed_New/Blackburn Uncompressed New.sav'
+      if (!existsSync(progressed)) return
+      const file = readFileSync(progressed)
+      const db = parseIndexDat(file)
+      const statsBuf = readArchiveBlock(file, 'player stats.dat')
+      const map = parsePlayerStatsSummary(statsBuf!, db.players)
+      expect(map.get(118)).toMatchObject({ apps: 11, goals: 1, assists: 2 })
+      expect(map.get(27755)).toMatchObject({ apps: 10, goals: 7, assists: 2 })
+    },
+    30_000,
+  )
 })

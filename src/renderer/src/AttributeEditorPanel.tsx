@@ -9,6 +9,11 @@ import {
   getEditorFieldGamePreview,
   type EditorFieldGamePreview,
 } from '../../shared/editorFieldGamePreview'
+import {
+  getCopiedPlayerAttributes,
+  setCopiedPlayerAttributes,
+  subscribeCopiedPlayerAttributes,
+} from '../../shared/copiedPlayerAttributes'
 
 export type EditorSnapshot = {
   staffIndex: number
@@ -115,7 +120,10 @@ export function AttributeEditorPanel({
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [copiedAttrs, setCopiedAttrs] = useState(getCopiedPlayerAttributes)
   const baselineRef = useRef<Record<string, number> | null>(null)
+
+  useEffect(() => subscribeCopiedPlayerAttributes(() => setCopiedAttrs(getCopiedPlayerAttributes())), [])
 
   useEffect(() => {
     setSaveMsg(null)
@@ -163,6 +171,28 @@ export function AttributeEditorPanel({
   const onField = useCallback((key: string, v: string) => {
     setDraft((prev) => ({ ...prev, [key]: v }))
   }, [])
+
+  const copyAllAttributes = useCallback(() => {
+    if (!snap) return
+    setCopiedPlayerAttributes({
+      staffIndex: snap.staffIndex,
+      name: snap.name,
+      values: { ...snap.values },
+      copiedAt: Date.now(),
+    })
+  }, [snap])
+
+  const pasteCopiedAttributes = useCallback(() => {
+    const copied = getCopiedPlayerAttributes()
+    if (!copied || !snap) return
+    setDraft((prev) => {
+      const next = { ...prev }
+      for (const key of Object.keys(snap.values)) {
+        if (key in copied.values) next[key] = String(copied.values[key])
+      }
+      return next
+    })
+  }, [snap])
 
   const mergedForPreview = useMemo(() => {
     if (!snap) return null
@@ -292,10 +322,33 @@ export function AttributeEditorPanel({
             <span className="text-zinc-600"> · </span>
             player.dat row <span className="font-mono text-zinc-400">{snap.playerRow}</span>
           </p>
+          {copiedAttrs && (
+            <p className="mt-1.5 text-[11px] text-sky-300/90">
+              Clipboard: <span className="font-medium text-sky-100">{copiedAttrs.name}</span>
+              <span className="text-zinc-600"> · </span>
+              use Paste to overwrite this player&apos;s bytes
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {err && <span className="text-xs text-rose-300/90">{err}</span>}
           {saveMsg && !err && <span className="max-w-md truncate text-xs text-emerald-300/90">{saveMsg}</span>}
+          <button
+            type="button"
+            onClick={copyAllAttributes}
+            className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:bg-zinc-700/60"
+          >
+            Copy attributes
+          </button>
+          <button
+            type="button"
+            disabled={!copiedAttrs}
+            onClick={pasteCopiedAttributes}
+            title={copiedAttrs ? `Paste from ${copiedAttrs.name}` : undefined}
+            className="rounded-md border border-sky-700/50 bg-sky-950/40 px-3 py-2 text-sm font-medium text-sky-100 transition hover:bg-sky-900/50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Paste attributes
+          </button>
           <button
             type="button"
             disabled={saveDisabled}

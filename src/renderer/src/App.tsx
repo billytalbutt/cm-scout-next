@@ -26,6 +26,7 @@ import { ClubBrowsePanel } from './ClubBrowsePanel'
 import { TacticsLabPanel } from './TacticsLabPanel'
 import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { attrColor, engineBracketClass, ProfileAttrColumn } from './ProfileAttrBlocks'
+import { setCopiedPlayerAttributes } from '../../shared/copiedPlayerAttributes'
 
 const gridColHelper = createGridColumnHelper()
 
@@ -279,6 +280,7 @@ export function App() {
     })
   }, [attrMins, activeAttrFilterCount])
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
+  const [copyAttrsMsg, setCopyAttrsMsg] = useState<string | null>(null)
   const [staffProfile, setStaffProfile] = useState<StaffProfilePayload | null>(null)
   const [staffTableSel, setStaffTableSel] = useState<number | null>(null)
   const [sel, setSel] = useState<number | null>(null)
@@ -290,6 +292,7 @@ export function App() {
   const [clubList, setClubList] = useState<string[]>([])
   const [nationList, setNationList] = useState<string[]>([])
   const [committedText, setCommittedText] = useState({ q: '', nation: '', club: '' })
+  const [textFiltersResetKey, setTextFiltersResetKey] = useState(0)
   const [textFiltersPending, setTextFiltersPending] = useState(false)
   const [gridRefreshing, setGridRefreshing] = useState(false)
   const [filtersCollapsed, setFiltersCollapsed] = useState(() => {
@@ -319,6 +322,39 @@ export function App() {
     } catch {
       /* ignore */
     }
+  }, [])
+
+  const clearAllFilters = useCallback(() => {
+    setCommittedText({ q: '', nation: '', club: '' })
+    setTextFiltersResetKey((k) => k + 1)
+    setCaMin('')
+    setCaMax('')
+    setPaMin('')
+    setPaMax('')
+    setAgeMin('')
+    setAgeMax('')
+    setValueMin('')
+    setValueMax('')
+    setWageMin('')
+    setWageMax('')
+    setShCareerGoalsMin('')
+    setShCareerGoalsMax('')
+    setShSeasonGoalsMin('')
+    setShSeasonGoalsMax('')
+    setShCareerAppsMin('')
+    setShSeasonAppsMin('')
+    setContractType('')
+    setTlClub(false)
+    setTlRequest(false)
+    setLoanListed(false)
+    setEuOnly(false)
+    setBosmanOnly(false)
+    setMinReleaseClause(false)
+    setExpiresWithinMonths('')
+    setAttrMins(Array.from({ length: 48 }, () => ''))
+    setAttrMinMatchAtLeast('')
+    setRegenOnly(false)
+    setEngineSniffer('off')
   }, [])
 
   const persistShowEngineAttrs = useCallback((v: boolean) => {
@@ -741,6 +777,28 @@ export function App() {
     setProfile(p)
   }, [])
 
+  const copyPlayerAttributes = useCallback(async () => {
+    if (sel == null || typeof window.cmapi?.getEditorSnapshot !== 'function') return
+    setCopyAttrsMsg(null)
+    try {
+      const snap = await window.cmapi.getEditorSnapshot(sel)
+      if (!snap || typeof snap !== 'object' || !('values' in snap)) {
+        setCopyAttrsMsg('This row has no editable player bytes.')
+        return
+      }
+      const s = snap as { staffIndex: number; name: string; values: Record<string, number> }
+      setCopiedPlayerAttributes({
+        staffIndex: s.staffIndex,
+        name: s.name,
+        values: { ...s.values },
+        copiedAt: Date.now(),
+      })
+      setCopyAttrsMsg(`Copied attributes from ${s.name}`)
+    } catch (e) {
+      setCopyAttrsMsg(e instanceof Error ? e.message : String(e))
+    }
+  }, [sel])
+
   useEffect(() => {
     if (browseTab !== 'staff') {
       setStaffProfile(null)
@@ -947,19 +1005,29 @@ export function App() {
                   <InfoDot />
                 </h2>
               </HoverTip>
-              <button
-                type="button"
-                title="Hide filters (more room for the grid)"
-                aria-expanded
-                onClick={() => persistFiltersCollapsed(true)}
-                className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-              >
-                Hide
-              </button>
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  type="button"
+                  title="Reset every filter to defaults"
+                  onClick={clearAllFilters}
+                  className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-400 hover:border-amber-700/50 hover:bg-zinc-800 hover:text-amber-100"
+                >
+                  Clear all
+                </button>
+                <button
+                  type="button"
+                  title="Hide filters (more room for the grid)"
+                  aria-expanded
+                  onClick={() => persistFiltersCollapsed(true)}
+                  className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                >
+                  Hide
+                </button>
+              </div>
             </div>
             <div className="cm-scroll min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-sm">
             <DebouncedTextFilters
-              key={loadInfo?.path ?? 'pre'}
+              key={`${loadInfo?.path ?? 'pre'}-${textFiltersResetKey}`}
               nationList={nationList}
               clubList={clubList}
               onCommit={setCommittedText}
@@ -1473,49 +1541,11 @@ export function App() {
             )}
             {(browseTab === 'players' || browseTab === 'regens') && (
             <>
-            <div className="mb-3">
-              <HoverTip
-                tip={
-                  <div className="space-y-2 text-zinc-300">
-                    <p>
-                      <span className="font-medium text-white">CM Scout %</span> uses the same weights as classic CM
-                      Scout / CM Scout Intrinsic (<code className="text-emerald-400/80">WeightsSet_CMScout.txt</code>
-                      ): CA18 attributes use the <span className="font-medium text-white">in-game 1–20 display</span>{' '}
-                      from CA + intrinsic bytes; other attributes use clamped raw bytes. That matches headline % on
-                      attribute bars (and avoids the old “normalize in-match across the whole DB” step that compressed
-                      everyone into the 70s). Grid <span className="font-medium text-white">BP</span> is the best among
-                      roles where natural position ≥15 — add the seven role columns to compare to another tool’s
-                      per-position columns.
-                    </p>
-                    <p>
-                      <span className="font-medium text-white">Age</span> uses staff DOB (TCM date) vs the loaded game
-                      date when available. <span className="font-medium text-white">EU</span> follows nation.dat{' '}
-                      <code className="text-zinc-400">GroupMembership == 2</code> (community loader rule).
-                    </p>
-                    <p>
-                      <span className="font-medium text-white">Profile:</span> single-click, double-click,{' '}
-                      <kbd className="rounded bg-zinc-800 px-1 font-mono text-zinc-300">Enter</kbd>, or Open profile.
-                    </p>
-                    {!loadInfo && (
-                      <p>
-                        Load <code className="text-emerald-400/90">index.dat</code> or a <code className="text-emerald-400/90">.sav</code> to
-                        browse your roster.
-                      </p>
-                    )}
-                  </div>
-                }
-              >
-                <span className="inline-flex cursor-default items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-400">
-                  <span className="font-medium text-zinc-300">Scouting &amp; profile</span>
-                  <InfoDot />
-                </span>
-              </HoverTip>
-            </div>
             {loadInfo && rows.length === 0 && (
               <p className="mb-3 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-300">
                 {browseTab === 'regens'
                   ? 'No heuristic regens match the current filters. Try All players, or relax filters — the regen list is a same-save guess, not exhaustive.'
-                  : 'No players match the current filters. Clear text fields and uncheck boxes to see the full squad again.'}
+                  : 'No players match the current filters. Use Clear all in the filter panel, or relax individual filters.'}
               </p>
             )}
             {!loadInfo && rows.length === 0 && (
@@ -1524,45 +1554,11 @@ export function App() {
               </p>
             )}
             {loadInfo && gridMeta && rows.length > 0 && (
-              <p className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-zinc-500">
-                <span>
-                  Showing <span className="font-mono text-zinc-300">{rows.length.toLocaleString()}</span> loaded rows
-                  {' · '}
-                  total matching <span className="font-mono text-zinc-300">{gridMeta.total.toLocaleString()}</span>
-                </span>
-                <HoverTip
-                  tip={
-                    <div className="space-y-2">
-                      <p>
-                        Fetched in pages over IPC so large saves stay reliable; sorts stay client-side on the full set.
-                        The table virtualizes rows.
-                      </p>
-                      <p className="text-zinc-400">
-                        With a <strong>regen snapshot</strong> (Save snapshot in the bar above), same staff id + new
-                        name ids is used first (GPF2-style). Otherwise: PA + nationalities + positions + DOB heuristic.
-                        Not guaranteed.
-                      </p>
-                    </div>
-                  }
-                >
-                  <span className="inline-flex cursor-default items-center gap-0.5 rounded border border-zinc-700/70 px-1.5 py-0.5 text-[10px] text-zinc-400">
-                    Grid details
-                    <InfoDot />
-                  </span>
-                </HoverTip>
+              <p className="mb-2 text-[11px] text-zinc-500">
+                Showing <span className="font-mono text-zinc-300">{rows.length.toLocaleString()}</span> loaded rows
+                {' · '}
+                total matching <span className="font-mono text-zinc-300">{gridMeta.total.toLocaleString()}</span>
               </p>
-            )}
-            {sel != null && (
-              <div className="mb-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void pick(sel)}
-                  className="rounded-md border border-emerald-700/60 bg-emerald-950/40 px-3 py-1.5 text-xs font-medium text-emerald-200 hover:bg-emerald-900/50"
-                >
-                  Open profile
-                </button>
-                <span className="text-[11px] text-zinc-500">for selected row</span>
-              </div>
             )}
             <table className="w-full border-collapse text-left text-sm">
               <thead className="sticky top-0 z-10 bg-zinc-900/95 backdrop-blur">
@@ -1738,6 +1734,21 @@ export function App() {
                   <span className="text-zinc-600">world</span>{' '}
                   <span className="font-mono text-zinc-200">{profile.reputation.world.toLocaleString()}</span>
                 </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={sel == null || !loadInfo || loadInfo.compressed}
+                  onClick={() => void copyPlayerAttributes()}
+                  className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Copy attributes
+                </button>
+                {copyAttrsMsg && <span className="text-[11px] text-emerald-300/90">{copyAttrsMsg}</span>}
+                {loadInfo?.compressed && (
+                  <span className="text-[10px] text-zinc-500">Editor copy needs an uncompressed save.</span>
+                )}
               </div>
 
               <div>

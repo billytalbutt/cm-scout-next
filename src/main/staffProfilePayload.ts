@@ -16,12 +16,14 @@ type AttrCell = {
   highlightTier?: 'primary' | 'secondary'
 }
 
-function nationLine(db: ParsedDatabase, firstId: number, secondId: number): string {  const a = db.nationNames.get(firstId) ?? ''
+function nationLine(db: ParsedDatabase, firstId: number, secondId: number): string {
+  const a = db.nationNames.get(firstId) ?? ''
   const b = secondId > 0 && secondId !== firstId ? (db.nationNames.get(secondId) ?? '') : ''
   return b ? `${a} / ${b}` : a
 }
 
-function toCell(key: string, label: string, raw: number, invert = false): AttrCell {  const o = otherAttrDisplay(raw)
+function toCell(key: string, label: string, raw: number, invert = false): AttrCell {
+  const o = otherAttrDisplay(raw)
   return {
     key,
     label,
@@ -33,29 +35,43 @@ function toCell(key: string, label: string, raw: number, invert = false): AttrCe
   }
 }
 
-/** CM-style coaching order (non-player bytes) + determination first. */
-const NP_MAIN_ATTRS: { key: keyof NonPlayerRecord; label: string }[] = [
+/** CM staff profile — left column (in-game order). */
+const STAFF_MAIN_LEFT: { key: string; label: string; from: 'staff' | 'np'; field: string }[] = [
+  { key: 'adaptability', label: 'Adaptability', from: 'staff', field: 'adaptability' },
+  { key: 'coachingGks', label: 'Coaching goalkeepers', from: 'np', field: 'coachingGks' },
+  { key: 'coaching', label: 'Coaching outfield players', from: 'np', field: 'coaching' },
+  { key: 'determination', label: 'Determination', from: 'staff', field: 'determination' },
+  { key: 'judgement', label: 'Judging player ability', from: 'np', field: 'judgement' },
+  { key: 'judgingPotential', label: 'Judging player potential', from: 'np', field: 'judgingPotential' },
+]
+
+/** CM staff profile — right column (in-game order). */
+const STAFF_MAIN_RIGHT: { key: string; label: string; from: 'staff' | 'np'; field: string }[] = [
+  { key: 'discipline', label: 'Level of discipline', from: 'np', field: 'discipline' },
+  { key: 'manHandling', label: 'Man management', from: 'np', field: 'manHandling' },
+  { key: 'motivating', label: 'Motivating', from: 'np', field: 'motivating' },
+  { key: 'tactics', label: 'Tactical knowledge', from: 'np', field: 'tactics' },
+  { key: 'youngsters', label: 'Working with youngsters', from: 'np', field: 'youngsters' },
+  { key: 'directness', label: 'Coaching style', from: 'np', field: 'directness' },
+]
+
+const MAIN_ATTR_KEYS = new Set([
+  ...STAFF_MAIN_LEFT.map((x) => x.key),
+  ...STAFF_MAIN_RIGHT.map((x) => x.key),
+])
+
+const NP_HIDDEN_EXTRA: { key: keyof NonPlayerRecord; label: string }[] = [
   { key: 'attacking', label: 'Attacking' },
   { key: 'business', label: 'Business' },
-  { key: 'coaching', label: 'Coaching' },
-  { key: 'coachingGks', label: 'Coaching GKs' },
   { key: 'coachingTechnique', label: 'Coaching technique' },
-  { key: 'directness', label: 'Directness' },
-  { key: 'discipline', label: 'Discipline' },
   { key: 'freeRoles', label: 'Free roles' },
   { key: 'interference', label: 'Interference' },
-  { key: 'judgement', label: 'Judgement' },
-  { key: 'judgingPotential', label: 'Judging potential' },
-  { key: 'manHandling', label: 'Man handling' },
   { key: 'marking', label: 'Marking' },
-  { key: 'motivating', label: 'Motivating' },
   { key: 'offside', label: 'Offside' },
   { key: 'patience', label: 'Patience' },
   { key: 'physiotherapy', label: 'Physiotherapy' },
   { key: 'pressing', label: 'Pressing' },
   { key: 'resources', label: 'Resources' },
-  { key: 'tactics', label: 'Tactics' },
-  { key: 'youngsters', label: 'Youngsters' },
 ]
 
 const NP_HIDDEN_POS_FIELDS: { key: keyof NonPlayerRecord; label: string }[] = [
@@ -70,11 +86,10 @@ const NP_HIDDEN_POS_FIELDS: { key: keyof NonPlayerRecord; label: string }[] = [
   { key: 'formation', label: 'Formation' },
 ]
 
-const STAFF_MENTAL_ATTRS: { key: keyof Pick<
+const STAFF_MENTAL_HIDDEN: { key: keyof Pick<
   StaffRecord,
-  'adaptability' | 'ambition' | 'loyalty' | 'pressure' | 'professionalism' | 'sportsmanship' | 'temperament'
+  'ambition' | 'loyalty' | 'pressure' | 'professionalism' | 'sportsmanship' | 'temperament'
 >; label: string }[] = [
-  { key: 'adaptability', label: 'Adaptability' },
   { key: 'ambition', label: 'Ambition' },
   { key: 'loyalty', label: 'Loyalty' },
   { key: 'pressure', label: 'Pressure' },
@@ -83,25 +98,49 @@ const STAFF_MENTAL_ATTRS: { key: keyof Pick<
   { key: 'temperament', label: 'Temperament' },
 ]
 
-function buildAttrColumnsForNp(s: StaffRecord, np: NonPlayerRecord): [AttrCell[], AttrCell[], AttrCell[]] {
-  const mainFlat: AttrCell[] = [    toCell('determination', 'Determination', s.determination),
-    ...NP_MAIN_ATTRS.map(({ key, label }) => toCell(String(key), label, np[key] as number)),
-  ]
-  const [a, b, c] = splitIntoThreeColumns(mainFlat)
-  return [a, b, c]
+function readMainCell(
+  spec: (typeof STAFF_MAIN_LEFT)[number],
+  s: StaffRecord,
+  np: NonPlayerRecord | undefined,
+): AttrCell | null {
+  if (spec.from === 'staff') {
+    return toCell(spec.key, spec.label, s[spec.field as keyof StaffRecord] as number)
+  }
+  if (!np) return null
+  return toCell(spec.key, spec.label, np[spec.field as keyof NonPlayerRecord] as number)
 }
 
-function buildHiddenForNp(np: NonPlayerRecord): [AttrCell[], AttrCell[], AttrCell[]] {  const flat = NP_HIDDEN_POS_FIELDS.map(({ key, label }) => toCell(String(key), label, np[key] as number))
-  const [a, b, c] = splitIntoThreeColumns(flat)
-  return [a, b, c]
+function buildMainColumns(
+  s: StaffRecord,
+  np: NonPlayerRecord | undefined,
+): [AttrCell[], AttrCell[], AttrCell[]] {
+  const left = STAFF_MAIN_LEFT.map((spec) => readMainCell(spec, s, np)).filter((c): c is AttrCell => c != null)
+  const right = STAFF_MAIN_RIGHT.map((spec) => readMainCell(spec, s, np)).filter((c): c is AttrCell => c != null)
+  return [left, right, []]
 }
 
-function buildAttrColumnsStaffOnly(s: StaffRecord): [AttrCell[], AttrCell[], AttrCell[]] {
-  const mainFlat: AttrCell[] = [    toCell('determination', 'Determination', s.determination),
-    ...STAFF_MENTAL_ATTRS.map(({ key, label }) => toCell(String(key), label, s[key] as number)),
-  ]
-  const [a, b, c] = splitIntoThreeColumns(mainFlat)
-  return [a, b, c]
+function buildHiddenColumns(
+  s: StaffRecord,
+  np: NonPlayerRecord | undefined,
+): [AttrCell[], AttrCell[], AttrCell[]] {
+  const flat: AttrCell[] = []
+
+  if (np) {
+    for (const { key, label } of NP_HIDDEN_EXTRA) {
+      if (MAIN_ATTR_KEYS.has(key)) continue
+      flat.push(toCell(key, label, np[key] as number))
+    }
+    for (const { key, label } of NP_HIDDEN_POS_FIELDS) {
+      flat.push(toCell(String(key), label, np[key] as number))
+    }
+  }
+
+  for (const { key, label } of STAFF_MENTAL_HIDDEN) {
+    flat.push(toCell(String(key), label, s[key] as number))
+  }
+
+  flat.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+  return splitIntoThreeColumns(flat)
 }
 
 export function buildStaffProfilePayload(db: ParsedDatabase, staffIndex: number) {
@@ -117,8 +156,8 @@ export function buildStaffProfilePayload(db: ParsedDatabase, staffIndex: number)
   const c = contractsByStaffIndex.get(staffIndex) ?? null
 
   const hasNonPlayer = !!np
-  const attrColumns = np ? buildAttrColumnsForNp(s, np) : buildAttrColumnsStaffOnly(s)
-  const hiddenColumns = np ? buildHiddenForNp(np) : ([[], [], []] as [AttrCell[], AttrCell[], AttrCell[]])
+  const attrColumns = buildMainColumns(s, np)
+  const hiddenColumns = buildHiddenColumns(s, np)
   const reputation = np
     ? {
         home: np.homeReputation,

@@ -162,9 +162,8 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
   const showSuggestPanel = menuOpen && debouncedQ.length > 0 && suggestions.length > 0
 
   return (
-    <div className="grid min-h-0 gap-3 lg:grid-cols-[minmax(0,280px)_minmax(0,1.15fr)]">
-      <div className="self-start rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-        <div className="relative">
+    <div className="flex min-h-0 flex-col gap-3">
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
           <label className="block">
             <span className="mb-1 block text-xs text-zinc-500">Search club</span>
             <div className="relative">
@@ -187,7 +186,7 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
           </label>
           {showSuggestPanel && (
             <ul
-              className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950 py-0.5 shadow-lg cm-scroll"
+              className="mt-2 max-h-56 overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/80 py-0.5 cm-scroll"
               role="listbox"
             >
               {suggestions.map((c) => (
@@ -210,13 +209,12 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
               ))}
             </ul>
           )}
-        </div>
         {err && <p className="mt-2 text-xs text-rose-300">{err}</p>}
         {debouncedQ && !loadingSuggest && suggestions.length === 0 && !err && (
           <p className="mt-2 text-[11px] text-zinc-500">No clubs match that text.</p>
         )}
       </div>
-      <div className="flex min-h-0 flex-col rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+      <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
         {!detail && <p className="text-sm text-zinc-500">Search and pick a club for squad, stadium, and tactics.</p>}
         {detail && (
           <div className="flex min-h-0 flex-1 flex-col gap-2">

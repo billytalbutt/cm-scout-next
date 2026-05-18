@@ -61,10 +61,9 @@ export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayloa
 
       <div>
         <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Attributes</h3>
-        <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+        <div className="grid grid-cols-2 gap-x-4 border-t border-zinc-800/60 pt-2">
           <ProfileAttrColumn cells={p.attrColumns[0]} showEngineAttrs={showEngineAttrs} />
           <ProfileAttrColumn cells={p.attrColumns[1]} showEngineAttrs={showEngineAttrs} />
-          <ProfileAttrColumn cells={p.attrColumns[2]} showEngineAttrs={showEngineAttrs} />
         </div>
       </div>
 
