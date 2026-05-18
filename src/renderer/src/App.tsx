@@ -19,7 +19,6 @@ import { CM_SCOUT_ATTR_LABELS } from '../../shared/cmScoutAttrLabels'
 import { attrMinsStringsFromEnginePreset, type EngineSnifferPresetId } from '../../shared/engineSnifferAttrPresets'
 import { ENGINE_META_PROFILE_IDS, ENGINE_META_PROFILE_LABELS } from '../../shared/engineMetaProfileCatalog'
 import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
-import { MerlinIcon } from './MerlinIcon'
 import { DebouncedTextFilters } from './DebouncedTextFilters'
 import { StaffBrowsePanel } from './StaffBrowsePanel'
 import { StaffProfilePane } from './StaffProfilePane'
@@ -876,12 +875,14 @@ export function App() {
     <div className="flex h-screen flex-col bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-5 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-950/90 to-zinc-900 ring-1 ring-emerald-600/40 shadow-md shadow-emerald-950/60"
-            title="Merlin"
-          >
-            <MerlinIcon className="h-7 w-7 text-emerald-300" />
-          </div>
+          <img
+            src="/merlin-mascot.png"
+            alt=""
+            width={44}
+            height={44}
+            className="h-11 w-11 shrink-0 rounded-lg object-contain ring-1 ring-zinc-700/60 shadow-md shadow-black/40"
+            title="CM Merlin Scout"
+          />
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-white">CM Merlin Scout</h1>
             <p className="text-xs text-zinc-500">Championship Manager 01/02 · CM Scout–aligned data</p>
