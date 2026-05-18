@@ -235,7 +235,7 @@ export interface PlayerSavePerformanceStats {
   tackles?: number | null
   passes?: number | null
   headers?: number | null
-  layout: 'zeroedPrefix' | 'chainPrevId' | 'default' | 'gridV0'
+  layout: 'zeroedPrefix' | 'chainPrevId' | 'default' | 'gridV0' | 'summaryV1'
   /** Present when `layout === 'gridV0'` — primary domestic / picked competition row. */
   competitionId?: number | null
 }

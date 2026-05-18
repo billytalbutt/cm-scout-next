@@ -129,7 +129,7 @@ export interface ProfileSeasonStats {
     averageRating: number | null
     historyYear: number
     clubId: number
-    source: 'staff_history'
+    source: 'staff_history' | 'player_stats_dat'
   } | null
   careerTotals: { apps: number; goals: number }
   allSeasons: ProfileSeasonStatsRow[]

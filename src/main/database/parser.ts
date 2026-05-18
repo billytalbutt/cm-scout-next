@@ -489,14 +489,17 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
   let savePerformanceByPlayerDatId: Map<number, PlayerSavePerformanceStats> | undefined
   let savePerformancePerCompByPlayerDatId: Map<number, PlayerStatsPerCompetitionRow[]> | undefined
   if (playerStatsBlock && playerStatsBlock.size > 0) {
-    // Season stats in the UI come from staff_history.dat. Full player stats.dat decode scans the
-    // whole block and can freeze the app for minutes on large saves (CM_SCOUT_PLAYER_STATS_PARSE=research).
+    // Default `summary`: one fast pass for Senior-club apps/goals/assists (@ player id +91..93).
+    // `research` scans the full grid and can freeze on large saves; `off` skips decode entirely.
+    const statsEnv = process.env.CM_SCOUT_PLAYER_STATS_PARSE
     const statsParseMode =
-      process.env.CM_SCOUT_PLAYER_STATS_PARSE === 'research'
+      statsEnv === 'research'
         ? 'research'
-        : process.env.CM_SCOUT_PLAYER_STATS_PARSE === 'heuristic'
+        : statsEnv === 'heuristic'
           ? 'heuristic'
-          : 'off'
+          : statsEnv === 'off'
+            ? 'off'
+            : 'summary'
     if (statsParseMode !== 'off') {
       try {
         const psbuf = blockData(file, compressed, playerStatsBlock)

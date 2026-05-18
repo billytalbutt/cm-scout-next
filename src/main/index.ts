@@ -293,6 +293,7 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
       staffHistorySourcePath: loaded.db.staffHistorySourcePath,
       playerStatsDatPresent: loaded.db.playerStatsDatPresent ?? false,
       savePerformancePerCompByPlayerDatId: loaded.db.savePerformancePerCompByPlayerDatId,
+      savePerformanceByPlayerDatId: loaded.db.savePerformanceByPlayerDatId,
     }),
     isDemo: false as const,
   }

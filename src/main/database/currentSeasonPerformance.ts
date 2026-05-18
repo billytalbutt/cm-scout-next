@@ -21,7 +21,35 @@ export interface CurrentSeasonPerformance {
   /** Season tag from `staff_history.year` used for this row. */
   historyYear: number
   clubId: number
-  source: 'staff_history'
+  source: 'staff_history' | 'player_stats_dat'
+}
+
+export function currentSeasonPerformanceFromSave(
+  save: {
+    apps: number | null
+    goals: number | null
+    assists: number | null
+    averageRating?: number | null
+  },
+  clubLabel: string,
+  employerClubId: number,
+  historyYear: number,
+): CurrentSeasonPerformance | null {
+  const apps = save.apps ?? 0
+  const goals = save.goals ?? 0
+  const hasAny = save.apps != null || save.goals != null || save.assists != null
+  if (!hasAny) return null
+
+  return {
+    label: clubLabel.trim() || `Club #${employerClubId}`,
+    apps,
+    goals,
+    assists: save.assists ?? null,
+    averageRating: save.averageRating ?? null,
+    historyYear,
+    clubId: employerClubId,
+    source: 'player_stats_dat',
+  }
 }
 
 function uniqueYearsDesc(hist: readonly StaffHistoryRecord[]): number[] {

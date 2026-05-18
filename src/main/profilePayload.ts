@@ -7,6 +7,7 @@ import {
 import type { ClubCompRecord } from './database/clubComp'
 import {
   currentSeasonPerformanceFromRows,
+  currentSeasonPerformanceFromSave,
   pickCurrentSeasonStaffHistoryAtClub,
 } from './database/currentSeasonPerformance'
 import type { StaffHistoryRecord } from './database/staffHistory'
@@ -19,6 +20,7 @@ import {
 } from './database/attributes'
 import type {
   PlayerRecord,
+  PlayerSavePerformanceStats,
   PlayerStatsPerCompetitionRow,
   StaffRecord,
   UiPlayerRow,
@@ -181,6 +183,8 @@ export type ProfileDbContext = {
   playerStatsDatPresent?: boolean
   /** Structured grid V0 per-competition rows keyed by `player.dat` id. */
   savePerformancePerCompByPlayerDatId?: Map<number, PlayerStatsPerCompetitionRow[]>
+  /** Summary decode from `player stats.dat` (Senior club totals). */
+  savePerformanceByPlayerDatId?: Map<number, PlayerSavePerformanceStats>
 }
 
 function calendarYearFromGameIso(iso: string | null): number | null {
@@ -259,7 +263,7 @@ function buildProfileSeasonStats(
     cGoals += h.goals
   }
 
-  const currentSeasonPerformance = currentSeasonPerformanceFromRows(
+  let currentSeasonPerformance = currentSeasonPerformanceFromRows(
     currentHist,
     employerClubId,
     clubLabel,
@@ -267,6 +271,23 @@ function buildProfileSeasonStats(
   )
   const currentAtEmployerClub =
     currentHist.length > 0 && currentHist.some((h) => clubIds.includes(h.clubId))
+
+  const savePerf = ctx.savePerformanceByPlayerDatId?.get(row.player.id) ?? null
+  const seasonYearForSave =
+    highlightHistoryYear ?? saveCalendarYear ?? new Date().getFullYear()
+  const fromSave =
+    savePerf != null
+      ? currentSeasonPerformanceFromSave(savePerf, clubLabel, employerClubId, seasonYearForSave)
+      : null
+  if (fromSave) {
+    const saveHasAssists = fromSave.assists != null
+    const preferSave =
+      !currentSeasonPerformance ||
+      !hist.length ||
+      !currentAtEmployerClub ||
+      saveHasAssists
+    if (preferSave) currentSeasonPerformance = fromSave
+  }
   const divCompId = ctx.clubDivisionCompIdByClubId.get(employerClubId)
   let inferredDomesticLeague: { competitionId: number; name: string } | null = null
   if (divCompId != null && divCompId !== 0 && ctx.clubCompsById) {
@@ -277,15 +298,17 @@ function buildProfileSeasonStats(
 
   const playerStatsDatPresent = ctx.playerStatsDatPresent === true
 
-  const savePerformanceHint = !ctx.staffHistoryParsed
-    ? 'No staff_history.dat found. CM stores career apps/goals there (in Game/Data/, not inside most .sav files). Load a .sav from your Game folder or set CM_SCOUT_DATA_PATH to your Data folder.'
-    : !hist.length
-      ? 'No career rows for this staff id in staff_history.dat (regens and some players have none in the database file).'
-      : currentSeasonPerformance && currentAtEmployerClub
-        ? 'Apps and goals from staff history (league + cups combined — CM “Senior club” style). Assists and average rating need a further decode.'
-        : currentSeasonPerformance
-          ? 'Showing the best matching season-year from career history; there is no row for the current club in staff history yet. Live match totals in a `.sav` are updated in save blocks still being decoded.'
-          : 'Career rows exist but none match the resolved current season year — check highlighted rows in the table below.'
+  const savePerformanceHint = fromSave
+    ? 'Current-season apps, goals, and assists from `player stats.dat` in this save (CM Senior club style). Average rating is not mapped yet.'
+    : !ctx.staffHistoryParsed
+      ? 'No staff_history.dat found. Load a .sav from your CM Game folder (e.g. …/Game/Game/) so Data/staff_history.dat is found, or ensure this save includes `player stats.dat`.'
+      : !hist.length
+        ? 'No career rows for this staff id in staff_history.dat and no summary row in `player stats.dat` for this player.'
+        : currentSeasonPerformance && currentAtEmployerClub
+          ? 'Apps and goals from staff history (league + cups combined). Assists and average rating are not in staff_history.dat.'
+          : currentSeasonPerformance
+            ? 'Best matching season-year from career history; no live save summary was decoded for this player.'
+            : 'Career rows exist but none match the resolved current season year — check highlighted rows in the table below.'
 
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },
@@ -304,9 +327,16 @@ function buildProfileSeasonStats(
     playerStatsDatPresent,
     savePerformanceHint,
     /** Wrong until player stats.dat layout is verified — do not surface in UI. */
-    perCompetitionRows: [],
-    perCompetitionStatsInSave: false,
-    saveFilePerformance: null,
+    perCompetitionRows: ctx.savePerformancePerCompByPlayerDatId?.get(row.player.id) ?? [],
+    perCompetitionStatsInSave: (ctx.savePerformancePerCompByPlayerDatId?.get(row.player.id)?.length ?? 0) > 0,
+    saveFilePerformance: savePerf
+      ? {
+          apps: savePerf.apps,
+          goals: savePerf.goals,
+          assists: savePerf.assists,
+          averageRating: savePerf.averageRating ?? null,
+        }
+      : null,
   }
 }
 

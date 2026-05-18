@@ -103,6 +103,18 @@ describe('collectResearchGridRowsForPlayer', () => {
 })
 
 describe('parsePlayerStatsFromSave', () => {
+  it('summary mode returns Senior-club totals without grid walk', () => {
+    const buf = Buffer.alloc(200, 0)
+    const anchor = 40
+    buf.writeInt32LE(118, anchor)
+    buf.writeUInt8(10, anchor + 91)
+    buf.writeUInt8(2, anchor + 92)
+    buf.writeUInt8(1, anchor + 93)
+    const players = [{ id: 118 } as PlayerRecord]
+    const res = parsePlayerStatsFromSave(buf, players, [], { clubDivisionCompIdByClubId: new Map() }, 'summary')
+    expect(res.byPlayerDatId.get(118)).toMatchObject({ apps: 10, goals: 2, assists: 1, layout: 'summaryV1' })
+  })
+
   it('default mode off returns empty without scanning the buffer', () => {
     const buf = Buffer.alloc(1_000_000, 0xab)
     const players = [{ id: 1 } as PlayerRecord]

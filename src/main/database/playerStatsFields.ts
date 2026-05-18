@@ -10,6 +10,7 @@ import {
   iterPlayerStatsRowStarts,
 } from './playerStatsJoins'
 import { collectPlayerDatIdOccurrences, parsePlayerSavePerformance } from './playerStatsDat'
+import { parsePlayerStatsSummary } from './playerStatsSummary'
 import type { ClubCompRecord, StaffCompRecord } from './clubComp'
 import type { PlayerRecord, PlayerSavePerformanceStats, PlayerStatsPerCompetitionRow } from './types'
 
@@ -345,8 +346,11 @@ export interface PlayerStatsSaveParseResult {
   perCompByPlayerDatId: Map<number, PlayerStatsPerCompetitionRow[]>
 }
 
-/** `off` = instant (profile uses staff_history). `research` = full grid scan (slow on large saves). */
-export type PlayerStatsParseMode = 'off' | 'heuristic' | 'research'
+/**
+ * `off` = skip decode. `summary` = one fast pass (Senior club totals @ id+91..93).
+ * `heuristic` / `research` = legacy scans.
+ */
+export type PlayerStatsParseMode = 'off' | 'summary' | 'heuristic' | 'research'
 
 const EMPTY_PLAYER_STATS_PARSE: PlayerStatsSaveParseResult = {
   byPlayerDatId: new Map(),
@@ -364,6 +368,13 @@ export function parsePlayerStatsFromSave(
   mode: PlayerStatsParseMode = 'off',
 ): PlayerStatsSaveParseResult {
   if (mode === 'off' || !buf.length) return EMPTY_PLAYER_STATS_PARSE
+
+  if (mode === 'summary') {
+    return {
+      byPlayerDatId: parsePlayerStatsSummary(buf, players),
+      perCompByPlayerDatId: new Map(),
+    }
+  }
 
   if (mode === 'heuristic') {
     return {
