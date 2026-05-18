@@ -2,74 +2,112 @@
  * Fast `player stats.dat` summary decode (CM “Senior club” style totals).
  *
  * Paired-save research (Blackburn, Kieron Dyer player.dat id 118): when the player id
- * sits at the anchor (int32), season apps/goals/assists are u8 at anchor+91/+92/+93.
- * One O(n) pass picks the best candidate per player (v4 === 0, plausible side fields).
+ * sits at the anchor (int32), season apps/goals/assists are usually u8 at anchor+91..93.
+ * When anchor+59 also equals apps, goals at anchor+60 match CM (anchor+92 can be stale).
  */
 
 import type { PlayerRecord, PlayerSavePerformanceStats } from './types'
 
-export const PLAYER_STATS_SUMMARY_VERSION = 1
+export const PLAYER_STATS_SUMMARY_VERSION = 2
 
 /** Byte offsets from the buffer offset where `player.dat` id (int32 LE) was found. */
 export const PLAYER_STATS_SUMMARY_FIELDS = {
   apps: 91,
   goals: 92,
   assists: 93,
+  /** Secondary slot — goals/assists here when +59 === apps (+91). */
+  appsAlt: 59,
+  goalsAlt: 60,
+  assistsAlt: 61,
 } as const
+
+const F = PLAYER_STATS_SUMMARY_FIELDS
 
 const MAX_PLAUSIBLE_PLUS20 = 10_000_000
 const MAX_PLAUSIBLE_PLUS32 = 10_000_000
 
-function readU8(buf: Buffer, anchor: number, rel: number): number | null {
-  const i = anchor + rel
-  if (i < 0 || i >= buf.length) return null
-  return buf.readUInt8(i)
+export interface SummaryStatsTriple {
+  apps: number
+  goals: number
+  assists: number
 }
 
-function plausibleSummaryStats(apps: number, goals: number, assists: number): boolean {
+function readU8(buf: Buffer, anchor: number, rel: number): number {
+  return buf.readUInt8(anchor + rel)
+}
+
+export function plausibleSummaryStats(apps: number, goals: number, assists: number): boolean {
   if (apps < 1 || apps > 60 || goals > 60 || assists > 40) return false
   if (goals > apps) return false
   if (goals > Math.max(2, Math.floor(apps / 2))) return false
   return true
 }
 
+function sideFieldsOk(buf: Buffer, anchor: number): boolean {
+  const p20 = buf.readInt32LE(anchor + 20)
+  const p32 = buf.readInt32LE(anchor + 32)
+  return p20 > 0 && p32 > 0 && p20 < 500 && p32 < 500
+}
+
+/** Read apps/goals/assists with aligned +59/+60 slot when it matches +91. */
+export function readSummaryStatsAtAnchor(buf: Buffer, anchor: number): SummaryStatsTriple | null {
+  if (anchor < 0 || anchor + F.assists + 1 > buf.length) return null
+
+  const apps = readU8(buf, anchor, F.apps)
+  let goals = readU8(buf, anchor, F.goals)
+  let assists = readU8(buf, anchor, F.assists)
+
+  const appsAlt = readU8(buf, anchor, F.appsAlt)
+  if (appsAlt === apps && apps > 0) {
+    goals = readU8(buf, anchor, F.goalsAlt)
+    const ast93 = readU8(buf, anchor, F.assists)
+    const ast61 = readU8(buf, anchor, F.assistsAlt)
+    assists = ast93 > 0 ? ast93 : ast61
+  }
+
+  if (!plausibleSummaryStats(apps, goals, assists)) return null
+  return { apps, goals, assists }
+}
+
 function isSummaryCandidateAnchor(buf: Buffer, anchor: number): boolean {
-  if (anchor < 0 || anchor + 94 > buf.length) return false
+  if (anchor < 0 || anchor + F.assists + 1 > buf.length) return false
   if (buf.readInt32LE(anchor + 4) !== 0) return false
   const p20 = buf.readInt32LE(anchor + 20)
   const p32 = buf.readInt32LE(anchor + 32)
   if (p20 >= MAX_PLAUSIBLE_PLUS20 || p32 >= MAX_PLAUSIBLE_PLUS32) return false
   if (p20 < 0 || p32 < 0) return false
-  const apps = buf.readUInt8(anchor + PLAYER_STATS_SUMMARY_FIELDS.apps)
-  const goals = buf.readUInt8(anchor + PLAYER_STATS_SUMMARY_FIELDS.goals)
-  const assists = buf.readUInt8(anchor + PLAYER_STATS_SUMMARY_FIELDS.assists)
-  return plausibleSummaryStats(apps, goals, assists)
+  return readSummaryStatsAtAnchor(buf, anchor) != null
 }
 
-/** Prefer Senior-club aggregate rows (small positive side fields), then most apps, then lowest total. */
-function summaryCandidateRank(
+/** Prefer Senior-club aggregate rows, then most apps, fewest goals, most assists. */
+export function compareSummaryCandidates(
   buf: Buffer,
-  anchor: number,
-  apps: number,
-  goals: number,
-  assists: number,
+  anchorA: number,
+  anchorB: number,
 ): number {
-  const p20 = buf.readInt32LE(anchor + 20)
-  const p32 = buf.readInt32LE(anchor + 32)
-  const sideFieldsOk = p20 > 0 && p32 > 0 && p20 < 500 && p32 < 500
-  const total = apps + goals + assists
-  return (sideFieldsOk ? 1_000_000 : 0) + apps * 1000 - total * 10
+  const a = readSummaryStatsAtAnchor(buf, anchorA)
+  const b = readSummaryStatsAtAnchor(buf, anchorB)
+  if (!a || !b) return 0
+
+  const sideA = sideFieldsOk(buf, anchorA)
+  const sideB = sideFieldsOk(buf, anchorB)
+  if (sideA !== sideB) return sideA ? 1 : -1
+  if (a.apps !== b.apps) return a.apps - b.apps
+  if (a.goals !== b.goals) return b.goals - a.goals
+  if (a.assists !== b.assists) return a.assists - b.assists
+  return 0
 }
 
 export function decodePlayerStatsSummaryAtAnchor(
   buf: Buffer,
   anchor: number,
 ): PlayerSavePerformanceStats | null {
-  if (!isSummaryCandidateAnchor(buf, anchor)) return null
+  const stats = readSummaryStatsAtAnchor(buf, anchor)
+  if (!stats) return null
   return {
-    apps: readU8(buf, anchor, PLAYER_STATS_SUMMARY_FIELDS.apps),
-    goals: readU8(buf, anchor, PLAYER_STATS_SUMMARY_FIELDS.goals),
-    assists: readU8(buf, anchor, PLAYER_STATS_SUMMARY_FIELDS.assists),
+    apps: stats.apps,
+    goals: stats.goals,
+    assists: stats.assists,
     averageRating: null,
     layout: 'summaryV1',
   }
@@ -88,7 +126,7 @@ export function parsePlayerStatsSummary(
   const playerIds = new Set<number>()
   for (const p of players) playerIds.add(p.id)
 
-  const bestRank = new Map<number, number>()
+  const bestAnchor = new Map<number, number>()
 
   const len = buf.length
   for (let anchor = 0; anchor <= len - 94; anchor++) {
@@ -96,21 +134,12 @@ export function parsePlayerStatsSummary(
     if (!playerIds.has(playerDatId)) continue
     if (!isSummaryCandidateAnchor(buf, anchor)) continue
 
-    const apps = buf.readUInt8(anchor + PLAYER_STATS_SUMMARY_FIELDS.apps)
-    const goals = buf.readUInt8(anchor + PLAYER_STATS_SUMMARY_FIELDS.goals)
-    const assists = buf.readUInt8(anchor + PLAYER_STATS_SUMMARY_FIELDS.assists)
-    const rank = summaryCandidateRank(buf, anchor, apps, goals, assists)
-    const prev = bestRank.get(playerDatId)
-    if (prev != null && rank <= prev) continue
+    const prevAnchor = bestAnchor.get(playerDatId)
+    if (prevAnchor != null && compareSummaryCandidates(buf, anchor, prevAnchor) <= 0) continue
 
-    bestRank.set(playerDatId, rank)
-    out.set(playerDatId, {
-      apps,
-      goals,
-      assists,
-      averageRating: null,
-      layout: 'summaryV1',
-    })
+    bestAnchor.set(playerDatId, anchor)
+    const decoded = decodePlayerStatsSummaryAtAnchor(buf, anchor)!
+    out.set(playerDatId, decoded)
   }
 
   return out

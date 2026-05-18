@@ -310,6 +310,10 @@ function buildProfileSeasonStats(
             ? 'Best matching season-year from career history; no live save summary was decoded for this player.'
             : 'Career rows exist but none match the resolved current season year — check highlighted rows in the table below.'
 
+  const seasonHeaderTotals = currentSeasonPerformance
+    ? { apps: currentSeasonPerformance.apps, goals: currentSeasonPerformance.goals }
+    : { apps: cApps, goals: cGoals }
+
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },
     saveCalendarYear,
@@ -317,7 +321,7 @@ function buildProfileSeasonStats(
     currentYearResolution: seasonPick.resolution,
     boundaryDayOfYearUsed: seasonPick.boundaryDayOfYearUsed,
     currentSeasonRows: currentHist.map(toRow).sort((a, b) => a.club.localeCompare(b.club)),
-    currentSeasonTotals: { apps: cApps, goals: cGoals },
+    currentSeasonTotals: seasonHeaderTotals,
     currentSeasonPerformance,
     careerTotals: { apps: careerApps, goals: careerGoals },
     allSeasons,

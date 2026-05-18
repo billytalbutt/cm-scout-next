@@ -5,6 +5,7 @@ import {
   PLAYER_STATS_SUMMARY_FIELDS,
   decodePlayerStatsSummaryAtAnchor,
   parsePlayerStatsSummary,
+  readSummaryStatsAtAnchor,
 } from './playerStatsSummary'
 import type { PlayerRecord } from './types'
 
@@ -46,6 +47,20 @@ describe('parsePlayerStatsSummary', () => {
     write(200, 10, 2, 1, 3, 105)
     const map = parsePlayerStatsSummary(buf, players)
     expect(map.get(7)).toMatchObject({ apps: 10, goals: 2, assists: 1 })
+  })
+
+  it('uses goals at +60 when +59 matches apps at +91 (CM duplicate slot)', () => {
+    const buf = Buffer.alloc(300, 0)
+    const anchor = 80
+    buf.writeInt32LE(118, anchor)
+    buf.writeUInt8(10, anchor + 59)
+    buf.writeUInt8(2, anchor + 60)
+    buf.writeUInt8(1, anchor + 61)
+    buf.writeUInt8(10, anchor + 91)
+    buf.writeUInt8(3, anchor + 92)
+    buf.writeUInt8(1, anchor + 93)
+    const stats = readSummaryStatsAtAnchor(buf, anchor)
+    expect(stats).toEqual({ apps: 10, goals: 2, assists: 1 })
   })
 
   it.skipIf(!existsSync(BLACKBURN_SAV))('Kieron Dyer matches CM Senior club totals on Blackburn save', () => {
