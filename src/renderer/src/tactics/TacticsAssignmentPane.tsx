@@ -30,12 +30,16 @@ function SlotAssignRow({
   slot,
   assignment,
   loadInfo,
+  clubSquadOnly,
+  squadRows,
   onAssign,
   onClear,
 }: {
   slot: PitchSlot
   assignment: TacticsPlayerAssignment | null | undefined
   loadInfo: boolean
+  clubSquadOnly: boolean
+  squadRows: GridPlayerRow[]
   onAssign: (slotId: string, a: TacticsPlayerAssignment | null) => void
   onClear: (slotId: string) => void
 }) {
@@ -76,66 +80,112 @@ function SlotAssignRow({
   )
 
   useEffect(() => {
+    if (clubSquadOnly) return
     const t = window.setTimeout(() => {
       if (open && q.trim().length >= 2 && q !== assignment?.name) void search(q)
     }, 150)
     return () => window.clearTimeout(t)
-  }, [q, open, search, assignment?.name])
+  }, [q, open, search, assignment?.name, clubSquadOnly])
+
+  const squadSorted = useMemo(() => {
+    const role = slot.role
+    return [...squadRows].sort((a, b) => {
+      const ra = rolePercentForPlayer(a, role) ?? -1
+      const rb = rolePercentForPlayer(b, role) ?? -1
+      if (rb !== ra) return rb - ra
+      return a.name.localeCompare(b.name)
+    })
+  }, [squadRows, slot.role])
 
   const posLabel = slot.role || '—'
   const pct = assignment?.rolePercent ?? assignment?.cmScoutBp
+  const selectValue = assignment?.staffIndex != null ? String(assignment.staffIndex) : ''
 
   return (
     <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_2.5rem] items-center gap-1.5">
       <span className="font-mono text-[10px] font-semibold text-amber-200/90">{posLabel}</span>
       <div className="relative min-w-0">
-        <input
-          className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-600"
-          value={q}
-          placeholder={loadInfo ? 'Search player…' : 'Load database'}
-          disabled={!loadInfo}
-          onChange={(e) => {
-            setQ(e.target.value)
-            if (assignment && e.target.value !== assignment.name) onClear(slot.id)
-          }}
-          onFocus={() => {
-            if (blurRef.current) window.clearTimeout(blurRef.current)
-            setOpen(true)
-          }}
-          onBlur={() => {
-            blurRef.current = window.setTimeout(() => setOpen(false), 160)
-          }}
-        />
-        {open && suggestions.length > 0 && (
-          <ul className="absolute left-0 right-0 z-20 mt-0.5 max-h-40 overflow-y-auto rounded border border-zinc-700 bg-zinc-950 py-0.5 shadow-lg cm-scroll">
-            {suggestions.map((p) => {
+        {clubSquadOnly ? (
+          <select
+            className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-100 outline-none focus:border-emerald-600 disabled:opacity-50"
+            value={selectValue}
+            disabled={!loadInfo || squadRows.length === 0}
+            onChange={(e) => {
+              const v = e.target.value
+              if (!v) {
+                onClear(slot.id)
+                return
+              }
+              const si = Number(v)
+              const row = squadRows.find((p) => p.staffIndex === si)
+              if (row) onAssign(slot.id, assignmentFromRow(row, slot.role))
+            }}
+          >
+            <option value="">{squadRows.length === 0 ? 'No squad loaded' : '— Pick player —'}</option>
+            {squadSorted.map((p) => {
               const rp = rolePercentForPlayer(p, slot.role)
               return (
-                <li key={p.staffIndex}>
-                  <button
-                    type="button"
-                    className="flex w-full flex-col items-start px-2 py-1 text-left text-[11px] hover:bg-zinc-800"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onAssign(slot.id, assignmentFromRow(p, slot.role))
-                      setQ(p.name)
-                      setOpen(false)
-                    }}
-                  >
-                    <span className="text-zinc-100">{p.name}</span>
-                    <span className="text-[10px] text-zinc-500">
-                      {p.club} · {slot.role}
-                      {rp != null && (
-                        <span className="font-mono text-emerald-300/90"> {Math.round(rp)}%</span>
-                      )}
-                    </span>
-                  </button>
-                </li>
+                <option key={p.staffIndex} value={p.staffIndex}>
+                  {p.name}
+                  {rp != null ? ` · ${Math.round(rp)}%` : ''}
+                  {` · CA ${p.ca}`}
+                </option>
               )
             })}
-          </ul>
+          </select>
+        ) : (
+          <>
+            <input
+              className="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-600"
+              value={q}
+              placeholder={loadInfo ? 'Search any player…' : 'Load database'}
+              disabled={!loadInfo}
+              onChange={(e) => {
+                setQ(e.target.value)
+                if (assignment && e.target.value !== assignment.name) onClear(slot.id)
+              }}
+              onFocus={() => {
+                if (blurRef.current) window.clearTimeout(blurRef.current)
+                setOpen(true)
+              }}
+              onBlur={() => {
+                blurRef.current = window.setTimeout(() => setOpen(false), 160)
+              }}
+            />
+            {open && suggestions.length > 0 && (
+              <ul className="absolute left-0 right-0 z-20 mt-0.5 max-h-40 overflow-y-auto rounded border border-zinc-700 bg-zinc-950 py-0.5 shadow-lg cm-scroll">
+                {suggestions.map((p) => {
+                  const rp = rolePercentForPlayer(p, slot.role)
+                  return (
+                    <li key={p.staffIndex}>
+                      <button
+                        type="button"
+                        className="flex w-full flex-col items-start px-2 py-1 text-left text-[11px] hover:bg-zinc-800"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          onAssign(slot.id, assignmentFromRow(p, slot.role))
+                          setQ(p.name)
+                          setOpen(false)
+                        }}
+                      >
+                        <span className="text-zinc-100">{p.name}</span>
+                        <span className="text-[10px] text-zinc-500">
+                          {p.club} · {slot.role}
+                          {rp != null && (
+                            <span className="font-mono text-emerald-300/90"> {Math.round(rp)}%</span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {loading && (
+              <span className="pointer-events-none absolute right-2 top-1 text-[10px] text-zinc-500">…</span>
+            )}
+          </>
         )}
-        {loading && <span className="pointer-events-none absolute right-2 top-1 text-[10px] text-zinc-500">…</span>}
       </div>
       <span className="text-right font-mono text-[10px] tabular-nums text-emerald-300/90">
         {pct != null ? `${Math.round(pct)}` : '—'}
@@ -148,30 +198,80 @@ export function TacticsAssignmentPane({
   loadInfo,
   pitchSlots,
   assignments,
+  seedClubId,
+  seedClubName,
   onAssign,
   onClearSlot,
 }: {
   loadInfo: boolean
   pitchSlots: PitchSlot[]
   assignments: Partial<Record<string, TacticsPlayerAssignment | null>>
+  seedClubId: number | null
+  seedClubName: string | null
   onAssign: (slotId: string, a: TacticsPlayerAssignment | null) => void
   onClearSlot: (slotId: string) => void
 }) {
+  const [clubSquadOnly, setClubSquadOnly] = useState(false)
+  const [squadRows, setSquadRows] = useState<GridPlayerRow[]>([])
+  const [squadLoading, setSquadLoading] = useState(false)
+
   const teamRating = useMemo(
     () => teamRatingFromAssignments(pitchSlots, assignments),
     [pitchSlots, assignments],
   )
+
+  useEffect(() => {
+    if (!clubSquadOnly || seedClubId == null || !loadInfo) {
+      setSquadRows([])
+      return
+    }
+    if (typeof window.cmapi?.getClubSquadGridRows !== 'function') {
+      setSquadRows([])
+      return
+    }
+    let cancelled = false
+    setSquadLoading(true)
+    void window.cmapi.getClubSquadGridRows(seedClubId).then((rows) => {
+      if (cancelled) return
+      setSquadRows(rows)
+      setSquadLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [clubSquadOnly, seedClubId, loadInfo])
+
+  const clubOnlyReady = clubSquadOnly && seedClubId != null && squadRows.length > 0
 
   return (
     <div className="space-y-3">
       <div>
         <h2 className="text-sm font-semibold text-zinc-200">Line-up</h2>
         <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
-          Top to bottom: goalkeeper, defenders, midfielders, attackers (pitch still has GK at the bottom). Search and
-          assign any player; ratings use CM Scout % for that role.
+          Assign players by position. Use club squad dropdowns or search the full database.
         </p>
       </div>
       {!loadInfo && <p className="text-xs text-zinc-500">Load a database to search players.</p>}
+      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 px-2.5 py-2">
+        <input
+          type="checkbox"
+          className="mt-0.5 accent-emerald-600"
+          checked={clubSquadOnly}
+          onChange={(e) => setClubSquadOnly(e.target.checked)}
+          disabled={!loadInfo}
+        />
+        <span className="text-[11px] leading-snug text-zinc-300">
+          <span className="font-medium text-zinc-100">Club squad only</span>
+          <span className="block text-zinc-500">
+            {seedClubId != null && seedClubName
+              ? `Dropdowns list ${seedClubName} (${squadLoading ? 'loading…' : `${squadRows.length} players`}).`
+              : 'Pick a squad club on the tactics pitch panel first.'}
+          </span>
+        </span>
+      </label>
+      {clubSquadOnly && seedClubId == null && (
+        <p className="text-[11px] text-amber-200/90">Select a club under Squad club on the tactics screen.</p>
+      )}
       <div className="rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-2.5 py-2">
         <div className="text-[10px] font-medium uppercase tracking-wide text-emerald-300/90">Team rating</div>
         <div className="font-mono text-2xl text-emerald-100">{teamRating != null ? teamRating : '—'}</div>
@@ -192,7 +292,9 @@ export function TacticsAssignmentPane({
                     key={slot.id}
                     slot={slot}
                     assignment={assignments[slot.id]}
-                    loadInfo={loadInfo}
+                    loadInfo={loadInfo && (!clubSquadOnly || clubOnlyReady || !squadLoading)}
+                    clubSquadOnly={clubSquadOnly && seedClubId != null}
+                    squadRows={squadRows}
                     onAssign={onAssign}
                     onClear={onClearSlot}
                   />

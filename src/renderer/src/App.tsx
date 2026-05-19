@@ -317,6 +317,11 @@ export function App() {
   const [browseTab, setBrowseTab] = useState<'players' | 'regens' | 'staff' | 'clubs' | 'tactics' | 'editor'>('players')
   /** Last club selected in Clubs tab — Tactics Lab uses this for save tactic wiring. */
   const [tacticsSeedClubId, setTacticsSeedClubId] = useState<number | null>(null)
+  const [tacticsSeedClubName, setTacticsSeedClubName] = useState<string | null>(null)
+  const onTacticsSeedClubChange = useCallback((clubId: number | null, clubName: string | null) => {
+    setTacticsSeedClubId(clubId)
+    setTacticsSeedClubName(clubName)
+  }, [])
   const [tacticsPitchSlots, setTacticsPitchSlots] = useState<PitchSlot[]>(() => initialPitchSlots())
   const [tacticsAssignments, setTacticsAssignments] = useState<
     Partial<Record<string, TacticsPlayerAssignment | null>>
@@ -1555,13 +1560,15 @@ export function App() {
               <ClubBrowsePanel
                 loadInfo={!!loadInfo}
                 onOpenPlayerProfile={(si) => void pick(si)}
-                onClubSelectForTactics={(id) => setTacticsSeedClubId(id)}
+                onClubSelectForTactics={(id, name) => onTacticsSeedClubChange(id, name ?? null)}
               />
             </div>
             {browseTab === 'tactics' && (
               <TacticsLabPanel
                 loadInfo={!!loadInfo}
                 tacticsSeedClubId={tacticsSeedClubId}
+                tacticsSeedClubName={tacticsSeedClubName}
+                onTacticsSeedClubChange={onTacticsSeedClubChange}
                 pitchSlots={tacticsPitchSlots}
                 onPitchSlotsChange={setTacticsPitchSlots}
                 assignments={tacticsAssignments}
@@ -1692,6 +1699,8 @@ export function App() {
           {browseTab === 'tactics' ? (
             <TacticsAssignmentPane
               loadInfo={!!loadInfo}
+              seedClubId={tacticsSeedClubId}
+              seedClubName={tacticsSeedClubName}
               pitchSlots={tacticsPitchSlots}
               assignments={tacticsAssignments}
               onAssign={(slotId, a) =>

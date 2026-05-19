@@ -44,6 +44,8 @@ contextBridge.exposeInMainWorld('cmapi', {
       capped: boolean
     }>,
   getClubDetail: (clubId: number) => ipcRenderer.invoke('get-club-detail', clubId),
+  getClubSquadGridRows: (clubId: number) =>
+    ipcRenderer.invoke('get-club-squad-grid-rows', clubId) as Promise<Array<Record<string, unknown>>>,
   getProfile: (staffIndex: number) => ipcRenderer.invoke('get-profile', staffIndex),
   getStaffProfile: (staffIndex: number) => ipcRenderer.invoke('get-staff-profile', staffIndex),
   getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),

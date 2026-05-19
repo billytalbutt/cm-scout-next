@@ -1,6 +1,9 @@
-import { staffDisplayName } from './database/parser'
+import { applyCmScoutRatings } from './cmScoutRating'
+import { buildUiPlayerRowAtIndex, staffDisplayName } from './database/parser'
 import { tryExperimentalPitchFromTacticRow } from './database/tacticsDat'
-import type { ParsedDatabase } from './database/types'
+import type { ParsedDatabase, UiPlayerRow } from './database/types'
+import { mapUiRowToGridPayload } from './gridRowPayload'
+import type { GridPlayerRow } from '../shared/gridTypes'
 
 export interface ClubListRow {
   id: number
@@ -74,6 +77,27 @@ export function buildClubSquadPlayerRows(db: ParsedDatabase, clubId: number): Cl
     })
   }
   out.sort((a, b) => b.ca - a.ca || a.name.localeCompare(b.name))
+  return out
+}
+
+/** Squad as grid rows (role7 for tactics lineup %). */
+export function buildClubSquadGridRows(
+  db: ParsedDatabase,
+  clubId: number,
+  uiRowsByStaffIndex?: readonly (UiPlayerRow | undefined)[],
+): GridPlayerRow[] {
+  const squad = buildClubSquadPlayerRows(db, clubId)
+  const out: GridPlayerRow[] = []
+  for (const s of squad) {
+    let ui = uiRowsByStaffIndex?.[s.staffIndex]
+    if (!ui) {
+      const built = buildUiPlayerRowAtIndex(db, s.staffIndex)
+      if (!built) continue
+      applyCmScoutRatings([built])
+      ui = built
+    }
+    out.push(mapUiRowToGridPayload(ui, { role7: true }))
+  }
   return out
 }
 

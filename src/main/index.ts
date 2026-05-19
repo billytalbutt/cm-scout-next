@@ -28,7 +28,12 @@ import type { GridIncludeFlags } from '../shared/gridTypes'
 import { ENGINE_SNIFFER_IDS, type EngineSnifferId } from './engineSniffer'
 import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
 import { filterStaffGridRows } from './staffBrowse'
-import { buildClubSquadPlayerRows, buildClubDetailPayload, filterClubListRows } from './clubBrowse'
+import {
+  buildClubDetailPayload,
+  buildClubSquadGridRows,
+  buildClubSquadPlayerRows,
+  filterClubListRows,
+} from './clubBrowse'
 import { buildStaffProfilePayload } from './staffProfilePayload'
 import {
   buildEditorValueMap,
@@ -264,6 +269,13 @@ ipcMain.handle('get-club-detail', async (_e, clubId: unknown) => {
   if (!loaded) return null
   const id = Math.floor(Number(clubId))
   return buildClubDetailPayload(loaded.db, id)
+})
+
+ipcMain.handle('get-club-squad-grid-rows', async (_e, clubId: unknown) => {
+  if (!loaded) return []
+  const id = Math.floor(Number(clubId))
+  if (!Number.isFinite(id) || id <= 0) return []
+  return buildClubSquadGridRows(loaded.db, id, loaded.rows)
 })
 
 ipcMain.handle('get-staff-profile', async (_e, staffIndex: unknown) => {

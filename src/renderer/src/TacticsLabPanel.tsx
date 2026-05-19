@@ -11,6 +11,7 @@ import {
   type TacticArrow,
   type TacticPresetId,
 } from '../../shared/tacticsCommunityPresets'
+import { TacticsClubPicker } from './tactics/TacticsClubPicker'
 
 type Mentality = 'defensive' | 'normal' | 'attacking'
 type PassingStyle = 'short' | 'mixed' | 'direct' | 'long'
@@ -56,12 +57,16 @@ function tacticBenchmarkScore(args: {
 export function TacticsLabPanel({
   loadInfo,
   tacticsSeedClubId,
+  tacticsSeedClubName,
+  onTacticsSeedClubChange,
   pitchSlots,
   onPitchSlotsChange,
   assignments,
 }: {
   loadInfo: boolean
   tacticsSeedClubId: number | null
+  tacticsSeedClubName: string | null
+  onTacticsSeedClubChange: (clubId: number | null, clubName: string | null) => void
   pitchSlots: PitchSlot[]
   onPitchSlotsChange: (slots: PitchSlot[]) => void
   assignments: Partial<Record<string, TacticsPlayerAssignment | null>>
@@ -204,12 +209,22 @@ export function TacticsLabPanel({
         across, including centre). Right-click for forward / backward arrows.
       </div>
       {loadInfo && (
+        <TacticsClubPicker
+          loadInfo={loadInfo}
+          clubId={tacticsSeedClubId}
+          clubName={tacticsSeedClubName}
+          onSelect={onTacticsSeedClubChange}
+        />
+      )}
+      {loadInfo && (
         <div className="rounded-lg border border-sky-900/30 bg-sky-950/15 p-3 text-[11px] text-zinc-400">
-          <span className="font-medium text-sky-200/90">From save</span> — pick a club in the{' '}
-          <span className="text-zinc-300">Clubs</span> tab, then use the button here to pull{' '}
+          <span className="font-medium text-sky-200/90">From save</span> — with a squad club selected, pull{' '}
           <span className="font-mono text-zinc-300">tactics.dat</span> into the pitch (experimental).
           {tacticsSeedClubId != null ? (
-            <span className="ml-1 font-mono text-emerald-300/90"> Seed club id {tacticsSeedClubId}</span>
+            <span className="ml-1 font-mono text-emerald-300/90">
+              {' '}
+              {tacticsSeedClubName ?? `Club #${tacticsSeedClubId}`}
+            </span>
           ) : (
             <span className="ml-1 text-zinc-500"> No club selected yet.</span>
           )}

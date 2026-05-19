@@ -52,6 +52,7 @@ declare global {
         capped: boolean
       }>
       getClubDetail: (clubId: number) => Promise<Record<string, unknown> | null>
+      getClubSquadGridRows: (clubId: number) => Promise<GridPlayerRow[]>
       getProfile: (staffIndex: number) => Promise<ProfilePayload | null>
       getStaffProfile: (staffIndex: number) => Promise<StaffProfilePayload | null>
       getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>

@@ -57,7 +57,7 @@ type Props = {
   loadInfo: boolean
   onOpenPlayerProfile: (staffIndex: number) => void
   /** When set, selecting a club updates the tactics tab “seed” club for save wiring. */
-  onClubSelectForTactics?: (clubId: number | null) => void
+  onClubSelectForTactics?: (clubId: number | null, clubName?: string | null) => void
 }
 
 const SUGGEST_LIMIT = 40
@@ -124,12 +124,16 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
   useEffect(() => {
     if (selId == null) {
       setDetail(null)
-      onClubSelectForTactics?.(null)
+      onClubSelectForTactics?.(null, null)
       return
     }
-    onClubSelectForTactics?.(selId)
+    onClubSelectForTactics?.(selId, null)
     void loadDetail(selId)
   }, [selId, loadDetail, onClubSelectForTactics])
+
+  useEffect(() => {
+    if (selId != null && detail?.name) onClubSelectForTactics?.(selId, detail.name)
+  }, [selId, detail?.name, onClubSelectForTactics])
 
   const onInputChange = (next: string) => {
     setQ(next)
