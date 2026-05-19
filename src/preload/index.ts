@@ -54,4 +54,14 @@ contextBridge.exposeInMainWorld('cmapi', {
   getEditorSnapshot: (staffIndex: number) => ipcRenderer.invoke('get-editor-snapshot', staffIndex),
   saveAttributeEdits: (staffIndex: number, changes: Record<string, number>) =>
     ipcRenderer.invoke('save-attribute-edits', { staffIndex, changes }),
+  getShortlistPlayerRows: (staffIndices: number[]) =>
+    ipcRenderer.invoke('get-shortlist-player-rows', staffIndices) as Promise<Array<Record<string, unknown>>>,
+  exportShortlistPls: (payload: { staffIndices: number[]; defaultName?: string }) =>
+    ipcRenderer.invoke('export-shortlist-pls', payload) as Promise<
+      { ok: true; path: string; count: number } | { ok: false; error: string }
+    >,
+  exportShortlistJson: (payload: { json: string; defaultName?: string }) =>
+    ipcRenderer.invoke('export-shortlist-json', payload) as Promise<
+      { ok: true; path: string } | { ok: false; error: string }
+    >,
 })

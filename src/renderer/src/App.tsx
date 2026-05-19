@@ -28,6 +28,11 @@ import { ClubSearchSidebar } from './clubs/ClubSearchSidebar'
 import { useClubBrowse } from './clubs/useClubBrowse'
 import { TacticsLabPanel } from './TacticsLabPanel'
 import { TacticsAssignmentPane } from './tactics/TacticsAssignmentPane'
+import { ShortlistsPanel } from './shortlists/ShortlistsPanel'
+import { ShortlistContextMenu, type ShortlistMenuTarget } from './shortlists/ShortlistContextMenu'
+import { AddToShortlistButton } from './shortlists/AddToShortlistButton'
+import { useShortlists } from './shortlists/useShortlists'
+import type { ShortlistKind } from '../../shared/shortlistTypes'
 import {
   initialPitchSlots,
   type PitchSlot,
@@ -406,7 +411,9 @@ export function App() {
       return false
     }
   })
-  const [browseTab, setBrowseTab] = useState<'players' | 'regens' | 'staff' | 'clubs' | 'tactics' | 'editor'>('players')
+  const [browseTab, setBrowseTab] = useState<
+    'players' | 'regens' | 'staff' | 'clubs' | 'tactics' | 'editor' | 'shortlists'
+  >('players')
   /** Last club selected in Clubs tab — Tactics Lab uses this for save tactic wiring. */
   const [tacticsSeedClubId, setTacticsSeedClubId] = useState<number | null>(null)
   const [tacticsSeedClubName, setTacticsSeedClubName] = useState<string | null>(null)
@@ -415,6 +422,13 @@ export function App() {
     setTacticsSeedClubName(clubName)
   }, [])
   const clubBrowse = useClubBrowse(!!loadInfo, (id, name) => onTacticsSeedClubChange(id, name ?? null))
+  const shortlists = useShortlists(loadInfo?.path ?? null)
+  const [shortlistMenu, setShortlistMenu] = useState<{
+    x: number
+    y: number
+    kind: ShortlistKind
+    target: ShortlistMenuTarget
+  } | null>(null)
   const [tacticsPitchSlots, setTacticsPitchSlots] = useState<PitchSlot[]>(() => initialPitchSlots())
   const [tacticsAssignments, setTacticsAssignments] = useState<
     Partial<Record<string, TacticsPlayerAssignment | null>>
@@ -554,7 +568,13 @@ export function App() {
   const refreshSeq = useRef(0)
 
   const refresh = useCallback(async () => {
-    if (browseTab === 'staff' || browseTab === 'clubs' || browseTab === 'tactics' || browseTab === 'editor') {
+    if (
+      browseTab === 'staff' ||
+      browseTab === 'clubs' ||
+      browseTab === 'tactics' ||
+      browseTab === 'editor' ||
+      browseTab === 'shortlists'
+    ) {
       setGridRefreshing(false)
       return
     }
@@ -1221,6 +1241,12 @@ export function App() {
                 Clubs tab for club search.
               </p>
             )}
+            {browseTab === 'shortlists' && (
+              <p className="text-[11px] leading-snug text-zinc-500">
+                Shortlists are saved per loaded database. Add players or staff from the grid (right-click) or profile.
+                Export player lists as <span className="font-mono text-zinc-400">.pls</span> into your CM0102 Search folder.
+              </p>
+            )}
             {(browseTab === 'players' || browseTab === 'regens') && (
             <>
             <div className="grid grid-cols-2 gap-2">
@@ -1521,7 +1547,8 @@ export function App() {
                   browseTab === 'staff' ||
                   browseTab === 'clubs' ||
                   browseTab === 'tactics' ||
-                  browseTab === 'editor'
+                  browseTab === 'editor' ||
+                  browseTab === 'shortlists'
                     ? 'cursor-not-allowed text-zinc-500'
                     : 'cursor-pointer text-zinc-300'
                 }`}
@@ -1534,7 +1561,8 @@ export function App() {
                     browseTab === 'staff' ||
                     browseTab === 'clubs' ||
                     browseTab === 'tactics' ||
-                    browseTab === 'editor'
+                    browseTab === 'editor' ||
+                    browseTab === 'shortlists'
                   }
                   onChange={(e) => setRegenOnly(e.target.checked)}
                 />
@@ -1643,6 +1671,17 @@ export function App() {
             </button>
             <button
               type="button"
+              onClick={() => setBrowseTab('shortlists')}
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
+                browseTab === 'shortlists'
+                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
+                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
+              }`}
+            >
+              Shortlists
+            </button>
+            <button
+              type="button"
               onClick={() => setBrowseTab('clubs')}
               className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
                 browseTab === 'clubs'
@@ -1715,6 +1754,30 @@ export function App() {
                   void loadStaffProfile(si)
                 }}
                 onOpenPlayerProfile={(si) => void pick(si)}
+                onRowContextMenu={(e, row) => {
+                  e.preventDefault()
+                  setShortlistMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    kind: 'staff',
+                    target: { staffIndex: row.staffIndex, staffId: row.staffId, name: row.name },
+                  })
+                }}
+              />
+            )}
+            {browseTab === 'shortlists' && (
+              <ShortlistsPanel
+                loadInfo={!!loadInfo}
+                shortlists={shortlists}
+                onOpenPlayer={(si) => {
+                  setBrowseTab('players')
+                  void pick(si)
+                }}
+                onOpenStaff={(si) => {
+                  setBrowseTab('staff')
+                  setStaffTableSel(si)
+                  void loadStaffProfile(si)
+                }}
               />
             )}
             <div
@@ -1871,6 +1934,19 @@ export function App() {
                         e.preventDefault()
                         activateProfile(row.original.staffIndex)
                       }}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        setShortlistMenu({
+                          x: e.clientX,
+                          y: e.clientY,
+                          kind: 'players',
+                          target: {
+                            staffIndex: row.original.staffIndex,
+                            staffId: row.original.staffId,
+                            name: row.original.name,
+                          },
+                        })
+                      }}
                       className={`cursor-pointer select-none border-b border-zinc-800/50 hover:bg-zinc-800/40 ${
                         sel === row.original.staffIndex ? 'bg-emerald-950/35' : ''
                       }`}
@@ -1956,7 +2032,18 @@ export function App() {
             </p>
           )}
           {browseTab === 'staff' && staffProfile && (
-            <StaffProfilePane p={staffProfile} showEngineAttrs={showEngineAttrs} />
+            <div className="space-y-3">
+              <AddToShortlistButton
+                kind="staff"
+                target={{
+                  staffIndex: staffProfile.staffIndex,
+                  staffId: staffProfile.staffId,
+                  name: staffProfile.name,
+                }}
+                shortlists={shortlists}
+              />
+              <StaffProfilePane p={staffProfile} showEngineAttrs={showEngineAttrs} />
+            </div>
           )}
           {profile && (
             <div className="space-y-4">
@@ -2031,6 +2118,18 @@ export function App() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {sel != null && loadInfo && (
+                  <AddToShortlistButton
+                    kind="players"
+                    target={{
+                      staffIndex: sel,
+                      staffId: rows.find((r) => r.staffIndex === sel)?.staffId ?? 0,
+                      name: profile.name,
+                    }}
+                    shortlists={shortlists}
+                    disabled={!rows.find((r) => r.staffIndex === sel)?.staffId}
+                  />
+                )}
                 <button
                   type="button"
                   disabled={sel == null || !loadInfo || loadInfo.compressed}
@@ -2688,6 +2787,15 @@ export function App() {
         onClose={() => setColumnPickerOpen(false)}
         columnOrder={columnOrder}
         onApply={applyColumnOrder}
+      />
+      <ShortlistContextMenu
+        open={shortlistMenu != null}
+        x={shortlistMenu?.x ?? 0}
+        y={shortlistMenu?.y ?? 0}
+        kind={shortlistMenu?.kind ?? 'players'}
+        target={shortlistMenu?.target ?? null}
+        shortlists={shortlists}
+        onClose={() => setShortlistMenu(null)}
       />
     </div>
   )

@@ -1,0 +1,119 @@
+/**
+ * CM Scout / CM0102 `.pls` shortlist (see CM0102Patcher ScoutList.cs).
+ * Player lists use staff.dat `id` (int32 LE) per 45-byte record.
+ */
+
+export const PLS_MAX_PLAYERS = 200
+
+export type PlsStaffEntry = {
+  staffId: number
+  firstNameId: number
+  secondNameId: number
+  commonNameId: number
+  dobIso: string | null
+  yearOfBirth: number
+}
+
+const PLS_START = Buffer.from([0x9e, 0x4a, 0x02, 0x00, 0x01, 0x04])
+const PLS_MID = Buffer.from([0x7e, 0x68, 0x00, 0x00, 0xfa, 0x00, 0x00, 0x00])
+const PLS_END = Buffer.from([
+  0x81, 0x00, 0x14, 0x14, 0x84, 0xa8, 0xaa, 0x44, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x05, 0x01,
+  0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+  0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14,
+  0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14,
+  0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+  0x01, 0x01, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81, 0x00, 0x00, 0x00,
+  0x04, 0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0xff, 0xff, 0xff, 0xff, 0xf2, 0xff,
+  0xff, 0xf2,
+])
+
+const TITLE_ASCII = 'CM Scout Search'
+const MANAGER_ASCII = 'CM Scout Next'
+
+/** TCMDate 8 bytes: day-of-year-1 (i16), year (i16), leap flag (i32). */
+export function tcmDateBytesFromIso(dobIso: string | null, yearOfBirth: number): Buffer {
+  const out = Buffer.alloc(8)
+  if (dobIso) {
+    const [y, m, d] = dobIso.split('-').map(Number)
+    if ([y, m, d].every((n) => Number.isFinite(n))) {
+      const dt = new Date(Date.UTC(y, m - 1, d))
+      const day = Math.floor((dt.getTime() - Date.UTC(y, 0, 1)) / 86400000)
+      out.writeInt16LE(day, 0)
+      out.writeInt16LE(y, 2)
+      out.writeInt32LE(isLeapYear(y) ? 1 : 0, 4)
+      return out
+    }
+  }
+  if (yearOfBirth >= 1870 && yearOfBirth < 2100) {
+    out.writeInt16LE(0, 0)
+    out.writeInt16LE(yearOfBirth, 2)
+    out.writeInt32LE(isLeapYear(yearOfBirth) ? 1 : 0, 4)
+  }
+  return out
+}
+
+function isLeapYear(y: number): boolean {
+  return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
+}
+
+function writeAsciiFixed(buf: Buffer, off: number, len: number, text: string): void {
+  const b = Buffer.from(text.slice(0, len), 'ascii')
+  b.copy(buf, off)
+}
+
+/**
+ * Build in-game loadable `.pls` (John Locke hack: byte 5 → 0x01, zero title block).
+ */
+export function buildCmScoutPlsBuffer(
+  entries: PlsStaffEntry[],
+  opts?: { forGame?: boolean; title?: string; managerName?: string },
+): Buffer {
+  const capped = entries.slice(0, PLS_MAX_PLAYERS)
+  const title = opts?.title ?? TITLE_ASCII
+  const manager = opts?.managerName ?? MANAGER_ASCII
+  const headerLen = 367
+  const recordLen = 45
+  const total = headerLen + 4 + capped.length * recordLen + PLS_END.length
+  const buf = Buffer.alloc(total)
+  let o = 0
+
+  PLS_START.copy(buf, o)
+  o += PLS_START.length
+  writeAsciiFixed(buf, o, 15, title)
+  o += 15 + 86
+  writeAsciiFixed(buf, o, 15, manager)
+  o += 15 + 237
+  PLS_MID.copy(buf, o)
+  o += PLS_MID.length
+
+  buf.writeInt32LE(capped.length, o)
+  o += 4
+
+  for (const e of capped) {
+    buf.writeInt32LE(e.firstNameId, o)
+    o += 4
+    buf.writeInt32LE(e.secondNameId, o)
+    o += 4
+    buf.writeInt32LE(e.commonNameId, o)
+    o += 4
+    buf.writeInt32LE(e.staffId, o)
+    o += 4
+    tcmDateBytesFromIso(e.dobIso, e.yearOfBirth).copy(buf, o)
+    o += 8
+    o += 20
+    buf.writeUInt8(0xff, o)
+    o += 1
+  }
+
+  PLS_END.copy(buf, o)
+
+  if (opts?.forGame !== false) {
+    buf.writeUInt8(0x01, 5)
+    buf.fill(0, 6, 6 + 355)
+  }
+
+  return buf
+}

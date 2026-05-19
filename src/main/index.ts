@@ -41,6 +41,8 @@ import {
   buildPatchedArchiveBuffer,
   editorSubjectLabel,
 } from './attributeEditorSave'
+import { buildCmScoutPlsBuffer, PLS_MAX_PLAYERS, type PlsStaffEntry } from './cmScoutPls'
+import type { GridPlayerRow } from '../shared/gridTypes'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -307,7 +309,7 @@ ipcMain.handle('get-club-squad-grid-rows', async (_e, clubId: unknown) => {
   if (!loaded) return []
   const id = Math.floor(Number(clubId))
   if (!Number.isFinite(id) || id <= 0) return []
-  return buildClubSquadGridRows(loaded.db, id, loaded.rows)
+  return buildClubSquadGridRows(loaded.db, id)
 })
 
 ipcMain.handle('get-staff-profile', async (_e, staffIndex: unknown) => {
@@ -440,5 +442,121 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return { ok: false as const, error: msg }
+  }
+})
+
+function plsEntriesFromStaffIndices(db: ParsedDatabase, staffIndices: number[]): PlsStaffEntry[] {
+  const out: PlsStaffEntry[] = []
+  const seen = new Set<number>()
+  for (const idx of staffIndices) {
+    if (!Number.isFinite(idx) || idx < 0 || seen.has(idx)) continue
+    const s = db.staff[idx]
+    if (!s || s.player_id < 0) continue
+    seen.add(idx)
+    out.push({
+      staffId: s.id,
+      firstNameId: s.first_name_id,
+      secondNameId: s.second_name_id,
+      commonNameId: s.common_name_id,
+      dobIso: s.dob_iso,
+      yearOfBirth: s.year_of_birth,
+    })
+  }
+  return out
+}
+
+function gridRowsForStaffIndices(staffIndices: number[], inc?: GridIncludeFlags): GridPlayerRow[] {
+  if (!loaded) return []
+  const out: GridPlayerRow[] = []
+  const seen = new Set<number>()
+  for (const idx of staffIndices) {
+    if (!Number.isFinite(idx) || idx < 0 || seen.has(idx)) continue
+    seen.add(idx)
+    let ui = loaded.rows.find((r) => r.staffIndex === idx)
+    if (!ui) {
+      const built = buildUiPlayerRowAtIndex(loaded.db, idx)
+      if (!built) continue
+      applyCmScoutRatings([built])
+      applyEffectivenessRatings([built])
+      applyEngineMetaProfiles([built])
+      ui = built
+    }
+    out.push(mapUiRowToGridPayload(ui, inc ?? { role7: true }))
+  }
+  return out
+}
+
+ipcMain.handle('get-shortlist-player-rows', async (_e, staffIndices: unknown) => {
+  const ids = Array.isArray(staffIndices)
+    ? staffIndices.map((x) => Math.floor(Number(x))).filter((n) => Number.isFinite(n) && n >= 0)
+    : []
+  return gridRowsForStaffIndices(ids, { role7: true })
+})
+
+ipcMain.handle('export-shortlist-pls', async (event, payload: unknown) => {
+  if (!loaded) return { ok: false as const, error: 'Load a database first.' }
+  const p = payload as { staffIndices?: number[]; defaultName?: string }
+  const staffIndices = Array.isArray(p?.staffIndices)
+    ? p.staffIndices.map((x) => Math.floor(Number(x))).filter((n) => Number.isFinite(n) && n >= 0)
+    : []
+  const entries = plsEntriesFromStaffIndices(loaded.db, staffIndices)
+  if (entries.length === 0) {
+    return { ok: false as const, error: 'No playable players in this shortlist.' }
+  }
+  if (entries.length > PLS_MAX_PLAYERS) {
+    return {
+      ok: false as const,
+      error: `CM0102 supports at most ${PLS_MAX_PLAYERS} players per shortlist (you have ${entries.length}).`,
+    }
+  }
+  const buf = buildCmScoutPlsBuffer(entries, { title: 'CM Scout Search' })
+  const parent =
+    BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
+  const base = (p?.defaultName ?? 'shortlist').replace(/[^\w.\- ]+/g, '_').trim() || 'shortlist'
+  const suggested = join(getSuggestedSaveGameFolder(), 'Search', `${base}.pls`)
+  const dlg = parent
+    ? await dialog.showSaveDialog(parent, {
+        title: 'Export CM Scout shortlist (.pls)',
+        defaultPath: suggested,
+        filters: [{ name: 'CM0102 shortlist', extensions: ['pls'] }],
+      })
+    : await dialog.showSaveDialog({
+        title: 'Export CM Scout shortlist (.pls)',
+        defaultPath: suggested,
+        filters: [{ name: 'CM0102 shortlist', extensions: ['pls'] }],
+      })
+  if (dlg.canceled || !dlg.filePath) return { ok: false as const, error: 'cancelled' }
+  try {
+    writeFileSync(dlg.filePath, buf)
+    return { ok: true as const, path: dlg.filePath, count: entries.length }
+  } catch (e) {
+    return { ok: false as const, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+ipcMain.handle('export-shortlist-json', async (event, payload: unknown) => {
+  const p = payload as { json?: string; defaultName?: string }
+  if (!p?.json) return { ok: false as const, error: 'Nothing to export.' }
+  const parent =
+    BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
+  const base = (p.defaultName ?? 'staff-shortlist').replace(/[^\w.\- ]+/g, '_').trim() || 'staff-shortlist'
+  const suggested = join(homedir(), 'Documents', `${base}.json`)
+  const dlg = parent
+    ? await dialog.showSaveDialog(parent, {
+        title: 'Export staff shortlist (JSON)',
+        defaultPath: suggested,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      })
+    : await dialog.showSaveDialog({
+        title: 'Export staff shortlist (JSON)',
+        defaultPath: suggested,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      })
+  if (dlg.canceled || !dlg.filePath) return { ok: false as const, error: 'cancelled' }
+  try {
+    writeFileSync(dlg.filePath, p.json, 'utf8')
+    return { ok: true as const, path: dlg.filePath }
+  } catch (e) {
+    return { ok: false as const, error: e instanceof Error ? e.message : String(e) }
   }
 })

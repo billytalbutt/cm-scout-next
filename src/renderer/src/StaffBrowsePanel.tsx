@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import type { StaffBrowseFilter } from '../../main/staffBrowse'
 
 export type StaffGridApiRow = {
@@ -21,6 +21,7 @@ type Props = {
   selectedStaffIndex: number | null
   onSelectStaff: (staffIndex: number) => void
   onOpenPlayerProfile: (staffIndex: number) => void
+  onRowContextMenu?: (e: ReactMouseEvent, row: StaffGridApiRow) => void
 }
 
 export function StaffBrowsePanel({
@@ -29,6 +30,7 @@ export function StaffBrowsePanel({
   selectedStaffIndex,
   onSelectStaff,
   onOpenPlayerProfile,
+  onRowContextMenu,
 }: Props) {
   const [rows, setRows] = useState<StaffGridApiRow[]>([])
   const [total, setTotal] = useState(0)
@@ -102,6 +104,7 @@ export function StaffBrowsePanel({
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelectStaff(r.staffIndex)}
+                onContextMenu={(e) => onRowContextMenu?.(e, r)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()

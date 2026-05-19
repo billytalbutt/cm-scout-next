@@ -283,14 +283,24 @@ export function TacticsAssignmentPane({
         <p className="text-[11px] text-amber-200/90">Select a club under Squad club on the tactics screen.</p>
       )}
       {clubSquadOnly && seedClubId != null && (
-        <button
-          type="button"
-          className="w-full rounded-lg border border-emerald-700/50 bg-emerald-900/35 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-emerald-900/55 disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={!clubOnlyReady || squadLoading}
-          onClick={handleAutoPick}
-        >
-          Auto pick best XI
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="min-w-0 flex-1 rounded-lg border border-emerald-700/50 bg-emerald-900/35 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-emerald-900/55 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!clubOnlyReady || squadLoading}
+            onClick={handleAutoPick}
+          >
+            Auto pick best XI
+          </button>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-40"
+            disabled={!loadInfo}
+            onClick={() => onReplaceAssignments({})}
+          >
+            Clear all
+          </button>
+        </div>
       )}
       <div className="rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-2.5 py-2">
         <div className="text-[10px] font-medium uppercase tracking-wide text-emerald-300/90">Team rating</div>

@@ -69,6 +69,15 @@ declare global {
         staffIndex: number,
         changes: Record<string, number>,
       ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
+      getShortlistPlayerRows: (staffIndices: number[]) => Promise<GridPlayerRow[]>
+      exportShortlistPls: (payload: {
+        staffIndices: number[]
+        defaultName?: string
+      }) => Promise<{ ok: true; path: string; count: number } | { ok: false; error: string }>
+      exportShortlistJson: (payload: {
+        json: string
+        defaultName?: string
+      }) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
     }
   }
 }

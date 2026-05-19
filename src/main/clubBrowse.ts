@@ -89,64 +89,33 @@ function appendSquadPlayerRow(
 }
 
 /**
- * Playable staff in the club's save squad (`club.dat` Squad[] / TeamSelected[]), validated against
- * current employer bytes. Falls back to an employer scan when slot lists decode poorly on a save.
+ * All playable staff employed at the club (`club_job_id` or contract `club_id`).
+ * Does not rely on `club.dat` squad slot lists — those often decode incomplete on real saves.
  */
 export function buildClubSquadPlayerRows(db: ParsedDatabase, clubId: number): ClubSquadPlayerRow[] {
   const club = db.clubsById?.get(clubId)
   if (!club) return []
   const clubLabel = club.name
-  const staffById = new Map<number, number>()
-  for (let staffIndex = 0; staffIndex < db.staff.length; staffIndex++) {
-    staffById.set(db.staff[staffIndex]!.id, staffIndex)
-  }
-
   const seen = new Set<number>()
   const out: ClubSquadPlayerRow[] = []
 
-  for (const staffId of club.squadStaffIds) {
-    if (staffId <= 0) continue
-    const staffIndex = staffById.get(staffId)
-    if (staffIndex === undefined) continue
+  for (let staffIndex = 0; staffIndex < db.staff.length; staffIndex++) {
     appendSquadPlayerRow(db, out, seen, staffIndex, clubId, clubLabel)
-  }
-  for (const staffId of club.teamSelectedStaffIds) {
-    if (staffId <= 0) continue
-    const staffIndex = staffById.get(staffId)
-    if (staffIndex === undefined) continue
-    appendSquadPlayerRow(db, out, seen, staffIndex, clubId, clubLabel)
-  }
-
-  if (out.length < 8) {
-    for (let staffIndex = 0; staffIndex < db.staff.length; staffIndex++) {
-      if (db.staff[staffIndex]!.club_job_id !== clubId) continue
-      appendSquadPlayerRow(db, out, seen, staffIndex, clubId, clubLabel)
-    }
   }
 
   out.sort((a, b) => b.ca - a.ca || a.name.localeCompare(b.name))
   return out
 }
 
-/** Squad as grid rows (role7 for tactics lineup %). */
-export function buildClubSquadGridRows(
-  db: ParsedDatabase,
-  clubId: number,
-  uiRowsByStaffIndex?: readonly (UiPlayerRow | undefined)[],
-): GridPlayerRow[] {
+/** Squad as grid rows (role7 + positions for tactics lineup). */
+export function buildClubSquadGridRows(db: ParsedDatabase, clubId: number): GridPlayerRow[] {
   const squad = buildClubSquadPlayerRows(db, clubId)
   const out: GridPlayerRow[] = []
   for (const s of squad) {
-    let ui = uiRowsByStaffIndex?.[s.staffIndex]
-    if (!ui) {
-      const built = buildUiPlayerRowAtIndex(db, s.staffIndex)
-      if (!built || !uiRowEmployedAtClub(built, clubId)) continue
-      applyCmScoutRatings([built])
-      ui = built
-    } else if (!uiRowEmployedAtClub(ui, clubId)) {
-      continue
-    }
-    out.push(mapUiRowToGridPayload(ui, { role7: true, positions: true }))
+    const built = buildUiPlayerRowAtIndex(db, s.staffIndex)
+    if (!built || !uiRowEmployedAtClub(built, clubId)) continue
+    applyCmScoutRatings([built])
+    out.push(mapUiRowToGridPayload(built, { role7: true, positions: true }))
   }
   return out
 }
