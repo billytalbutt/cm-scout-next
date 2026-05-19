@@ -21,6 +21,7 @@ import { ENGINE_META_PROFILE_IDS, ENGINE_META_PROFILE_LABELS } from '../../share
 import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
 import { DebouncedTextFilters } from './DebouncedTextFilters'
 import { StaffBrowsePanel } from './StaffBrowsePanel'
+import { StaffFilterSidebar } from './StaffFilterSidebar'
 import { StaffProfilePane } from './StaffProfilePane'
 import { ClubBrowsePanel } from './ClubBrowsePanel'
 import { TacticsLabPanel } from './TacticsLabPanel'
@@ -34,6 +35,9 @@ import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { attrColor, engineBracketClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { setCopiedPlayerAttributes } from '../../shared/copiedPlayerAttributes'
 import { CONTRACT_TYPE_FILTER_OPTIONS, type ContractTypeCategoryId } from '../../shared/contractTypes'
+import { STAFF_ATTR_FILTER_COUNT } from '../../shared/staffAttrCatalog'
+import { staffJobForClubDropdownEntries } from '../../shared/staffJobCatalog'
+import type { StaffBrowseFilter } from '../../main/staffBrowse'
 
 const gridColHelper = createGridColumnHelper()
 
@@ -278,6 +282,19 @@ export function App() {
   /** Among attribute cells with a min &gt; 0, require at least this many to pass (empty = all must pass). */
   const [attrMinMatchAtLeast, setAttrMinMatchAtLeast] = useState('')
   const activeAttrFilterCount = useMemo(() => countActiveAttrMinsStrings(attrMins), [attrMins])
+  const [staffJobForClub, setStaffJobForClub] = useState('')
+  const [staffIncludePlayers, setStaffIncludePlayers] = useState(false)
+  const [staffCoachingCaMin, setStaffCoachingCaMin] = useState('')
+  const [staffCoachingCaMax, setStaffCoachingCaMax] = useState('')
+  const [staffAttrMins, setStaffAttrMins] = useState<string[]>(() =>
+    Array.from({ length: STAFF_ATTR_FILTER_COUNT }, () => ''),
+  )
+  const [staffAttrMinMatchAtLeast, setStaffAttrMinMatchAtLeast] = useState('')
+  const activeStaffAttrFilterCount = useMemo(
+    () => countActiveAttrMinsStrings(staffAttrMins),
+    [staffAttrMins],
+  )
+  const staffJobOptions = useMemo(() => staffJobForClubDropdownEntries(), [])
 
   useEffect(() => {
     if (activeAttrFilterCount === 0) {
@@ -292,6 +309,21 @@ export function App() {
       return prev
     })
   }, [attrMins, activeAttrFilterCount])
+
+  useEffect(() => {
+    if (activeStaffAttrFilterCount === 0) {
+      setStaffAttrMinMatchAtLeast((prev) => (prev !== '' ? '' : prev))
+      return
+    }
+    setStaffAttrMinMatchAtLeast((prev) => {
+      if (prev.trim() === '') return prev
+      const m = parseInt(prev, 10)
+      if (!Number.isFinite(m) || m <= 0) return prev
+      if (m > activeStaffAttrFilterCount) return String(activeStaffAttrFilterCount)
+      return prev
+    })
+  }, [staffAttrMins, activeStaffAttrFilterCount])
+
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
   const [copyAttrsMsg, setCopyAttrsMsg] = useState<string | null>(null)
   const [staffProfile, setStaffProfile] = useState<StaffProfilePayload | null>(null)
@@ -305,6 +337,63 @@ export function App() {
   const [clubList, setClubList] = useState<string[]>([])
   const [nationList, setNationList] = useState<string[]>([])
   const [committedText, setCommittedText] = useState({ q: '', nation: '', club: '' })
+
+  const staffBrowseFilter = useMemo((): StaffBrowseFilter => {
+    const num = (s: string) => {
+      if (s === '') return undefined
+      const n = Number(s)
+      return Number.isFinite(n) ? n : undefined
+    }
+    const mins = staffAttrMins.map((s) => {
+      if (s.trim() === '') return null
+      const n = Number(s)
+      return Number.isFinite(n) && n > 0 ? n : null
+    })
+    const matchN = num(staffAttrMinMatchAtLeast)
+    const job =
+      staffJobForClub !== '' && Number.isFinite(Number(staffJobForClub))
+        ? Math.floor(Number(staffJobForClub))
+        : undefined
+    const expM = num(expiresWithinMonths)
+    return {
+      q: committedText.q,
+      nation: committedText.nation,
+      club: committedText.club,
+      jobForClub: job,
+      includePlayers: staffIncludePlayers,
+      ageMin: num(ageMin),
+      ageMax: num(ageMax),
+      wageMin: num(wageMin),
+      wageMax: num(wageMax),
+      coachingCaMin: num(staffCoachingCaMin),
+      coachingCaMax: num(staffCoachingCaMax),
+      contractTypeCategory: contractTypeCategory || undefined,
+      contractExpiresWithinMonths:
+        expiresWithinMonths.trim() !== '' && expM != null && expM >= 1 ? Math.floor(expM) : undefined,
+      leavingOnBosman: bosmanOnly || undefined,
+      euPassport: euOnly || undefined,
+      attrMins: mins.some((m) => m != null) ? mins : undefined,
+      attrMinMatchAtLeast:
+        staffAttrMinMatchAtLeast.trim() !== '' && matchN != null && matchN >= 1 ? Math.floor(matchN) : undefined,
+    }
+  }, [
+    committedText,
+    staffJobForClub,
+    staffIncludePlayers,
+    ageMin,
+    ageMax,
+    wageMin,
+    wageMax,
+    staffCoachingCaMin,
+    staffCoachingCaMax,
+    contractTypeCategory,
+    expiresWithinMonths,
+    bosmanOnly,
+    euOnly,
+    staffAttrMins,
+    staffAttrMinMatchAtLeast,
+  ])
+
   const [textFiltersResetKey, setTextFiltersResetKey] = useState(0)
   const [textFiltersPending, setTextFiltersPending] = useState(false)
   const [gridRefreshing, setGridRefreshing] = useState(false)
@@ -375,6 +464,12 @@ export function App() {
     setExpiresWithinMonths('')
     setAttrMins(Array.from({ length: 48 }, () => ''))
     setAttrMinMatchAtLeast('')
+    setStaffJobForClub('')
+    setStaffIncludePlayers(false)
+    setStaffCoachingCaMin('')
+    setStaffCoachingCaMax('')
+    setStaffAttrMins(Array.from({ length: STAFF_ATTR_FILTER_COUNT }, () => ''))
+    setStaffAttrMinMatchAtLeast('')
     setRegenOnly(false)
     setEngineSniffer('off')
   }, [])
@@ -859,6 +954,31 @@ export function App() {
     })
   }
 
+  const setStaffAttrMinAt = (i: number, v: string) => {
+    setStaffAttrMins((prev) => {
+      const next = [...prev]
+      next[i] = v
+      return next
+    })
+  }
+
+  const adjustStaffMatchAtLeast = useCallback(
+    (delta: number) => {
+      if (activeStaffAttrFilterCount === 0) return
+      setStaffAttrMinMatchAtLeast((prev) => {
+        const cur = prev.trim() === '' ? null : parseInt(prev, 10)
+        if (delta > 0) {
+          if (cur == null || !Number.isFinite(cur)) return '1'
+          return String(Math.min(activeStaffAttrFilterCount, cur + 1))
+        }
+        if (cur == null || !Number.isFinite(cur)) return ''
+        if (cur <= 1) return ''
+        return String(cur - 1)
+      })
+    },
+    [activeStaffAttrFilterCount],
+  )
+
   const applyColumnOrder = useCallback((next: string[]) => {
     const s = sanitizeGridColumnOrder(next)
     const o = s.length > 0 ? s : [...GRID_DEFAULT_COLUMN_ORDER]
@@ -1013,6 +1133,50 @@ export function App() {
               onCommit={setCommittedText}
               onPendingChange={setTextFiltersPending}
             />
+            {browseTab === 'staff' && (
+              <StaffFilterSidebar
+                ageMin={ageMin}
+                setAgeMin={setAgeMin}
+                ageMax={ageMax}
+                setAgeMax={setAgeMax}
+                wageMin={wageMin}
+                setWageMin={setWageMin}
+                wageMax={wageMax}
+                setWageMax={setWageMax}
+                staffCoachingCaMin={staffCoachingCaMin}
+                setStaffCoachingCaMin={setStaffCoachingCaMin}
+                staffCoachingCaMax={staffCoachingCaMax}
+                setStaffCoachingCaMax={setStaffCoachingCaMax}
+                staffJobForClub={staffJobForClub}
+                setStaffJobForClub={setStaffJobForClub}
+                staffJobOptions={staffJobOptions}
+                staffIncludePlayers={staffIncludePlayers}
+                setStaffIncludePlayers={setStaffIncludePlayers}
+                contractTypeCategory={contractTypeCategory}
+                setContractTypeCategory={setContractTypeCategory}
+                euOnly={euOnly}
+                setEuOnly={setEuOnly}
+                bosmanOnly={bosmanOnly}
+                setBosmanOnly={setBosmanOnly}
+                expiresWithinMonths={expiresWithinMonths}
+                setExpiresWithinMonths={setExpiresWithinMonths}
+                staffAttrMins={staffAttrMins}
+                setStaffAttrMinAt={setStaffAttrMinAt}
+                staffAttrMinMatchAtLeast={staffAttrMinMatchAtLeast}
+                setStaffAttrMinMatchAtLeast={setStaffAttrMinMatchAtLeast}
+                activeStaffAttrFilterCount={activeStaffAttrFilterCount}
+                adjustStaffMatchAtLeast={adjustStaffMatchAtLeast}
+              />
+            )}
+            {(browseTab === 'clubs' || browseTab === 'tactics' || browseTab === 'editor') && (
+              <p className="text-[11px] leading-snug text-zinc-500">
+                Numeric and attribute filters apply on <span className="text-zinc-400">All players</span>,{' '}
+                <span className="text-zinc-400">Regens</span>, or <span className="text-zinc-400">Staff</span>. Name,
+                nation, and club search above still commit when you switch tabs.
+              </p>
+            )}
+            {(browseTab === 'players' || browseTab === 'regens') && (
+            <>
             <div className="grid grid-cols-2 gap-2">
               <label>
                 <span className="mb-1 block text-xs text-zinc-500">Age min</span>
@@ -1388,6 +1552,8 @@ export function App() {
                 ))}
               </select>
             </div>
+            </>
+            )}
           </div>
           </aside>
         )}
@@ -1496,8 +1662,7 @@ export function App() {
             {browseTab === 'staff' && (
               <StaffBrowsePanel
                 loadInfo={!!loadInfo}
-                nationList={nationList}
-                clubList={clubList}
+                filter={staffBrowseFilter}
                 selectedStaffIndex={staffTableSel}
                 onSelectStaff={(si) => {
                   setStaffTableSel(si)

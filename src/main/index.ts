@@ -34,6 +34,7 @@ import {
   buildClubSquadPlayerRows,
   filterClubListRows,
 } from './clubBrowse'
+import type { ContractTypeCategoryId } from '../shared/contractTypes'
 import { buildStaffProfilePayload } from './staffProfilePayload'
 import {
   buildEditorValueMap,
@@ -241,12 +242,43 @@ ipcMain.handle('get-staff-rows', async (_e, payload: unknown) => {
     const jn = Math.floor(Number(jobRaw))
     if (Number.isFinite(jn)) jobForClub = jn
   }
+  const num = (key: string): number | undefined => {
+    const v = raw[key]
+    if (v === undefined || v === null || v === '') return undefined
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  }
+  const attrRaw = raw.attrMins
+  const attrMins = Array.isArray(attrRaw)
+    ? attrRaw.map((x) => {
+        if (x === null || x === undefined || x === '') return null
+        const n = Number(x)
+        return Number.isFinite(n) && n > 0 ? n : null
+      })
+    : undefined
+  const matchRaw = num('attrMinMatchAtLeast')
+  const contractCat = raw.contractTypeCategory
   const all = filterStaffGridRows(loaded.db, {
     q: String(raw.q ?? ''),
     nation: String(raw.nation ?? ''),
     club: String(raw.club ?? ''),
     jobForClub,
     includePlayers: !!raw.includePlayers,
+    ageMin: num('ageMin'),
+    ageMax: num('ageMax'),
+    wageMin: num('wageMin'),
+    wageMax: num('wageMax'),
+    coachingCaMin: num('coachingCaMin'),
+    coachingCaMax: num('coachingCaMax'),
+    contractTypeCategory:
+      typeof contractCat === 'string' && contractCat.length > 0
+        ? (contractCat as ContractTypeCategoryId)
+        : undefined,
+    contractExpiresWithinMonths: num('contractExpiresWithinMonths'),
+    leavingOnBosman: raw.leavingOnBosman === true ? true : undefined,
+    euPassport: raw.euPassport === true ? true : undefined,
+    attrMins,
+    attrMinMatchAtLeast: matchRaw != null && matchRaw >= 1 ? Math.floor(matchRaw) : undefined,
   })
   const total = all.length
   const page = all.slice(offset, offset + limit)

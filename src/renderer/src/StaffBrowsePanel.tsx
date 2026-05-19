@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DebouncedTextFilters, type CommittedTextFilters } from './DebouncedTextFilters'
-import { staffJobForClubDropdownEntries } from '../../shared/staffJobCatalog'
+import type { StaffBrowseFilter } from '../../main/staffBrowse'
 
 export type StaffGridApiRow = {
   staffIndex: number
@@ -16,12 +15,9 @@ export type StaffGridApiRow = {
   nonPlayerCa: number | null
 }
 
-const JOB_OPTIONS = staffJobForClubDropdownEntries()
-
 type Props = {
   loadInfo: boolean
-  nationList: string[]
-  clubList: string[]
+  filter: StaffBrowseFilter
   selectedStaffIndex: number | null
   onSelectStaff: (staffIndex: number) => void
   onOpenPlayerProfile: (staffIndex: number) => void
@@ -29,15 +25,11 @@ type Props = {
 
 export function StaffBrowsePanel({
   loadInfo,
-  nationList,
-  clubList,
+  filter,
   selectedStaffIndex,
   onSelectStaff,
   onOpenPlayerProfile,
 }: Props) {
-  const [committed, setCommitted] = useState<CommittedTextFilters>({ q: '', nation: '', club: '' })
-  const [jobForClub, setJobForClub] = useState<string>('')
-  const [includePlayers, setIncludePlayers] = useState(false)
   const [rows, setRows] = useState<StaffGridApiRow[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -54,16 +46,11 @@ export function StaffBrowsePanel({
     setLoading(true)
     setErr(null)
     try {
-      const filter: Record<string, unknown> = {
-        q: committed.q,
-        nation: committed.nation,
-        club: committed.club,
-        includePlayers,
+      const out = await window.cmapi.getStaffRows({
+        ...filter,
         offset: 0,
         limit: 8000,
-      }
-      if (jobForClub !== '') filter.jobForClub = Number(jobForClub)
-      const out = await window.cmapi.getStaffRows(filter)
+      })
       if (seq !== seqRef.current) return
       setRows((out.rows ?? []) as StaffGridApiRow[])
       setTotal(typeof out.total === 'number' ? out.total : 0)
@@ -75,7 +62,7 @@ export function StaffBrowsePanel({
     } finally {
       if (seq === seqRef.current) setLoading(false)
     }
-  }, [loadInfo, committed, jobForClub, includePlayers])
+  }, [loadInfo, filter])
 
   useEffect(() => {
     void load()
@@ -87,37 +74,11 @@ export function StaffBrowsePanel({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-        <div className="grid gap-3 md:grid-cols-2">
-          <DebouncedTextFilters nationList={nationList} clubList={clubList} onCommit={setCommitted} />
-          <div className="space-y-2">
-            <label className="block">
-              <span className="mb-1 block text-xs text-zinc-500">Job role</span>
-              <select
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-emerald-600"
-                value={jobForClub}
-                onChange={(e) => setJobForClub(e.target.value)}
-              >
-                <option value="">Any role</option>
-                {JOB_OPTIONS.map((o) => (
-                  <option key={o.id} value={String(o.id)}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-              <input type="checkbox" checked={includePlayers} onChange={(e) => setIncludePlayers(e.target.checked)} />
-              Include playable players (duplicates player tab)
-            </label>
-          </div>
-        </div>
-      </div>
       {loading && <p className="text-xs text-zinc-500">Loading staff…</p>}
       {err && <p className="text-xs text-rose-300">{err}</p>}
       <p className="text-[11px] text-zinc-500">
         Showing <span className="font-mono text-zinc-300">{rows.length}</span> of{' '}
-        <span className="font-mono text-zinc-300">{total}</span> matching rows
+        <span className="font-mono text-zinc-300">{total}</span> matching rows · use filters on the left
       </p>
       <div className="overflow-x-auto rounded-lg border border-zinc-800">
         <table className="w-full min-w-[56rem] border-collapse text-left text-xs">
