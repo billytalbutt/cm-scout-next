@@ -1942,6 +1942,7 @@ export function App() {
                   return next
                 })
               }
+              onReplaceAssignments={(next) => setTacticsAssignments(next)}
             />
           ) : (
             <>

@@ -1,30 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GridPlayerRow } from '../../../shared/gridTypes'
 import {
-  cmScoutRoleIndexForPosition,
   LINEUP_GROUPS,
   slotsInLineupGroup,
   teamRatingFromAssignments,
   type PitchSlot,
   type TacticsPlayerAssignment,
 } from '../../../shared/tacticsPitchSnap'
-
-function rolePercentForPlayer(row: GridPlayerRow, role: string): number | null {
-  const idx = cmScoutRoleIndexForPosition(role)
-  const r7 = row.role7
-  if (r7 && r7.length === 7 && Number.isFinite(r7[idx]!)) return r7[idx]!
-  if (row.cmScoutRatingBp != null && Number.isFinite(row.cmScoutRatingBp)) return row.cmScoutRatingBp
-  return null
-}
-
-function assignmentFromRow(row: GridPlayerRow, role: string): TacticsPlayerAssignment {
-  return {
-    staffIndex: row.staffIndex,
-    name: row.name,
-    rolePercent: rolePercentForPlayer(row, role),
-    cmScoutBp: row.cmScoutRatingBp ?? null,
-  }
-}
+import { autoPickClubSquadLineup } from '../../../shared/tacticsAutoPick'
+import {
+  assignmentFromSquadRow,
+  comparePlayersForSlot,
+  rolePercentForSlot,
+} from '../../../shared/tacticsLineupRating'
+import { filterSquadRowsForPitchSlot } from '../../../shared/tacticsSquadFilter'
 
 function SlotAssignRow({
   slot,
@@ -89,13 +78,15 @@ function SlotAssignRow({
 
   const squadSorted = useMemo(() => {
     const role = slot.role
-    return [...squadRows].sort((a, b) => {
-      const ra = rolePercentForPlayer(a, role) ?? -1
-      const rb = rolePercentForPlayer(b, role) ?? -1
-      if (rb !== ra) return rb - ra
-      return a.name.localeCompare(b.name)
-    })
-  }, [squadRows, slot.role])
+    let pool = clubSquadOnly ? filterSquadRowsForPitchSlot(squadRows, slot) : squadRows
+    if (clubSquadOnly && assignment?.staffIndex != null) {
+      const assigned = squadRows.find((p) => p.staffIndex === assignment.staffIndex)
+      if (assigned && !pool.some((p) => p.staffIndex === assigned.staffIndex)) {
+        pool = [assigned, ...pool]
+      }
+    }
+    return [...pool].sort((a, b) => comparePlayersForSlot(a, b, role))
+  }, [squadRows, slot, clubSquadOnly, assignment?.staffIndex])
 
   const posLabel = slot.role || '—'
   const pct = assignment?.rolePercent ?? assignment?.cmScoutBp
@@ -118,12 +109,18 @@ function SlotAssignRow({
               }
               const si = Number(v)
               const row = squadRows.find((p) => p.staffIndex === si)
-              if (row) onAssign(slot.id, assignmentFromRow(row, slot.role))
+              if (row) onAssign(slot.id, assignmentFromSquadRow(row, slot.role))
             }}
           >
-            <option value="">{squadRows.length === 0 ? 'No squad loaded' : '— Pick player —'}</option>
+            <option value="">
+              {squadRows.length === 0
+                ? 'No squad loaded'
+                : squadSorted.length === 0
+                  ? 'No players for this position'
+                  : '— Pick player —'}
+            </option>
             {squadSorted.map((p) => {
-              const rp = rolePercentForPlayer(p, slot.role)
+              const rp = rolePercentForSlot(p, slot.role)
               return (
                 <option key={p.staffIndex} value={p.staffIndex}>
                   {p.name}
@@ -155,7 +152,7 @@ function SlotAssignRow({
             {open && suggestions.length > 0 && (
               <ul className="absolute left-0 right-0 z-20 mt-0.5 max-h-40 overflow-y-auto rounded border border-zinc-700 bg-zinc-950 py-0.5 shadow-lg cm-scroll">
                 {suggestions.map((p) => {
-                  const rp = rolePercentForPlayer(p, slot.role)
+                  const rp = rolePercentForSlot(p, slot.role)
                   return (
                     <li key={p.staffIndex}>
                       <button
@@ -163,7 +160,7 @@ function SlotAssignRow({
                         className="flex w-full flex-col items-start px-2 py-1 text-left text-[11px] hover:bg-zinc-800"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
-                          onAssign(slot.id, assignmentFromRow(p, slot.role))
+                          onAssign(slot.id, assignmentFromSquadRow(p, slot.role))
                           setQ(p.name)
                           setOpen(false)
                         }}
@@ -202,6 +199,7 @@ export function TacticsAssignmentPane({
   seedClubName,
   onAssign,
   onClearSlot,
+  onReplaceAssignments,
 }: {
   loadInfo: boolean
   pitchSlots: PitchSlot[]
@@ -210,6 +208,7 @@ export function TacticsAssignmentPane({
   seedClubName: string | null
   onAssign: (slotId: string, a: TacticsPlayerAssignment | null) => void
   onClearSlot: (slotId: string) => void
+  onReplaceAssignments: (next: Partial<Record<string, TacticsPlayerAssignment | null>>) => void
 }) {
   const [clubSquadOnly, setClubSquadOnly] = useState(false)
   const [squadRows, setSquadRows] = useState<GridPlayerRow[]>([])
@@ -243,12 +242,23 @@ export function TacticsAssignmentPane({
 
   const clubOnlyReady = clubSquadOnly && seedClubId != null && squadRows.length > 0
 
+  const handleAutoPick = useCallback(() => {
+    if (!clubOnlyReady || squadRows.length === 0) return
+    const picked = autoPickClubSquadLineup(pitchSlots, squadRows)
+    const next: Partial<Record<string, TacticsPlayerAssignment | null>> = {}
+    for (const slot of pitchSlots) {
+      const a = picked[slot.id]
+      if (a) next[slot.id] = a
+    }
+    onReplaceAssignments(next)
+  }, [clubOnlyReady, squadRows, pitchSlots, onReplaceAssignments])
+
   return (
     <div className="space-y-3">
       <div>
         <h2 className="text-sm font-semibold text-zinc-200">Line-up</h2>
         <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
-          Assign players by position. Use club squad dropdowns or search the full database.
+          Assign players by position. Club squad dropdowns list only players natural in that line (GK, defence, midfield, attack).
         </p>
       </div>
       {!loadInfo && <p className="text-xs text-zinc-500">Load a database to search players.</p>}
@@ -271,6 +281,16 @@ export function TacticsAssignmentPane({
       </label>
       {clubSquadOnly && seedClubId == null && (
         <p className="text-[11px] text-amber-200/90">Select a club under Squad club on the tactics screen.</p>
+      )}
+      {clubSquadOnly && seedClubId != null && (
+        <button
+          type="button"
+          className="w-full rounded-lg border border-emerald-700/50 bg-emerald-900/35 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-emerald-900/55 disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!clubOnlyReady || squadLoading}
+          onClick={handleAutoPick}
+        >
+          Auto pick best XI
+        </button>
       )}
       <div className="rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-2.5 py-2">
         <div className="text-[10px] font-medium uppercase tracking-wide text-emerald-300/90">Team rating</div>

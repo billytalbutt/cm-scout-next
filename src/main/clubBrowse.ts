@@ -146,7 +146,7 @@ export function buildClubSquadGridRows(
     } else if (!uiRowEmployedAtClub(ui, clubId)) {
       continue
     }
-    out.push(mapUiRowToGridPayload(ui, { role7: true }))
+    out.push(mapUiRowToGridPayload(ui, { role7: true, positions: true }))
   }
   return out
 }
