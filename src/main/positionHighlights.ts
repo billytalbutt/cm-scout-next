@@ -28,50 +28,75 @@ const SUIT_CUT = 14
 type Pack = {
   playerPrimary: readonly string[]
   playerSecondary: readonly string[]
+  /** 2–4 “banker” attrs per role (Eff % primaries + forum engine-breaker lore). */
+  playerEngineBreaker: readonly string[]
   staffPrimary: readonly string[]
   staffSecondary: readonly string[]
+}
+
+/**
+ * Absolute must-haves for the position — smaller set than primary highlights.
+ * Aligned with `EFFECTIVENESS_ARCHETYPES` primaries (×5 recipe) and champman0102 “key attribute” threads
+ * (e.g. marking+positioning, passing+decisions+technique hubs, finishing+OTB+pace for poachers).
+ */
+const ENGINE_BREAKERS_BY_ROLE: Record<PositionRoleId, readonly string[]> = {
+  GK: ['handling', 'reflexes', 'one_on_ones'],
+  SW: ['positioning', 'anticipation', 'tackling'],
+  D: ['marking', 'positioning', 'tackling'],
+  WB: ['pace', 'acceleration', 'crossing'],
+  DM: ['tackling', 'positioning', 'marking'],
+  M: ['technique', 'decisions', 'passing'],
+  AM: ['creativity', 'technique', 'off_the_ball', 'dribbling'],
+  ST: ['finishing', 'off_the_ball', 'pace', 'anticipation'],
 }
 
 const BY_ROLE: Record<PositionRoleId, Pack> = {
   GK: {
     playerPrimary: ['handling', 'reflexes', 'one_on_ones', 'positioning', 'anticipation', 'agility'],
     playerSecondary: ['jumping', 'bravery', 'marking', 'heading', 'throw_ins', 'decisions', 'teamwork'],
+    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.GK,
     staffPrimary: ['professionalism', 'pressure', 'ambition'],
     staffSecondary: ['adaptability', 'loyalty', 'sportsmanship', 'temperament'],
   },
   SW: {
     playerPrimary: ['positioning', 'tackling', 'marking', 'anticipation', 'heading', 'passing', 'decisions'],
     playerSecondary: ['pace', 'stamina', 'bravery', 'creativity', 'teamwork', 'work_rate', 'jumping', 'strength'],
+    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.SW,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'adaptability', 'loyalty', 'sportsmanship', 'temperament'],
   },
   D: {
     playerPrimary: ['positioning', 'tackling', 'marking', 'heading', 'anticipation', 'strength', 'jumping', 'pace'],
     playerSecondary: ['aggression', 'bravery', 'teamwork', 'decisions', 'work_rate', 'passing', 'acceleration'],
+    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.D,
     staffPrimary: ['professionalism', 'ambition'],
     staffSecondary: ['pressure', 'temperament', 'sportsmanship', 'loyalty', 'adaptability'],
   },
   WB: {
     playerPrimary: ['crossing', 'pace', 'stamina', 'tackling', 'positioning', 'off_the_ball', 'work_rate', 'acceleration'],
     playerSecondary: ['marking', 'passing', 'decisions', 'teamwork', 'agility', 'dribbling', 'anticipation', 'balance'],
+    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.WB,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'adaptability', 'loyalty', 'sportsmanship', 'temperament'],
   },
   DM: {
     playerPrimary: ['tackling', 'positioning', 'marking', 'passing', 'decisions', 'work_rate', 'stamina', 'teamwork', 'heading'],
     playerSecondary: ['anticipation', 'strength', 'aggression', 'long_shots', 'creativity', 'bravery', 'jumping'],
+    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.DM,
     staffPrimary: ['professionalism', 'ambition'],
     staffSecondary: ['pressure', 'temperament', 'loyalty', 'adaptability', 'sportsmanship'],
   },
   M: {
     playerPrimary: ['passing', 'decisions', 'technique', 'teamwork', 'work_rate', 'creativity', 'off_the_ball', 'tackling'],
     playerSecondary: ['stamina', 'anticipation', 'long_shots', 'flair', 'positioning', 'dribbling', 'pace', 'balance'],
+    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.M,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'loyalty', 'adaptability', 'sportsmanship', 'temperament'],
   },
   AM: {
     playerPrimary: ['creativity', 'technique', 'dribbling', 'passing', 'decisions', 'flair', 'off_the_ball', 'long_shots'],
     playerSecondary: ['finishing', 'teamwork', 'work_rate', 'stamina', 'tackling', 'anticipation', 'pace', 'acceleration'],
+    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.AM,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'temperament', 'loyalty', 'adaptability', 'sportsmanship'],
   },
@@ -88,6 +113,7 @@ const BY_ROLE: Record<PositionRoleId, Pack> = {
       'heading',
     ],
     playerSecondary: ['long_shots', 'creativity', 'balance', 'jumping', 'strength', 'work_rate', 'decisions', 'teamwork'],
+    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.ST,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'loyalty', 'temperament', 'adaptability', 'sportsmanship'],
   },
@@ -106,6 +132,7 @@ const UNIVERSAL_PLAYER_SECONDARY = [
 export type HighlightSets = {
   playerPrimary: Set<string>
   playerSecondary: Set<string>
+  playerEngineBreaker: Set<string>
   staffPrimary: Set<string>
   staffSecondary: Set<string>
   rolesUsed: PositionRoleId[]
@@ -137,6 +164,7 @@ export function naturalRolesForHighlight(p: PlayerRecord): PositionRoleId[] {
 function mergePacks(roles: PositionRoleId[]): HighlightSets {
   const playerPrimary = new Set<string>()
   const playerSecondary = new Set<string>()
+  const playerEngineBreaker = new Set<string>()
   const staffPrimary = new Set<string>()
   const staffSecondary = new Set<string>()
 
@@ -144,6 +172,7 @@ function mergePacks(roles: PositionRoleId[]): HighlightSets {
     const pack = BY_ROLE[r]
     for (const x of pack.playerPrimary) playerPrimary.add(x)
     for (const x of pack.playerSecondary) playerSecondary.add(x)
+    for (const x of pack.playerEngineBreaker) playerEngineBreaker.add(x)
     for (const x of pack.staffPrimary) staffPrimary.add(x)
     for (const x of pack.staffSecondary) staffSecondary.add(x)
   }
@@ -155,8 +184,10 @@ function mergePacks(roles: PositionRoleId[]): HighlightSets {
   for (const x of playerPrimary) playerSecondary.delete(x)
   for (const x of staffPrimary) staffSecondary.delete(x)
 
-  return { playerPrimary, playerSecondary, staffPrimary, staffSecondary, rolesUsed: roles }
+  return { playerPrimary, playerSecondary, playerEngineBreaker, staffPrimary, staffSecondary, rolesUsed: roles }
 }
+
+export { ENGINE_BREAKERS_BY_ROLE }
 
 export function computeHighlightSets(p: PlayerRecord): HighlightSets {
   return mergePacks(naturalRolesForHighlight(p))

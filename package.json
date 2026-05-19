@@ -1,7 +1,7 @@
 {
   "name": "cm-scout-next",
   "version": "0.1.0",
-  "description": "CM Merlin Scout — CM 01/02 scouting (uncompressed & compressed index.dat, CM Scout–aligned data)",
+  "description": "CM-01/02 Merlin — CM 01/02 scouting & editor (uncompressed & compressed index.dat)",
   "main": "out/main/index.js",
   "type": "module",
   "author": "",
@@ -48,7 +48,7 @@
   },
   "build": {
     "appId": "com.cmmerlinscout.app",
-    "productName": "CM Merlin Scout",
+    "productName": "CM-01/02 Merlin",
     "directories": {
       "output": "release"
     },

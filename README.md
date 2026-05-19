@@ -1,4 +1,4 @@
-# CM Merlin Scout
+# CM-01/02 Merlin
 
 **Repository:** [github.com/billytalbutt/cm-scout-next](https://github.com/billytalbutt/cm-scout-next)
 

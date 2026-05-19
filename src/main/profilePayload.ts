@@ -149,6 +149,7 @@ export type ProfileAttrCell = {
   invert: boolean
   /** FM-style row tint: key attributes for natural position(s) */
   highlightTier?: 'primary' | 'secondary'
+  highlightEngine?: boolean
 }
 
 export type ProfileFeetMorale = {
@@ -437,6 +438,7 @@ export function buildProfilePayload(
         inMatch: x.inMatch,
         invert: false,
         highlightTier: tierForPlayerAttr(key),
+        highlightEngine: hl.playerEngineBreaker.has(key),
       }
     }
     const x = other[key]!
@@ -455,6 +457,7 @@ export function buildProfilePayload(
       inMatch: x.inMatch,
       invert: inv,
       highlightTier,
+      highlightEngine: hl.playerEngineBreaker.has(key),
     }
   }
 

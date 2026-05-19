@@ -15,6 +15,22 @@ export function engineBracketClass(uncapped: number, inGame: number): string {
   return 'rounded bg-violet-500/15 px-1 font-semibold text-violet-100 tabular-nums'
 }
 
+/** Row tint: core / supporting fills plus optional thin ring for engine-breaker bankers. */
+export function profileAttrHighlightClass(cell: Pick<ProfileAttrCell, 'highlightTier' | 'highlightEngine'>): string {
+  const parts: string[] = []
+  if (cell.highlightTier === 'primary') {
+    parts.push('rounded', 'px-1', '-mx-1', 'bg-emerald-500/[0.14]')
+  } else if (cell.highlightTier === 'secondary') {
+    parts.push('rounded', 'px-1', '-mx-1', 'bg-sky-500/[0.11]')
+  } else if (cell.highlightEngine) {
+    parts.push('rounded', 'px-1', '-mx-1')
+  }
+  if (cell.highlightEngine) {
+    parts.push('ring-1', 'ring-inset', 'ring-amber-100/40')
+  }
+  return parts.join(' ')
+}
+
 export function ProfileAttrColumn({
   cells,
   showEngineAttrs,
@@ -22,17 +38,12 @@ export function ProfileAttrColumn({
   cells: ProfileAttrCell[]
   showEngineAttrs?: boolean
 }) {
-  const tint = (tier?: 'primary' | 'secondary') => {
-    if (tier === 'primary') return 'rounded px-1 -mx-1 bg-emerald-500/[0.14]'
-    if (tier === 'secondary') return 'rounded px-1 -mx-1 bg-sky-500/[0.11]'
-    return ''
-  }
   return (
     <ul className="min-w-0 space-y-0.5 text-[12px]">
       {cells.map((a) => (
         <li
           key={a.key}
-          className={`flex justify-between gap-1.5 border-b border-zinc-800/30 py-1 ${tint(a.highlightTier)}`}
+          className={`flex justify-between gap-1.5 border-b border-zinc-800/30 py-1 ${profileAttrHighlightClass(a)}`}
         >
           <span className="truncate text-zinc-400" title={a.key}>
             {a.label}

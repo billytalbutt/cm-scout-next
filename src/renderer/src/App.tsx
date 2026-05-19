@@ -41,7 +41,7 @@ import {
 } from '../../shared/tacticsPitchSnap'
 import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { ClubEditorPanel } from './ClubEditorPanel'
-import { attrColor, engineBracketClass, ProfileAttrColumn } from './ProfileAttrBlocks'
+import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { setCopiedPlayerAttributes } from '../../shared/copiedPlayerAttributes'
 import { CONTRACT_TYPE_FILTER_OPTIONS, type ContractTypeCategoryId } from '../../shared/contractTypes'
 import { STAFF_ATTR_FILTER_COUNT } from '../../shared/staffAttrCatalog'
@@ -194,16 +194,11 @@ function FeetMoraleBlock({
   feet: ProfilePayload['feetMorale']
   showEngineAttrs?: boolean
 }) {
-  const tint = (tier?: 'primary' | 'secondary') => {
-    if (tier === 'primary') return 'rounded px-1 -mx-1 bg-emerald-500/[0.14]'
-    if (tier === 'secondary') return 'rounded px-1 -mx-1 bg-sky-500/[0.11]'
-    return ''
-  }
   type FootRow = ProfilePayload['feetMorale']['left']
   const row = (label: string, v: FootRow, band: (n: number) => string) => (
     <div
       key={label}
-      className={`flex justify-between gap-1.5 border-b border-zinc-800/30 py-1 text-[12px] ${tint(v.highlightTier)}`}
+      className={`flex justify-between gap-1.5 border-b border-zinc-800/30 py-1 text-[12px] ${profileAttrHighlightClass(v)}`}
     >
       <span className="text-zinc-400">{label}</span>
       <div className="flex shrink-0 flex-col items-end gap-0.5">
@@ -846,7 +841,7 @@ export function App() {
     setErr(null)
     if (typeof window.cmapi?.openDatabase !== 'function') {
       setErr(
-        'CM Merlin Scout must run inside the Electron app window (the packaged .app or npm run dev). A normal browser tab cannot open files.',
+        'CM-01/02 Merlin must run inside the Electron app window (the packaged .app or npm run dev). A normal browser tab cannot open files.',
       )
       return
     }
@@ -854,7 +849,7 @@ export function App() {
     try {
       const r = await window.cmapi.openDatabase()
       if (!r || typeof r !== 'object' || !('ok' in r)) {
-        setErr('Unexpected response from the app. Try restarting CM Merlin Scout.')
+        setErr('Unexpected response from the app. Try restarting CM-01/02 Merlin.')
         return
       }
       if (!r.ok) {
@@ -1060,12 +1055,12 @@ export function App() {
             src="/merlin-mascot.png"
             alt=""
             className="h-[4.125rem] w-auto max-h-[4.125rem] shrink-0 object-contain object-left"
-            title="CM Merlin Scout"
+            title="CM-01/02 Merlin"
           />
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold leading-tight tracking-tight text-white">CM Merlin Scout</h1>
+            <h1 className="text-lg font-semibold leading-tight tracking-tight text-white">CM-01/02 Merlin</h1>
             <p className="mt-0.5 text-xs leading-snug text-zinc-500">
-              Championship Manager 01/02 · CM Scout–aligned data
+              Championship Manager 01/02 · scouting &amp; editor
             </p>
           </div>
         </div>
@@ -2245,6 +2240,11 @@ export function App() {
                         <span className="inline-flex items-center gap-1.5">
                           <span className="h-2.5 w-6 rounded bg-sky-500/[0.11]" />
                           Supporting / universal
+                        </span>
+                        {' · '}
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2.5 w-6 rounded ring-1 ring-inset ring-amber-100/40" />
+                          Engine breaker (must-have)
                         </span>
                       </p>
                     </div>

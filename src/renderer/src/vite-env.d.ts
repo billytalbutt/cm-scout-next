@@ -108,6 +108,8 @@ export interface ProfileAttrCell {
   inMatch: number
   invert: boolean
   highlightTier?: 'primary' | 'secondary'
+  /** Thin ring — absolute “engine breaker” bankers for natural role(s). */
+  highlightEngine?: boolean
 }
 
 export interface ProfileSeasonStatsRow {
