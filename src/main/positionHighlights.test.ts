@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { computeHighlightSets, ENGINE_BREAKERS_BY_ROLE } from './positionHighlights'
+import {
+  computeHighlightSets,
+  ENGINE_BREAKERS_BY_ROLE,
+  UNIVERSAL_HIDDEN_ENGINE_BREAKERS,
+  UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS,
+} from './positionHighlights'
 import type { PlayerRecord } from './database/types'
 
 function minimalPlayer(overrides: Partial<PlayerRecord> = {}): PlayerRecord {
@@ -41,6 +46,17 @@ describe('positionHighlights engine breakers', () => {
     expect(hl.playerEngineBreaker.has('finishing')).toBe(true)
     expect(hl.playerEngineBreaker.has('off_the_ball')).toBe(true)
     expect(hl.playerEngineBreaker.has('passing')).toBe(false)
+  })
+
+  it('always marks universal hidden engine breakers', () => {
+    const p = minimalPlayer({ goalkeeper: 20, attacker: 1 })
+    const hl = computeHighlightSets(p)
+    for (const key of UNIVERSAL_HIDDEN_ENGINE_BREAKERS) {
+      expect(hl.playerEngineBreaker.has(key)).toBe(true)
+    }
+    for (const key of UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS) {
+      expect(hl.playerEngineBreaker.has(key)).toBe(true)
+    }
   })
 
   it('merges engine breakers when multiple naturals', () => {

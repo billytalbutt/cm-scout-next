@@ -2246,6 +2246,10 @@ export function App() {
                           <span className="h-2.5 w-6 rounded ring-1 ring-inset ring-amber-100/40" />
                           Engine breaker (must-have)
                         </span>
+                        <span className="block pt-1 text-zinc-500">
+                          Engine ring applies to visible attributes and Hidden (e.g. Important matches, Consistency,
+                          Natural fitness, Injury proneness, Professionalism, Pressure).
+                        </span>
                       </p>
                     </div>
                   }
@@ -2273,6 +2277,10 @@ export function App() {
                       one-on-ones, versatility, dirtiness, important matches, injury proneness, natural fitness) plus
                       staff.dat mentals (adaptability, ambition, loyalty, pressure, professionalism, sportsmanship,
                       temperament). Determination stays in the main Attributes left column from staff.dat.
+                    </p>
+                    <p className="text-zinc-400">
+                      Amber ring marks game-breaking hiddens for every player (Important matches, Consistency, Natural
+                      fitness, Injury proneness, Professionalism, Pressure) — same set for all positions.
                     </p>
                   }
                 >

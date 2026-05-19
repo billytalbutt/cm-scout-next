@@ -129,6 +129,20 @@ const UNIVERSAL_PLAYER_SECONDARY = [
   'determination',
 ] as const
 
+/**
+ * Hidden-panel bankers for every player — Eff % engine block + champman0102 hidden-attribute threads.
+ * Same for all positions (outfield and GK); shown in the Hidden section with the amber engine ring.
+ */
+export const UNIVERSAL_HIDDEN_ENGINE_BREAKERS = [
+  'important_matches',
+  'consistency',
+  'natural_fitness',
+  'injury_proneness',
+] as const
+
+/** Staff mentals in the hidden panel that gate long-term output (forum + Eff % engine extras). */
+export const UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS = ['professionalism', 'pressure'] as const
+
 export type HighlightSets = {
   playerPrimary: Set<string>
   playerSecondary: Set<string>
@@ -183,6 +197,9 @@ function mergePacks(roles: PositionRoleId[]): HighlightSets {
 
   for (const x of playerPrimary) playerSecondary.delete(x)
   for (const x of staffPrimary) staffSecondary.delete(x)
+
+  for (const x of UNIVERSAL_HIDDEN_ENGINE_BREAKERS) playerEngineBreaker.add(x)
+  for (const x of UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS) playerEngineBreaker.add(x)
 
   return { playerPrimary, playerSecondary, playerEngineBreaker, staffPrimary, staffSecondary, rolesUsed: roles }
 }
