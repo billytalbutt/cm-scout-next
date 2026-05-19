@@ -132,10 +132,19 @@ export interface ProfileSeasonStats {
     source: 'staff_history' | 'player_stats_dat'
   } | null
   careerTotals: { apps: number; goals: number }
+  /** Not in `staff_history.dat` — always null (display as —). */
+  careerAssists: number | null
+  careerAvgRating: number | null
   allSeasons: ProfileSeasonStatsRow[]
   /** Primary domestic league from `club.dat` division → `club_comp.dat` (name only). */
   inferredDomesticLeague: { competitionId: number; name: string } | null
   perCompetitionRows: ProfilePerCompetitionRow[]
+  perCompetitionTotals: {
+    apps: number
+    goals: number
+    assists: number
+    averageRating: number | null
+  } | null
   perCompetitionStatsInSave: boolean
   /** Heuristic `player stats.dat` slice when a row was decoded for this player. */
   saveFilePerformance: {

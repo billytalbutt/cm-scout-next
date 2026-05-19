@@ -197,6 +197,38 @@ function defFor(
       return h.accessor('staffHistSeasonApps', { id, header: lab })
     case 'shSeasonGoals':
       return h.accessor('staffHistSeasonGoals', { id, header: lab })
+    case 'curApps':
+      return h.accessor('curSeasonApps', { id, header: lab })
+    case 'curGoals':
+      return h.accessor('curSeasonGoals', { id, header: lab })
+    case 'carApps':
+      return h.accessor('careerAppsTotal', { id, header: lab })
+    case 'carGoals':
+      return h.accessor('careerGoalsTotal', { id, header: lab })
+    case 'curAst':
+      return h.accessor((r) => r.curSeasonAssists ?? null, {
+        id,
+        header: lab,
+        sortUndefined: 'last',
+        cell: ({ getValue }) => {
+          const v = getValue()
+          return v == null ? <span className="text-zinc-600">—</span> : <span className="font-mono">{v}</span>
+        },
+      })
+    case 'curAvR':
+      return h.accessor((r) => r.curSeasonAvgRating ?? null, {
+        id,
+        header: lab,
+        sortUndefined: 'last',
+        cell: ({ getValue }) => {
+          const v = getValue()
+          return v == null ? (
+            <span className="text-zinc-600">—</span>
+          ) : (
+            <span className="font-mono">{v.toFixed(2)}</span>
+          )
+        },
+      })
     case 'spfApps':
       return h.accessor((r) => r.spfApps ?? null, {
         id,

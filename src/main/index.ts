@@ -288,6 +288,7 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
     ...buildProfilePayload(row, loaded.db.clubNames, loaded.db.gameDateIso, {
       nationSeasonUpdateDaySamples: loaded.db.nationSeasonUpdateDaySamples,
       clubCompsById: loaded.db.clubCompsById,
+      staffCompsById: loaded.db.staffCompsById,
       clubDivisionCompIdByClubId: loaded.db.clubDivisionCompIdByClubId,
       staffHistoryParsed: loaded.db.staffHistoryParsed ?? false,
       staffHistorySourcePath: loaded.db.staffHistorySourcePath,

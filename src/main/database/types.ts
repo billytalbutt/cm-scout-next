@@ -1,5 +1,7 @@
 import type { StaffHistoryRecord } from './staffHistory'
+import type { CompetitionNamesById } from './competitionNames'
 import type { ClubCompRecord, StaffCompRecord } from './clubComp'
+import type { StaffCompHistoryRecord } from './staffCompHistory'
 import type { TacticsIndexMeta } from './tacticsDat'
 
 export interface BlockInfo {
@@ -258,6 +260,10 @@ export interface ParsedDatabase {
   clubCompsById?: Map<number, ClubCompRecord>
   /** Optional `staff_comp.dat` (international competition definitions). */
   staffCompsById?: Map<number, StaffCompRecord>
+  /** Merged competition id → name (`club_comp` + `staff_comp`). */
+  competitionNamesById?: CompetitionNamesById
+  /** Current-season per-competition rows from `player stats.dat`, keyed by `staff.dat` id. */
+  staffCompHistoryByStaffId?: Map<number, StaffCompHistoryRecord[]>
   /** `club.dat` → primary `club_comp` id (`TClub.Division`). */
   clubDivisionCompIdByClubId: Map<number, number>
   nationNames: Map<number, string>
@@ -352,6 +358,16 @@ export interface UiPlayerRow {
   staffHistCareerGoals: number
   staffHistSeasonApps: number
   staffHistSeasonGoals: number
+  /** Current season from per-competition `player stats.dat` rows (sum across competitions). */
+  curSeasonApps: number
+  curSeasonGoals: number
+  curSeasonAssists: number | null
+  curSeasonAvgRating: number | null
+  /** Career apps/goals: prior staff_history years + current season comp totals. */
+  careerAppsTotal: number
+  careerGoalsTotal: number
+  /** Per-competition current-season rows for this staff id. */
+  staffCompHistory?: StaffCompHistoryRecord[]
   /**
    * Season-style counters from `player stats.dat` when the heuristic decoder found a row
    * for this `player.dat` id (may be partial — e.g. assists-only on some layouts).

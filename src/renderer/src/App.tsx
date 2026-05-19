@@ -2190,8 +2190,10 @@ export function App() {
                         player has no history rows yet. International caps from staff.dat still appear above when set.
                       </p>
                       <p>
-                        By competition: league vs cups split and extra columns need save performance blocks joined to
-                        staff id and competition id (names from <code className="text-zinc-400">club_comp.dat</code>).
+                        By competition: rows come from <code className="text-zinc-400">player stats.dat</code> in the
+                        save, with names resolved from <code className="text-zinc-400">club_comp.dat</code> /{' '}
+                        <code className="text-zinc-400">staff_comp.dat</code>. Career assists and average rating are not
+                        kept across season rollovers.
                       </p>
                       {profile.seasonStats.saveCalendarYear != null && (
                         <p className="text-[11px]">
@@ -2311,26 +2313,70 @@ export function App() {
                     </tbody>
                   </table>
                 </div>
+                {profile.seasonStats.perCompetitionStatsInSave && (
+                  <div className="mb-3 overflow-x-auto rounded border border-zinc-800/80">
+                    <table className="w-full min-w-[18rem] border-collapse text-left text-[11px]">
+                      <thead>
+                        <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
+                          <th className="px-2 py-1.5 font-medium">Competition</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {profile.seasonStats.perCompetitionRows.map((r) => (
+                          <tr key={r.competitionId} className="border-b border-zinc-800/40">
+                            <td className="max-w-[14rem] truncate px-2 py-1 text-zinc-200" title={r.competitionName}>
+                              {r.competitionName}
+                            </td>
+                            <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.apps}</td>
+                            <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.goals}</td>
+                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.assists)}</td>
+                            <td className="px-2 py-1 text-right">
+                              {formatProfileStatCell(r.averageRating, 'rating')}
+                            </td>
+                          </tr>
+                        ))}
+                        {profile.seasonStats.perCompetitionTotals && (
+                          <tr className="border-t border-zinc-700 bg-zinc-950/60 font-semibold text-zinc-100">
+                            <td className="px-2 py-1.5">TOTALS</td>
+                            <td className="px-2 py-1.5 text-right font-mono">
+                              {profile.seasonStats.perCompetitionTotals.apps}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-mono">
+                              {profile.seasonStats.perCompetitionTotals.goals}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-mono">
+                              {profile.seasonStats.perCompetitionTotals.assists}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-mono">
+                              {formatProfileStatCell(
+                                profile.seasonStats.perCompetitionTotals.averageRating,
+                                'rating',
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
                 <div className="overflow-x-auto rounded border border-zinc-800/80">
-                  <table className="w-full min-w-[19rem] border-collapse text-left text-[11px]">
+                  <table className="w-full min-w-[14rem] border-collapse text-left text-[11px]">
                     <thead>
                       <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
                         <th className="px-2 py-1.5 font-medium">Year</th>
                         <th className="px-2 py-1.5 font-medium">Club</th>
-                        <th className="px-2 py-1.5 text-center font-medium">Loan</th>
                         <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
                         <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
-                        <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
-                        <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
-                        <th className="px-2 py-1.5 text-right font-mono font-medium">Tkl</th>
-                        <th className="px-2 py-1.5 text-right font-mono font-medium">Pass</th>
-                        <th className="px-2 py-1.5 text-right font-mono font-medium">Hdr</th>
                       </tr>
                     </thead>
                     <tbody>
                       {profile.seasonStats.allSeasons.length === 0 ? (
                         <tr>
-                          <td colSpan={10} className="px-2 py-3 text-center text-zinc-500">
+                          <td colSpan={4} className="px-2 py-3 text-center text-zinc-500">
                             —
                           </td>
                         </tr>
@@ -2346,17 +2392,11 @@ export function App() {
                             }`}
                           >
                             <td className="px-2 py-1 font-mono text-zinc-300">{r.year}</td>
-                            <td className="max-w-[10rem] truncate px-2 py-1 text-zinc-200" title={r.club}>
+                            <td className="max-w-[12rem] truncate px-2 py-1 text-zinc-200" title={r.club}>
                               {r.club}
                             </td>
-                            <td className="px-2 py-1 text-center text-zinc-500">{r.onLoan ? 'Y' : ''}</td>
                             <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.apps}</td>
                             <td className="px-2 py-1 text-right font-mono text-zinc-200">{r.goals}</td>
-                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.assists)}</td>
-                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.averageRating, 'rating')}</td>
-                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.tackles)}</td>
-                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.passes)}</td>
-                            <td className="px-2 py-1 text-right">{formatProfileStatCell(r.headers)}</td>
                           </tr>
                         ))
                       )}

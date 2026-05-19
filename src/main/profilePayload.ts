@@ -4,7 +4,12 @@ import {
   transferListedByClub,
   transferListedByRequest,
 } from './cmScoutRating'
-import type { ClubCompRecord } from './database/clubComp'
+import { buildCompetitionNamesById } from './database/competitionNames'
+import type { ClubCompRecord, StaffCompRecord } from './database/clubComp'
+import {
+  aggregateStaffCompSeasonTotals,
+  staffCompHistoryToProfileRows,
+} from './database/staffCompHistory'
 import {
   currentSeasonPerformanceFromRows,
   currentSeasonPerformanceFromSave,
@@ -175,6 +180,7 @@ export type ProfileFeetMorale = {
 export type ProfileDbContext = {
   nationSeasonUpdateDaySamples: number[]
   clubCompsById?: Map<number, ClubCompRecord>
+  staffCompsById?: Map<number, StaffCompRecord>
   clubDivisionCompIdByClubId: Map<number, number>
   /** Whether `staff_history.dat` was present and row-aligned in this index (per-player rows may still be empty). */
   staffHistoryParsed: boolean
@@ -250,12 +256,13 @@ function buildProfileSeasonStats(
     if (b.year !== a.year) return b.year - a.year
     return a.club.localeCompare(b.club)
   })
-  let careerApps = 0
-  let careerGoals = 0
-  for (const h of hist) {
-    careerApps += h.apps
-    careerGoals += h.goals
-  }
+  const compRows = row.staffCompHistory ?? []
+  const competitionNames = buildCompetitionNamesById(ctx.clubCompsById, ctx.staffCompsById)
+  const perCompetitionRows =
+    compRows.length > 0
+      ? staffCompHistoryToProfileRows(compRows, competitionNames, row.player.id)
+      : (ctx.savePerformancePerCompByPlayerDatId?.get(row.player.id) ?? [])
+
   let cApps = 0
   let cGoals = 0
   for (const h of currentHist) {
@@ -279,7 +286,20 @@ function buildProfileSeasonStats(
     savePerf != null
       ? currentSeasonPerformanceFromSave(savePerf, clubLabel, employerClubId, seasonYearForSave)
       : null
-  if (fromSave) {
+
+  if (compRows.length > 0) {
+    const compTotals = aggregateStaffCompSeasonTotals(compRows)
+    currentSeasonPerformance = {
+      label: 'All competitions',
+      apps: compTotals.apps,
+      goals: compTotals.goals,
+      assists: compTotals.assists,
+      averageRating: compTotals.averageRating,
+      historyYear: seasonYearForSave,
+      clubId: employerClubId,
+      source: 'player_stats_dat',
+    }
+  } else if (fromSave) {
     const saveHasAssists = fromSave.assists != null
     const preferSave =
       !currentSeasonPerformance ||
@@ -298,9 +318,34 @@ function buildProfileSeasonStats(
 
   const playerStatsDatPresent = ctx.playerStatsDatPresent === true
 
-  const savePerformanceHint = fromSave
-    ? 'Current-season apps, goals, and assists from `player stats.dat` in this save (CM Senior club style). Average rating is not mapped yet.'
-    : !ctx.staffHistoryParsed
+  const perCompetitionTotals =
+    perCompetitionRows.length > 0
+      ? (() => {
+          const t = aggregateStaffCompSeasonTotals(
+            perCompetitionRows.map((r) => ({
+              staffId: row.staffId,
+              competitionId: r.competitionId,
+              apps: r.apps,
+              goals: r.goals,
+              assists: r.assists ?? 0,
+              averageRating: r.averageRating ?? null,
+            })),
+          )
+          return {
+            apps: t.apps,
+            goals: t.goals,
+            assists: t.assists,
+            averageRating: t.averageRating,
+          }
+        })()
+      : null
+
+  const savePerformanceHint =
+    perCompetitionRows.length > 0
+      ? 'Current season by competition from `player stats.dat` in this save. Career assists and average rating are not stored in `staff_history.dat` (purged each season rollover).'
+      : fromSave
+        ? 'Current-season apps, goals, and assists from `player stats.dat` summary decode (Senior club combined).'
+        : !ctx.staffHistoryParsed
       ? 'No staff_history.dat found. Load a .sav from your CM Game folder (e.g. …/Game/Game/) so Data/staff_history.dat is found, or ensure this save includes `player stats.dat`.'
       : !hist.length
         ? 'No career rows for this staff id in staff_history.dat and no summary row in `player stats.dat` for this player.'
@@ -323,16 +368,18 @@ function buildProfileSeasonStats(
     currentSeasonRows: currentHist.map(toRow).sort((a, b) => a.club.localeCompare(b.club)),
     currentSeasonTotals: seasonHeaderTotals,
     currentSeasonPerformance,
-    careerTotals: { apps: careerApps, goals: careerGoals },
+    careerTotals: { apps: row.careerAppsTotal, goals: row.careerGoalsTotal },
+    careerAssists: null as number | null,
+    careerAvgRating: null as number | null,
     allSeasons,
     inferredDomesticLeague,
     staffHistoryParsed: ctx.staffHistoryParsed,
     staffHistorySourcePath: ctx.staffHistorySourcePath,
     playerStatsDatPresent,
     savePerformanceHint,
-    /** Wrong until player stats.dat layout is verified — do not surface in UI. */
-    perCompetitionRows: ctx.savePerformancePerCompByPlayerDatId?.get(row.player.id) ?? [],
-    perCompetitionStatsInSave: (ctx.savePerformancePerCompByPlayerDatId?.get(row.player.id)?.length ?? 0) > 0,
+    perCompetitionRows,
+    perCompetitionTotals,
+    perCompetitionStatsInSave: perCompetitionRows.length > 0,
     saveFilePerformance: savePerf
       ? {
           apps: savePerf.apps,
