@@ -4,6 +4,11 @@ import {
   STADIUM_EDITOR_FIELDS,
   type ClubEditorFieldSpec,
 } from '../../shared/clubEditorCatalog'
+import {
+  clampClubEditorValue,
+  clubEditorLimitHint,
+  CLUB_EDITOR_LIMITS,
+} from '../../shared/clubEditorLimits'
 import { ClubSearchSidebar } from './clubs/ClubSearchSidebar'
 import { useClubBrowse } from './clubs/useClubBrowse'
 
@@ -56,11 +61,25 @@ function FieldGrid({
             <input
               type="number"
               disabled={disabled}
+              min={CLUB_EDITOR_LIMITS[f.key]?.min}
+              max={CLUB_EDITOR_LIMITS[f.key]?.max}
               className="w-full rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-xs text-zinc-100 outline-none focus:border-emerald-600 disabled:opacity-40"
               value={draft[f.key] ?? ''}
               onChange={(e) => onField(f.key, e.target.value)}
+              onBlur={() => {
+                const n = Number(draft[f.key])
+                if (!Number.isFinite(n)) return
+                const c = clampClubEditorValue(f.key, n)
+                if (String(c) !== draft[f.key]) onField(f.key, String(c))
+              }}
             />
-            {f.hint && <span className="text-[10px] leading-snug text-zinc-600">{f.hint}</span>}
+            {(f.hint || clubEditorLimitHint(f.key)) && (
+              <span className="text-[10px] leading-snug text-zinc-600">
+                {[f.hint, clubEditorLimitHint(f.key) ? `Game range: ${clubEditorLimitHint(f.key)}` : null]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            )}
           </label>
         ),
       )}
@@ -120,11 +139,14 @@ export function ClubEditorPanel({
         }
         const s = r as ClubEditorSnapshot
         setSnap(s)
-        baselineRef.current = { ...s.values }
         const d: Record<string, string> = {}
+        const base: Record<string, number> = {}
         for (const [key, v] of Object.entries(s.values)) {
-          d[key] = String(v)
+          const c = clampClubEditorValue(key, v)
+          base[key] = c
+          d[key] = String(c)
         }
+        baselineRef.current = base
         setDraft(d)
         setErr(null)
       })
@@ -187,7 +209,7 @@ export function ClubEditorPanel({
         setErr(`Invalid number for ${spec?.label ?? key}`)
         return
       }
-      const t = Math.trunc(n)
+      const t = clampClubEditorValue(key, Math.trunc(n))
       if (t !== base[key]) changes[key] = t
     }
     if (Object.keys(changes).length === 0) {

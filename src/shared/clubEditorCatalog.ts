@@ -16,7 +16,7 @@ export const CLUB_EDITOR_FIELDS: readonly ClubEditorFieldSpec[] = [
     label: 'Bank balance',
     kind: 'i32',
     section: 'club_finance',
-    hint: 'On-disk cash; the game derives transfer budget from this and other rules.',
+    hint: 'On-disk cash (max £2bn without overflow patch); transfer budget is derived in-game.',
   },
   {
     key: 'attendance',

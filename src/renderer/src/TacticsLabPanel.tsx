@@ -59,6 +59,9 @@ export function TacticsLabPanel({
   tacticsSeedClubId,
   tacticsSeedClubName,
   onTacticsSeedClubChange,
+  clubsTabHasSelection,
+  tacticsClearNotice,
+  onClearTacticsSquadClub,
   pitchSlots,
   onPitchSlotsChange,
   assignments,
@@ -67,6 +70,9 @@ export function TacticsLabPanel({
   tacticsSeedClubId: number | null
   tacticsSeedClubName: string | null
   onTacticsSeedClubChange: (clubId: number | null, clubName: string | null) => void
+  clubsTabHasSelection: boolean
+  tacticsClearNotice: string | null
+  onClearTacticsSquadClub: () => void
   pitchSlots: PitchSlot[]
   onPitchSlotsChange: (slots: PitchSlot[]) => void
   assignments: Partial<Record<string, TacticsPlayerAssignment | null>>
@@ -213,7 +219,10 @@ export function TacticsLabPanel({
           loadInfo={loadInfo}
           clubId={tacticsSeedClubId}
           clubName={tacticsSeedClubName}
+          clubsTabHasSelection={clubsTabHasSelection}
+          clearNotice={tacticsClearNotice}
           onSelect={onTacticsSeedClubChange}
+          onClearSquadClub={onClearTacticsSquadClub}
         />
       )}
       {loadInfo && (

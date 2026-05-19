@@ -73,10 +73,6 @@ export function useClubBrowse(
     void loadDetail(selId)
   }, [selId, loadDetail])
 
-  useEffect(() => {
-    if (selId != null && detail?.name) onClubSelectForTactics?.(selId, detail.name)
-  }, [selId, detail?.name, onClubSelectForTactics])
-
   const onInputChange = (next: string) => {
     setQ(next)
     if (lockedName != null && next !== lockedName) {
@@ -91,6 +87,7 @@ export function useClubBrowse(
     setQ(c.name)
     setSelId(c.id)
     setMenuOpen(false)
+    onClubSelectForTactics?.(c.id, c.name)
   }
 
   const clearClubSearch = () => {

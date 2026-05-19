@@ -416,6 +416,23 @@ export function App() {
     setTacticsSeedClubName(clubName)
   }, [])
   const clubBrowse = useClubBrowse(!!loadInfo, (id, name) => onTacticsSeedClubChange(id, name ?? null))
+  const { clearClubSearch, selId: clubsTabSelId } = clubBrowse
+  const [tacticsClearNotice, setTacticsClearNotice] = useState<string | null>(null)
+  const clearTacticsSquadClub = useCallback(() => {
+    const hadClubsTab = clubsTabSelId != null
+    onTacticsSeedClubChange(null, null)
+    clearClubSearch()
+    if (hadClubsTab) {
+      setTacticsClearNotice(
+        'Squad club cleared. The club you had selected on the Clubs tab was cleared as well.',
+      )
+      window.setTimeout(() => setTacticsClearNotice(null), 8000)
+    }
+  }, [clubsTabSelId, clearClubSearch, onTacticsSeedClubChange])
+  const clearTacticsWorkspace = useCallback(() => {
+    setTacticsAssignments({})
+    clearTacticsSquadClub()
+  }, [clearTacticsSquadClub])
   const shortlists = useShortlists(loadInfo?.path ?? null)
   const [shortlistMenu, setShortlistMenu] = useState<{
     x: number
@@ -1851,6 +1868,9 @@ export function App() {
                 tacticsSeedClubId={tacticsSeedClubId}
                 tacticsSeedClubName={tacticsSeedClubName}
                 onTacticsSeedClubChange={onTacticsSeedClubChange}
+                clubsTabHasSelection={clubsTabSelId != null}
+                tacticsClearNotice={tacticsClearNotice}
+                onClearTacticsSquadClub={clearTacticsSquadClub}
                 pitchSlots={tacticsPitchSlots}
                 onPitchSlotsChange={setTacticsPitchSlots}
                 assignments={tacticsAssignments}
@@ -2076,6 +2096,7 @@ export function App() {
                 })
               }
               onReplaceAssignments={(next) => setTacticsAssignments(next)}
+              onClearAll={clearTacticsWorkspace}
             />
           ) : (
             <>

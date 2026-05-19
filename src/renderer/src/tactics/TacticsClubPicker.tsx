@@ -11,10 +11,21 @@ type Props = {
   loadInfo: boolean
   clubId: number | null
   clubName: string | null
+  clubsTabHasSelection: boolean
+  clearNotice: string | null
   onSelect: (clubId: number | null, clubName: string | null) => void
+  onClearSquadClub: () => void
 }
 
-export function TacticsClubPicker({ loadInfo, clubId, clubName, onSelect }: Props) {
+export function TacticsClubPicker({
+  loadInfo,
+  clubId,
+  clubName,
+  clubsTabHasSelection,
+  clearNotice,
+  onSelect,
+  onClearSquadClub,
+}: Props) {
   const [q, setQ] = useState(clubName ?? '')
   const [debouncedQ, setDebouncedQ] = useState('')
   const [suggestions, setSuggestions] = useState<ClubListRow[]>([])
@@ -62,7 +73,7 @@ export function TacticsClubPicker({ loadInfo, clubId, clubName, onSelect }: Prop
   }
 
   const clear = () => {
-    onSelect(null, null)
+    onClearSquadClub()
     setQ('')
   }
 
@@ -111,10 +122,20 @@ export function TacticsClubPicker({ loadInfo, clubId, clubName, onSelect }: Prop
           )}
         </div>
       </label>
+      {clearNotice && (
+        <p className="mt-1.5 rounded border border-amber-900/40 bg-amber-950/25 px-2 py-1 text-[10px] text-amber-200/90">
+          {clearNotice}
+        </p>
+      )}
       {clubId != null && clubName && (
         <p className="mt-1.5 rounded border border-emerald-900/40 bg-emerald-950/25 px-2 py-1 text-[10px] text-emerald-300/90">
           Selected: <span className="font-medium text-emerald-100">{clubName}</span> — use Club squad only in the
           line-up pane.
+        </p>
+      )}
+      {clubsTabHasSelection && clubId != null && (
+        <p className="mt-1 text-[10px] text-zinc-600">
+          Clearing here also clears the club selected on the Clubs tab.
         </p>
       )}
       {menuOpen && debouncedQ && suggestions.length > 0 && (

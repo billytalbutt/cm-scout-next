@@ -1,3 +1,4 @@
+import { clampClubEditorValue } from '../shared/clubEditorLimits'
 import type { BlockInfo, ParsedDatabase } from './database/types'
 import {
   CLUB_ATTENDANCE_OFF,
@@ -115,7 +116,7 @@ export function buildPatchedArchiveForClubEdits(
   for (const [key, rawVal] of Object.entries(changes)) {
     if (!Number.isFinite(rawVal)) continue
     if (!CLUB_EDITOR_DISK_FIELDS[key]) continue
-    writeClubEditorField(out, bases.clubBase, bases.stadiumBase, key, Number(rawVal))
+    writeClubEditorField(out, bases.clubBase, bases.stadiumBase, key, clampClubEditorValue(key, Number(rawVal)))
   }
   return { ok: true, buffer: out }
 }

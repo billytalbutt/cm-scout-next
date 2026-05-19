@@ -14,6 +14,7 @@ import {
   setCopiedPlayerAttributes,
   subscribeCopiedPlayerAttributes,
 } from '../../shared/copiedPlayerAttributes'
+import { EditorPlayerPicker } from './editor/EditorPlayerPicker'
 
 export type EditorSnapshot = {
   staffIndex: number
@@ -121,14 +122,20 @@ export function AttributeEditorPanel({
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [copiedAttrs, setCopiedAttrs] = useState(getCopiedPlayerAttributes)
+  const [searchedStaffIndex, setSearchedStaffIndex] = useState<number | null>(null)
   const baselineRef = useRef<Record<string, number> | null>(null)
+  const effectiveStaffIndex = searchedStaffIndex ?? staffIndex
 
   useEffect(() => subscribeCopiedPlayerAttributes(() => setCopiedAttrs(getCopiedPlayerAttributes())), [])
 
   useEffect(() => {
+    setSearchedStaffIndex(null)
+  }, [staffIndex])
+
+  useEffect(() => {
     setSaveMsg(null)
     setErr(null)
-    if (!loadInfo || staffIndex == null || typeof window.cmapi?.getEditorSnapshot !== 'function') {
+    if (!loadInfo || effectiveStaffIndex == null || typeof window.cmapi?.getEditorSnapshot !== 'function') {
       setSnap(null)
       setDraft({})
       baselineRef.current = null
@@ -137,7 +144,7 @@ export function AttributeEditorPanel({
     let cancelled = false
     setLoading(true)
     void window.cmapi
-      .getEditorSnapshot(staffIndex)
+      .getEditorSnapshot(effectiveStaffIndex)
       .then((r) => {
         if (cancelled) return
         if (!r || typeof r !== 'object' || !('values' in r)) {
@@ -166,7 +173,7 @@ export function AttributeEditorPanel({
     return () => {
       cancelled = true
     }
-  }, [loadInfo, staffIndex])
+  }, [loadInfo, effectiveStaffIndex])
 
   const onField = useCallback((key: string, v: string) => {
     setDraft((prev) => ({ ...prev, [key]: v }))
@@ -278,15 +285,23 @@ export function AttributeEditorPanel({
     )
   }
 
-  if (staffIndex == null) {
+  if (effectiveStaffIndex == null) {
     return (
-      <div className="max-w-xl space-y-2 text-sm text-zinc-400">
-        <p className="font-medium text-zinc-200">No player selected</p>
-        <p>
-          Select a row on <span className="text-zinc-300">All players</span> or <span className="text-zinc-300">Regens</span>{' '}
-          (or open a profile from Staff / Clubs), then return here. Values are the on-disk bytes (same as the profile
-          “intrinsic” column); CA18 “in-game” numbers are derived in-game from CA + these bytes.
-        </p>
+      <div className="max-w-xl space-y-4 text-sm text-zinc-400">
+        <div className="space-y-2">
+          <p className="font-medium text-zinc-200">Player attributes</p>
+          <p>
+            Select a row on <span className="text-zinc-300">All players</span> or{' '}
+            <span className="text-zinc-300">Regens</span> (or open a profile from Staff / Clubs), or search below.
+            Values are the on-disk bytes (same as the profile “intrinsic” column); CA18 “in-game” numbers are derived
+            in-game from CA + these bytes.
+          </p>
+        </div>
+        <EditorPlayerPicker
+          loadInfo={loadInfo}
+          selectedStaffIndex={null}
+          onPick={(idx) => setSearchedStaffIndex(idx)}
+        />
       </div>
     )
   }
@@ -312,6 +327,12 @@ export function AttributeEditorPanel({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-8">
+      <EditorPlayerPicker
+        loadInfo={loadInfo}
+        selectedStaffIndex={effectiveStaffIndex}
+        onPick={(idx) => setSearchedStaffIndex(idx)}
+        compact
+      />
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-800 pb-4">
         <div>
           <h2 className="text-lg font-semibold text-zinc-100">Attribute editor</h2>

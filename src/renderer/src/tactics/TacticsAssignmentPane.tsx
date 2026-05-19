@@ -200,6 +200,7 @@ export function TacticsAssignmentPane({
   onAssign,
   onClearSlot,
   onReplaceAssignments,
+  onClearAll,
 }: {
   loadInfo: boolean
   pitchSlots: PitchSlot[]
@@ -209,6 +210,7 @@ export function TacticsAssignmentPane({
   onAssign: (slotId: string, a: TacticsPlayerAssignment | null) => void
   onClearSlot: (slotId: string) => void
   onReplaceAssignments: (next: Partial<Record<string, TacticsPlayerAssignment | null>>) => void
+  onClearAll: () => void
 }) {
   const [clubSquadOnly, setClubSquadOnly] = useState(false)
   const [squadRows, setSquadRows] = useState<GridPlayerRow[]>([])
@@ -282,21 +284,25 @@ export function TacticsAssignmentPane({
       {clubSquadOnly && seedClubId == null && (
         <p className="text-[11px] text-amber-200/90">Select a club under Squad club on the tactics screen.</p>
       )}
-      {clubSquadOnly && seedClubId != null && (
+      {loadInfo && (
         <div className="flex gap-2">
+          {clubSquadOnly && seedClubId != null && (
+            <button
+              type="button"
+              className="min-w-0 flex-1 rounded-lg border border-emerald-700/50 bg-emerald-900/35 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-emerald-900/55 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!clubOnlyReady || squadLoading}
+              onClick={handleAutoPick}
+            >
+              Auto pick best XI
+            </button>
+          )}
           <button
             type="button"
-            className="min-w-0 flex-1 rounded-lg border border-emerald-700/50 bg-emerald-900/35 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-emerald-900/55 disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={!clubOnlyReady || squadLoading}
-            onClick={handleAutoPick}
-          >
-            Auto pick best XI
-          </button>
-          <button
-            type="button"
-            className="shrink-0 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-40"
+            className={`rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-40 ${
+              clubSquadOnly && seedClubId != null ? 'shrink-0' : 'w-full'
+            }`}
             disabled={!loadInfo}
-            onClick={() => onReplaceAssignments({})}
+            onClick={onClearAll}
           >
             Clear all
           </button>
