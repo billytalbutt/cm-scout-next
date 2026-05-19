@@ -16,6 +16,7 @@ import { GridColumnPickerModal } from './grid/GridColumnPickerModal'
 import { loadGridColumnOrder, saveGridColumnOrder } from './grid/gridPersistence'
 import { cm0102FootWord, cm0102MoraleWord } from '../../shared/cm0102Bands'
 import { CM_SCOUT_ATTR_LABELS } from '../../shared/cmScoutAttrLabels'
+import { nextAttrMinLadderOnRightClick } from '../../shared/attrMinLadder'
 import { attrMinsStringsFromEnginePreset, type EngineSnifferPresetId } from '../../shared/engineSnifferAttrPresets'
 import { ENGINE_META_PROFILE_IDS, ENGINE_META_PROFILE_LABELS } from '../../shared/engineMetaProfileCatalog'
 import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../shared/cmScoutRoles'
@@ -39,6 +40,7 @@ import {
   type TacticsPlayerAssignment,
 } from '../../shared/tacticsPitchSnap'
 import { AttributeEditorPanel } from './AttributeEditorPanel'
+import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { setCopiedPlayerAttributes } from '../../shared/copiedPlayerAttributes'
 import { CONTRACT_TYPE_FILTER_OPTIONS, type ContractTypeCategoryId } from '../../shared/contractTypes'
@@ -119,18 +121,6 @@ function countActiveAttrMinsStrings(attrMins: readonly string[]): number {
     if (Number.isFinite(n) && n > 0) c++
   }
   return c
-}
-
-/** Right-click: empty → 5 → 10 → 15 → 20 → empty (already ≥20 clears). */
-function nextAttrMinLadderOnRightClick(current: string): string {
-  const t = current.trim()
-  const n = Number(t)
-  if (!t || !Number.isFinite(n) || n <= 0) return '5'
-  if (n >= 20) return ''
-  for (const step of [5, 10, 15, 20] as const) {
-    if (step > n) return String(step)
-  }
-  return ''
 }
 
 /** Long help text on hover only — keeps the chrome minimal until you need it. */
@@ -265,6 +255,10 @@ export function App() {
   const [caMax, setCaMax] = useState('')
   const [paMin, setPaMin] = useState('')
   const [paMax, setPaMax] = useState('')
+  const [cmScoutMin, setCmScoutMin] = useState('')
+  const [cmScoutMax, setCmScoutMax] = useState('')
+  const [effMin, setEffMin] = useState('')
+  const [effMax, setEffMax] = useState('')
   const [ageMin, setAgeMin] = useState('')
   const [ageMax, setAgeMax] = useState('')
   const [valueMin, setValueMin] = useState('')
@@ -600,6 +594,14 @@ export function App() {
     if (Number.isFinite(caHi)) f.caMax = caHi
     if (Number.isFinite(paLo)) f.paMin = paLo
     if (Number.isFinite(paHi)) f.paMax = paHi
+    const scoutLo = num(cmScoutMin)
+    const scoutHi = num(cmScoutMax)
+    const effLo = num(effMin)
+    const effHi = num(effMax)
+    if (Number.isFinite(scoutLo)) f.cmScoutMin = scoutLo
+    if (Number.isFinite(scoutHi)) f.cmScoutMax = scoutHi
+    if (Number.isFinite(effLo)) f.effMin = effLo
+    if (Number.isFinite(effHi)) f.effMax = effHi
     if (Number.isFinite(ageLo)) f.ageMin = ageLo
     if (Number.isFinite(ageHi)) f.ageMax = ageHi
     if (Number.isFinite(vLo)) f.valueMin = vLo
@@ -729,6 +731,10 @@ export function App() {
     caMax,
     paMin,
     paMax,
+    cmScoutMin,
+    cmScoutMax,
+    effMin,
+    effMax,
     ageMin,
     ageMax,
     valueMin,
@@ -1305,6 +1311,54 @@ export function App() {
                 />
               </label>
               <label>
+                <span className="mb-1 block text-xs text-zinc-500">Scout % min</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={cmScoutMin}
+                  onChange={(e) => setCmScoutMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">Scout % max</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={cmScoutMax}
+                  onChange={(e) => setCmScoutMax(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">Eff % min</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={effMin}
+                  onChange={(e) => setEffMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">Eff % max</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={effMax}
+                  onChange={(e) => setEffMax(e.target.value)}
+                />
+              </label>
+              <label>
                 <span className="mb-1 block text-xs text-zinc-500">Value min</span>
                 <input
                   type="number"
@@ -1803,11 +1857,14 @@ export function App() {
               />
             )}
             {browseTab === 'editor' && (
-              <AttributeEditorPanel
-                loadInfo={!!loadInfo}
-                compressed={!!loadInfo?.compressed}
-                staffIndex={sel}
-              />
+              <div className="cm-scroll min-h-0 flex-1 overflow-y-auto">
+                <ClubEditorPanel loadInfo={!!loadInfo} compressed={!!loadInfo?.compressed} />
+                <AttributeEditorPanel
+                  loadInfo={!!loadInfo}
+                  compressed={!!loadInfo?.compressed}
+                  staffIndex={sel}
+                />
+              </div>
             )}
             {(browseTab === 'players' || browseTab === 'regens') && (
             <>

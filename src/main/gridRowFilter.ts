@@ -49,6 +49,12 @@ export type GetRowsFilter = {
   isRegenLikely?: boolean
   /** Forum-style CM0102 meta filter (see `engineSniffer.ts`). */
   engineSniffer?: EngineSnifferId
+  /** CM Scout rating % (`cmScoutRatingBp` on grid rows). */
+  cmScoutMin?: number
+  cmScoutMax?: number
+  /** Effectiveness % (`effPercent`; null / Unsure excluded when a bound is set). */
+  effMin?: number
+  effMax?: number
 }
 
 function hasActiveAttrMins(mins?: (number | null)[] | undefined): boolean {
@@ -95,6 +101,19 @@ function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string
   if (f.shSeasonGoalsMax != null && r.staffHistSeasonGoals > f.shSeasonGoalsMax) return false
   if (f.shCareerAppsMin != null && r.staffHistCareerApps < f.shCareerAppsMin) return false
   if (f.shSeasonAppsMin != null && r.staffHistSeasonApps < f.shSeasonAppsMin) return false
+
+  if (f.cmScoutMin != null) {
+    if (r.cmScoutRatingBp == null || r.cmScoutRatingBp < f.cmScoutMin) return false
+  }
+  if (f.cmScoutMax != null) {
+    if (r.cmScoutRatingBp == null || r.cmScoutRatingBp > f.cmScoutMax) return false
+  }
+  if (f.effMin != null) {
+    if (r.effPercent == null || r.effPercent < f.effMin) return false
+  }
+  if (f.effMax != null) {
+    if (r.effPercent == null || r.effPercent > f.effMax) return false
+  }
 
   if (f.contractTypeCategory) {
     if (!r.contract || !contractTypeMatchesCategory(r.contract.contract_type, f.contractTypeCategory)) {

@@ -4,6 +4,7 @@ import {
   STAFF_REGULAR_ATTR_FILTERS,
   type StaffAttrFilterSpec,
 } from '../../shared/staffAttrCatalog'
+import { nextAttrMinLadderOnRightClick } from '../../shared/attrMinLadder'
 import { CONTRACT_TYPE_FILTER_OPTIONS, type ContractTypeCategoryId } from '../../shared/contractTypes'
 
 function staffAttrIndex(spec: StaffAttrFilterSpec): number {
@@ -39,7 +40,11 @@ function StaffAttrMinGrid({
               className="w-12 rounded border border-zinc-700 bg-zinc-950 px-1 py-0.5 text-zinc-200"
               value={attrMins[i]}
               onChange={(e) => setStaffAttrMinAt(i, e.target.value)}
-              title="Minimum 1–20 (coaching attrs need a linked nonplayer.dat row)"
+              title="Right-click: cycle 5 → 10 → 15 → 20 → clear. Coaching attrs need a linked nonplayer.dat row."
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setStaffAttrMinAt(i, nextAttrMinLadderOnRightClick(attrMins[i] ?? ''))
+              }}
             />
           </label>
         )

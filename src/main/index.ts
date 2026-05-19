@@ -36,6 +36,7 @@ import {
 } from './clubBrowse'
 import type { ContractTypeCategoryId } from '../shared/contractTypes'
 import { buildStaffProfilePayload } from './staffProfilePayload'
+import { buildClubEditorSnapshot, buildPatchedArchiveForClubEdits } from './clubEditorSave'
 import {
   buildEditorValueMap,
   buildPatchedArchiveBuffer,
@@ -418,6 +419,73 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
   const ext = extname(base) || '.dat'
   const stem = ext.length > 0 ? base.slice(0, -ext.length) : base
   const suggested = join(dirname(loaded.indexPath), `${stem}-edited${ext}`)
+  const dlg = parent
+    ? await dialog.showSaveDialog(parent, {
+        title: 'Save edited database',
+        defaultPath: suggested,
+        filters: [
+          { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      })
+    : await dialog.showSaveDialog({
+        title: 'Save edited database',
+        defaultPath: suggested,
+        filters: [
+          { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      })
+  if (dlg.canceled || !dlg.filePath) return { ok: false as const, error: 'cancelled' }
+  try {
+    writeFileSync(dlg.filePath, built.buffer)
+    return { ok: true as const, path: dlg.filePath }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { ok: false as const, error: msg }
+  }
+})
+
+ipcMain.handle('get-club-editor-snapshot', async (_e, clubId: unknown) => {
+  if (!loaded) return null
+  const id = Math.floor(Number(clubId))
+  if (!Number.isFinite(id) || id <= 0) return null
+  const snap = buildClubEditorSnapshot(
+    loaded.archiveBuf,
+    loaded.db.blocks,
+    loaded.db.compressed,
+    loaded.db,
+    id,
+  )
+  if ('error' in snap) return { error: snap.error }
+  return snap
+})
+
+ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
+  if (!loaded) return { ok: false as const, error: 'No database loaded.' }
+  const p = payload as { clubId?: unknown; changes?: unknown }
+  const clubId = Math.floor(Number(p.clubId))
+  const ch = p.changes
+  if (!Number.isFinite(clubId) || clubId <= 0 || typeof ch !== 'object' || ch === null) {
+    return { ok: false as const, error: 'Invalid save payload.' }
+  }
+  const changes = ch as Record<string, number>
+  const built = buildPatchedArchiveForClubEdits(
+    loaded.archiveBuf,
+    loaded.db.blocks,
+    loaded.db.compressed,
+    loaded.db,
+    clubId,
+    changes,
+  )
+  if (!built.ok) return { ok: false as const, error: built.error }
+
+  const parent =
+    BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
+  const base = basename(loaded.indexPath)
+  const ext = extname(base) || '.dat'
+  const stem = ext.length > 0 ? base.slice(0, -ext.length) : base
+  const suggested = join(dirname(loaded.indexPath), `${stem}-club-edited${ext}`)
   const dlg = parent
     ? await dialog.showSaveDialog(parent, {
         title: 'Save edited database',

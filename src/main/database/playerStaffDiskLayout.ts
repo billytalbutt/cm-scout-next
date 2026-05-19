@@ -8,7 +8,7 @@ import type { BlockInfo } from './types'
 export const PLAYER_ROW_BYTES = 70
 export const STAFF_ROW_BYTES = 110
 
-export type DiskFieldKind = 'i8' | 'u8' | 'i16' | 'u16'
+export type DiskFieldKind = 'i8' | 'u8' | 'i16' | 'u16' | 'i32'
 
 /** Writable `player.dat` fields (excludes `id` at 0–3). */
 export const PLAYER_DISK_FIELDS: Record<string, { offset: number; kind: DiskFieldKind }> = {
@@ -119,6 +119,9 @@ export function writeScalarAt(buf: Buffer, absOffset: number, kind: DiskFieldKin
       break
     case 'u16':
       buf.writeUInt16LE(clampInt(v, 0, 65535), absOffset)
+      break
+    case 'i32':
+      buf.writeInt32LE(Math.trunc(v), absOffset)
       break
     default:
       break
