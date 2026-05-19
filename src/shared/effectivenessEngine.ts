@@ -33,7 +33,7 @@ export interface EffectivenessArchetype {
   engineExtras?: readonly EffectivenessEngineExtra[]
 }
 
-/** Primary ×5, secondary ×1.5, engine ×2 default; 1.25× at 20, further credit up to ~1.75 by 30+ display; brain mult on DC/DMC/MC/AMC. */
+/** Primary ×5, secondary ×1.5, engine ×2 default; on-screen 20 = full recipe credit (1.25×); bracketed display adds overflow bonus; brain mult on DC/DMC/AMC. */
 export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
   {
     id: 'gk',
@@ -165,21 +165,19 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
 const W_PRIMARY = 5
 const W_SECONDARY = 1.5
 const GOD_MULT = 1.25
-/** Extra valPart above on-screen 20 — separates OTB 30 from flat “all 20s”. */
-const VAL_PART_OVERFLOW_CAP = 1
-const OVERFLOW_DIVISOR = 12
-/** Normalization ceiling for primary/secondary recipe slots (elite cheat-code display). */
-const RECIPE_PRIMARY_CEILING = 32
-const RECIPE_SECONDARY_CEILING = 22
-const RECIPE_ENGINE_CEILING = 20
+/** Extra credit for bracketed engine display above on-screen 20 (numerator only — does not raise the bar). */
+const VAL_PART_OVERFLOW_CAP = 1.25
+const OVERFLOW_DIVISOR = 10
+/** On-screen / engine “perfect” for recipe normalization — all-20s should land near 100% pre-consistency. */
+const RECIPE_PERFECT_DISPLAY = 20
 
 /**
  * Heuristic “realizes their level” factor from consistency (1–20 display). Not from decompiled EXE;
- * tuned so C=1 still leaves ~73% of pre-consistency Eff, C=20 leaves 100%.
+ * tuned so C=1 still leaves ~88% of pre-consistency Eff, C=20 leaves 100%.
  */
 export function consistencyReliabilityFactor(consistencyDisplay: number): number {
   const c = Math.max(1, Math.min(20, consistencyDisplay))
-  return 0.72 + 0.014 * c
+  return 0.88 + 0.006 * c
 }
 
 export function effAttrLabel(key: string): string {
@@ -189,21 +187,27 @@ export function effAttrLabel(key: string): string {
     .join(' ')
 }
 
-/** Contribution 0…(GOD_MULT + VAL_PART_OVERFLOW_CAP) from profile / engine display value. */
-export function valPart(display: number): number {
+/** Base recipe contribution 0…GOD_MULT from on-screen display (capped at 20 for the bar). */
+export function valPartBase(display: number): number {
   if (!Number.isFinite(display)) return 0
-  const v = Math.max(0, display)
-  if (v <= 20) {
-    const base = v / 20
-    return v >= 20 ? base * GOD_MULT : base
-  }
-  return GOD_MULT + Math.min(VAL_PART_OVERFLOW_CAP, (v - 20) / OVERFLOW_DIVISOR)
+  const v = Math.max(0, Math.min(display, RECIPE_PERFECT_DISPLAY))
+  const base = v / RECIPE_PERFECT_DISPLAY
+  return v >= RECIPE_PERFECT_DISPLAY ? base * GOD_MULT : base
 }
 
-function recipeCeilingValPart(slot: 'primary' | 'secondary' | 'engine'): number {
-  if (slot === 'primary') return valPart(RECIPE_PRIMARY_CEILING)
-  if (slot === 'secondary') return valPart(RECIPE_SECONDARY_CEILING)
-  return valPart(RECIPE_ENGINE_CEILING)
+/** Bracketed elite bonus above 20 — added to numerator only so Eff % can exceed the all-20s baseline. */
+export function valPartOverflow(display: number): number {
+  if (!Number.isFinite(display) || display <= RECIPE_PERFECT_DISPLAY) return 0
+  return Math.min(VAL_PART_OVERFLOW_CAP, (display - RECIPE_PERFECT_DISPLAY) / OVERFLOW_DIVISOR)
+}
+
+/** Base + overflow (for tests and tooling). */
+export function valPart(display: number): number {
+  return valPartBase(display) + valPartOverflow(display)
+}
+
+function recipePerfectValPart(): number {
+  return valPartBase(RECIPE_PERFECT_DISPLAY)
 }
 
 export interface EffStatLine {
@@ -211,9 +215,21 @@ export interface EffStatLine {
   label: string
   slot: 'primary' | 'secondary' | 'engine'
   weight: number
+  /** Value from effectiveness getter (uncapped engine display where applicable). */
   raw: number
   contribution: number
+  /** On-screen or engine display ≥ 20. */
   godTier: boolean
+  /** Engine display above on-screen 20 (bracketed elites). */
+  overflow: boolean
+}
+
+export type EffectivenessArchetypeRow = {
+  archetypeId: string
+  archetypeLabel: string
+  /** After consistency multiplier — comparable across natural roles. */
+  percent: number
+  isWinner: boolean
 }
 
 export interface EffectivenessWinnerDetail {
@@ -334,10 +350,10 @@ function accumulateArchetype(
   let max = 0
   for (const k of a.primary) {
     const raw = get(k)
-    const vp = valPart(raw)
+    const vp = valPartBase(raw) + valPartOverflow(raw)
     const c = W_PRIMARY * vp
     sum += c
-    max += W_PRIMARY * recipeCeilingValPart('primary')
+    max += W_PRIMARY * recipePerfectValPart()
     lines.push({
       key: k,
       label: effAttrLabel(k),
@@ -346,14 +362,15 @@ function accumulateArchetype(
       raw,
       contribution: c,
       godTier: raw >= 20,
+      overflow: raw > 20,
     })
   }
   for (const k of a.secondary) {
     const raw = get(k)
-    const vp = valPart(raw)
+    const vp = valPartBase(raw) + valPartOverflow(raw)
     const c = W_SECONDARY * vp
     sum += c
-    max += W_SECONDARY * recipeCeilingValPart('secondary')
+    max += W_SECONDARY * recipePerfectValPart()
     lines.push({
       key: k,
       label: effAttrLabel(k),
@@ -362,6 +379,7 @@ function accumulateArchetype(
       raw,
       contribution: c,
       godTier: raw >= 20,
+      overflow: raw > 20,
     })
   }
   for (const ex of a.engineExtras ?? []) {
@@ -372,10 +390,10 @@ function accumulateArchetype(
       effectiveRaw = 21 - c0
     }
     const w = ex.weight
-    const vp = valPart(effectiveRaw)
+    const vp = valPartBase(effectiveRaw) + valPartOverflow(effectiveRaw)
     const c = w * vp
     sum += c
-    max += w * recipeCeilingValPart('engine')
+    max += w * recipePerfectValPart()
     engineLines.push({
       key: ex.key,
       label: effAttrLabel(ex.key),
@@ -384,6 +402,7 @@ function accumulateArchetype(
       raw: sourceRaw,
       contribution: c,
       godTier: effectiveRaw >= 20,
+      overflow: effectiveRaw > 20,
     })
   }
   const basePct = max <= 0 ? 0 : (100 * sum) / max
@@ -427,6 +446,8 @@ export type EffectivenessFullResult = {
   effArchetypeId: string
   winnerDetail: EffectivenessWinnerDetail | null
   runnerUp: EffectivenessRunnerUp | null
+  /** Every natural-gated archetype scored with the same getter + consistency mult. */
+  byArchetype: EffectivenessArchetypeRow[]
   relaxedNaturalGate: boolean
 }
 
@@ -449,6 +470,7 @@ export function computeEffectivenessFull(
       effArchetypeId: 'unsure',
       winnerDetail: null,
       runnerUp: null,
+      byArchetype: [],
       relaxedNaturalGate: true,
     }
   }
@@ -470,12 +492,19 @@ export function computeEffectivenessFull(
   const rel = consistencyReliabilityFactor(c)
   const effPercent = preC < 0 ? 0 : round1(Math.min(100, preC * rel))
 
+  const byArchetype: EffectivenessArchetypeRow[] = scored.map((s, i) => ({
+    archetypeId: s.a.id,
+    archetypeLabel: s.a.label,
+    percent: round1(Math.min(100, Math.max(0, s.rawFinal * rel))),
+    isWinner: i === 0,
+  }))
+
   const runnerUp: EffectivenessRunnerUp | null =
     second && second.a.id !== best.a.id
       ? {
           archetypeId: second.a.id,
           archetypeLabel: second.a.label,
-          score: round1(second.rawFinal * rel),
+          score: byArchetype[1]?.percent ?? round1(second.rawFinal * rel),
         }
       : null
 
@@ -492,6 +521,7 @@ export function computeEffectivenessFull(
     effArchetypeId: best.a.id,
     winnerDetail,
     runnerUp,
+    byArchetype,
     relaxedNaturalGate: false,
   }
 }

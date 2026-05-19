@@ -564,6 +564,7 @@ export function buildProfilePayload(
     cmScoutRatingBp: row.cmScoutRatingBp,
     effPercent: effFull.effPercent,
     effArchetype: effFull.effArchetype,
+    effByArchetype: effFull.byArchetype,
     effWinnerDetail: effFull.winnerDetail ?? undefined,
     effRunnerUp: effFull.runnerUp,
     effRelaxedNaturalGate: effFull.relaxedNaturalGate,

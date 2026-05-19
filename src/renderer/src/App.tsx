@@ -2428,8 +2428,10 @@ export function App() {
                                   <p className="mt-1 text-zinc-500">
                                     Winning recipe{' '}
                                     <span className="text-emerald-200/90">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
-                                    — primary ×5, secondary ×1.5, engine rows on lighter weights; values are profile
-                                    1–20. ★ = on-screen 20 (1.25×). Consistency multiplies the score.
+                                    — primary ×5, secondary ×1.5, engine rows on lighter weights; values use
+                                    uncapped engine display where the profile shows bracketed elites above 20. ↑ =
+                                    engine value above on-screen 20; ★ = 20 without overflow. Consistency multiplies
+                                    the score.
                                   </p>
                                   {profile.effWinnerDetail.brainMult ? (
                                     <p className="mt-1 text-zinc-500">
@@ -2469,6 +2471,34 @@ export function App() {
                         <span className="text-emerald-200">{profile.cmScoutRatingBp}%</span>
                       </p>
                     )}
+                    {profile.effByArchetype && profile.effByArchetype.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
+                          Eff % by recipe (natural roles)
+                        </p>
+                        <div className="mt-1 grid grid-cols-4 gap-1 text-center">
+                          {profile.effByArchetype.map((row) => (
+                            <div
+                              key={row.archetypeId}
+                              className={`rounded px-1 py-1 ${
+                                row.isWinner
+                                  ? 'bg-emerald-950/40 ring-1 ring-emerald-500/45'
+                                  : 'bg-zinc-900/50'
+                              }`}
+                            >
+                              <p className="text-[8px] uppercase tracking-wide text-zinc-500">{row.archetypeLabel}</p>
+                              <p
+                                className={`font-mono text-[11px] ${
+                                  row.isWinner ? 'text-emerald-200' : 'text-zinc-300'
+                                }`}
+                              >
+                                {row.percent.toFixed(1)}%
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {profile.effArchetype && profile.effWinnerDetail && (
                       <div className="mt-2 rounded border border-zinc-800/90 bg-zinc-950/55 p-2 text-[10px] leading-snug text-zinc-400">
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1">
@@ -2480,7 +2510,11 @@ export function App() {
                                     .map((l) => (
                                       <li key={`pe-${l.key}`}>
                                         {l.label} {l.raw}
-                                        {l.godTier ? <span className="text-amber-300/90"> ★</span> : null}
+                                        {l.overflow ? (
+                                          <span className="text-amber-300/90"> ↑</span>
+                                        ) : l.godTier ? (
+                                          <span className="text-amber-300/90"> ★</span>
+                                        ) : null}
                                       </li>
                                     ))}
                                 </ul>
@@ -2493,7 +2527,11 @@ export function App() {
                                     .map((l) => (
                                       <li key={`se-${l.key}`}>
                                         {l.label} {l.raw}
-                                        {l.godTier ? <span className="text-amber-300/90"> ★</span> : null}
+                                        {l.overflow ? (
+                                          <span className="text-amber-300/90"> ↑</span>
+                                        ) : l.godTier ? (
+                                          <span className="text-amber-300/90"> ★</span>
+                                        ) : null}
                                       </li>
                                     ))}
                                 </ul>
@@ -2509,7 +2547,11 @@ export function App() {
                                       {l.key === 'injury_proneness' ? (
                                         <span className="text-zinc-600"> inv</span>
                                       ) : null}
-                                      {l.godTier ? <span className="text-amber-300/90"> ★</span> : null}
+                                      {l.overflow ? (
+                                        <span className="text-amber-300/90"> ↑</span>
+                                      ) : l.godTier ? (
+                                        <span className="text-amber-300/90"> ★</span>
+                                      ) : null}
                                     </li>
                                   ))}
                                 </ul>

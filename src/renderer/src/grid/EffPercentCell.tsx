@@ -121,9 +121,10 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
               </p>
             )}
             <p className="mt-1 text-[10px] text-zinc-500">
-              Same <strong className="text-zinc-400">1–20 numbers as the profile</strong>. Engine rows = hiddens /
-              set-pieces / staff mentals vetted per role; injury proneness is inverted (high file value = worse).
-              Consistency multiplies the whole score — forum lore, not a decompiled formula.
+              Values use <strong className="text-zinc-400">uncapped engine display</strong> where the profile shows
+              bracketed elites above 20 (↑). Engine rows = hiddens / set-pieces / staff mentals vetted per role; injury
+              proneness is inverted (high file value = worse). Consistency multiplies the whole score — forum lore, not
+              a decompiled formula.
             </p>
             <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-500">Primary (×5)</p>
             <ul className="mt-0.5 space-y-0.5 font-mono text-[10px] text-zinc-300">
@@ -132,7 +133,11 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
                 .map((l) => (
                   <li key={`p-${l.key}`}>
                     {l.label} <span className="text-zinc-500">{l.raw}</span>
-                    {l.godTier ? <span className="text-amber-300"> ★20+</span> : null}
+                    {l.overflow ? (
+                      <span className="text-amber-300"> ↑</span>
+                    ) : l.godTier ? (
+                      <span className="text-amber-300"> ★</span>
+                    ) : null}
                   </li>
                 ))}
             </ul>
@@ -143,10 +148,29 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
                 .map((l) => (
                   <li key={`s-${l.key}`}>
                     {l.label} <span className="text-zinc-500">{l.raw}</span>
-                    {l.godTier ? <span className="text-amber-300"> ★20+</span> : null}
+                    {l.overflow ? (
+                      <span className="text-amber-300"> ↑</span>
+                    ) : l.godTier ? (
+                      <span className="text-amber-300"> ★</span>
+                    ) : null}
                   </li>
                 ))}
             </ul>
+            {data.byArchetype.length > 1 && (
+              <>
+                <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-500">All natural recipes</p>
+                <ul className="mt-0.5 space-y-0.5 font-mono text-[10px] text-zinc-300">
+                  {data.byArchetype.map((row) => (
+                    <li key={row.archetypeId}>
+                      {row.archetypeLabel}{' '}
+                      <span className={row.isWinner ? 'text-emerald-200' : 'text-zinc-400'}>
+                        {row.percent.toFixed(1)}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             {data.winnerDetail.engineLines.length > 0 && (
               <>
                 <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-500">Engine (weighted)</p>
@@ -156,7 +180,11 @@ export function EffPercentCell({ staffIndex, effPercent, effArchetype, cmScoutRa
                       {l.label}{' '}
                       <span className="text-zinc-500">{l.raw}</span>
                       {l.key === 'injury_proneness' ? <span className="text-zinc-600"> (inv.)</span> : null}
-                      {l.godTier ? <span className="text-amber-300"> ★20+</span> : null}
+                      {l.overflow ? (
+                        <span className="text-amber-300"> ↑</span>
+                      ) : l.godTier ? (
+                        <span className="text-amber-300"> ★</span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

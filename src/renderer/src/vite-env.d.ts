@@ -1,7 +1,12 @@
 /// <reference types="vite/client" />
 
 import type { GridPlayerRow } from '../../shared/gridTypes'
-import type { EffectivenessFullResult, EffectivenessRunnerUp, EffectivenessWinnerDetail } from '../../shared/effectivenessEngine'
+import type {
+  EffectivenessArchetypeRow,
+  EffectivenessFullResult,
+  EffectivenessRunnerUp,
+  EffectivenessWinnerDetail,
+} from '../../shared/effectivenessEngine'
 
 export {}
 
@@ -249,6 +254,7 @@ export interface ProfilePayload {
     | 'wide_attacker'
   eliteEngineBadgeTitle?: string
   eliteEngineBadgeDetail?: string
+  effByArchetype?: EffectivenessArchetypeRow[]
   effWinnerDetail?: EffectivenessWinnerDetail | null
   effRunnerUp?: EffectivenessRunnerUp | null
   effRatingDisclaimer?: string

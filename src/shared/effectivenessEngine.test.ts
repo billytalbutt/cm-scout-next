@@ -68,7 +68,25 @@ describe('valPart overflow', () => {
     expect(valPart(20)).toBeCloseTo(1.25, 5)
     expect(valPart(23)).toBeGreaterThan(valPart(20))
     expect(valPart(30)).toBeGreaterThan(valPart(23))
-    expect(valPart(30)).toBeGreaterThan(1.9)
+    expect(valPart(30)).toBeCloseTo(2.25, 5)
+  })
+})
+
+describe('recipe normalization', () => {
+  const stOnly = new Set(['st'])
+
+  it('all on-screen 20s on ST recipe land in high-80s after consistency', () => {
+    const p = poacherPlayer(20, 20)
+    p.pace = 20
+    p.acceleration = 20
+    p.agility = 20
+    p.jumping = 20
+    p.strength = 20
+    p.consistency = 18
+    const get = effectivenessAttrGetter(p, staffStub)
+    const full = computeEffectivenessFull(get, stOnly)
+    expect(full.effPercent).not.toBeNull()
+    expect(full.effPercent!).toBeGreaterThanOrEqual(88)
   })
 })
 
@@ -100,5 +118,11 @@ describe('poacher effectiveness', () => {
     expect(lo.effPercent).not.toBeNull()
     expect(hi.effPercent!).toBeGreaterThan(lo.effPercent!)
     expect(hi.effPercent! - lo.effPercent!).toBeGreaterThanOrEqual(5)
+    expect(hi.effPercent!).toBeGreaterThanOrEqual(90)
+    expect(hi.byArchetype).toHaveLength(1)
+    expect(hi.byArchetype[0]!.percent).toBe(hi.effPercent)
+    const finLine = hi.winnerDetail?.lines.find((l) => l.key === 'finishing')
+    expect(finLine?.overflow).toBe(true)
+    expect(finLine?.raw).toBeGreaterThan(20)
   })
 })
