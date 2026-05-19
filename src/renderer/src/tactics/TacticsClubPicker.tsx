@@ -58,6 +58,7 @@ export function TacticsClubPicker({ loadInfo, clubId, clubName, onSelect }: Prop
     onSelect(c.id, c.name)
     setQ(c.name)
     setMenuOpen(false)
+    setSuggestions([])
   }
 
   const clear = () => {
@@ -111,8 +112,9 @@ export function TacticsClubPicker({ loadInfo, clubId, clubName, onSelect }: Prop
         </div>
       </label>
       {clubId != null && clubName && (
-        <p className="mt-1.5 text-[10px] text-emerald-300/90">
-          Line-up can use this club&apos;s squad when &quot;Club squad only&quot; is on.
+        <p className="mt-1.5 rounded border border-emerald-900/40 bg-emerald-950/25 px-2 py-1 text-[10px] text-emerald-300/90">
+          Selected: <span className="font-medium text-emerald-100">{clubName}</span> — use Club squad only in the
+          line-up pane.
         </p>
       )}
       {menuOpen && debouncedQ && suggestions.length > 0 && (

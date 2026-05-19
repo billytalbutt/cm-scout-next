@@ -113,7 +113,7 @@ export function TacticsLabPanel({
 
   const pullFromSaveClub = useCallback(async () => {
     if (tacticsSeedClubId == null || typeof window.cmapi?.getClubDetail !== 'function') {
-      setSaveWireMsg('Select a club in the Clubs tab first (click a club in the list).')
+      setSaveWireMsg('Select a squad club on the tactics pitch panel first.')
       return
     }
     setSaveWireLoading(true)

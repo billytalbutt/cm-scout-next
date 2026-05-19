@@ -47,35 +47,83 @@ export interface ClubSquadPlayerRow {
   club: string
 }
 
+/** `staff.club_job_id` and `contract.club_id` can disagree on some saves (see profilePayload). */
+function staffEmployedAtClub(db: ParsedDatabase, staffIndex: number, clubId: number): boolean {
+  const s = db.staff[staffIndex]
+  if (!s) return false
+  if (s.club_job_id === clubId) return true
+  const contract = db.contractsByStaffIndex.get(staffIndex)
+  return contract?.club_id === clubId
+}
+
+function uiRowEmployedAtClub(ui: UiPlayerRow, clubId: number): boolean {
+  if (ui.staff.club_job_id === clubId) return true
+  return ui.contract?.club_id === clubId
+}
+
+function appendSquadPlayerRow(
+  db: ParsedDatabase,
+  out: ClubSquadPlayerRow[],
+  seen: Set<number>,
+  staffIndex: number,
+  clubId: number,
+  clubLabel: string,
+): void {
+  if (seen.has(staffIndex)) return
+  const s = db.staff[staffIndex]
+  if (!s) return
+  if (s.player_id < 0 || s.player_id >= db.players.length) return
+  if (!staffEmployedAtClub(db, staffIndex, clubId)) return
+  const p = db.players[s.player_id]
+  if (!p) return
+  const name = staffDisplayName(s, db.firstNames, db.secondNames, db.commonNames)
+  if (!name || name.startsWith('#')) return
+  seen.add(staffIndex)
+  out.push({
+    staffIndex,
+    name,
+    ca: p.current_ability,
+    pa: p.potential_ability,
+    club: db.clubNames.get(clubId) ?? clubLabel,
+  })
+}
+
+/**
+ * Playable staff in the club's save squad (`club.dat` Squad[] / TeamSelected[]), validated against
+ * current employer bytes. Falls back to an employer scan when slot lists decode poorly on a save.
+ */
 export function buildClubSquadPlayerRows(db: ParsedDatabase, clubId: number): ClubSquadPlayerRow[] {
   const club = db.clubsById?.get(clubId)
   if (!club) return []
-  const { staff, players, clubNames, firstNames, secondNames, commonNames } = db
-  const nPlayers = players.length
   const clubLabel = club.name
-  const out: ClubSquadPlayerRow[] = []
-  const seen = new Set<number>()
-  for (const sid of club.squadStaffIds) {
-    if (sid <= 0 || seen.has(sid)) continue
-    seen.add(sid)
-    const staffIndex = staff.findIndex((s) => s.id === sid)
-    if (staffIndex < 0) continue
-    const s = staff[staffIndex]!
-    if (s.player_id < 0 || s.player_id >= nPlayers) continue
-    const p = players[s.player_id]
-    if (!p) continue
-    const fn = firstNames[s.first_name_id] ?? ''
-    const sn = secondNames[s.second_name_id] ?? ''
-    const cn = commonNames[s.common_name_id] ?? ''
-    const name = cn.trim() || `${fn} ${sn}`.trim() || `#${s.id}`
-    out.push({
-      staffIndex,
-      name,
-      ca: p.current_ability,
-      pa: p.potential_ability,
-      club: clubNames.get(s.club_job_id) ?? clubLabel,
-    })
+  const staffById = new Map<number, number>()
+  for (let staffIndex = 0; staffIndex < db.staff.length; staffIndex++) {
+    staffById.set(db.staff[staffIndex]!.id, staffIndex)
   }
+
+  const seen = new Set<number>()
+  const out: ClubSquadPlayerRow[] = []
+
+  for (const staffId of club.squadStaffIds) {
+    if (staffId <= 0) continue
+    const staffIndex = staffById.get(staffId)
+    if (staffIndex === undefined) continue
+    appendSquadPlayerRow(db, out, seen, staffIndex, clubId, clubLabel)
+  }
+  for (const staffId of club.teamSelectedStaffIds) {
+    if (staffId <= 0) continue
+    const staffIndex = staffById.get(staffId)
+    if (staffIndex === undefined) continue
+    appendSquadPlayerRow(db, out, seen, staffIndex, clubId, clubLabel)
+  }
+
+  if (out.length < 8) {
+    for (let staffIndex = 0; staffIndex < db.staff.length; staffIndex++) {
+      if (db.staff[staffIndex]!.club_job_id !== clubId) continue
+      appendSquadPlayerRow(db, out, seen, staffIndex, clubId, clubLabel)
+    }
+  }
+
   out.sort((a, b) => b.ca - a.ca || a.name.localeCompare(b.name))
   return out
 }
@@ -92,9 +140,11 @@ export function buildClubSquadGridRows(
     let ui = uiRowsByStaffIndex?.[s.staffIndex]
     if (!ui) {
       const built = buildUiPlayerRowAtIndex(db, s.staffIndex)
-      if (!built) continue
+      if (!built || !uiRowEmployedAtClub(built, clubId)) continue
       applyCmScoutRatings([built])
       ui = built
+    } else if (!uiRowEmployedAtClub(ui, clubId)) {
+      continue
     }
     out.push(mapUiRowToGridPayload(ui, { role7: true }))
   }

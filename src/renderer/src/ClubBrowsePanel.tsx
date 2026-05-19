@@ -124,12 +124,10 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
   useEffect(() => {
     if (selId == null) {
       setDetail(null)
-      onClubSelectForTactics?.(null, null)
       return
     }
-    onClubSelectForTactics?.(selId, null)
     void loadDetail(selId)
-  }, [selId, loadDetail, onClubSelectForTactics])
+  }, [selId, loadDetail])
 
   useEffect(() => {
     if (selId != null && detail?.name) onClubSelectForTactics?.(selId, detail.name)
@@ -140,6 +138,7 @@ export function ClubBrowsePanel({ loadInfo, onOpenPlayerProfile, onClubSelectFor
     if (lockedName != null && next !== lockedName) {
       setLockedName(null)
       setSelId(null)
+      onClubSelectForTactics?.(null, null)
     }
   }
 

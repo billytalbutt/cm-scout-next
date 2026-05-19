@@ -935,57 +935,6 @@ export function App() {
               {loadInfo.playerBlobRows.toLocaleString()} rows
             </span>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-zinc-800/50 bg-zinc-950/45 px-5 py-2 text-[11px]">
-            <span className="font-semibold uppercase tracking-wider text-zinc-500">Regen tracking</span>
-            <HoverTip
-              tip={
-                <div className="space-y-2 text-zinc-300">
-                  <p>
-                    <span className="font-medium text-white">GPF2-style</span> (Generated Player Finder 2): save a
-                    snapshot right after you load a game — later, when you open the <strong>same file path</strong> again,
-                    we compare each staff <code className="text-zinc-400">id</code> to that snapshot. If the name-id
-                    triple changed but the id is the same, we treat it like the community tool: same slot, new face =
-                    likely regen; <strong>Regen of</strong> shows the old snapshot name.
-                  </p>
-                  <p className="text-zinc-400">
-                    Use an <strong>uncompressed</strong> save (Game Settings → Save Compressed = No), as with GPF2.
-                    If no snapshot exists, we fall back to the same-save PA + nation + positions + DOB heuristic (weaker).
-                  </p>
-                </div>
-              }
-            >
-              <span className="inline-flex cursor-default items-center gap-1 text-zinc-400">
-                How it works
-                <InfoDot />
-              </span>
-            </HoverTip>
-            {loadInfo.regenBaseline.active ? (
-              <span className="text-emerald-400/90">
-                Snapshot on · {loadInfo.regenBaseline.entryCount?.toLocaleString() ?? '—'} players ·{' '}
-                <span className="font-mono text-emerald-200/90">
-                  {(loadInfo.regenBaseline.savedAt ?? '').slice(0, 19).replace('T', ' ')}
-                </span>
-              </span>
-            ) : (
-              <span className="text-zinc-500">No snapshot — save one after load for GPF2-style accuracy</span>
-            )}
-            <button
-              type="button"
-              onClick={() => void saveRegenBaseline()}
-              className="rounded-md border border-emerald-700/50 bg-emerald-950/30 px-2.5 py-1 text-[11px] font-medium text-emerald-200 hover:bg-emerald-900/40"
-            >
-              Save snapshot
-            </button>
-            {loadInfo.regenBaseline.active && (
-              <button
-                type="button"
-                onClick={() => void clearRegenBaseline()}
-                className="rounded-md border border-zinc-600 px-2.5 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-              >
-                Clear snapshot
-              </button>
-            )}
-          </div>
           <div className="flex shrink-0 flex-col gap-2 border-b border-zinc-800/60 bg-zinc-900/30 px-5 py-2 sm:flex-row sm:items-center sm:justify-between">
             <HoverTip
               tip={
@@ -1583,6 +1532,67 @@ export function App() {
             )}
             {(browseTab === 'players' || browseTab === 'regens') && (
             <>
+            {browseTab === 'regens' && loadInfo && (
+              <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-[11px]">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <span className="font-semibold uppercase tracking-wider text-zinc-400">Regen tracking</span>
+                  <HoverTip
+                    tip={
+                      <div className="space-y-2 text-zinc-300">
+                        <p>
+                          <span className="font-medium text-white">GPF2-style</span> (Generated Player Finder 2): save a
+                          snapshot right after you load a game — later, when you open the{' '}
+                          <strong>same file path</strong> again, we compare each staff{' '}
+                          <code className="text-zinc-400">id</code> to that snapshot. If the name-id triple changed but the
+                          id is the same, we treat it like the community tool: same slot, new face = likely regen;{' '}
+                          <strong>Regen of</strong> shows the old snapshot name.
+                        </p>
+                        <p className="text-zinc-400">
+                          Use an <strong>uncompressed</strong> save (Game Settings → Save Compressed = No), as with GPF2.
+                          If no snapshot exists, we fall back to the same-save PA + nation + positions + DOB heuristic
+                          (weaker).
+                        </p>
+                      </div>
+                    }
+                  >
+                    <span className="inline-flex cursor-default items-center gap-1 text-zinc-400">
+                      How it works
+                      <InfoDot />
+                    </span>
+                  </HoverTip>
+                  {loadInfo.regenBaseline.active ? (
+                    <span className="text-emerald-400/90">
+                      Snapshot on · {loadInfo.regenBaseline.entryCount?.toLocaleString() ?? '—'} players ·{' '}
+                      <span className="font-mono text-emerald-200/90">
+                        {(loadInfo.regenBaseline.savedAt ?? '').slice(0, 19).replace('T', ' ')}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-zinc-500">No snapshot — save one after load for GPF2-style accuracy</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void saveRegenBaseline()}
+                    className="rounded-md border border-emerald-700/50 bg-emerald-950/30 px-2.5 py-1 text-[11px] font-medium text-emerald-200 hover:bg-emerald-900/40"
+                  >
+                    Save snapshot
+                  </button>
+                  {loadInfo.regenBaseline.active && (
+                    <button
+                      type="button"
+                      onClick={() => void clearRegenBaseline()}
+                      className="rounded-md border border-zinc-600 px-2.5 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                    >
+                      Clear snapshot
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-[10px] leading-snug text-zinc-500">
+                  This snapshot only affects regen detection on the Regens tab and Is regen / Regen of columns — not
+                  tactics or other tabs.
+                </p>
+              </div>
+            )}
             {loadInfo && rows.length === 0 && (
               <p className="mb-3 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-300">
                 {browseTab === 'regens'
