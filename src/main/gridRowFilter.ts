@@ -7,6 +7,10 @@ import {
   transferListedByClub,
   transferListedByRequest,
 } from './cmScoutRating'
+import {
+  contractTypeMatchesCategory,
+  type ContractTypeCategoryId,
+} from '../shared/contractTypes'
 
 /** Subset of the IPC payload from `get-rows` used for filtering (main process). */
 export type GetRowsFilter = {
@@ -29,7 +33,8 @@ export type GetRowsFilter = {
   shSeasonGoalsMax?: number
   shCareerAppsMin?: number
   shSeasonAppsMin?: number
-  contractType?: number
+  /** CM Scout–style contract category (not a single raw byte). */
+  contractTypeCategory?: ContractTypeCategoryId
   transferListedClub?: boolean
   transferListedRequest?: boolean
   listedForLoan?: boolean
@@ -91,8 +96,10 @@ function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string
   if (f.shCareerAppsMin != null && r.staffHistCareerApps < f.shCareerAppsMin) return false
   if (f.shSeasonAppsMin != null && r.staffHistSeasonApps < f.shSeasonAppsMin) return false
 
-  if (typeof f.contractType === 'number' && !Number.isNaN(f.contractType)) {
-    if (!r.contract || r.contract.contract_type !== f.contractType) return false
+  if (f.contractTypeCategory) {
+    if (!r.contract || !contractTypeMatchesCategory(r.contract.contract_type, f.contractTypeCategory)) {
+      return false
+    }
   }
 
   const wantTl =

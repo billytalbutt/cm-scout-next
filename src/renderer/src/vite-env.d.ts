@@ -185,6 +185,7 @@ export interface StaffProfilePayload {
     dateStarted: string | null
     contractExpires: string | null
     type: number
+    typeLabel?: string
   }
 }
 
@@ -290,6 +291,7 @@ export interface ProfilePayload {
     assistBonus: number
     releaseFee: number
     type: number
+    typeLabel: string
     dateStarted: string | null
     contractExpires: string | null
     leavingOnBosman: boolean

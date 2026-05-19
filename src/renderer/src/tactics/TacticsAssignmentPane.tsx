@@ -255,7 +255,7 @@ export function TacticsAssignmentPane({
       <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 px-2.5 py-2">
         <input
           type="checkbox"
-          className="mt-0.5 accent-emerald-600"
+          className="mt-0.5"
           checked={clubSquadOnly}
           onChange={(e) => setClubSquadOnly(e.target.checked)}
           disabled={!loadInfo}

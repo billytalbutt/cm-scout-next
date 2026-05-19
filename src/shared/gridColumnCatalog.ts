@@ -75,7 +75,7 @@ const CORE: GridColumnCatalogEntry[] = [
   { id: 'cReleaseFee', label: 'Release fee', group: 'Contract', requires: { contract: true } },
   { id: 'cDateStarted', label: 'Contract started', group: 'Contract', requires: { contract: true } },
   { id: 'cDateExpires', label: 'Contract expires', group: 'Contract', requires: { contract: true } },
-  { id: 'cType', label: 'Contract type (byte)', group: 'Contract', requires: { contract: true } },
+  { id: 'cType', label: 'Contract type', group: 'Contract', requires: { contract: true } },
   { id: 'cBosman', label: 'Leaving on Bosman / free', group: 'Contract', requires: { contract: true } },
   { id: 'cMinFeeRc', label: 'Min-fee release clause', group: 'Contract', requires: { contract: true } },
   { id: 'cNonPromoRc', label: 'Non-promotion clause', group: 'Contract', requires: { contract: true } },

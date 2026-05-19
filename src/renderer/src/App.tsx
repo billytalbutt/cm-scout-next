@@ -33,6 +33,7 @@ import {
 import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { attrColor, engineBracketClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { setCopiedPlayerAttributes } from '../../shared/copiedPlayerAttributes'
+import { CONTRACT_TYPE_FILTER_OPTIONS, type ContractTypeCategoryId } from '../../shared/contractTypes'
 
 const gridColHelper = createGridColumnHelper()
 
@@ -176,7 +177,7 @@ function ProfileEngineAttrsControl({
     >
       <input
         type="checkbox"
-        className="h-3.5 w-3.5 shrink-0 rounded border-zinc-500 text-sky-500 focus:ring-1 focus:ring-sky-500/50"
+        className="shrink-0"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />
@@ -265,7 +266,7 @@ export function App() {
   const [shSeasonGoalsMax, setShSeasonGoalsMax] = useState('')
   const [shCareerAppsMin, setShCareerAppsMin] = useState('')
   const [shSeasonAppsMin, setShSeasonAppsMin] = useState('')
-  const [contractType, setContractType] = useState('')
+  const [contractTypeCategory, setContractTypeCategory] = useState<'' | ContractTypeCategoryId>('')
   const [tlClub, setTlClub] = useState(false)
   const [tlRequest, setTlRequest] = useState(false)
   const [loanListed, setLoanListed] = useState(false)
@@ -364,7 +365,7 @@ export function App() {
     setShSeasonGoalsMax('')
     setShCareerAppsMin('')
     setShSeasonAppsMin('')
-    setContractType('')
+    setContractTypeCategory('')
     setTlClub(false)
     setTlRequest(false)
     setLoanListed(false)
@@ -499,8 +500,7 @@ export function App() {
     if (Number.isFinite(ssgMax)) f.shSeasonGoalsMax = ssgMax
     if (Number.isFinite(scaMin)) f.shCareerAppsMin = scaMin
     if (Number.isFinite(ssaMin)) f.shSeasonAppsMin = ssaMin
-    const ct = num(contractType)
-    if (contractType.trim() !== '' && Number.isFinite(ct)) f.contractType = ct
+    if (contractTypeCategory) f.contractTypeCategory = contractTypeCategory
     if (tlClub) f.transferListedClub = true
     if (tlRequest) f.transferListedRequest = true
     if (loanListed) f.listedForLoan = true
@@ -623,7 +623,7 @@ export function App() {
     shSeasonGoalsMax,
     shCareerAppsMin,
     shSeasonAppsMin,
-    contractType,
+    contractTypeCategory,
     tlClub,
     tlRequest,
     loanListed,
@@ -893,7 +893,7 @@ export function App() {
           <img
             src="/merlin-mascot.png"
             alt=""
-            className="h-11 w-auto max-h-11 shrink-0 object-contain object-left"
+            className="h-[4.125rem] w-auto max-h-[4.125rem] shrink-0 object-contain object-left"
             title="CM Merlin Scout"
           />
           <div className="min-w-0">
@@ -1165,18 +1165,22 @@ export function App() {
                 />
               </label>
             </div>
-            <div>
-              <span className="mb-1 block text-xs text-zinc-500">Contract type (exact byte, empty = any)</span>
-              <input
-                type="number"
-                min={0}
-                max={255}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
-                value={contractType}
-                onChange={(e) => setContractType(e.target.value)}
-                placeholder="e.g. 2"
-              />
-            </div>
+            <label>
+              <span className="mb-1 block text-xs text-zinc-500">Contract type</span>
+              <select
+                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+                value={contractTypeCategory}
+                onChange={(e) =>
+                  setContractTypeCategory((e.target.value || '') as '' | ContractTypeCategoryId)
+                }
+              >
+                {CONTRACT_TYPE_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.id || 'any'} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
               <span className="text-xs font-medium text-zinc-400">Transfer / loan</span>
               <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
@@ -2176,6 +2180,8 @@ export function App() {
                     <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.assistBonus)}</span>
                     <span>Release fee</span>
                     <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.releaseFee)}</span>
+                    <span>Contract type</span>
+                    <span className="text-right text-zinc-200">{profile.contract.typeLabel}</span>
                     <span>Started</span>
                     <span className="text-right font-mono text-zinc-200">
                       {profile.contract.dateStarted ?? '—'}

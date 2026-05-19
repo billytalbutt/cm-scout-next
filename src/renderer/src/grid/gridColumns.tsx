@@ -1,6 +1,7 @@
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
 import type { GridPlayerRow } from '../../../shared/gridTypes'
 import { GRID_COLUMN_CATALOG } from '../../../shared/gridColumnCatalog'
+import { contractTypeLabel } from '../../../shared/contractTypes'
 import { EffPercentCell } from './EffPercentCell'
 import { EliteEngineStar } from './EliteEngineStar'
 
@@ -575,7 +576,15 @@ function defFor(
         },
       })
     case 'cType':
-      return h.accessor((r) => r.cType ?? -1, { id, header: lab, cell: ({ getValue }) => (getValue() == null || getValue()! < 0 ? '—' : String(getValue())) })
+      return h.accessor((r) => r.cType ?? -1, {
+        id,
+        header: lab,
+        cell: ({ getValue }) => {
+          const v = getValue()
+          if (v == null || v < 0) return '—'
+          return <span className="text-[11px] text-zinc-300">{contractTypeLabel(v)}</span>
+        },
+      })
     case 'cBosman':
       return h.accessor((r) => (r.cBosman === true ? 1 : 0), {
         id,

@@ -4,6 +4,7 @@ import {
   transferListedByClub,
   transferListedByRequest,
 } from './cmScoutRating'
+import { contractTypeLabel } from '../shared/contractTypes'
 import { buildCompetitionNamesById } from './database/competitionNames'
 import type { ClubCompRecord, StaffCompRecord } from './database/clubComp'
 import {
@@ -496,6 +497,7 @@ export function buildProfilePayload(
         assistBonus: row.contract.assist_bonus,
         releaseFee: row.contract.release_fee,
         type: row.contract.contract_type,
+        typeLabel: contractTypeLabel(row.contract.contract_type),
         dateStarted: row.contract.date_started_iso,
         contractExpires: row.contract.contract_expires_iso,
         leavingOnBosman: row.contract.leaving_on_bosman > 0,

@@ -9,6 +9,56 @@
 body {
   margin: 0;
   min-height: 100vh;
+  color-scheme: dark;
+}
+
+/* Dark-theme checkboxes (native controls default to light on Windows). */
+input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  border-radius: 0.25rem;
+  border: 1px solid rgb(82 82 91);
+  background-color: rgb(24 24 27);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+input[type='checkbox']:checked {
+  border-color: rgb(16 185 129);
+  background-color: rgb(16 185 129);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath stroke='%230a0a0a' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.2 6.4 11 12.5 5'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+input[type='checkbox']:focus-visible {
+  outline: 2px solid rgb(16 185 129 / 0.55);
+  outline-offset: 1px;
+}
+
+input[type='checkbox']:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Dark number spinners and select arrows (Chromium / WebKit). */
+input[type='number'],
+select {
+  color-scheme: dark;
+}
+
+input[type='number'] {
+  color: rgb(244 244 245);
+  background-color: rgb(24 24 27);
+}
+
+select {
+  color: rgb(244 244 245);
+  background-color: rgb(24 24 27);
 }
 
 /* subtle grid on table area */

@@ -3,6 +3,7 @@ import { otherAttrDisplay } from './database/attributes'
 import type { NonPlayerRecord, ParsedDatabase, StaffRecord } from './database/types'
 import { splitIntoThreeColumns } from './profileLayout'
 import { staffJobForClubLabel } from '../shared/staffJobCatalog'
+import { contractTypeLabel } from '../shared/contractTypes'
 import { ageOnGameDate, ageFromBirthYearOnly } from './database/dates'
 
 type AttrCell = {
@@ -189,6 +190,7 @@ export function buildStaffProfilePayload(db: ParsedDatabase, staffIndex: number)
           dateStarted: c.date_started_iso,
           contractExpires: c.contract_expires_iso,
           type: c.contract_type,
+          typeLabel: contractTypeLabel(c.contract_type),
         }
       : null,
   }

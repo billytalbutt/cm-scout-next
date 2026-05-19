@@ -95,8 +95,8 @@ export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayloa
             <dd className="text-zinc-200">{p.contract.dateStarted ?? '—'}</dd>
             <dt>Expires</dt>
             <dd className="text-zinc-200">{p.contract.contractExpires ?? '—'}</dd>
-            <dt>Type (raw)</dt>
-            <dd className="font-mono text-zinc-200">{p.contract.type}</dd>
+            <dt>Contract type</dt>
+            <dd className="text-zinc-200">{p.contract.typeLabel ?? p.contract.type}</dd>
           </dl>
         </div>
       )}

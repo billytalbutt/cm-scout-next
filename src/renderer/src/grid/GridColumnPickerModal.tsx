@@ -93,7 +93,7 @@ export function GridColumnPickerModal({ open, onClose, columnOrder, onApply }: P
                         type="checkbox"
                         checked={selected.has(e.id)}
                         onChange={() => toggle(e.id)}
-                        className="rounded border-zinc-600"
+                        className="shrink-0"
                       />
                       <span className="truncate">{e.label}</span>
                     </label>
