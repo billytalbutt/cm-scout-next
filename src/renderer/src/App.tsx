@@ -23,7 +23,9 @@ import { DebouncedTextFilters } from './DebouncedTextFilters'
 import { StaffBrowsePanel } from './StaffBrowsePanel'
 import { StaffFilterSidebar } from './StaffFilterSidebar'
 import { StaffProfilePane } from './StaffProfilePane'
-import { ClubBrowsePanel } from './ClubBrowsePanel'
+import { ClubDetailPane } from './clubs/ClubDetailPane'
+import { ClubSearchSidebar } from './clubs/ClubSearchSidebar'
+import { useClubBrowse } from './clubs/useClubBrowse'
 import { TacticsLabPanel } from './TacticsLabPanel'
 import { TacticsAssignmentPane } from './tactics/TacticsAssignmentPane'
 import {
@@ -412,6 +414,7 @@ export function App() {
     setTacticsSeedClubId(clubId)
     setTacticsSeedClubName(clubName)
   }, [])
+  const clubBrowse = useClubBrowse(!!loadInfo, (id, name) => onTacticsSeedClubChange(id, name ?? null))
   const [tacticsPitchSlots, setTacticsPitchSlots] = useState<PitchSlot[]>(() => initialPitchSlots())
   const [tacticsAssignments, setTacticsAssignments] = useState<
     Partial<Record<string, TacticsPlayerAssignment | null>>
@@ -1078,7 +1081,7 @@ export function App() {
           <div className="flex w-11 shrink-0 flex-col items-center border-r border-zinc-800/80 bg-zinc-950/70 py-2">
             <button
               type="button"
-              title="Show filters"
+              title={browseTab === 'clubs' ? 'Show club search' : 'Show filters'}
               aria-expanded={false}
               onClick={() => persistFiltersCollapsed(false)}
               className="flex flex-col items-center gap-1.5 rounded-md border border-zinc-600 bg-zinc-900 px-1 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 hover:border-emerald-600/50 hover:bg-zinc-800 hover:text-emerald-200"
@@ -1086,9 +1089,52 @@ export function App() {
               <span aria-hidden className="text-base leading-none text-zinc-500">
                 ▸
               </span>
-              <span className="max-w-[2.5rem] text-center leading-tight">Filters</span>
+              <span className="max-w-[2.5rem] text-center leading-tight">
+                {browseTab === 'clubs' ? 'Clubs' : 'Filters'}
+              </span>
             </button>
           </div>
+        ) : browseTab === 'clubs' ? (
+          <aside className="relative z-20 flex w-[22rem] shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/50">
+            <div className="flex shrink-0 items-start justify-between gap-2 border-b border-zinc-800/60 px-3 py-2.5">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Clubs</h2>
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  type="button"
+                  title="Clear club search"
+                  onClick={clubBrowse.clearClubSearch}
+                  className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-400 hover:border-amber-700/50 hover:bg-zinc-800 hover:text-amber-100"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  title="Hide club search (more room for club detail)"
+                  aria-expanded
+                  onClick={() => persistFiltersCollapsed(true)}
+                  className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                >
+                  Hide
+                </button>
+              </div>
+            </div>
+            <div className="cm-scroll min-h-0 flex-1 overflow-y-auto p-4 text-sm">
+              <ClubSearchSidebar
+                loadInfo={!!loadInfo}
+                q={clubBrowse.q}
+                debouncedQ={clubBrowse.debouncedQ}
+                suggestions={clubBrowse.suggestions}
+                selId={clubBrowse.selId}
+                loadingSuggest={clubBrowse.loadingSuggest}
+                err={clubBrowse.err}
+                menuOpen={clubBrowse.menuOpen}
+                onInputChange={clubBrowse.onInputChange}
+                onInputFocus={clubBrowse.onInputFocus}
+                onInputBlur={clubBrowse.onInputBlur}
+                onPickClub={clubBrowse.pickClub}
+              />
+            </div>
+          </aside>
         ) : (
           <aside className="relative z-20 flex w-[22rem] shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/50">
             <div className="flex shrink-0 items-start justify-between gap-2 border-b border-zinc-800/60 px-3 py-2.5">
@@ -1168,11 +1214,11 @@ export function App() {
                 adjustStaffMatchAtLeast={adjustStaffMatchAtLeast}
               />
             )}
-            {(browseTab === 'clubs' || browseTab === 'tactics' || browseTab === 'editor') && (
+            {(browseTab === 'tactics' || browseTab === 'editor') && (
               <p className="text-[11px] leading-snug text-zinc-500">
                 Numeric and attribute filters apply on <span className="text-zinc-400">All players</span>,{' '}
-                <span className="text-zinc-400">Regens</span>, or <span className="text-zinc-400">Staff</span>. Name,
-                nation, and club search above still commit when you switch tabs.
+                <span className="text-zinc-400">Regens</span>, or <span className="text-zinc-400">Staff</span>. Use the
+                Clubs tab for club search.
               </p>
             )}
             {(browseTab === 'players' || browseTab === 'regens') && (
@@ -1672,13 +1718,14 @@ export function App() {
               />
             )}
             <div
-              className={browseTab === 'clubs' ? 'min-h-0 flex flex-1 flex-col' : 'hidden'}
+              className={browseTab === 'clubs' ? 'min-h-0 flex flex-1 flex-col p-3' : 'hidden'}
               aria-hidden={browseTab !== 'clubs'}
             >
-              <ClubBrowsePanel
+              <ClubDetailPane
                 loadInfo={!!loadInfo}
+                detail={clubBrowse.detail}
+                selectedStaffIndex={sel}
                 onOpenPlayerProfile={(si) => void pick(si)}
-                onClubSelectForTactics={(id, name) => onTacticsSeedClubChange(id, name ?? null)}
               />
             </div>
             {browseTab === 'tactics' && (
@@ -1902,7 +1949,9 @@ export function App() {
             <p className="text-sm text-zinc-500">
               {browseTab === 'staff'
                 ? 'Select a staff member from the table.'
-                : 'Select a player for profile & attributes.'}
+                : browseTab === 'clubs'
+                  ? 'Click a squad player to open their profile here.'
+                  : 'Select a player for profile & attributes.'}
             </p>
           )}
           {browseTab === 'staff' && staffProfile && (
