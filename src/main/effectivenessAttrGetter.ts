@@ -1,4 +1,4 @@
-import { CA18_KEYS, inGameCa18 } from './database/attributes'
+import { CA18_KEYS, inGameCa18Uncapped } from './database/attributes'
 import type { PlayerRecord, StaffRecord } from './database/types'
 
 const STAFF_ONLY = new Set<string>([
@@ -24,13 +24,14 @@ function clamp120(n: number): number {
 }
 
 /**
- * Values for effectiveness recipes: **same 1–20 scale as the profile** (in-game CA18 from CA + intrinsic;
- * other `player.dat` bytes clamped 1–20; staff mentals clamped 1–20). Avoids raw signed bytes (−7, 26, …)
- * that do not match what you see in-game.
+ * Values for effectiveness recipes: **uncapped engine display** where the profile can exceed 20
+ * (CA18 `inGameUncapped` from CA + intrinsic; other `player.dat` bytes as stored). Staff mentals stay
+ * 1–20. This lets cheat-code elites (e.g. Tsigalko finishing/OTB) score above a flat “all 20s” profile.
  */
 export function effectivenessAttrGetter(p: PlayerRecord, s: StaffRecord): (name: string) => number {
   const pr = p as Record<string, number>
   const sr = s as Record<string, number>
+  const ca = p.current_ability
   return (name: string) => {
     if (STAFF_ONLY.has(name)) {
       const v = sr[name]
@@ -40,9 +41,10 @@ export function effectivenessAttrGetter(p: PlayerRecord, s: StaffRecord): (name:
     if (ca18i !== undefined) {
       const raw = pr[name]
       const intr = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0
-      return clamp120(inGameCa18(ca18i, p.current_ability, intr, p))
+      const uncapped = inGameCa18Uncapped(ca18i, ca, intr, p)
+      return Number.isFinite(uncapped) ? Math.max(0, uncapped) : 0
     }
     const v = pr[name]
-    return clamp120(typeof v === 'number' && Number.isFinite(v) ? v : 0)
+    return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0
   }
 }

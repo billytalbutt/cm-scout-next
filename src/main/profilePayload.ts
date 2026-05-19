@@ -575,7 +575,7 @@ export function buildProfilePayload(
     tacticalInstructionHints,
     effRatingDisclaimer: effFull.relaxedNaturalGate
       ? undefined
-      : 'Eff % = recipe + vetted engine hiddens (profile 1–20), then brain mult where applicable, optional small profile-synergy when attribute relationships fit (e.g. hub CM), then consistency reliability (community heuristic, not decompiled). CM Scout % uses the full WeightsSet — different measure.',
+      : 'Eff % = recipe + vetted engine hiddens using uncapped engine display where the profile shows values above 20 (bracketed), then brain mult where applicable, optional small profile-synergy when attribute relationships fit (e.g. hub CM), then consistency reliability (community heuristic, not decompiled). CM Scout % uses the full WeightsSet — different measure.',
     cmScoutRolePercents: row.cmScoutRolePercents,
     cmScoutRoleSuitable,
     transfer: {

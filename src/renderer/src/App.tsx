@@ -2272,16 +2272,18 @@ export function App() {
               <div>
                 <HoverTip
                   tip={
-                    <p>
-                      CM second-screen style order: player fields (consistency, corners, penalties, throw-ins,
-                      one-on-ones, versatility, dirtiness, important matches, injury proneness, natural fitness) plus
-                      staff.dat mentals (adaptability, ambition, loyalty, pressure, professionalism, sportsmanship,
-                      temperament). Determination stays in the main Attributes left column from staff.dat.
-                    </p>
-                    <p className="text-zinc-400">
-                      Amber ring marks game-breaking hiddens for every player (Important matches, Consistency, Natural
-                      fitness, Injury proneness, Professionalism, Pressure) — same set for all positions.
-                    </p>
+                    <div className="space-y-2">
+                      <p>
+                        CM second-screen style order: player fields (consistency, corners, penalties, throw-ins,
+                        one-on-ones, versatility, dirtiness, important matches, injury proneness, natural fitness) plus
+                        staff.dat mentals (adaptability, ambition, loyalty, pressure, professionalism, sportsmanship,
+                        temperament). Determination stays in the main Attributes left column from staff.dat.
+                      </p>
+                      <p className="text-zinc-400">
+                        Amber ring marks game-breaking hiddens for every player (Important matches, Consistency, Natural
+                        fitness, Injury proneness, Professionalism, Pressure) — same set for all positions.
+                      </p>
+                    </div>
                   }
                 >
                   <h3 className="mb-1 flex cursor-default items-center text-xs font-semibold uppercase tracking-wider text-zinc-500">

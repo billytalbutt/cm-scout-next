@@ -1,7 +1,7 @@
 /**
  * Position-archetype “effectiveness” % (Eff %): weighted **recipe** (primary / secondary) plus a small
  * **engine** block of hiddens / set-piece / staff mentals that scouting lore ties to match output.
- * All inputs use `effectivenessAttrGetter` (same 1–20 scale as the profile).
+ * All inputs use `effectivenessAttrGetter` (uncapped engine display where profile brackets exceed 20).
  *
  * **Consistency (hidden):** CM0102 does not publish exact formulas; community discussion treats it as
  * “how reliably the player reaches their level” (e.g. champman0102.net hidden-attributes threads). We
@@ -33,7 +33,7 @@ export interface EffectivenessArchetype {
   engineExtras?: readonly EffectivenessEngineExtra[]
 }
 
-/** Primary ×5, secondary ×1.5, engine ×2 default; 1.25× when value ≥ 20; brain mult on DC/DMC/MC/AMC. */
+/** Primary ×5, secondary ×1.5, engine ×2 default; 1.25× at 20, further credit up to ~1.75 by 30+ display; brain mult on DC/DMC/MC/AMC. */
 export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
   {
     id: 'gk',
@@ -165,6 +165,13 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
 const W_PRIMARY = 5
 const W_SECONDARY = 1.5
 const GOD_MULT = 1.25
+/** Extra valPart above on-screen 20 — separates OTB 30 from flat “all 20s”. */
+const VAL_PART_OVERFLOW_CAP = 1
+const OVERFLOW_DIVISOR = 12
+/** Normalization ceiling for primary/secondary recipe slots (elite cheat-code display). */
+const RECIPE_PRIMARY_CEILING = 32
+const RECIPE_SECONDARY_CEILING = 22
+const RECIPE_ENGINE_CEILING = 20
 
 /**
  * Heuristic “realizes their level” factor from consistency (1–20 display). Not from decompiled EXE;
@@ -182,11 +189,21 @@ export function effAttrLabel(key: string): string {
     .join(' ')
 }
 
-function valPart(raw: number): number {
-  if (!Number.isFinite(raw)) return 0
-  const capped = Math.max(0, Math.min(20, raw))
-  const base = capped / 20
-  return raw >= 20 ? base * GOD_MULT : base
+/** Contribution 0…(GOD_MULT + VAL_PART_OVERFLOW_CAP) from profile / engine display value. */
+export function valPart(display: number): number {
+  if (!Number.isFinite(display)) return 0
+  const v = Math.max(0, display)
+  if (v <= 20) {
+    const base = v / 20
+    return v >= 20 ? base * GOD_MULT : base
+  }
+  return GOD_MULT + Math.min(VAL_PART_OVERFLOW_CAP, (v - 20) / OVERFLOW_DIVISOR)
+}
+
+function recipeCeilingValPart(slot: 'primary' | 'secondary' | 'engine'): number {
+  if (slot === 'primary') return valPart(RECIPE_PRIMARY_CEILING)
+  if (slot === 'secondary') return valPart(RECIPE_SECONDARY_CEILING)
+  return valPart(RECIPE_ENGINE_CEILING)
 }
 
 export interface EffStatLine {
@@ -320,7 +337,7 @@ function accumulateArchetype(
     const vp = valPart(raw)
     const c = W_PRIMARY * vp
     sum += c
-    max += W_PRIMARY * GOD_MULT
+    max += W_PRIMARY * recipeCeilingValPart('primary')
     lines.push({
       key: k,
       label: effAttrLabel(k),
@@ -336,7 +353,7 @@ function accumulateArchetype(
     const vp = valPart(raw)
     const c = W_SECONDARY * vp
     sum += c
-    max += W_SECONDARY * GOD_MULT
+    max += W_SECONDARY * recipeCeilingValPart('secondary')
     lines.push({
       key: k,
       label: effAttrLabel(k),
@@ -358,7 +375,7 @@ function accumulateArchetype(
     const vp = valPart(effectiveRaw)
     const c = w * vp
     sum += c
-    max += w * GOD_MULT
+    max += w * recipeCeilingValPart('engine')
     engineLines.push({
       key: ex.key,
       label: effAttrLabel(ex.key),
