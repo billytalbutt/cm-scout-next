@@ -1,10 +1,21 @@
 /**
  * Byte offsets for editable `club.dat` / `stadium.dat` fields (CM0102Patcher TClub / TStadiums).
  */
+import { cm2LongDiskToDisplay, cm2LongDisplayToDisk } from '../../shared/cm2LongFormat'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import { STADIUM_ROW_BYTES } from './stadiumRecords'
 import type { BlockInfo } from './types'
 import { findBlock, writeScalarAt, type DiskFieldKind } from './playerStaffDiskLayout'
+
+export type ClubDiskFieldKind = DiskFieldKind | 'cm2long'
+
+export type ClubDiskFieldMeta = {
+  target: 'club' | 'stadium'
+  offset: number
+  kind: ClubDiskFieldKind
+  /** Multiply decoded normal units for UI (cash = 1000 → pounds). */
+  displayScale?: number
+}
 
 export const CLUB_CASH_OFF = 101
 export const CLUB_ATTENDANCE_OFF = 115
@@ -20,21 +31,48 @@ export const STADIUM_NEARBY_OFF = 72
 export const STADIUM_COVERED_OFF = 76
 export const STADIUM_SOIL_HEATING_OFF = 77
 
-export const CLUB_EDITOR_DISK_FIELDS: Record<string, { target: 'club' | 'stadium'; offset: number; kind: DiskFieldKind }> =
-  {
-    cash: { target: 'club', offset: CLUB_CASH_OFF, kind: 'i32' },
-    attendance: { target: 'club', offset: CLUB_ATTENDANCE_OFF, kind: 'i32' },
-    min_attendance: { target: 'club', offset: CLUB_MIN_ATTENDANCE_OFF, kind: 'i32' },
-    max_attendance: { target: 'club', offset: CLUB_MAX_ATTENDANCE_OFF, kind: 'i32' },
-    training: { target: 'club', offset: CLUB_TRAINING_OFF, kind: 'u8' },
-    reputation: { target: 'club', offset: CLUB_REPUTATION_OFF, kind: 'u16' },
-    stadium_capacity: { target: 'stadium', offset: STADIUM_CAPACITY_OFF, kind: 'i32' },
-    stadium_seating: { target: 'stadium', offset: STADIUM_SEATING_OFF, kind: 'i32' },
-    stadium_expansion: { target: 'stadium', offset: STADIUM_EXPANSION_OFF, kind: 'i32' },
-    stadium_nearby_id: { target: 'stadium', offset: STADIUM_NEARBY_OFF, kind: 'i32' },
-    stadium_covered: { target: 'stadium', offset: STADIUM_COVERED_OFF, kind: 'u8' },
-    stadium_under_soil_heating: { target: 'stadium', offset: STADIUM_SOIL_HEATING_OFF, kind: 'u8' },
+export const CLUB_EDITOR_DISK_FIELDS: Record<string, ClubDiskFieldMeta> = {
+  cash: { target: 'club', offset: CLUB_CASH_OFF, kind: 'cm2long', displayScale: 1000 },
+  attendance: { target: 'club', offset: CLUB_ATTENDANCE_OFF, kind: 'i32' },
+  min_attendance: { target: 'club', offset: CLUB_MIN_ATTENDANCE_OFF, kind: 'i32' },
+  max_attendance: { target: 'club', offset: CLUB_MAX_ATTENDANCE_OFF, kind: 'i32' },
+  training: { target: 'club', offset: CLUB_TRAINING_OFF, kind: 'u8' },
+  reputation: { target: 'club', offset: CLUB_REPUTATION_OFF, kind: 'u16' },
+  stadium_capacity: { target: 'stadium', offset: STADIUM_CAPACITY_OFF, kind: 'cm2long', displayScale: 1 },
+  stadium_seating: { target: 'stadium', offset: STADIUM_SEATING_OFF, kind: 'cm2long', displayScale: 1 },
+  stadium_expansion: { target: 'stadium', offset: STADIUM_EXPANSION_OFF, kind: 'cm2long', displayScale: 1 },
+  stadium_nearby_id: { target: 'stadium', offset: STADIUM_NEARBY_OFF, kind: 'i32' },
+  stadium_covered: { target: 'stadium', offset: STADIUM_COVERED_OFF, kind: 'u8' },
+  stadium_under_soil_heating: { target: 'stadium', offset: STADIUM_SOIL_HEATING_OFF, kind: 'u8' },
+}
+
+export function readClubEditorDisplayAt(buf: Buffer, base: number, meta: ClubDiskFieldMeta): number {
+  const abs = base + meta.offset
+  if (meta.kind === 'cm2long') {
+    return cm2LongDiskToDisplay(buf.readInt32LE(abs), meta.displayScale ?? 1)
   }
+  if (meta.kind === 'u8') return buf.readUInt8(abs)
+  if (meta.kind === 'u16') return buf.readUInt16LE(abs)
+  return buf.readInt32LE(abs)
+}
+
+export function writeClubEditorDisplayAt(
+  buf: Buffer,
+  base: number,
+  meta: ClubDiskFieldMeta,
+  displayValue: number,
+): void {
+  const abs = base + meta.offset
+  if (meta.kind === 'cm2long') {
+    buf.writeInt32LE(cm2LongDisplayToDisk(displayValue, meta.displayScale ?? 1), abs)
+    return
+  }
+  if (meta.kind === 'u8') {
+    buf.writeUInt8(displayValue ? 1 : 0, abs)
+    return
+  }
+  writeScalarAt(buf, abs, meta.kind, displayValue)
+}
 
 export function rowIndexForId(data: Buffer, rowBytes: number, id: number): number | null {
   const n = Math.floor(data.length / rowBytes)
@@ -73,17 +111,17 @@ export function writeClubEditorField(
   clubBase: number,
   stadiumBase: number,
   key: string,
-  value: number,
+  displayValue: number,
 ): boolean {
   const meta = CLUB_EDITOR_DISK_FIELDS[key]
   if (!meta) return false
   const base = meta.target === 'club' ? clubBase : stadiumBase
   const v =
     meta.kind === 'u8' && (key === 'stadium_covered' || key === 'stadium_under_soil_heating')
-      ? value
+      ? displayValue
         ? 1
         : 0
-      : value
-  writeScalarAt(buf, base + meta.offset, meta.kind, v)
+      : displayValue
+  writeClubEditorDisplayAt(buf, base, meta, v)
   return true
 }

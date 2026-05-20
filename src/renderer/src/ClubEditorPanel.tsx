@@ -222,7 +222,9 @@ export function ClubEditorPanel({
     try {
       const out = await window.cmapi.saveClubEdits(snap.clubId, changes)
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
-        setSaveMsg(`Saved to ${String((out as { path: string }).path)}`)
+        setSaveMsg(
+          `Saved to ${String((out as { path: string }).path)} — load that save in CM (Continue) to see changes in Finances.`,
+        )
         baselineRef.current = { ...base, ...changes }
       } else if (out && typeof out === 'object' && 'error' in out) {
         const er = (out as { error?: string }).error

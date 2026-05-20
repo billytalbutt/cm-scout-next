@@ -1,24 +1,22 @@
 import { clampClubEditorValue } from '../shared/clubEditorLimits'
 import type { BlockInfo, ParsedDatabase } from './database/types'
 import {
-  CLUB_ATTENDANCE_OFF,
-  CLUB_CASH_OFF,
   CLUB_EDITOR_DISK_FIELDS,
-  CLUB_MAX_ATTENDANCE_OFF,
-  CLUB_MIN_ATTENDANCE_OFF,
-  CLUB_REPUTATION_OFF,
-  CLUB_TRAINING_OFF,
+  readClubEditorDisplayAt,
   resolveClubAndStadiumBases,
-  STADIUM_CAPACITY_OFF,
-  STADIUM_COVERED_OFF,
-  STADIUM_EXPANSION_OFF,
-  STADIUM_NEARBY_OFF,
-  STADIUM_SEATING_OFF,
-  STADIUM_SOIL_HEATING_OFF,
   writeClubEditorField,
 } from './database/clubStadiumDiskLayout'
 
 export type ClubEditorSaveResult = { ok: true; buffer: Buffer } | { ok: false; error: string }
+
+function readEditorValuesAt(buf: Buffer, clubBase: number, stadiumBase: number): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const [key, meta] of Object.entries(CLUB_EDITOR_DISK_FIELDS)) {
+    const base = meta.target === 'club' ? clubBase : stadiumBase
+    out[key] = readClubEditorDisplayAt(buf, base, meta)
+  }
+  return out
+}
 
 export type ClubEditorSnapshot = {
   clubId: number
@@ -28,28 +26,6 @@ export type ClubEditorSnapshot = {
   division: string
   stadiumName: string
   values: Record<string, number>
-}
-
-function readClubValuesAt(buf: Buffer, clubBase: number): Record<string, number> {
-  return {
-    cash: buf.readInt32LE(clubBase + CLUB_CASH_OFF),
-    attendance: buf.readInt32LE(clubBase + CLUB_ATTENDANCE_OFF),
-    min_attendance: buf.readInt32LE(clubBase + CLUB_MIN_ATTENDANCE_OFF),
-    max_attendance: buf.readInt32LE(clubBase + CLUB_MAX_ATTENDANCE_OFF),
-    training: buf.readUInt8(clubBase + CLUB_TRAINING_OFF),
-    reputation: buf.readUInt16LE(clubBase + CLUB_REPUTATION_OFF),
-  }
-}
-
-function readStadiumValuesAt(buf: Buffer, stadiumBase: number): Record<string, number> {
-  return {
-    stadium_capacity: buf.readInt32LE(stadiumBase + STADIUM_CAPACITY_OFF),
-    stadium_seating: buf.readInt32LE(stadiumBase + STADIUM_SEATING_OFF),
-    stadium_expansion: buf.readInt32LE(stadiumBase + STADIUM_EXPANSION_OFF),
-    stadium_nearby_id: buf.readInt32LE(stadiumBase + STADIUM_NEARBY_OFF),
-    stadium_covered: buf.readUInt8(stadiumBase + STADIUM_COVERED_OFF) ? 1 : 0,
-    stadium_under_soil_heating: buf.readUInt8(stadiumBase + STADIUM_SOIL_HEATING_OFF) ? 1 : 0,
-  }
 }
 
 export function buildClubEditorSnapshot(
@@ -84,10 +60,7 @@ export function buildClubEditorSnapshot(
     nation,
     division,
     stadiumName: stadium.name,
-    values: {
-      ...readClubValuesAt(archiveBuffer, bases.clubBase),
-      ...readStadiumValuesAt(archiveBuffer, bases.stadiumBase),
-    },
+    values: readEditorValuesAt(archiveBuffer, bases.clubBase, bases.stadiumBase),
   }
 }
 
