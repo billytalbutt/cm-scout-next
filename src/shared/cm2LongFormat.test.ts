@@ -4,6 +4,8 @@ import {
   cm2LongDisplayToDisk,
   cm2LongFromNormal,
   cm2LongToNormal,
+  readCashDisplay,
+  writeCashDisplay,
 } from './cm2LongFormat'
 
 describe('cm2LongFormat', () => {
@@ -15,8 +17,15 @@ describe('cm2LongFormat', () => {
     expect(cm2LongDiskToDisplay(back, 1000)).toBe(99_000_000)
   })
 
-  it('round-trips stadium capacity (scale 1)', () => {
-    const encoded = cm2LongDisplayToDisk(40_000, 1)
-    expect(cm2LongDiskToDisplay(encoded, 1)).toBe(40_000)
+  it('detects plain int32 cash on disk', () => {
+    expect(readCashDisplay(21_000_000)).toBe(21_000_000)
+    const packed = cm2LongFromNormal(21_000)
+    expect(readCashDisplay(packed)).toBe(21_000_000)
+  })
+
+  it('writes plain cash when prior raw was plain', () => {
+    expect(writeCashDisplay(99_000_000, 21_000_000)).toBe(99_000_000)
+    const packedPrior = cm2LongFromNormal(21_000)
+    expect(writeCashDisplay(99_000_000, packedPrior)).toBe(cm2LongDisplayToDisk(99_000_000, 1000))
   })
 })

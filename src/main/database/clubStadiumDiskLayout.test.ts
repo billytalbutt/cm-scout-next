@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import { STADIUM_ROW_BYTES } from './stadiumRecords'
-import { cm2LongDisplayToDisk } from '../../shared/cm2LongFormat'
+import { cm2LongDisplayToDisk, writeCashDisplay } from '../../shared/cm2LongFormat'
 import {
   CLUB_CASH_OFF,
   rowIndexForId,
@@ -36,7 +36,7 @@ describe('clubStadiumDiskLayout', () => {
     archive.writeInt32LE(stadiumId, clubBase + 105)
 
     archive.writeInt32LE(stadiumId, stadiumBase)
-    archive.writeInt32LE(cm2LongDisplayToDisk(40_000, 1), stadiumBase + 60)
+    archive.writeInt32LE(40_000, stadiumBase + 60)
 
     const blocks: BlockInfo[] = [
       { name: 'club.dat', position: clubBlockPos, size: CLUB_ROW_BYTES * 5, compressed: false },
@@ -48,8 +48,9 @@ describe('clubStadiumDiskLayout', () => {
     if (!('clubBase' in resolved)) return
 
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'cash', 9_999_999)
-    expect(archive.readInt32LE(clubBase + CLUB_CASH_OFF)).toBe(cm2LongDisplayToDisk(9_999_999, 1000))
+    const priorCash = archive.readInt32LE(clubBase + CLUB_CASH_OFF)
+    expect(archive.readInt32LE(clubBase + CLUB_CASH_OFF)).toBe(writeCashDisplay(9_999_999, priorCash))
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'stadium_capacity', 55_000)
-    expect(archive.readInt32LE(stadiumBase + 60)).toBe(cm2LongDisplayToDisk(55_000, 1))
+    expect(archive.readInt32LE(stadiumBase + 60)).toBe(55_000)
   })
 })

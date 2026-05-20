@@ -1,7 +1,6 @@
 /**
  * `stadium.dat` rows — `TStadiums` in CM0102Patcher SaveChanger/Structures.cs (78 bytes, Pack=1).
  */
-import { cm2LongDiskToDisplay } from '../../shared/cm2LongFormat'
 import { readLatin1String } from './cmBinaryReader'
 import type { StadiumRecord } from './types'
 
@@ -17,9 +16,9 @@ export function parseStadiumRecords(data: Buffer): Map<number, StadiumRecord> {
     const id = row.readInt32LE(0)
     const name = readLatin1String(row.subarray(4, 55), 51)
     const cityId = row.readInt32LE(56)
-    const capacity = cm2LongDiskToDisplay(row.readInt32LE(60), 1)
-    const seatingCapacity = cm2LongDiskToDisplay(row.readInt32LE(64), 1)
-    const expansionCapacity = cm2LongDiskToDisplay(row.readInt32LE(68), 1)
+    const capacity = row.readInt32LE(60)
+    const seatingCapacity = row.readInt32LE(64)
+    const expansionCapacity = row.readInt32LE(68)
     const nearbyStadiumId = row.readInt32LE(72)
     const covered = row.readUInt8(76)
     const underSoilHeating = row.readUInt8(77)

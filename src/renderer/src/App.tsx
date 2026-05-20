@@ -27,6 +27,8 @@ import { StaffProfilePane } from './StaffProfilePane'
 import { ClubDetailPane } from './clubs/ClubDetailPane'
 import { ClubSearchSidebar } from './clubs/ClubSearchSidebar'
 import { useClubBrowse } from './clubs/useClubBrowse'
+import { useClubFavorites } from './clubs/useClubFavorites'
+import type { ClubListRow } from './ClubBrowsePanel'
 import { TacticsLabPanel } from './TacticsLabPanel'
 import { TacticsAssignmentPane } from './tactics/TacticsAssignmentPane'
 import { ShortlistsPanel } from './shortlists/ShortlistsPanel'
@@ -419,6 +421,29 @@ export function App() {
   }, [])
   const clubBrowse = useClubBrowse(!!loadInfo, (id, name) => onTacticsSeedClubChange(id, name ?? null))
   const { clearClubSearch, selId: clubsTabSelId } = clubBrowse
+  const clubFavorites = useClubFavorites(loadInfo?.path ?? null)
+
+  const selectedClubForFavorites = useMemo((): ClubListRow | null => {
+    const id = clubBrowse.selId
+    if (id == null) return null
+    const fromSuggest = clubBrowse.suggestions.find((c) => c.id === id)
+    if (fromSuggest) return fromSuggest
+    const fromFav = clubFavorites.favorites.find((c) => c.id === id)
+    if (fromFav) return fromFav
+    const d = clubBrowse.detail
+    if (d?.id === id) {
+      return {
+        id: d.id,
+        name: d.name,
+        nation: d.nation,
+        division: d.division,
+        reputation: d.reputation,
+        cash: d.cash,
+        stadiumId: d.stadiumId,
+      }
+    }
+    return null
+  }, [clubBrowse.selId, clubBrowse.suggestions, clubBrowse.detail, clubFavorites.favorites])
   const [tacticsClearNotice, setTacticsClearNotice] = useState<string | null>(null)
   const clearTacticsSquadClub = useCallback(() => {
     const hadClubsTab = clubsTabSelId != null
@@ -1199,9 +1224,14 @@ export function App() {
                 debouncedQ={clubBrowse.debouncedQ}
                 suggestions={clubBrowse.suggestions}
                 selId={clubBrowse.selId}
+                selectedClub={selectedClubForFavorites}
                 loadingSuggest={clubBrowse.loadingSuggest}
                 err={clubBrowse.err}
                 menuOpen={clubBrowse.menuOpen}
+                favorites={clubFavorites.favorites}
+                isFavorite={clubFavorites.isFavorite}
+                onToggleFavorite={clubFavorites.toggleFavorite}
+                onRemoveFavorite={clubFavorites.removeFavorite}
                 onInputChange={clubBrowse.onInputChange}
                 onInputFocus={clubBrowse.onInputFocus}
                 onInputBlur={clubBrowse.onInputBlur}

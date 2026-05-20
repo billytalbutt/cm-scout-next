@@ -1,7 +1,7 @@
 /**
  * Byte offsets for editable `club.dat` / `stadium.dat` fields (CM0102Patcher TClub / TStadiums).
  */
-import { cm2LongDiskToDisplay, cm2LongDisplayToDisk } from '../../shared/cm2LongFormat'
+import { readCashDisplay, writeCashDisplay } from '../../shared/cm2LongFormat'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import { STADIUM_ROW_BYTES } from './stadiumRecords'
 import type { BlockInfo } from './types'
@@ -38,9 +38,9 @@ export const CLUB_EDITOR_DISK_FIELDS: Record<string, ClubDiskFieldMeta> = {
   max_attendance: { target: 'club', offset: CLUB_MAX_ATTENDANCE_OFF, kind: 'i32' },
   training: { target: 'club', offset: CLUB_TRAINING_OFF, kind: 'u8' },
   reputation: { target: 'club', offset: CLUB_REPUTATION_OFF, kind: 'u16' },
-  stadium_capacity: { target: 'stadium', offset: STADIUM_CAPACITY_OFF, kind: 'cm2long', displayScale: 1 },
-  stadium_seating: { target: 'stadium', offset: STADIUM_SEATING_OFF, kind: 'cm2long', displayScale: 1 },
-  stadium_expansion: { target: 'stadium', offset: STADIUM_EXPANSION_OFF, kind: 'cm2long', displayScale: 1 },
+  stadium_capacity: { target: 'stadium', offset: STADIUM_CAPACITY_OFF, kind: 'i32' },
+  stadium_seating: { target: 'stadium', offset: STADIUM_SEATING_OFF, kind: 'i32' },
+  stadium_expansion: { target: 'stadium', offset: STADIUM_EXPANSION_OFF, kind: 'i32' },
   stadium_nearby_id: { target: 'stadium', offset: STADIUM_NEARBY_OFF, kind: 'i32' },
   stadium_covered: { target: 'stadium', offset: STADIUM_COVERED_OFF, kind: 'u8' },
   stadium_under_soil_heating: { target: 'stadium', offset: STADIUM_SOIL_HEATING_OFF, kind: 'u8' },
@@ -49,7 +49,7 @@ export const CLUB_EDITOR_DISK_FIELDS: Record<string, ClubDiskFieldMeta> = {
 export function readClubEditorDisplayAt(buf: Buffer, base: number, meta: ClubDiskFieldMeta): number {
   const abs = base + meta.offset
   if (meta.kind === 'cm2long') {
-    return cm2LongDiskToDisplay(buf.readInt32LE(abs), meta.displayScale ?? 1)
+    return readCashDisplay(buf.readInt32LE(abs))
   }
   if (meta.kind === 'u8') return buf.readUInt8(abs)
   if (meta.kind === 'u16') return buf.readUInt16LE(abs)
@@ -61,10 +61,12 @@ export function writeClubEditorDisplayAt(
   base: number,
   meta: ClubDiskFieldMeta,
   displayValue: number,
+  priorRawCash?: number,
 ): void {
   const abs = base + meta.offset
   if (meta.kind === 'cm2long') {
-    buf.writeInt32LE(cm2LongDisplayToDisk(displayValue, meta.displayScale ?? 1), abs)
+    const prior = priorRawCash ?? buf.readInt32LE(abs)
+    buf.writeInt32LE(writeCashDisplay(displayValue, prior), abs)
     return
   }
   if (meta.kind === 'u8') {
@@ -122,6 +124,7 @@ export function writeClubEditorField(
         ? 1
         : 0
       : displayValue
-  writeClubEditorDisplayAt(buf, base, meta, v)
+  const priorRawCash = key === 'cash' ? buf.readInt32LE(clubBase + CLUB_CASH_OFF) : undefined
+  writeClubEditorDisplayAt(buf, base, meta, v, priorRawCash)
   return true
 }
