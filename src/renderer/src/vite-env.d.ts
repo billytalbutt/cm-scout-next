@@ -70,6 +70,11 @@ declare global {
         playerRow: number
         values: Record<string, number>
       } | null>
+      getAttrFilterMins: (staffIndex: number) => Promise<{
+        staffIndex: number
+        name: string
+        mins: string[]
+      } | null>
       saveAttributeEdits: (
         staffIndex: number,
         changes: Record<string, number>,

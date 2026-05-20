@@ -9,7 +9,8 @@ import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import { buildUiRows, parseIndexDat, buildUiPlayerRowAtIndex } from './database/parser'
 import { collectStaffHistorySearchDirs } from './database/staffHistoryLoad'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
-import { applyCmScoutRatings } from './cmScoutRating'
+import { applyCmScoutRatings, scoutFilterComparisonVector48, scoutDisplayVector48 } from './cmScoutRating'
+import { attrMinStringsFromComparisonVectors } from '../shared/attrFilterMins'
 import { applyEffectivenessRatings } from './effectivenessRating'
 import { applyEngineMetaProfiles } from './engineMetaProfiles'
 import type { ParsedDatabase, UiPlayerRow } from './database/types'
@@ -376,6 +377,32 @@ ipcMain.handle('clear-regen-baseline', async () => {
   deleteBaselineFromDisk(loaded.pathKey)
   applyRegenPipeline(loaded.rows, null, loaded.pathKey)
   return { ok: true as const, ...baselineStatusForPath(loaded.pathKey) }
+})
+
+function uiPlayerRowForStaff(staffIndex: number): UiPlayerRow | null {
+  if (!loaded) return null
+  let row = loaded.rows.find((r) => r.staffIndex === staffIndex)
+  if (!row) {
+    const built = buildUiPlayerRowAtIndex(loaded.db, staffIndex)
+    if (!built) return null
+    row = built
+  }
+  applyCmScoutRatings([row])
+  return row
+}
+
+ipcMain.handle('get-attr-filter-mins', async (_e, staffIndex: unknown) => {
+  const idx = Math.floor(Number(staffIndex))
+  if (!Number.isFinite(idx) || idx < 0) return null
+  const row = uiPlayerRowForStaff(idx)
+  if (!row) return null
+  const inNorm = scoutDisplayVector48(row.player, row.staff)
+  const filter48 = scoutFilterComparisonVector48(row.player, row.staff)
+  return {
+    staffIndex: idx,
+    name: editorSubjectLabel(loaded!.db, idx) ?? row.name,
+    mins: attrMinStringsFromComparisonVectors(inNorm, filter48),
+  }
 })
 
 ipcMain.handle('get-editor-snapshot', async (_e, staffIndex: unknown) => {

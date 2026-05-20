@@ -6,9 +6,11 @@ type Props = {
   selectedStaffIndex: number | null
   onPick: (staffIndex: number) => void
   compact?: boolean
+  /** When set, overrides the search field label (e.g. attribute filter sidebar). */
+  searchLabel?: string
 }
 
-export function EditorPlayerPicker({ loadInfo, selectedStaffIndex, onPick, compact }: Props) {
+export function EditorPlayerPicker({ loadInfo, selectedStaffIndex, onPick, compact, searchLabel }: Props) {
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
   const [suggestions, setSuggestions] = useState<GridPlayerRow[]>([])
@@ -50,7 +52,7 @@ export function EditorPlayerPicker({ loadInfo, selectedStaffIndex, onPick, compa
     <div className={`rounded-lg border border-zinc-800 bg-zinc-900/40 ${compact ? 'p-2' : 'p-2.5'}`}>
       <label className="block">
         <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-          {compact ? 'Switch player' : 'Search player to edit'}
+          {searchLabel ?? (compact ? 'Switch player' : 'Search player to edit')}
         </span>
         <div className="relative">
           <input

@@ -52,6 +52,12 @@ contextBridge.exposeInMainWorld('cmapi', {
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),
   clearRegenBaseline: () => ipcRenderer.invoke('clear-regen-baseline'),
   getEditorSnapshot: (staffIndex: number) => ipcRenderer.invoke('get-editor-snapshot', staffIndex),
+  getAttrFilterMins: (staffIndex: number) =>
+    ipcRenderer.invoke('get-attr-filter-mins', staffIndex) as Promise<{
+      staffIndex: number
+      name: string
+      mins: string[]
+    } | null>,
   saveAttributeEdits: (staffIndex: number, changes: Record<string, number>) =>
     ipcRenderer.invoke('save-attribute-edits', { staffIndex, changes }),
   getClubEditorSnapshot: (clubId: number) => ipcRenderer.invoke('get-club-editor-snapshot', clubId),

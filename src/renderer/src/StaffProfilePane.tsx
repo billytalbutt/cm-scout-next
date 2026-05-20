@@ -15,7 +15,7 @@ export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayloa
 
   return (
     <div className="space-y-4">
-      <div className="border-b border-zinc-800/80 pb-3">
+      <div className="sticky top-0 z-30 -mx-4 border-b border-zinc-800/80 bg-zinc-950 px-4 pb-3 pt-0 shadow-[0_6px_16px_rgba(0,0,0,0.45)] backdrop-blur-md">
         <h2 className="text-xl font-semibold tracking-tight text-white">{p.name}</h2>
         <p className="mt-1 text-sm font-medium text-emerald-200/90">{p.jobLabel}</p>
         <p className="mt-1.5 text-sm text-zinc-200">{p.nation}</p>

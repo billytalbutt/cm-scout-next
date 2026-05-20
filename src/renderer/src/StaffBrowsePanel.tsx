@@ -75,16 +75,18 @@ export function StaffBrowsePanel({
   }
 
   return (
-    <div className="space-y-3">
-      {loading && <p className="text-xs text-zinc-500">Loading staff…</p>}
-      {err && <p className="text-xs text-rose-300">{err}</p>}
-      <p className="text-[11px] text-zinc-500">
-        Showing <span className="font-mono text-zinc-300">{rows.length}</span> of{' '}
-        <span className="font-mono text-zinc-300">{total}</span> matching rows · use filters on the left
-      </p>
-      <div className="overflow-x-auto rounded-lg border border-zinc-800">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {loading && <p className="shrink-0 text-xs text-zinc-500">Loading staff…</p>}
+      {err && <p className="shrink-0 text-xs text-rose-300">{err}</p>}
+      <div className="cm-scroll min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-800">
         <table className="w-full min-w-[56rem] border-collapse text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-zinc-900/95">
+          <thead className="sticky top-0 z-20 bg-zinc-950/95 shadow-[0_4px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+            <tr className="border-b border-zinc-800/80 text-zinc-500">
+              <th colSpan={9} className="px-2 py-2 text-left text-[11px] font-normal text-zinc-500">
+                Showing <span className="font-mono text-zinc-300">{rows.length}</span> of{' '}
+                <span className="font-mono text-zinc-300">{total}</span> matching rows · use filters on the left
+              </th>
+            </tr>
             <tr className="border-b border-zinc-800 text-zinc-500">
               <th className="px-2 py-2">Score</th>
               <th className="px-2 py-2">Name</th>

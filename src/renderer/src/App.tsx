@@ -42,7 +42,13 @@ import {
 import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
-import { setCopiedPlayerAttributes } from '../../shared/copiedPlayerAttributes'
+import {
+  getCopiedPlayerAttributes,
+  setCopiedPlayerAttributes,
+  subscribeCopiedPlayerAttributes,
+  type CopiedPlayerAttributes,
+} from '../../shared/copiedPlayerAttributes'
+import { EditorPlayerPicker } from './editor/EditorPlayerPicker'
 import { CONTRACT_TYPE_FILTER_OPTIONS, type ContractTypeCategoryId } from '../../shared/contractTypes'
 import { STAFF_ATTR_FILTER_COUNT } from '../../shared/staffAttrCatalog'
 import { staffJobForClubDropdownEntries } from '../../shared/staffJobCatalog'
@@ -322,6 +328,7 @@ export function App() {
 
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
   const [copyAttrsMsg, setCopyAttrsMsg] = useState<string | null>(null)
+  const [copiedAttrs, setCopiedAttrs] = useState<CopiedPlayerAttributes | null>(() => getCopiedPlayerAttributes())
   const [staffProfile, setStaffProfile] = useState<StaffProfilePayload | null>(null)
   const [staffTableSel, setStaffTableSel] = useState<number | null>(null)
   const [sel, setSel] = useState<number | null>(null)
@@ -934,6 +941,35 @@ export function App() {
     setProfile(p)
   }, [])
 
+  useEffect(() => subscribeCopiedPlayerAttributes(() => setCopiedAttrs(getCopiedPlayerAttributes())), [])
+
+  const applyAttrFilterMinsFromPlayer = useCallback(async (staffIndex: number, source: 'clipboard' | 'picker') => {
+    if (typeof window.cmapi?.getAttrFilterMins !== 'function') return
+    try {
+      const out = await window.cmapi.getAttrFilterMins(staffIndex)
+      if (!out?.mins?.length) {
+        window.alert('Could not load attribute minimums for that player.')
+        return
+      }
+      const verb = source === 'clipboard' ? 'Paste' : 'Set'
+      const msg = `${verb} attribute minimums from ${out.name} into the player search filters?\n\nAll 48 attributes (including hiddens) will be filled from that player. Adjust “Match ≥” to allow near-matches.`
+      if (!window.confirm(msg)) return
+      setAttrMins([...out.mins])
+      setEngineSniffer('off')
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e))
+    }
+  }, [])
+
+  const pasteAttrFilterFromCopied = useCallback(() => {
+    const c = getCopiedPlayerAttributes()
+    if (!c) {
+      window.alert('Copy a player’s attributes from their profile first (Copy attributes).')
+      return
+    }
+    void applyAttrFilterMinsFromPlayer(c.staffIndex, 'clipboard')
+  }, [applyAttrFilterMinsFromPlayer])
+
   const copyPlayerAttributes = useCallback(async () => {
     if (sel == null || typeof window.cmapi?.getEditorSnapshot !== 'function') return
     setCopyAttrsMsg(null)
@@ -1537,7 +1573,40 @@ export function App() {
               >
                 Attributes
               </summary>
-              <div className="space-y-1 border-t border-zinc-800 px-2 py-2">
+              <div className="space-y-2 border-t border-zinc-800 px-2 py-2">
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    disabled={!copiedAttrs || !loadInfo}
+                    onClick={() => pasteAttrFilterFromCopied()}
+                    title={
+                      copiedAttrs
+                        ? `Paste minimums from ${copiedAttrs.name}`
+                        : 'Copy attributes on a player profile first'
+                    }
+                    className="w-full rounded-md border border-sky-700/50 bg-sky-950/40 px-2 py-1.5 text-[11px] font-medium text-sky-100 transition hover:bg-sky-900/50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Paste attributes from player
+                  </button>
+                  {copiedAttrs ? (
+                    <p className="text-[10px] text-zinc-500">
+                      Clipboard: <span className="font-medium text-sky-200/90">{copiedAttrs.name}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-zinc-600">
+                      Copy attributes on a profile, then paste here (editor paste stays on the Editor tab).
+                    </p>
+                  )}
+                </div>
+                {loadInfo && (
+                  <EditorPlayerPicker
+                    loadInfo={loadInfo}
+                    selectedStaffIndex={null}
+                    compact
+                    searchLabel="Load minimums from player"
+                    onPick={(idx) => void applyAttrFilterMinsFromPlayer(idx, 'picker')}
+                  />
+                )}
                 <div
                   className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500"
                   title="Match ≥: empty = every active attribute minimum must pass; otherwise at least N of them must pass."
@@ -1811,6 +1880,7 @@ export function App() {
               </div>
             )}
             {browseTab === 'staff' && (
+              <div className="flex min-h-0 flex-1 flex-col">
               <StaffBrowsePanel
                 loadInfo={!!loadInfo}
                 filter={staffBrowseFilter}
@@ -1830,6 +1900,7 @@ export function App() {
                   })
                 }}
               />
+              </div>
             )}
             {browseTab === 'shortlists' && (
               <ShortlistsPanel
@@ -1956,15 +2027,20 @@ export function App() {
                 Load a database (index.dat or .sav) to populate the grid.
               </p>
             )}
-            {loadInfo && gridMeta && rows.length > 0 && (
-              <p className="mb-2 text-[11px] text-zinc-500">
-                Showing <span className="font-mono text-zinc-300">{rows.length.toLocaleString()}</span> loaded rows
-                {' · '}
-                total matching <span className="font-mono text-zinc-300">{gridMeta.total.toLocaleString()}</span>
-              </p>
-            )}
             <table className="w-full border-collapse text-left text-sm">
-              <thead className="sticky top-0 z-10 bg-zinc-900/95 backdrop-blur">
+              <thead className="sticky top-0 z-20 bg-zinc-950/95 shadow-[0_4px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+                {loadInfo && gridMeta && rows.length > 0 && (
+                  <tr className="border-b border-zinc-800/80">
+                    <th
+                      colSpan={colCount}
+                      className="px-2 py-1.5 text-left text-[11px] font-normal text-zinc-500"
+                    >
+                      Showing <span className="font-mono text-zinc-300">{rows.length.toLocaleString()}</span> loaded
+                      rows · total matching{' '}
+                      <span className="font-mono text-zinc-300">{gridMeta.total.toLocaleString()}</span>
+                    </th>
+                  </tr>
+                )}
                 {table.getHeaderGroups().map((hg) => (
                   <tr
                     key={hg.id}
@@ -2066,10 +2142,13 @@ export function App() {
         </div>
 
         <aside
-          ref={profileAsideRef}
           style={{ width: profilePanePx, maxWidth: 'min(720px, 92vw)' }}
-          className="min-w-[240px] shrink-0 overflow-y-auto overflow-x-hidden border-l border-zinc-800/80 bg-zinc-950/60 p-4 cm-scroll"
+          className="flex min-h-0 min-w-[240px] shrink-0 flex-col overflow-hidden border-l border-zinc-800/80 bg-zinc-950/60"
         >
+          <div
+            ref={profileAsideRef}
+            className="cm-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4"
+          >
           {browseTab === 'tactics' ? (
             <TacticsAssignmentPane
               loadInfo={!!loadInfo}
@@ -2120,7 +2199,7 @@ export function App() {
           )}
           {profile && (
             <div className="space-y-4">
-              <div className="border-b border-zinc-800/80 pb-3">
+              <div className="sticky top-0 z-30 -mx-4 border-b border-zinc-800/80 bg-zinc-950 px-4 pb-3 pt-0 shadow-[0_6px_16px_rgba(0,0,0,0.45)] backdrop-blur-md">
                 <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-white">
                   {profile.eliteEngineBadgeKind && profile.eliteEngineBadgeTitle && (
                     <EliteEngineStar
@@ -2877,6 +2956,7 @@ export function App() {
           )}
             </>
           )}
+          </div>
         </aside>
         </div>
       </div>
