@@ -268,6 +268,7 @@ export function ClubEditorPanel({
 
       <ClubSearchSidebar
         loadInfo={loadInfo}
+        showFavorites={false}
         q={clubBrowse.q}
         debouncedQ={clubBrowse.debouncedQ}
         suggestions={clubBrowse.suggestions}

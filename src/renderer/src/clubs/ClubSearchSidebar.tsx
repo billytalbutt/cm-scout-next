@@ -7,14 +7,16 @@ type Props = {
   debouncedQ: string
   suggestions: ClubListRow[]
   selId: number | null
-  selectedClub: ClubListRow | null
+  selectedClub?: ClubListRow | null
   loadingSuggest: boolean
   err: string | null
   menuOpen: boolean
-  favorites: ClubFavoriteEntry[]
-  isFavorite: (clubId: number) => boolean
-  onToggleFavorite: (club: ClubListRow) => void
-  onRemoveFavorite: (clubId: number) => void
+  /** Clubs tab only — editor uses search without favourites. */
+  showFavorites?: boolean
+  favorites?: ClubFavoriteEntry[]
+  isFavorite?: (clubId: number) => boolean
+  onToggleFavorite?: (club: ClubListRow) => void
+  onRemoveFavorite?: (clubId: number) => void
   onInputChange: (next: string) => void
   onInputFocus: () => void
   onInputBlur: () => void
@@ -46,10 +48,11 @@ export function ClubSearchSidebar({
   loadingSuggest,
   err,
   menuOpen,
-  favorites,
-  isFavorite,
-  onToggleFavorite,
-  onRemoveFavorite,
+  showFavorites = true,
+  favorites = [],
+  isFavorite = () => false,
+  onToggleFavorite = () => {},
+  onRemoveFavorite = () => {},
   onInputChange,
   onInputFocus,
   onInputBlur,
@@ -60,7 +63,7 @@ export function ClubSearchSidebar({
   }
 
   const showSuggestPanel = menuOpen && debouncedQ.length > 0 && suggestions.length > 0
-  const favActive = selectedClub != null && isFavorite(selectedClub.id)
+  const favActive = showFavorites && selectedClub != null && isFavorite(selectedClub.id)
 
   return (
     <div className="space-y-4">
@@ -88,7 +91,7 @@ export function ClubSearchSidebar({
         </div>
       </label>
 
-      {selectedClub && (
+      {showFavorites && selectedClub && (
         <button
           type="button"
           onClick={() => onToggleFavorite(selectedClub)}
@@ -103,6 +106,7 @@ export function ClubSearchSidebar({
         </button>
       )}
 
+      {showFavorites && (
       <div className="rounded-lg border border-zinc-800/90 bg-zinc-950/40">
         <div className="flex items-center justify-between border-b border-zinc-800/80 px-2.5 py-2">
           <h3 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Favourites</h3>
@@ -151,6 +155,7 @@ export function ClubSearchSidebar({
           </ul>
         )}
       </div>
+      )}
 
       {err && <p className="text-xs text-rose-300">{err}</p>}
       {debouncedQ && !loadingSuggest && suggestions.length === 0 && !err && (
@@ -178,20 +183,22 @@ export function ClubSearchSidebar({
                   {c.nation} · {c.division}
                 </span>
               </button>
-              <button
-                type="button"
-                title={isFavorite(c.id) ? 'Remove from favourites' : 'Add to favourites'}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => onToggleFavorite(c)}
-                className="shrink-0 self-center px-2 py-2 opacity-70 transition hover:opacity-100"
-              >
-                <StarIcon filled={isFavorite(c.id)} />
-              </button>
+              {showFavorites && (
+                <button
+                  type="button"
+                  title={isFavorite(c.id) ? 'Remove from favourites' : 'Add to favourites'}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onToggleFavorite(c)}
+                  className="shrink-0 self-center px-2 py-2 opacity-70 transition hover:opacity-100"
+                >
+                  <StarIcon filled={isFavorite(c.id)} />
+                </button>
+              )}
             </li>
           ))}
         </ul>
       )}
-      {!debouncedQ && !favorites.length && (
+      {!debouncedQ && showFavorites && !favorites.length && (
         <p className="text-[11px] text-zinc-600">Start typing to see matching clubs from the loaded save.</p>
       )}
     </div>
