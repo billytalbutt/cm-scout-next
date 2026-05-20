@@ -1,7 +1,13 @@
 /**
  * CM0102 packed “long” encoding for club **cash** (CM0102Patcher ConvertLongToCM2Format).
- * Some saves store plain int32 pounds instead — we detect and preserve that on write.
+ * On disk: packed int32; in-game pounds = decode(raw) × 1000.
+ *
+ * Vanilla CM0102 / normal saves use packed cash. A few tools write plain int32 pounds;
+ * we only treat those as plain when packed decode is clearly nonsense.
  */
+
+const CASH_DISPLAY_SCALE = 1000
+const MAX_CASH_POUNDS = 2_000_000_000
 
 /** Decode packed CM2 long → normal units (thousands for cash before ×1000). */
 export function cm2LongToNormal(raw: number): number {
@@ -19,33 +25,37 @@ export function cm2LongFromNormal(normal: number): number {
   return (v3 << 8) | (v2 << 16) | (val << 24)
 }
 
-/** Read int32 from club/stadium row and return display value (e.g. pounds). */
+/** Read int32 from club row and return pounds. */
 export function cm2LongDiskToDisplay(raw: number, displayScale: number): number {
   return cm2LongToNormal(raw) * displayScale
 }
 
-/** Display value (e.g. pounds) → int32 to write on disk. */
+/** Pounds → packed int32 on disk. */
 export function cm2LongDisplayToDisk(display: number, displayScale: number): number {
   const normal = Math.max(0, Math.trunc(display)) / displayScale
   return cm2LongFromNormal(normal)
 }
 
-/** True when raw int32 already looks like plain pounds, not packed cash. */
+/**
+ * Plain int32 pounds (rare third-party edits). Packed decode of e.g. 21_000_000 raw
+ * explodes to billions, so we trust the raw value instead.
+ */
 export function cashLooksPlainOnDisk(raw: number): boolean {
-  if (raw < 0 || raw > 2_000_000_000) return false
-  // Packed bytes decode to modest “normal” units; plain millions blow up cm2LongToNormal.
-  return cm2LongToNormal(raw) > 200_000
+  if (raw < 0 || raw > MAX_CASH_POUNDS) return false
+  const packedPounds = cm2LongDiskToDisplay(raw, CASH_DISPLAY_SCALE)
+  if (packedPounds > 100_000_000 && raw < packedPounds / 50) return true
+  if (packedPounds > MAX_CASH_POUNDS) return true
+  return false
 }
 
-/** Bank balance in pounds for UI / filters. */
+/** Bank balance in pounds for UI / club browse. */
 export function readCashDisplay(raw: number): number {
   if (cashLooksPlainOnDisk(raw)) return raw
-  return cm2LongDiskToDisplay(raw, 1000)
+  return cm2LongDiskToDisplay(raw, CASH_DISPLAY_SCALE)
 }
 
-/** Write pounds using the same representation as before (plain or packed). */
-export function writeCashDisplay(pounds: number, priorRaw: number): number {
-  const p = Math.max(0, Math.trunc(pounds))
-  if (cashLooksPlainOnDisk(priorRaw)) return Math.min(2_000_000_000, p)
-  return cm2LongDisplayToDisk(p, 1000)
+/** Write pounds — always packed for CM0102 (same as CM0102Patcher). */
+export function writeCashDisplay(pounds: number, _priorRaw?: number): number {
+  const p = Math.min(MAX_CASH_POUNDS, Math.max(0, Math.trunc(pounds)))
+  return cm2LongDisplayToDisk(p, CASH_DISPLAY_SCALE)
 }

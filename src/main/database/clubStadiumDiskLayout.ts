@@ -61,12 +61,10 @@ export function writeClubEditorDisplayAt(
   base: number,
   meta: ClubDiskFieldMeta,
   displayValue: number,
-  priorRawCash?: number,
 ): void {
   const abs = base + meta.offset
   if (meta.kind === 'cm2long') {
-    const prior = priorRawCash ?? buf.readInt32LE(abs)
-    buf.writeInt32LE(writeCashDisplay(displayValue, prior), abs)
+    buf.writeInt32LE(writeCashDisplay(displayValue), abs)
     return
   }
   if (meta.kind === 'u8') {
@@ -124,7 +122,6 @@ export function writeClubEditorField(
         ? 1
         : 0
       : displayValue
-  const priorRawCash = key === 'cash' ? buf.readInt32LE(clubBase + CLUB_CASH_OFF) : undefined
-  writeClubEditorDisplayAt(buf, base, meta, v, priorRawCash)
+  writeClubEditorDisplayAt(buf, base, meta, v)
   return true
 }

@@ -4,28 +4,37 @@ import {
   cm2LongDisplayToDisk,
   cm2LongFromNormal,
   cm2LongToNormal,
+  cashLooksPlainOnDisk,
   readCashDisplay,
   writeCashDisplay,
 } from './cm2LongFormat'
 
 describe('cm2LongFormat', () => {
-  it('round-trips cash-style values (×1000 display)', () => {
-    const encoded = cm2LongFromNormal(21_000)
-    expect(cm2LongToNormal(encoded)).toBe(21_000)
-    expect(cm2LongDiskToDisplay(encoded, 1000)).toBe(21_000_000)
-    const back = cm2LongDisplayToDisk(99_000_000, 1000)
-    expect(cm2LongDiskToDisplay(back, 1000)).toBe(99_000_000)
+  it('round-trips 21M and 100M packed cash', () => {
+    const enc21 = cm2LongFromNormal(21_000)
+    expect(cm2LongDiskToDisplay(enc21, 1000)).toBe(21_000_000)
+
+    const enc100 = writeCashDisplay(100_000_000)
+    expect(readCashDisplay(enc100)).toBe(100_000_000)
+    expect(cm2LongDiskToDisplay(enc100, 1000)).toBe(100_000_000)
   })
 
-  it('detects plain int32 cash on disk', () => {
+  it('does not treat vanilla packed bytes as plain', () => {
+    const packed21m = cm2LongFromNormal(21_000)
+    expect(cashLooksPlainOnDisk(packed21m)).toBe(false)
+    expect(readCashDisplay(packed21m)).toBe(21_000_000)
+  })
+
+  it('detects rare plain int32 tool edits', () => {
+    expect(cashLooksPlainOnDisk(21_000_000)).toBe(true)
     expect(readCashDisplay(21_000_000)).toBe(21_000_000)
-    const packed = cm2LongFromNormal(21_000)
-    expect(readCashDisplay(packed)).toBe(21_000_000)
   })
 
-  it('writes plain cash when prior raw was plain', () => {
-    expect(writeCashDisplay(99_000_000, 21_000_000)).toBe(99_000_000)
+  it('writes 100M packed even when prior on disk was misread as plain-shaped', () => {
     const packedPrior = cm2LongFromNormal(21_000)
-    expect(writeCashDisplay(99_000_000, packedPrior)).toBe(cm2LongDisplayToDisk(99_000_000, 1000))
+    expect(cashLooksPlainOnDisk(packedPrior)).toBe(false)
+    const written = writeCashDisplay(100_000_000, packedPrior)
+    expect(readCashDisplay(written)).toBe(100_000_000)
+    expect(written).not.toBe(100_000_000)
   })
 })

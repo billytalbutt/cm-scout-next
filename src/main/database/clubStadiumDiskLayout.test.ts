@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import { STADIUM_ROW_BYTES } from './stadiumRecords'
-import { cm2LongDisplayToDisk, writeCashDisplay } from '../../shared/cm2LongFormat'
+import { cm2LongDisplayToDisk, readCashDisplay } from '../../shared/cm2LongFormat'
 import {
   CLUB_CASH_OFF,
   rowIndexForId,
@@ -47,9 +47,9 @@ describe('clubStadiumDiskLayout', () => {
     expect('clubBase' in resolved).toBe(true)
     if (!('clubBase' in resolved)) return
 
-    writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'cash', 9_999_999)
-    const priorCash = archive.readInt32LE(clubBase + CLUB_CASH_OFF)
-    expect(archive.readInt32LE(clubBase + CLUB_CASH_OFF)).toBe(writeCashDisplay(9_999_999, priorCash))
+    expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(1_000_000)
+    writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'cash', 100_000_000)
+    expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(100_000_000)
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'stadium_capacity', 55_000)
     expect(archive.readInt32LE(stadiumBase + 60)).toBe(55_000)
   })
