@@ -18,8 +18,12 @@ import {
 import { PLAYER_STATS_HISTORY_ROW_BYTES_CANDIDATE } from './playerStatsHistoryProbe'
 import { embeddedIdRecordStart } from './playerStatsSummary'
 import { collectPlayerDatIdOccurrences, pickPlayerStatsAnchor } from './playerStatsDat'
-import { buildPlayerDatIdToStaffId } from './playerStatsJoins'
-import type { PlayerRecord, StaffCompHistoryRecord, StaffRecord } from './types'
+import type {
+  PlayerRecord,
+  PlayerSavePerformanceStats,
+  StaffCompHistoryRecord,
+  StaffRecord,
+} from './types'
 
 export const PLAYER_STATS_HISTORY_RECORD = {
   playerDatIdRel: 0,
@@ -292,11 +296,12 @@ export function indexPlayerStatsHistoryByPlayerDatId(
   return indexPlayerStatsHistory(buf, ids, new Map()).byScope
 }
 
-function readEmbeddedSeniorClub(
+function seniorClubFromEmbedded(
   statsBuf: Buffer,
   playerDatId: number,
+  anchorOccurrences: readonly number[] | undefined,
 ): CmScopeStatRow | null {
-  const occ = collectPlayerDatIdOccurrences(statsBuf, new Set([playerDatId])).get(playerDatId) ?? []
+  const occ = anchorOccurrences ?? []
   const anchor = pickPlayerStatsAnchor(statsBuf, playerDatId, occ)
   if (anchor == null) return null
   const rec = embeddedIdRecordStart(statsBuf, anchor, playerDatId)
@@ -313,6 +318,25 @@ function readEmbeddedSeniorClub(
     goals,
     assists,
     averageRating: ratingFromU8(readU8(statsBuf, rec, EMBEDDED_SENIOR.ratingRel)),
+    source: 'player stats.dat',
+  }
+}
+
+function seniorClubFromSaveSummary(
+  savePerf: PlayerSavePerformanceStats | null | undefined,
+): CmScopeStatRow | null {
+  if (!savePerf || savePerf.apps == null) return null
+  const apps = savePerf.apps
+  const goals = savePerf.goals ?? 0
+  const assists = savePerf.assists ?? 0
+  if (!plausibleTriple(apps, goals, assists)) return null
+  return {
+    key: 'seniorClub',
+    label: 'Senior club',
+    apps,
+    goals,
+    assists,
+    averageRating: savePerf.averageRating ?? null,
     source: 'player stats.dat',
   }
 }
@@ -376,11 +400,21 @@ export function decodePlayerCurrentSeasonStats(
   statsBuf: Buffer | null | undefined,
   historyByPlayer?: Map<number, Array<{ apps: number; goals: number; assists: number; scope: number }>>,
   staffInternational?: { apps: number; goals: number } | null,
+  opts?: {
+    statsAnchorOccurrences?: readonly number[]
+    savePerformance?: PlayerSavePerformanceStats | null
+  },
 ): PlayerCurrentSeasonStats {
   const histRows =
     historyByPlayer?.get(playerDatId) ??
     (historyBuf?.length ? historyRowsForPlayer(historyBuf, playerDatId) : [])
-  const seniorClub = statsBuf?.length ? readEmbeddedSeniorClub(statsBuf, playerDatId) : null
+  let seniorClub: CmScopeStatRow | null = null
+  if (statsBuf?.length) {
+    seniorClub = seniorClubFromEmbedded(statsBuf, playerDatId, opts?.statsAnchorOccurrences)
+  }
+  if (!seniorClub) {
+    seniorClub = seniorClubFromSaveSummary(opts?.savePerformance)
+  }
 
   const scopeRows: CmScopeStatRow[] = []
 
@@ -612,6 +646,8 @@ export function buildPlayerCurrentSeasonIndex(
   statsBuf: Buffer | null | undefined,
   competitionNames: CompetitionNamesById,
   staffCompHistoryByStaffId?: Map<number, StaffCompHistoryRecord[]>,
+  savePerformanceByPlayerDatId?: Map<number, PlayerSavePerformanceStats>,
+  onProgress?: (fraction: number) => void,
 ): Map<number, PlayerCurrentSeasonIndexed> {
   const out = new Map<number, PlayerCurrentSeasonIndexed>()
   if (!historyBuf?.length && !statsBuf?.length) return out
@@ -622,6 +658,7 @@ export function buildPlayerCurrentSeasonIndex(
     if (pid != null) playerIds.add(pid)
   }
 
+  onProgress?.(0.05)
   let historyByScope: Map<number, HistoryScopeRow[]> | undefined
   let historyByComp: Map<number, HistoryCompRow[]> | undefined
   if (historyBuf?.length && competitionNames.size && playerIds.size) {
@@ -630,7 +667,13 @@ export function buildPlayerCurrentSeasonIndex(
     historyByComp = hist.byComp
   }
 
-  const playerToStaff = buildPlayerDatIdToStaffId(players, staff)
+  onProgress?.(0.35)
+  const statsOccByPlayer =
+    statsBuf?.length && playerIds.size
+      ? collectPlayerDatIdOccurrences(statsBuf, playerIds)
+      : undefined
+
+  onProgress?.(0.45)
   const intlByPlayerId = new Map<number, { apps: number; goals: number }>()
   for (const s of staff) {
     const pid = players[s.player_id]?.id
@@ -638,6 +681,8 @@ export function buildPlayerCurrentSeasonIndex(
   }
 
   const seen = new Set<number>()
+  let processed = 0
+  const totalPlayers = playerIds.size
   for (const s of staff) {
     const pid = players[s.player_id]?.id
     if (pid == null || seen.has(pid)) continue
@@ -648,6 +693,10 @@ export function buildPlayerCurrentSeasonIndex(
       statsBuf,
       historyByScope,
       intlByPlayerId.get(pid) ?? null,
+      {
+        statsAnchorOccurrences: statsOccByPlayer?.get(pid),
+        savePerformance: savePerformanceByPlayerDatId?.get(pid) ?? null,
+      },
     )
     const histComp = historyByComp?.get(pid) ?? []
     const gridComp = staffCompHistoryByStaffId?.get(s.id) ?? []
@@ -659,6 +708,11 @@ export function buildPlayerCurrentSeasonIndex(
     )
     const indexed = indexedFromDecoded(decoded, byCompetition)
     if (indexed.available) out.set(pid, indexed)
+    processed++
+    if (onProgress && (processed % 2000 === 0 || processed === totalPlayers)) {
+      onProgress(0.45 + (0.55 * processed) / Math.max(1, totalPlayers))
+    }
   }
+  onProgress?.(1)
   return out
 }

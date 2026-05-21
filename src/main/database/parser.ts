@@ -601,6 +601,7 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
         playerStatsDatBuf,
         competitionNamesById ?? new Map(),
         staffCompHistoryByStaffId,
+        savePerformanceByPlayerDatId,
       )
     } catch {
       currentSeasonByPlayerDatId = undefined

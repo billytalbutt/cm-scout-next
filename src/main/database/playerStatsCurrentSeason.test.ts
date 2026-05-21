@@ -46,7 +46,7 @@ describe('decodePlayerCurrentSeasonStats', () => {
     const decoded = decodePlayerCurrentSeasonStats(pid, hist, stats, undefined, {
       apps: 1,
       goals: 0,
-    })
+    }, { statsAnchorOccurrences: [anchor] })
 
     const byKey = Object.fromEntries(decoded.scopes.map((r) => [r.key, r]))
     expect(byKey.league).toMatchObject({ apps: 1, goals: 0, assists: 1 })

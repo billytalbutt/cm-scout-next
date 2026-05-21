@@ -247,6 +247,19 @@ ipcMain.handle('open-database', async (event) => {
           db.playerStatsDatBuf,
           db.competitionNamesById ?? new Map(),
           db.staffCompHistoryByStaffId,
+          db.savePerformanceByPlayerDatId,
+          (frac) => {
+            emitLoadProgress(sender, {
+              phase: 'season',
+              message:
+                frac < 0.4
+                  ? 'Scanning season history (47-byte rows)…'
+                  : frac < 0.5
+                    ? 'Locating player stats anchors (one pass)…'
+                    : 'Attaching goals & assists per player…',
+              progress: 0.84 + frac * 0.15,
+            })
+          },
         )
         patchUiRowsCurrentSeason(rows, db)
       } catch {

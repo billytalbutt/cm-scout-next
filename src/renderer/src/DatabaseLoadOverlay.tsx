@@ -77,8 +77,8 @@ export function DatabaseLoadOverlay({ progress }: Props) {
           </div>
 
           <p className="relative mt-5 text-center text-[11px] text-zinc-600">
-            Large saves can take a minute the first time. Season stats now use a fast index — not a
-            full-file scan.
+            If this step sits still for more than a minute, pull the latest build — a fix removed a
+            per-player full-file scan that could take ten minutes.
           </p>
         </div>
       </div>
