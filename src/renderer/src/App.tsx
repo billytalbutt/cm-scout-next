@@ -1192,7 +1192,7 @@ export function App() {
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-4 py-2 backdrop-blur">
         <div className="flex min-w-0 items-center gap-3">
           <img
-            src="/merlin-mascot.png"
+            src="/soccer-wizard-mascot.png"
             alt=""
             className="h-[4.125rem] w-auto max-h-[4.125rem] shrink-0 object-contain object-left"
             title="CM-01/02 Merlin"
