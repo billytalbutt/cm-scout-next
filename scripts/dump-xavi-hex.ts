@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { readArchiveBlock } from '../src/main/database/parser.ts'
 
 const paths = [
-  'C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav',
+  'C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav',
   'C:/Users/bitalb/Downloads/Blackburn_Uncompressed_New/Blackburn Uncompressed New.sav',
 ] as const
 const id = 14922

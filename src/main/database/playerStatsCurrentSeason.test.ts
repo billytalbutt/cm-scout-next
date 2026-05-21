@@ -38,9 +38,11 @@ describe('decodePlayerCurrentSeasonStats', () => {
     stats.writeInt32LE(pid, rec + 40)
     stats.writeInt32LE(pid, anchor)
     stats.writeInt32LE(1, anchor + 4)
-    stats.writeUInt8(3, rec + 65)
-    stats.writeUInt8(0, rec + 66)
-    stats.writeUInt8(1, rec + 104)
+    stats.writeUInt8(1, rec + 12)
+    stats.writeUInt8(7, rec + 13)
+    stats.writeUInt8(2, rec + 26)
+    stats.writeUInt8(1, rec + 86)
+    stats.writeUInt8(2, rec + 30)
     stats.writeUInt8(72, rec + 64)
 
     const decoded = decodePlayerCurrentSeasonStats(pid, hist, stats, undefined, {
@@ -53,14 +55,14 @@ describe('decodePlayerCurrentSeasonStats', () => {
     expect(byKey.cup).toMatchObject({ apps: 1, goals: 0, assists: 0 })
     expect(byKey.continental).toMatchObject({ apps: 1, goals: 0, assists: 0 })
     expect(byKey.international).toMatchObject({ apps: 1, goals: 0, assists: 0 })
-    expect(byKey.seniorClub).toMatchObject({ apps: 3, goals: 0, assists: 1 })
+    expect(byKey.seniorClub).toMatchObject({ apps: 6, goals: 1, assists: 2 })
     expect(byKey.seniorClub?.averageRating).toBe(7.2)
   })
 })
 
-const goldenSav =
-  process.env.CM0102_GOLDEN_SAV ??
-  'C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav'
+import { DEFAULT_GOLDEN_SAV } from '../../../fixtures/player-stats/goldenSavePath'
+
+const goldenSav = DEFAULT_GOLDEN_SAV
 
 describe.skipIf(!existsSync(goldenSav))('Joe Cole golden save', () => {
   it('matches CM History tab scope totals', async () => {
@@ -83,7 +85,9 @@ describe.skipIf(!existsSync(goldenSav))('Joe Cole golden save', () => {
     expect(byKey.league).toMatchObject({ apps: 1, goals: 0, assists: 1 })
     expect(byKey.cup).toMatchObject({ apps: 1, goals: 0, assists: 0 })
     expect(byKey.continental).toMatchObject({ apps: 1, goals: 0, assists: 0 })
-    expect(byKey.seniorClub).toMatchObject({ apps: 3, goals: 0, assists: 1 })
+    expect(byKey.seniorClub).toMatchObject({ apps: 6, goals: 1, assists: 2 })
+    expect(byKey.seniorClub?.averageRating).toBeGreaterThanOrEqual(7.1)
+    expect(byKey.seniorClub?.averageRating).toBeLessThanOrEqual(7.25)
     const index = buildPlayerCurrentSeasonIndex(
       db.players,
       db.staff,
@@ -92,7 +96,8 @@ describe.skipIf(!existsSync(goldenSav))('Joe Cole golden save', () => {
       db.competitionNamesById ?? new Map(),
       db.staffCompHistoryByStaffId,
     )
-    expect(index.get(5451)?.seniorGoals).toBe(0)
+    expect(index.get(5451)?.seniorGoals).toBe(1)
+    expect(index.get(5451)?.seniorApps).toBe(6)
     expect(index.get(5451)?.leagueAssists).toBe(1)
     const premier = index.get(5451)?.byCompetition.find((c) => c.competitionId === 7)
     if (premier) {

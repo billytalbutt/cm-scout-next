@@ -103,7 +103,7 @@ function playerInstructionAdvice(tier: 'strong' | 'ok' | 'avoid'): string {
 
 function formatProfileStatCell(v: number | null | undefined, kind: 'int' | 'rating' = 'int'): ReactNode {
   if (v == null || Number.isNaN(v)) return <span className="text-zinc-600">—</span>
-  if (kind === 'rating') return <span className="font-mono text-zinc-200">{v.toFixed(1)}</span>
+  if (kind === 'rating') return <span className="font-mono text-zinc-200">{v.toFixed(2)}</span>
   return <span className="font-mono text-zinc-200">{Math.round(v)}</span>
 }
 

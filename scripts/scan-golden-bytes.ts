@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { readArchiveBlock } from '../src/main/database/parser.ts'
 
 const old = readArchiveBlock(
-  readFileSync('C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav'),
+  readFileSync('C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav'),
   'player stats.dat',
 )!
 const neu = readArchiveBlock(

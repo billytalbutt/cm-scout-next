@@ -25,7 +25,7 @@ function readBlocksDirectory(buf: Buffer): { compressed: boolean; blocks: BlockI
 }
 
 const paths = [
-  process.env.CM0102_GOLDEN_SAV ?? 'C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav',
+  process.env.CM0102_GOLDEN_SAV ?? 'C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav',
 ]
 
 for (const p of paths) {

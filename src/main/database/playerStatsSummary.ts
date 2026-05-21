@@ -174,7 +174,7 @@ export function embeddedIdRecordStart(
   return rec
 }
 
-function readEmbeddedIdRecordStats(buf: Buffer, recStart: number): SummaryStatsTriple | null {
+export function readEmbeddedIdRecordStats(buf: Buffer, recStart: number): SummaryStatsTriple | null {
   const apps = readU8(buf, recStart, F.appsEmbedded)
   const goals = readU8(buf, recStart, F.goalsEmbedded)
   const assists = readU8(buf, recStart, F.assistsEmbedded)

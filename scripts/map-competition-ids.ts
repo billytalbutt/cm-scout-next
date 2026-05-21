@@ -32,7 +32,7 @@ import {
 
 const DEFAULT_SAVE =
   process.env.CM0102_GOLDEN_SAV ??
-  'C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav'
+  'C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav'
 
 const DEFAULT_FILTER =
   /premier|champions|uefa|fa cup|league cup|carabao|world club|club championship|community shield/i

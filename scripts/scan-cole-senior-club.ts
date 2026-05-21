@@ -6,7 +6,7 @@ import { readArchiveBlock } from '../src/main/database/parser.ts'
 
 const COLE_ID = 5451
 const SAVES: [string, string][] = [
-  ['old (Aug 27)', 'C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav'],
+  ['Blackburn (Downloads)', 'C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav'],
   ['new (Sep 10)', 'C:/Users/bitalb/Downloads/Blackburn_Uncompressed_New/Blackburn Uncompressed New.sav'],
 ]
 

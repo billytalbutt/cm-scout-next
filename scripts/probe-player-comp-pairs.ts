@@ -20,7 +20,7 @@ import { inspectSeniorClubAnchorsForPlayer } from '../src/main/database/playerSt
 
 const DEFAULT_SAVE =
   process.env.CM0102_GOLDEN_SAV ??
-  'C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav'
+  'C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav'
 
 /** Known summary anchors from discovery run (Blackburn save). */
 const KNOWN_ANCHORS: Record<number, number[]> = {

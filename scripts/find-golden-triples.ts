@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs'
 import { readArchiveBlock } from '../src/main/database/parser.ts'
 
-const OLD = 'C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav'
+const OLD = 'C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav'
 const NEW =
   'C:/Users/bitalb/Downloads/Blackburn_Uncompressed_New/Blackburn Uncompressed New.sav'
 

@@ -10,8 +10,7 @@ import {
 import type { PlayerRecord } from './types'
 
 const BLACKBURN_SAV =
-  process.env.CM0102_GOLDEN_SAV ??
-  'C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav'
+  process.env.CM0102_GOLDEN_SAV ?? 'C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav'
 
 describe('parsePlayerStatsSummary', () => {
   it('decodes apps/goals/assists at anchor+91..93', () => {

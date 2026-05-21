@@ -7,7 +7,10 @@
  *   scope: 1=Cup, 2=Continental, 3=League (4=Senior-club duplicate in history — prefer player stats.dat)
  *
  * `player stats.dat` embedded record (Cole-style, rec @ anchor−40):
- *   Senior club totals: apps +65, goals +66, assists +104, rating u8 +64 (÷10)
+ *   Senior club totals: apps +13, goals +26/+86, assists +30 (`readSummaryStatsAtAnchor`); subtract u8 +12 non-competitive apps when &lt; total
+ *   Average rating: u16 ÷100 in record when present, else u8 +64 (÷10) — display with two decimals in UI
+ *
+ * Some saves also store `player.dat` id @ row+2 on 47-byte history rows (not only @+0).
  */
 
 import {
@@ -16,7 +19,11 @@ import {
   type CompetitionNamesById,
 } from './competitionNames'
 import { PLAYER_STATS_HISTORY_ROW_BYTES_CANDIDATE } from './playerStatsHistoryProbe'
-import { embeddedIdRecordStart } from './playerStatsSummary'
+import {
+  embeddedIdRecordStart,
+  readEmbeddedIdRecordStats,
+  readSummaryStatsAtAnchor,
+} from './playerStatsSummary'
 import { collectPlayerDatIdOccurrences, pickPlayerStatsAnchor } from './playerStatsDat'
 import type {
   PlayerRecord,
@@ -92,13 +99,7 @@ const SCOPE_ORDER: CmStatScopeKey[] = [
   'seniorClub',
 ]
 
-const EMBEDDED_SENIOR = {
-  appsRel: 65,
-  goalsRel: 66,
-  assistsRel: 104,
-  ratingRel: 64,
-  ratingScale: 0.1,
-} as const
+const RATING_U8_SCALE = 0.1
 
 function readU8(buf: Buffer, base: number, rel: number): number | null {
   const i = base + rel
@@ -108,7 +109,21 @@ function readU8(buf: Buffer, base: number, rel: number): number | null {
 
 function ratingFromU8(v: number | null): number | null {
   if (v == null || v < 50 || v > 100) return null
-  return Math.round(v * EMBEDDED_SENIOR.ratingScale * 100) / 100
+  return Math.round(v * RATING_U8_SCALE * 100) / 100
+}
+
+/** CM-style av. rating stored as hundredths (e.g. 717 → 7.17) in embedded record. */
+function ratingFromEmbeddedRecord(buf: Buffer, rec: number): number | null {
+  if (rec < 0 || rec + 128 > buf.length) return null
+  for (let rel = 56; rel <= 118; rel += 2) {
+    if (rel + 1 >= buf.length) continue
+    const v = buf.readUInt16LE(rec + rel)
+    if (v >= 650 && v <= 750) {
+      const r = v / 100
+      if (r >= 5.5 && r <= 9.5) return Math.round(r * 100) / 100
+    }
+  }
+  return ratingFromU8(readU8(buf, rec, 64))
 }
 
 function plausibleTriple(apps: number, goals: number, assists: number): boolean {
@@ -117,15 +132,20 @@ function plausibleTriple(apps: number, goals: number, assists: number): boolean 
   return true
 }
 
-function decodeHistoryRecord(buf: Buffer, rowStart: number): {
+function decodeHistoryRecordAt(
+  buf: Buffer,
+  rowStart: number,
+  playerIdRel: number,
+): {
   playerDatId: number
   apps: number
   goals: number
   assists: number
   scope: number
 } | null {
-  if (rowStart + R.scopeRel + 1 > buf.length) return null
-  const playerDatId = buf.readInt32LE(rowStart + R.playerDatIdRel)
+  const maxRel = Math.max(R.scopeRel, playerIdRel + 4)
+  if (rowStart + maxRel + 1 > buf.length) return null
+  const playerDatId = buf.readInt32LE(rowStart + playerIdRel)
   const apps = readU8(buf, rowStart, R.appsRel)
   const goals = readU8(buf, rowStart, R.goalsRel)
   const assists = readU8(buf, rowStart, R.assistsRel)
@@ -133,6 +153,10 @@ function decodeHistoryRecord(buf: Buffer, rowStart: number): {
   if (apps == null || goals == null || assists == null || scope == null) return null
   if (!plausibleTriple(apps, goals, assists)) return null
   return { playerDatId, apps, goals, assists, scope }
+}
+
+function decodeHistoryRecord(buf: Buffer, rowStart: number) {
+  return decodeHistoryRecordAt(buf, rowStart, R.playerDatIdRel)
 }
 
 type HistoryScopeRow = { apps: number; goals: number; assists: number; scope: number }
@@ -247,9 +271,10 @@ export function indexPlayerStatsHistory(
 
   const stride = PLAYER_STATS_HISTORY_ROW_BYTES_CANDIDATE
   for (let row = 0; row + stride <= buf.length; row += stride) {
-    const pid0 = buf.readInt32LE(row)
-    if (playerIds.has(pid0)) {
-      const rec = decodeHistoryRecord(buf, row)
+    for (const playerIdRel of [R.playerDatIdRel, 2] as const) {
+      const pid = buf.readInt32LE(row + playerIdRel)
+      if (!playerIds.has(pid)) continue
+      const rec = decodeHistoryRecordAt(buf, row, playerIdRel)
       if (rec) {
         pushHistoryRow(byScope, rec)
         const compId = readCompIdAtRow(buf, row, rec.playerDatId, competitionNames)
@@ -304,20 +329,54 @@ function seniorClubFromEmbedded(
   const occ = anchorOccurrences ?? []
   const anchor = pickPlayerStatsAnchor(statsBuf, playerDatId, occ)
   if (anchor == null) return null
+
+  const summary = readSummaryStatsAtAnchor(statsBuf, anchor, playerDatId, occ.length)
   const rec = embeddedIdRecordStart(statsBuf, anchor, playerDatId)
-  if (rec == null) return null
-  const apps = readU8(statsBuf, rec, EMBEDDED_SENIOR.appsRel)
-  const goals = readU8(statsBuf, rec, EMBEDDED_SENIOR.goalsRel)
-  const assists = readU8(statsBuf, rec, EMBEDDED_SENIOR.assistsRel)
-  if (apps == null || goals == null || assists == null) return null
+  let apps: number
+  let goals: number
+  let assists: number
+
+  if (summary) {
+    apps = summary.apps
+    goals = summary.goals
+    assists = summary.assists
+    if (rec != null) {
+      const goalsAlt = readU8(statsBuf, rec, 86)
+      if (
+        goalsAlt != null &&
+        goalsAlt <= apps &&
+        goalsAlt < goals &&
+        plausibleTriple(apps, goalsAlt, assists)
+      ) {
+        goals = goalsAlt
+      }
+    }
+  } else if (rec != null) {
+    const emb = readEmbeddedIdRecordStats(statsBuf, rec)
+    if (!emb) return null
+    apps = emb.apps
+    goals = emb.goals
+    assists = emb.assists
+  } else {
+    return null
+  }
+
   if (!plausibleTriple(apps, goals, assists)) return null
+
+  if (rec != null) {
+    const nonCompApps = readU8(statsBuf, rec, 12)
+    if (nonCompApps != null && nonCompApps > 0 && nonCompApps < apps) {
+      apps -= nonCompApps
+    }
+  }
+
   return {
     key: 'seniorClub',
     label: 'Senior club',
     apps,
     goals,
     assists,
-    averageRating: ratingFromU8(readU8(statsBuf, rec, EMBEDDED_SENIOR.ratingRel)),
+    averageRating: rec != null ? ratingFromEmbeddedRecord(statsBuf, rec) : null,
     source: 'player stats.dat',
   }
 }
@@ -661,7 +720,7 @@ export function buildPlayerCurrentSeasonIndex(
   onProgress?.(0.05)
   let historyByScope: Map<number, HistoryScopeRow[]> | undefined
   let historyByComp: Map<number, HistoryCompRow[]> | undefined
-  if (historyBuf?.length && competitionNames.size && playerIds.size) {
+  if (historyBuf?.length && playerIds.size) {
     const hist = indexPlayerStatsHistory(historyBuf, playerIds, competitionNames)
     historyByScope = hist.byScope
     historyByComp = hist.byComp

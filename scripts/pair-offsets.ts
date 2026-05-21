@@ -16,7 +16,7 @@ function allOff(buf: Buffer, id: number): number[] {
 }
 
 const oldB = readArchiveBlock(
-  readFileSync('C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav'),
+  readFileSync('C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav'),
   'player stats.dat',
 )!
 const newB = readArchiveBlock(

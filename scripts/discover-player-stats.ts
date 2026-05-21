@@ -28,7 +28,7 @@ import {
 
 const DEFAULT_SAVE =
   process.env.CM0102_GOLDEN_SAV ??
-  'C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav'
+  'C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav'
 
 const DEFAULT_NAMES = ['Kieron Dyer', 'Joe Cole', 'Xavi', 'Maxim Tsigalko']
 

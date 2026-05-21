@@ -6,7 +6,7 @@ Use the **discovery tool** to find where CM0102 stores appearances, goals, assis
 
 ```bash
 cd cm-scout-next
-npm run discover:player-stats -- "C:/Users/bitalb/Downloads/Game/Game/Blackburn Uncompressed.sav"
+npm run discover:player-stats -- "C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav"
 ```
 
 Or set `CM0102_GOLDEN_SAV` and run without a path:
