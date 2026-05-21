@@ -422,30 +422,36 @@ ipcMain.handle('get-staff-profile', async (_e, staffIndex: unknown) => {
 
 ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
   if (!loaded) return null
-  let row = loaded.rows.find((r) => r.staffIndex === staffIndex)
-  if (!row) {
-    const built = buildUiPlayerRowAtIndex(loaded.db, staffIndex)
-    if (!built) return null
-    applyCmScoutRatings([built])
-    applyEffectivenessRatings([built])
-    applyEngineMetaProfiles([built])
-    row = built
-  }
-  return {
-    ...buildProfilePayload(row, loaded.db.clubNames, loaded.db.gameDateIso, {
-      nationSeasonUpdateDaySamples: loaded.db.nationSeasonUpdateDaySamples,
-      clubCompsById: loaded.db.clubCompsById,
-      staffCompsById: loaded.db.staffCompsById,
-      clubDivisionCompIdByClubId: loaded.db.clubDivisionCompIdByClubId,
-      staffHistoryParsed: loaded.db.staffHistoryParsed ?? false,
-      staffHistorySourcePath: loaded.db.staffHistorySourcePath,
-      playerStatsDatPresent: loaded.db.playerStatsDatPresent ?? false,
-      savePerformancePerCompByPlayerDatId: loaded.db.savePerformancePerCompByPlayerDatId,
-      savePerformanceByPlayerDatId: loaded.db.savePerformanceByPlayerDatId,
-      playerStatsHistoryBuf: loaded.db.playerStatsHistoryBuf,
-      playerStatsDatBuf: loaded.db.playerStatsDatBuf,
-    }),
-    isDemo: false as const,
+  const idx = Math.floor(Number(staffIndex))
+  if (!Number.isFinite(idx) || idx < 0) return null
+  try {
+    let row = loaded.rows.find((r) => r.staffIndex === idx)
+    if (!row) {
+      const built = buildUiPlayerRowAtIndex(loaded.db, idx)
+      if (!built) return null
+      applyCmScoutRatings([built])
+      applyEffectivenessRatings([built])
+      applyEngineMetaProfiles([built])
+      row = built
+    }
+    return {
+      ...buildProfilePayload(row, loaded.db.clubNames, loaded.db.gameDateIso, {
+        nationSeasonUpdateDaySamples: loaded.db.nationSeasonUpdateDaySamples,
+        clubCompsById: loaded.db.clubCompsById,
+        staffCompsById: loaded.db.staffCompsById,
+        clubDivisionCompIdByClubId: loaded.db.clubDivisionCompIdByClubId,
+        staffHistoryParsed: loaded.db.staffHistoryParsed ?? false,
+        staffHistorySourcePath: loaded.db.staffHistorySourcePath,
+        playerStatsDatPresent: loaded.db.playerStatsDatPresent ?? false,
+        savePerformancePerCompByPlayerDatId: loaded.db.savePerformancePerCompByPlayerDatId,
+        savePerformanceByPlayerDatId: loaded.db.savePerformanceByPlayerDatId,
+        currentSeasonByPlayerDatId: loaded.db.currentSeasonByPlayerDatId,
+      }),
+      isDemo: false as const,
+    }
+  } catch (e) {
+    console.error('get-profile failed', idx, e)
+    throw e
   }
 })
 

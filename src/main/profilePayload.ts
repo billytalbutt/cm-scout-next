@@ -16,7 +16,7 @@ import {
   currentSeasonPerformanceFromSave,
   pickCurrentSeasonStaffHistoryAtClub,
 } from './database/currentSeasonPerformance'
-import { decodePlayerCurrentSeasonStats } from './database/playerStatsCurrentSeason'
+import type { PlayerCurrentSeasonIndexed } from './database/playerStatsCurrentSeason'
 import type { StaffHistoryRecord } from './database/staffHistory'
 import {
   buildCa18Display,
@@ -194,8 +194,8 @@ export type ProfileDbContext = {
   savePerformancePerCompByPlayerDatId?: Map<number, PlayerStatsPerCompetitionRow[]>
   /** Summary decode from `player stats.dat` (Senior club totals). */
   savePerformanceByPlayerDatId?: Map<number, PlayerSavePerformanceStats>
-  playerStatsHistoryBuf?: Buffer
-  playerStatsDatBuf?: Buffer
+  /** Pre-built at load — never scan `player stats history.tmp` when opening a profile. */
+  currentSeasonByPlayerDatId?: Map<number, PlayerCurrentSeasonIndexed>
 }
 
 function calendarYearFromGameIso(iso: string | null): number | null {
@@ -365,18 +365,8 @@ function buildProfileSeasonStats(
     ? { apps: currentSeasonPerformance.apps, goals: currentSeasonPerformance.goals }
     : { apps: cApps, goals: cGoals }
 
-  const cmHistoryScopes = row.cmSeason?.scopes?.length
-    ? row.cmSeason.scopes
-    : ctx.playerStatsHistoryBuf?.length || ctx.playerStatsDatBuf?.length
-      ? decodePlayerCurrentSeasonStats(
-          row.player.id,
-          ctx.playerStatsHistoryBuf,
-          ctx.playerStatsDatBuf,
-          undefined,
-          { apps: row.staff.int_apps, goals: row.staff.int_goals },
-        ).scopes
-      : []
-
+  const indexedSeason = row.cmSeason ?? ctx.currentSeasonByPlayerDatId?.get(row.player.id) ?? null
+  const cmHistoryScopes = indexedSeason?.scopes ?? []
   const cmHistoryAvailable =
     cmHistoryScopes.length > 0 &&
     cmHistoryScopes.some((r) => r.apps > 0 || r.goals > 0 || r.assists > 0)
@@ -418,7 +408,7 @@ function buildProfileSeasonStats(
         : saveCalendarYear != null
           ? `${saveCalendarYear}/${String((saveCalendarYear + 1) % 100).padStart(2, '0')}`
           : null,
-    cmCompetitionRows: row.cmSeason?.byCompetition ?? [],
+    cmCompetitionRows: indexedSeason?.byCompetition ?? [],
   }
 }
 

@@ -574,7 +574,6 @@ export function App() {
   )
 
   const gridInclude = useMemo(() => gridFlagsForVisibleColumnIds(columnOrder), [columnOrder])
-  const dblGuard = useRef<{ t: number; sid: number }>({ t: 0, sid: -1 })
   const profileAsideRef = useRef<HTMLDivElement>(null)
   const lastProfilePanePxRef = useRef(readProfilePanePx())
   const [profilePanePx, setProfilePanePx] = useState(() => lastProfilePanePxRef.current)
@@ -1032,12 +1031,23 @@ export function App() {
     setStaffProfile(p)
   }, [])
 
+  const [profileLoading, setProfileLoading] = useState(false)
+
   const pick = useCallback(async (staffIndex: number) => {
     setSel(staffIndex)
     setStaffProfile(null)
+    setProfile(null)
     if (typeof window.cmapi?.getProfile !== 'function') return
-    const p = await window.cmapi.getProfile(staffIndex)
-    setProfile(p)
+    setProfileLoading(true)
+    try {
+      const p = await window.cmapi.getProfile(staffIndex)
+      setProfile(p)
+    } catch (e) {
+      setProfile(null)
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setProfileLoading(false)
+    }
   }, [])
 
   useEffect(() => subscribeCopiedPlayerAttributes(() => setCopiedAttrs(getCopiedPlayerAttributes())), [])
@@ -1100,11 +1110,6 @@ export function App() {
 
   const activateProfile = useCallback(
     (staffIndex: number) => {
-      const now = Date.now()
-      const g = dblGuard.current
-      if (g.sid === staffIndex && now - g.t < 450) return
-      g.t = now
-      g.sid = staffIndex
       void pick(staffIndex)
     },
     [pick],
@@ -2349,6 +2354,7 @@ export function App() {
                       onClick={() => setSel(row.original.staffIndex)}
                       onDoubleClick={(e) => {
                         e.preventDefault()
+                        e.stopPropagation()
                         activateProfile(row.original.staffIndex)
                       }}
                       onContextMenu={(e) => {
@@ -2372,10 +2378,6 @@ export function App() {
                         <td
                           key={cell.id}
                           className="select-none px-2 py-1.5 text-zinc-200"
-                          onDoubleClick={(e) => {
-                            e.preventDefault()
-                            activateProfile(row.original.staffIndex)
-                          }}
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
@@ -2443,13 +2445,24 @@ export function App() {
             />
           ) : (
             <>
-          {!profile && !(browseTab === 'staff' && staffProfile) && (
+          {profileLoading && (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <div
+                className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-emerald-400"
+                aria-hidden
+              />
+              <p className="text-sm text-zinc-400">Loading player profile…</p>
+            </div>
+          )}
+          {!profileLoading && !profile && !(browseTab === 'staff' && staffProfile) && (
             <p className="text-sm text-zinc-500">
               {browseTab === 'staff'
                 ? 'Select a staff member from the table.'
                 : browseTab === 'clubs'
                   ? 'Click a squad player to open their profile here.'
-                  : 'Select a player for profile & attributes.'}
+                  : sel != null
+                    ? 'Double-click a row or press Enter to open profile.'
+                    : 'Select a player for profile & attributes.'}
             </p>
           )}
           {browseTab === 'staff' && staffProfile && (
@@ -2466,7 +2479,7 @@ export function App() {
               <StaffProfilePane p={staffProfile} showEngineAttrs={showEngineAttrs} />
             </div>
           )}
-          {profile && (
+          {profile && !profileLoading && (
             <div className="space-y-4">
               <div className="sticky top-0 z-30 -mx-4 border-b border-zinc-800/80 bg-zinc-950 px-4 pb-3 pt-0 shadow-[0_6px_16px_rgba(0,0,0,0.45)] backdrop-blur-md">
                 <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-white">
