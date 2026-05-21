@@ -1200,7 +1200,9 @@ export function App() {
           <div className="min-w-0">
             <h1 className="cm-brand-title text-[1.65rem] leading-none text-white">CM Merlin</h1>
             <p className="mt-0.5 text-xs leading-snug text-zinc-500">
-              Championship Manager 01/02 · scouting &amp; editor
+              Championship Manager 01/02
+              <br />
+              Scouting and Editor
             </p>
           </div>
         </div>
