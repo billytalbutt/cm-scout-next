@@ -22,6 +22,7 @@ import { PLAYER_STATS_HISTORY_ROW_BYTES_CANDIDATE } from './playerStatsHistoryPr
 import {
   buildSummaryAnchorIndex,
   embeddedIdRecordStart,
+  mergeSeniorClubAppsAtAnchor,
   readEmbeddedIdRecordStats,
   readEmbeddedSeniorRating,
   readSeniorClubRatingAtAnchor,
@@ -311,6 +312,7 @@ function seniorClubFromEmbedded(
     anchorOccurrences?: readonly number[]
     bestAnchor?: number
     idHitCount?: number
+    summaryAnchorIndex?: SummaryAnchorIndex
   },
 ): CmScopeStatRow | null {
   const occ = opts?.anchorOccurrences ?? []
@@ -329,6 +331,17 @@ function seniorClubFromEmbedded(
     apps = summary.apps
     goals = summary.goals
     assists = summary.assists
+    if (opts?.summaryAnchorIndex) {
+      apps = mergeSeniorClubAppsAtAnchor(
+        statsBuf,
+        anchor,
+        playerDatId,
+        hits,
+        summary,
+        opts.summaryAnchorIndex.maxApps91ByStatKey,
+        opts.summaryAnchorIndex.max76ByStatKey,
+      )
+    }
     if (rec != null) {
       const goalsAlt = readU8(statsBuf, rec, 86)
       if (
@@ -459,6 +472,7 @@ export function decodePlayerCurrentSeasonStats(
     statsAnchorOccurrences?: readonly number[]
     statsBestAnchor?: number
     statsIdHitCount?: number
+    summaryAnchorIndex?: SummaryAnchorIndex
     savePerformance?: PlayerSavePerformanceStats | null
   },
 ): PlayerCurrentSeasonStats {
@@ -471,10 +485,17 @@ export function decodePlayerCurrentSeasonStats(
       anchorOccurrences: opts?.statsAnchorOccurrences,
       bestAnchor: opts?.statsBestAnchor,
       idHitCount: opts?.statsIdHitCount,
+      summaryAnchorIndex: opts?.summaryAnchorIndex,
     })
   }
   if (!seniorClub) {
     seniorClub = seniorClubFromSaveSummary(opts?.savePerformance)
+  } else if (
+    opts?.savePerformance &&
+    seniorClub.averageRating == null &&
+    opts.savePerformance.averageRating != null
+  ) {
+    seniorClub = { ...seniorClub, averageRating: opts.savePerformance.averageRating }
   }
 
   const scopeRows: CmScopeStatRow[] = []
@@ -643,6 +664,41 @@ function scopeStats(
   }
 }
 
+/**
+ * Fill Senior club gaps from `parsePlayerStatsSummary` without overwriting
+ * `seniorClubFromEmbedded` (Cole non-comp / goals @86, slot-B +91 merge, …).
+ */
+export function mergeSavePerformanceIntoIndexed(
+  indexed: PlayerCurrentSeasonIndexed,
+  savePerf: PlayerSavePerformanceStats | null | undefined,
+): PlayerCurrentSeasonIndexed {
+  if (!savePerf || savePerf.apps == null) return indexed
+
+  const hasDecodedSenior =
+    indexed.seniorApps > 0 || indexed.seniorGoals > 0 || indexed.seniorAssists > 0
+  const spApps = savePerf.apps
+  const spGoals = savePerf.goals ?? 0
+  const spAssists = savePerf.assists ?? 0
+  const hasSaveSenior = spApps > 0 || spGoals > 0 || spAssists > 0
+
+  if (!hasDecodedSenior && hasSaveSenior) {
+    return {
+      ...indexed,
+      seniorApps: spApps,
+      seniorGoals: spGoals,
+      seniorAssists: spAssists,
+      seniorAvgRating: savePerf.averageRating ?? null,
+      available: true,
+    }
+  }
+
+  if (indexed.seniorAvgRating == null && savePerf.averageRating != null) {
+    return { ...indexed, seniorAvgRating: savePerf.averageRating, available: true }
+  }
+
+  return indexed
+}
+
 export function indexedFromDecoded(
   decoded: PlayerCurrentSeasonStats,
   byCompetition: PlayerCompSeasonRow[] = [],
@@ -749,6 +805,7 @@ export function buildPlayerCurrentSeasonIndex(
     const pid = players[s.player_id]?.id
     if (pid == null || seen.has(pid)) continue
     seen.add(pid)
+    const savePerf = savePerformanceByPlayerDatId?.get(pid) ?? null
     const decoded = decodePlayerCurrentSeasonStats(
       pid,
       null,
@@ -758,7 +815,8 @@ export function buildPlayerCurrentSeasonIndex(
       {
         statsBestAnchor: summaryAnchorIndex?.bestAnchorByPlayer.get(pid),
         statsIdHitCount: summaryAnchorIndex?.idHitCount.get(pid),
-        savePerformance: savePerformanceByPlayerDatId?.get(pid) ?? null,
+        summaryAnchorIndex,
+        savePerformance: savePerf,
       },
     )
     const histComp = historyByComp?.get(pid) ?? []
@@ -769,8 +827,11 @@ export function buildPlayerCurrentSeasonIndex(
       competitionNames,
       pid,
     )
-    const indexed = indexedFromDecoded(decoded, byCompetition)
-    if (indexed.available) out.set(pid, indexed)
+    const indexed = mergeSavePerformanceIntoIndexed(
+      indexedFromDecoded(decoded, byCompetition),
+      savePerf,
+    )
+    if (indexed.available || savePerf?.apps != null) out.set(pid, indexed)
     processed++
     if (onProgress && (processed % 2000 === 0 || processed === totalPlayers)) {
       onProgress(0.45 + (0.55 * processed) / Math.max(1, totalPlayers))

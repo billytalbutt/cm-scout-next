@@ -712,12 +712,52 @@ export function buildSummaryAnchorIndex(
     bestAnchor.set(playerDatId, anchor)
   }
 
+  // Players with id hits but no strict candidate (e.g. grid-only layouts): pick best plausible decode.
+  for (let anchor = 0; anchor <= anchorScanEnd; anchor++) {
+    const playerDatId = buf.readInt32LE(anchor)
+    if (!playerIds.has(playerDatId) || bestAnchor.has(playerDatId)) continue
+    const hits = idHitCount.get(playerDatId) ?? 0
+    const stats = readSummaryStatsAtAnchor(buf, anchor, playerDatId, hits)
+    if (!stats || !plausibleSummaryStats(stats.apps, stats.goals, stats.assists)) continue
+    const prevAnchor = bestAnchor.get(playerDatId)
+    const peaks = gridPeaksByPlayer.get(playerDatId)
+    if (prevAnchor == null) {
+      bestAnchor.set(playerDatId, anchor)
+      continue
+    }
+    if (compareSummaryCandidates(buf, anchor, prevAnchor, hits, peaks) > 0) {
+      bestAnchor.set(playerDatId, anchor)
+    }
+  }
+
   return {
     bestAnchorByPlayer: bestAnchor,
     idHitCount,
     max76ByStatKey,
     maxApps91ByStatKey,
   }
+}
+
+/** Apply +91 / +76 merge for slot-B Senior club (same as `parsePlayerStatsSummary`). */
+export function mergeSeniorClubAppsAtAnchor(
+  buf: Buffer,
+  anchor: number,
+  playerDatId: number,
+  hits: number,
+  stats: SummaryStatsTriple,
+  maxApps91ByStatKey: Map<number, Map<string, number>>,
+  max76ByStatKey: Map<number, Map<string, number>>,
+): number {
+  const useSeniorAppsMerge =
+    isSlotBSeniorAggregate(buf, anchor) ||
+    (offGridRecordStart(buf, anchor, playerDatId, hits) !== null &&
+      (readU8(buf, anchor, F.apps) ?? 1) < 1 &&
+      readSlotB(buf, anchor) != null)
+  if (!useSeniorAppsMerge) return stats.apps
+  const key = `${stats.goals}-${stats.assists}`
+  const maxApps91 = maxApps91ByStatKey.get(playerDatId)?.get(key) ?? 0
+  const max76 = max76ByStatKey.get(playerDatId)?.get(key) ?? 0
+  return resolveSeniorClubApps(stats, maxApps91, max76)
 }
 
 function seniorStatKey(goals: number, assists: number): string {
@@ -795,7 +835,7 @@ function recordSeniorSlotAApps(
 }
 
 /** CM often stores Senior-club apps at +91 on another id hit; goals/assists stay @ +77/+78. */
-function resolveSeniorClubApps(
+export function resolveSeniorClubApps(
   stats: SummaryStatsTriple,
   maxAppsSlotAForStat: number,
   max76ForStat: number,

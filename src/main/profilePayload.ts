@@ -198,8 +198,11 @@ function formatSeasonLabel(startYear: number): string {
   return `${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`
 }
 
-/** Senior club combined from index; if missing, sum league + cup + continental scopes. */
-function seniorTotalsFromIndex(cm: PlayerCurrentSeasonIndexed): {
+/** Senior club combined totals for profile (CM “Senior club” row — not scope sums). */
+function seniorTotalsFromIndex(
+  cm: PlayerCurrentSeasonIndexed,
+  savePerf?: { apps: number | null; goals?: number | null; assists?: number | null; averageRating?: number | null } | null,
+): {
   apps: number
   goals: number
   assists: number
@@ -210,13 +213,18 @@ function seniorTotalsFromIndex(cm: PlayerCurrentSeasonIndexed): {
       apps: cm.seniorApps,
       goals: cm.seniorGoals,
       assists: cm.seniorAssists,
-      averageRating: cm.seniorAvgRating,
+      averageRating: cm.seniorAvgRating ?? savePerf?.averageRating ?? null,
     }
   }
-  const apps = cm.leagueApps + cm.cupApps + cm.continentalApps
-  const goals = cm.leagueGoals + cm.cupGoals + cm.continentalGoals
-  const assists = cm.leagueAssists + cm.cupAssists + cm.continentalAssists
-  return { apps, goals, assists, averageRating: null }
+  if (savePerf?.apps != null && (savePerf.apps > 0 || (savePerf.goals ?? 0) > 0 || (savePerf.assists ?? 0) > 0)) {
+    return {
+      apps: savePerf.apps,
+      goals: savePerf.goals ?? 0,
+      assists: savePerf.assists ?? 0,
+      averageRating: savePerf.averageRating ?? null,
+    }
+  }
+  return { apps: 0, goals: 0, assists: 0, averageRating: savePerf?.averageRating ?? null }
 }
 
 function buildProfileSeasonStats(
@@ -238,12 +246,34 @@ function buildProfileSeasonStats(
   const cmHistorySeasonLabel = seasonStart != null ? formatSeasonLabel(seasonStart) : null
 
   const indexedSeason = row.cmSeason ?? ctx.currentSeasonByPlayerDatId?.get(row.player.id) ?? null
+  const savePerf =
+    row.savePerformance ?? ctx.savePerformanceByPlayerDatId?.get(row.player.id) ?? null
   const playerStatsDatPresent = ctx.playerStatsDatPresent === true
 
   let currentSeasonPerformance: CurrentSeasonPerformance | null = null
   if (seasonStart != null) {
-    if (indexedSeason?.available) {
-      const totals = seniorTotalsFromIndex(indexedSeason)
+    if (indexedSeason?.available || savePerf?.apps != null) {
+      const totals = seniorTotalsFromIndex(indexedSeason ?? {
+        scopes: [],
+        seniorApps: 0,
+        seniorGoals: 0,
+        seniorAssists: 0,
+        seniorAvgRating: null,
+        leagueApps: 0,
+        leagueGoals: 0,
+        leagueAssists: 0,
+        cupApps: 0,
+        cupGoals: 0,
+        cupAssists: 0,
+        continentalApps: 0,
+        continentalGoals: 0,
+        continentalAssists: 0,
+        internationalApps: 0,
+        internationalGoals: 0,
+        internationalAssists: 0,
+        byCompetition: [],
+        available: false,
+      }, savePerf)
       currentSeasonPerformance = {
         label: clubLabel,
         apps: totals.apps,
@@ -270,7 +300,7 @@ function buildProfileSeasonStats(
 
   const savePerformanceHint = !playerStatsDatPresent
     ? 'This save has no player stats blocks — reload an uncompressed save that includes `player stats.dat` and `player stats history.tmp`.'
-    : !indexedSeason?.available
+    : !indexedSeason?.available && savePerf?.apps == null
       ? 'No current-season stats were decoded for this player in this save.'
       : undefined
 
