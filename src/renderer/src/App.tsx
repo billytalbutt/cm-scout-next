@@ -1195,10 +1195,10 @@ export function App() {
             src="/soccer-wizard-mascot.png"
             alt=""
             className="h-[4.125rem] w-auto max-h-[4.125rem] shrink-0 object-contain object-left"
-            title="CM-01/02 Merlin"
+            title="CM Merlin"
           />
           <div className="min-w-0">
-            <h1 className="text-lg font-semibold leading-tight tracking-tight text-white">CM-01/02 Merlin</h1>
+            <h1 className="cm-brand-title text-[1.65rem] leading-none text-white">CM Merlin</h1>
             <p className="mt-0.5 text-xs leading-snug text-zinc-500">
               Championship Manager 01/02 · scouting &amp; editor
             </p>
@@ -2418,9 +2418,10 @@ export function App() {
         >
           <div
             ref={profileAsideRef}
-            className="cm-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4"
+            className="cm-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-0"
           >
           {browseTab === 'tactics' ? (
+            <div className="pt-4">
             <TacticsAssignmentPane
               loadInfo={!!loadInfo}
               seedClubId={tacticsSeedClubId}
@@ -2443,10 +2444,11 @@ export function App() {
               onReplaceAssignments={(next) => setTacticsAssignments(next)}
               onClearAll={clearTacticsWorkspace}
             />
+            </div>
           ) : (
             <>
           {profileLoading && (
-            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <div className="flex flex-col items-center justify-center gap-3 px-0 py-16 pt-4 text-center">
               <div
                 className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-emerald-400"
                 aria-hidden
@@ -2455,7 +2457,7 @@ export function App() {
             </div>
           )}
           {!profileLoading && !profile && !(browseTab === 'staff' && staffProfile) && (
-            <p className="text-sm text-zinc-500">
+            <p className="pt-4 text-sm text-zinc-500">
               {browseTab === 'staff'
                 ? 'Select a staff member from the table.'
                 : browseTab === 'clubs'
@@ -2481,7 +2483,7 @@ export function App() {
           )}
           {profile && !profileLoading && (
             <div className="space-y-4">
-              <div className="sticky top-0 z-30 -mx-4 border-b border-zinc-800/80 bg-zinc-950 px-4 pb-3 pt-0 shadow-[0_6px_16px_rgba(0,0,0,0.45)] backdrop-blur-md">
+              <div className="profile-pane-sticky">
                 <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-white">
                   {profile.eliteEngineBadgeKind && profile.eliteEngineBadgeTitle && (
                     <EliteEngineStar

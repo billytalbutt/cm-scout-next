@@ -151,7 +151,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 700,
-    title: 'CM-01/02 Merlin',
+    title: 'CM Merlin',
     webPreferences: {
       // Must be CommonJS: sandboxed preloads cannot use ESM `import` (see Electron docs).
       preload: join(__dirname, '../preload/index.cjs'),

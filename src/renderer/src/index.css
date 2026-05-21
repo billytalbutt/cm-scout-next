@@ -6,6 +6,29 @@
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
+/* App title — 90s sticker / comic album feel */
+.cm-brand-title {
+  font-family: 'Bangers', 'Arial Black', 'Impact', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-shadow:
+    2px 2px 0 rgb(9 9 11),
+    0 0 12px rgb(16 185 129 / 0.25);
+}
+
+/* Profile pane name bar — flush to pane top so scroll content does not peek above */
+.profile-pane-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding: 0 1rem 0.75rem;
+  border-bottom: 1px solid rgb(39 39 42 / 0.8);
+  background-color: rgb(9 9 11);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.45);
+}
+
 body {
   margin: 0;
   min-height: 100vh;
