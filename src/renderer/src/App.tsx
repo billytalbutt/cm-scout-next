@@ -274,6 +274,13 @@ export function App() {
   const [shSeasonGoalsMax, setShSeasonGoalsMax] = useState('')
   const [shCareerAppsMin, setShCareerAppsMin] = useState('')
   const [shSeasonAppsMin, setShSeasonAppsMin] = useState('')
+  const [csGoalsMin, setCsGoalsMin] = useState('')
+  const [csGoalsMax, setCsGoalsMax] = useState('')
+  const [csAssistsMin, setCsAssistsMin] = useState('')
+  const [csAssistsMax, setCsAssistsMax] = useState('')
+  const [csAppsMin, setCsAppsMin] = useState('')
+  const [csLeagueGoalsMin, setCsLeagueGoalsMin] = useState('')
+  const [csLeagueAssistsMin, setCsLeagueAssistsMin] = useState('')
   const [contractTypeCategory, setContractTypeCategory] = useState<'' | ContractTypeCategoryId>('')
   const [tlClub, setTlClub] = useState(false)
   const [tlRequest, setTlRequest] = useState(false)
@@ -664,6 +671,20 @@ export function App() {
     if (Number.isFinite(ssgMax)) f.shSeasonGoalsMax = ssgMax
     if (Number.isFinite(scaMin)) f.shCareerAppsMin = scaMin
     if (Number.isFinite(ssaMin)) f.shSeasonAppsMin = ssaMin
+    const csgMin = num(csGoalsMin)
+    const csgMax = num(csGoalsMax)
+    const csaMin = num(csAssistsMin)
+    const csaMax = num(csAssistsMax)
+    const csapMin = num(csAppsMin)
+    const clgMin = num(csLeagueGoalsMin)
+    const claMin = num(csLeagueAssistsMin)
+    if (Number.isFinite(csgMin)) f.csGoalsMin = csgMin
+    if (Number.isFinite(csgMax)) f.csGoalsMax = csgMax
+    if (Number.isFinite(csaMin)) f.csAssistsMin = csaMin
+    if (Number.isFinite(csaMax)) f.csAssistsMax = csaMax
+    if (Number.isFinite(csapMin)) f.csAppsMin = csapMin
+    if (Number.isFinite(clgMin)) f.csLeagueGoalsMin = clgMin
+    if (Number.isFinite(claMin)) f.csLeagueAssistsMin = claMin
     if (contractTypeCategory) f.contractTypeCategory = contractTypeCategory
     if (tlClub) f.transferListedClub = true
     if (tlRequest) f.transferListedRequest = true
@@ -791,6 +812,13 @@ export function App() {
     shSeasonGoalsMax,
     shCareerAppsMin,
     shSeasonAppsMin,
+    csGoalsMin,
+    csGoalsMax,
+    csAssistsMin,
+    csAssistsMax,
+    csAppsMin,
+    csLeagueGoalsMin,
+    csLeagueAssistsMin,
     contractTypeCategory,
     tlClub,
     tlRequest,
@@ -1530,6 +1558,81 @@ export function App() {
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
                   value={shSeasonAppsMin}
                   onChange={(e) => setShSeasonAppsMin(e.target.value)}
+                />
+              </label>
+            </div>
+            <p className="mb-2 text-[11px] font-medium text-sky-200/80">
+              CM save season (Senior club — from player stats in this save)
+            </p>
+            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">CS Senior goals min</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={csGoalsMin}
+                  onChange={(e) => setCsGoalsMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">CS Senior goals max</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={csGoalsMax}
+                  onChange={(e) => setCsGoalsMax(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">CS Senior assists min</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={csAssistsMin}
+                  onChange={(e) => setCsAssistsMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">CS Senior assists max</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={csAssistsMax}
+                  onChange={(e) => setCsAssistsMax(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">CS Senior apps min</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={csAppsMin}
+                  onChange={(e) => setCsAppsMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">CS League goals min</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={csLeagueGoalsMin}
+                  onChange={(e) => setCsLeagueGoalsMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-xs text-zinc-500">CS League assists min</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={csLeagueAssistsMin}
+                  onChange={(e) => setCsLeagueAssistsMin(e.target.value)}
                 />
               </label>
             </div>
@@ -2830,6 +2933,44 @@ export function App() {
                     <InfoDot />
                   </h3>
                 </HoverTip>
+                {profile.seasonStats.cmHistoryAvailable && (
+                  <div className="mb-3 overflow-x-auto rounded border border-sky-900/40 bg-sky-950/15">
+                    <p className="border-b border-zinc-800/80 px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-sky-200/80">
+                      Current season by competition
+                      {profile.seasonStats.cmHistorySeasonLabel ? (
+                        <span className="ml-1 font-normal normal-case text-zinc-400">
+                          ({profile.seasonStats.cmHistorySeasonLabel} · CM History layout)
+                        </span>
+                      ) : null}
+                    </p>
+                    <table className="w-full min-w-[16rem] border-collapse text-left text-[11px]">
+                      <thead>
+                        <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
+                          <th className="px-2 py-1.5 font-medium">Scope</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {profile.seasonStats.cmHistoryScopes.map((r) => (
+                          <tr key={r.key} className="border-b border-zinc-800/40">
+                            <td className="px-2 py-1.5 text-zinc-100">{r.label}</td>
+                            <td className="px-2 py-1.5 text-right font-mono text-sky-100">{r.apps}</td>
+                            <td className="px-2 py-1.5 text-right font-mono text-sky-100">{r.goals}</td>
+                            <td className="px-2 py-1.5 text-right">
+                              {formatProfileStatCell(r.assists)}
+                            </td>
+                            <td className="px-2 py-1.5 text-right">
+                              {formatProfileStatCell(r.averageRating, 'rating')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
                 <div className="mb-3 overflow-x-auto rounded border border-emerald-900/40 bg-emerald-950/20">
                   <table className="w-full min-w-[16rem] border-collapse text-left text-[11px]">
                     <thead>

@@ -10,6 +10,9 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "discover:player-stats": "tsx scripts/discover-player-stats.ts",
+    "map:competition-ids": "tsx scripts/map-competition-ids.ts",
+    "probe:player-comp-pairs": "tsx scripts/probe-player-comp-pairs.ts",
     "dump:player-stats-rows": "tsx scripts/dump-player-stats-rows.ts",
     "compare:senior-club": "tsx scripts/compare-senior-club-players.ts",
     "research:player-stats": "tsx scripts/research-player-stats-diff.ts",

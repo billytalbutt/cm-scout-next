@@ -28,6 +28,15 @@ export function createGridColumnHelper() {
 
 export type GridColumnHelper = ReturnType<typeof createGridColumnHelper>
 
+function csNumCell({ getValue }: { getValue: () => number | null | undefined }) {
+  const v = getValue()
+  return v == null || v === undefined ? (
+    <span className="text-zinc-600">—</span>
+  ) : (
+    <span className="font-mono text-sky-100/90">{v}</span>
+  )
+}
+
 export function buildGridColumns(helper: GridColumnHelper, visibleIds: readonly string[]): ColumnDef<GridPlayerRow>[] {
   const out: ColumnDef<GridPlayerRow>[] = []
   const h = helper
@@ -255,6 +264,61 @@ function defFor(
         cell: ({ getValue }) => {
           const v = getValue()
           return v == null ? <span className="text-zinc-600">—</span> : <span className="font-mono">{v}</span>
+        },
+      })
+    case 'csApps':
+      return h.accessor((r) => r.csApps, {
+        id,
+        header: lab,
+        cell: csNumCell,
+      })
+    case 'csGoals':
+      return h.accessor((r) => r.csGoals, {
+        id,
+        header: lab,
+        cell: csNumCell,
+      })
+    case 'csAst':
+      return h.accessor((r) => r.csAst, {
+        id,
+        header: lab,
+        cell: csNumCell,
+      })
+    case 'csLeagueGoals':
+      return h.accessor((r) => r.csLeagueGoals, {
+        id,
+        header: lab,
+        cell: csNumCell,
+      })
+    case 'csLeagueAst':
+      return h.accessor((r) => r.csLeagueAst, {
+        id,
+        header: lab,
+        cell: csNumCell,
+      })
+    case 'csCupGoals':
+      return h.accessor((r) => r.csCupGoals, {
+        id,
+        header: lab,
+        cell: csNumCell,
+      })
+    case 'csIntlApps':
+      return h.accessor((r) => r.csIntlApps, {
+        id,
+        header: lab,
+        cell: csNumCell,
+      })
+    case 'csAvR':
+      return h.accessor((r) => r.csAvR ?? null, {
+        id,
+        header: lab,
+        cell: ({ getValue }) => {
+          const v = getValue()
+          return v == null ? (
+            <span className="text-zinc-600">—</span>
+          ) : (
+            <span className="font-mono text-sky-100/90">{v.toFixed(2)}</span>
+          )
         },
       })
     case 'isRegen':

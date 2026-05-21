@@ -44,6 +44,14 @@ function baseRow(r: UiPlayerRow): GridPlayerRow {
     spfApps: r.savePerformance?.apps,
     spfGoals: r.savePerformance?.goals,
     spfAst: r.savePerformance?.assists,
+    csApps: r.cmSeason?.seniorApps,
+    csGoals: r.cmSeason?.seniorGoals,
+    csAst: r.cmSeason?.seniorAssists,
+    csAvR: r.cmSeason?.seniorAvgRating,
+    csLeagueGoals: r.cmSeason?.leagueGoals,
+    csLeagueAst: r.cmSeason?.leagueAssists,
+    csCupGoals: r.cmSeason?.cupGoals,
+    csIntlApps: r.cmSeason?.internationalApps,
   }
 }
 

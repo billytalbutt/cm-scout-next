@@ -111,4 +111,13 @@ export type GridPlayerRow = {
   spfApps?: number | null
   spfGoals?: number | null
   spfAst?: number | null
+  /** CM save season — Senior club decode for this save date. */
+  csApps?: number
+  csGoals?: number
+  csAst?: number
+  csAvR?: number | null
+  csLeagueGoals?: number
+  csLeagueAst?: number
+  csCupGoals?: number
+  csIntlApps?: number
 }

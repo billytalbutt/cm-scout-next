@@ -787,7 +787,7 @@ export interface SeniorClubAnchorInspection {
   }
 }
 
-function classifySeniorClubSlotKind(
+export function classifySeniorClubSlotKind(
   buf: Buffer,
   anchor: number,
   playerDatId: number,

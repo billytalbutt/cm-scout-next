@@ -27,6 +27,10 @@ import { parseTacticsDatIndex } from './tacticsDat'
 import { parsePlayerStatsFromSave } from './playerStatsFields'
 import { parsePlayerStatsSummary } from './playerStatsSummary'
 import {
+  buildPlayerCurrentSeasonIndex,
+  type PlayerCurrentSeasonIndexed,
+} from './playerStatsCurrentSeason'
+import {
   refineHighlightYearWithHistoryFallback,
   resolveStaffHistoryHighlightYear,
 } from './seasonYear'
@@ -500,6 +504,19 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
   let savePerformanceByPlayerDatId: Map<number, PlayerSavePerformanceStats> | undefined
   let savePerformancePerCompByPlayerDatId: Map<number, PlayerStatsPerCompetitionRow[]> | undefined
   let staffCompHistoryByStaffId: ReturnType<typeof indexStaffCompHistoryFromPlayerStats> | undefined
+  let playerStatsDatBuf: Buffer | undefined
+  let currentSeasonByPlayerDatId: Map<number, PlayerCurrentSeasonIndexed> | undefined
+  const playerStatsHistoryBlock =
+    find('player stats history.tmp') ?? findBlockLoose('player stats history.tmp')
+  let playerStatsHistoryBuf: Buffer | undefined
+  if (playerStatsHistoryBlock && playerStatsHistoryBlock.size > 0) {
+    try {
+      const hbuf = blockData(file, compressed, playerStatsHistoryBlock)
+      if (hbuf.length > 0) playerStatsHistoryBuf = hbuf
+    } catch {
+      playerStatsHistoryBuf = undefined
+    }
+  }
   if (playerStatsBlock && playerStatsBlock.size > 0) {
     // Default `summary`: Senior-club totals + single-pass per-competition grid index.
     // `research` adds off-grid scans; `off` skips decode entirely.
@@ -515,6 +532,7 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     if (statsParseMode !== 'off') {
       try {
         const psbuf = blockData(file, compressed, playerStatsBlock)
+        playerStatsDatBuf = psbuf
         if (statsParseMode === 'summary') {
           savePerformanceByPlayerDatId = parsePlayerStatsSummary(psbuf, players)
           staffCompHistoryByStaffId = indexStaffCompHistoryFromPlayerStats(
@@ -572,6 +590,19 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     }
   }
 
+  if (playerStatsHistoryBuf?.length || playerStatsDatBuf?.length) {
+    try {
+      currentSeasonByPlayerDatId = buildPlayerCurrentSeasonIndex(
+        players,
+        staff,
+        playerStatsHistoryBuf,
+        playerStatsDatBuf,
+      )
+    } catch {
+      currentSeasonByPlayerDatId = undefined
+    }
+  }
+
   let nonPlayersById = undefined as ReturnType<typeof parseNonPlayerData> | undefined
   const npBlock = find('nonplayer.dat') ?? findBlockLoose('nonplayer.dat')
   if (npBlock && npBlock.size > 0) {
@@ -615,6 +646,9 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     staffHistoryParsed,
     staffHistorySourcePath,
     playerStatsDatPresent,
+    playerStatsHistoryBuf,
+    playerStatsDatBuf,
+    currentSeasonByPlayerDatId,
     savePerformanceByPlayerDatId,
     savePerformancePerCompByPlayerDatId,
     nationSeasonUpdateDaySamples: seasonUpdateDaySamples,
@@ -640,6 +674,52 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
   }
 }
 
+function applyCmCurrentSeasonToRow(
+  playerId: number,
+  hasCompRows: boolean,
+  compTotals: ReturnType<typeof aggregateStaffCompSeasonTotals>,
+  sums: { seasonApps: number; seasonGoals: number },
+  savePerformanceByPlayerDatId: Map<number, PlayerSavePerformanceStats> | undefined,
+  currentSeasonByPlayerDatId: Map<number, PlayerCurrentSeasonIndexed> | undefined,
+): {
+  curSeasonApps: number
+  curSeasonGoals: number
+  curSeasonAssists: number | null
+  curSeasonAvgRating: number | null
+  savePerformance: PlayerSavePerformanceStats | null
+  cmSeason: PlayerCurrentSeasonIndexed | null
+} {
+  const cm = currentSeasonByPlayerDatId?.get(playerId) ?? null
+  if (cm?.available) {
+    return {
+      curSeasonApps: cm.seniorApps,
+      curSeasonGoals: cm.seniorGoals,
+      curSeasonAssists: cm.seniorAssists,
+      curSeasonAvgRating: cm.seniorAvgRating,
+      savePerformance: {
+        apps: cm.seniorApps,
+        goals: cm.seniorGoals,
+        assists: cm.seniorAssists,
+        averageRating: cm.seniorAvgRating,
+        layout: 'summaryV1',
+      },
+      cmSeason: cm,
+    }
+  }
+  return {
+    curSeasonApps: hasCompRows ? compTotals.apps : sums.seasonApps,
+    curSeasonGoals: hasCompRows ? compTotals.goals : sums.seasonGoals,
+    curSeasonAssists: hasCompRows
+      ? compTotals.assists
+      : (savePerformanceByPlayerDatId?.get(playerId)?.assists ?? null),
+    curSeasonAvgRating: hasCompRows
+      ? compTotals.averageRating
+      : (savePerformanceByPlayerDatId?.get(playerId)?.averageRating ?? null),
+    savePerformance: savePerformanceByPlayerDatId?.get(playerId) ?? null,
+    cmSeason: null,
+  }
+}
+
 export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
   const rows: UiPlayerRow[] = []
   const {
@@ -658,6 +738,7 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
     nationSeasonUpdateDaySamples,
     savePerformanceByPlayerDatId,
     savePerformancePerCompByPlayerDatId,
+    currentSeasonByPlayerDatId,
   } = db
   const baseYearPick = resolveStaffHistoryHighlightYear(gameDateIso, nationSeasonUpdateDaySamples)
   staff.forEach((s, staffIndex) => {
@@ -690,13 +771,14 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
       compTotals,
       hasCompRows,
     )
-    const curSeasonApps = hasCompRows ? compTotals.apps : sums.seasonApps
-    const curSeasonGoals = hasCompRows ? compTotals.goals : sums.seasonGoals
-    const curSeasonAssists = hasCompRows ? compTotals.assists : (savePerformanceByPlayerDatId?.get(player.id)?.assists ?? null)
-    const curSeasonAvgRating = hasCompRows
-      ? compTotals.averageRating
-      : (savePerformanceByPlayerDatId?.get(player.id)?.averageRating ?? null)
-    const savePerformance = savePerformanceByPlayerDatId?.get(player.id) ?? null
+    const season = applyCmCurrentSeasonToRow(
+      player.id,
+      hasCompRows,
+      compTotals,
+      sums,
+      savePerformanceByPlayerDatId,
+      currentSeasonByPlayerDatId,
+    )
     rows.push({
       staffId: s.id,
       staffIndex,
@@ -715,14 +797,15 @@ export function buildUiRows(db: ParsedDatabase): UiPlayerRow[] {
       staffHistCareerGoals: sums.careerGoals,
       staffHistSeasonApps: sums.seasonApps,
       staffHistSeasonGoals: sums.seasonGoals,
-      curSeasonApps,
-      curSeasonGoals,
-      curSeasonAssists,
-      curSeasonAvgRating,
+      curSeasonApps: season.curSeasonApps,
+      curSeasonGoals: season.curSeasonGoals,
+      curSeasonAssists: season.curSeasonAssists,
+      curSeasonAvgRating: season.curSeasonAvgRating,
       careerAppsTotal: career.careerApps,
       careerGoalsTotal: career.careerGoals,
       staffCompHistory: compRows.length ? compRows : undefined,
-      savePerformance,
+      savePerformance: season.savePerformance,
+      cmSeason: season.cmSeason,
       player,
       staff: s,
       contract: c,
@@ -749,6 +832,7 @@ export function buildUiPlayerRowAtIndex(db: ParsedDatabase, staffIndex: number):
     nationSeasonUpdateDaySamples,
     savePerformanceByPlayerDatId,
     savePerformancePerCompByPlayerDatId,
+    currentSeasonByPlayerDatId,
   } = db
   if (staffIndex < 0 || staffIndex >= staff.length) return null
   const s = staff[staffIndex]!
@@ -782,13 +866,14 @@ export function buildUiPlayerRowAtIndex(db: ParsedDatabase, staffIndex: number):
     compTotals,
     hasCompRows,
   )
-  const curSeasonApps = hasCompRows ? compTotals.apps : sums.seasonApps
-  const curSeasonGoals = hasCompRows ? compTotals.goals : sums.seasonGoals
-  const curSeasonAssists = hasCompRows ? compTotals.assists : (savePerformanceByPlayerDatId?.get(player.id)?.assists ?? null)
-  const curSeasonAvgRating = hasCompRows
-    ? compTotals.averageRating
-    : (savePerformanceByPlayerDatId?.get(player.id)?.averageRating ?? null)
-  const savePerformance = savePerformanceByPlayerDatId?.get(player.id) ?? null
+  const season = applyCmCurrentSeasonToRow(
+    player.id,
+    hasCompRows,
+    compTotals,
+    sums,
+    savePerformanceByPlayerDatId,
+    currentSeasonByPlayerDatId,
+  )
   return {
     staffId: s.id,
     staffIndex,
@@ -807,14 +892,15 @@ export function buildUiPlayerRowAtIndex(db: ParsedDatabase, staffIndex: number):
     staffHistCareerGoals: sums.careerGoals,
     staffHistSeasonApps: sums.seasonApps,
     staffHistSeasonGoals: sums.seasonGoals,
-    curSeasonApps,
-    curSeasonGoals,
-    curSeasonAssists,
-    curSeasonAvgRating,
+    curSeasonApps: season.curSeasonApps,
+    curSeasonGoals: season.curSeasonGoals,
+    curSeasonAssists: season.curSeasonAssists,
+    curSeasonAvgRating: season.curSeasonAvgRating,
     careerAppsTotal: career.careerApps,
     careerGoalsTotal: career.careerGoals,
     staffCompHistory: compRows.length ? compRows : undefined,
-    savePerformance,
+    savePerformance: season.savePerformance,
+    cmSeason: season.cmSeason,
     player,
     staff: s,
     contract: c,

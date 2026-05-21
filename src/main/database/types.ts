@@ -1,4 +1,5 @@
 import type { StaffHistoryRecord } from './staffHistory'
+import type { PlayerCurrentSeasonIndexed } from './playerStatsCurrentSeason'
 import type { CompetitionNamesById } from './competitionNames'
 import type { ClubCompRecord, StaffCompRecord } from './clubComp'
 import type { StaffCompHistoryRecord } from './staffCompHistory'
@@ -286,6 +287,12 @@ export interface ParsedDatabase {
   savePerformanceByPlayerDatId?: Map<number, PlayerSavePerformanceStats>
   /** Grid V0: all decoded per-competition rows per `player.dat` id. */
   savePerformancePerCompByPlayerDatId?: Map<number, PlayerStatsPerCompetitionRow[]>
+  /** Decompressed `player stats history.tmp` (CM History tab per-scope rows). */
+  playerStatsHistoryBuf?: Buffer
+  /** Decompressed `player stats.dat` (Senior club embedded totals). */
+  playerStatsDatBuf?: Buffer
+  /** CM History-tab current season (all players with data in this save). */
+  currentSeasonByPlayerDatId?: Map<number, PlayerCurrentSeasonIndexed>
   /** `nonplayer.dat` keyed by non-player id (from `StaffRecord.non_player_id`). */
   nonPlayersById?: Map<number, NonPlayerRecord>
   /** Full `club.dat` rows keyed by club id (includes squad staff ids). */
@@ -373,6 +380,11 @@ export interface UiPlayerRow {
    * for this `player.dat` id (may be partial — e.g. assists-only on some layouts).
    */
   savePerformance?: PlayerSavePerformanceStats | null
+  /**
+   * CM `player stats history.tmp` + `player stats.dat` decode for this save date
+   * (Senior club + League/Cup/Continental/International scopes).
+   */
+  cmSeason?: PlayerCurrentSeasonIndexed | null
   /** Meta-profile DNA tags (`engineMetaProfiles.ts`) — filled after load. */
   engineMetaProfileIds?: readonly string[]
   /** joined player blob for profile */

@@ -16,6 +16,7 @@ import {
   currentSeasonPerformanceFromSave,
   pickCurrentSeasonStaffHistoryAtClub,
 } from './database/currentSeasonPerformance'
+import { decodePlayerCurrentSeasonStats } from './database/playerStatsCurrentSeason'
 import type { StaffHistoryRecord } from './database/staffHistory'
 import {
   buildCa18Display,
@@ -193,6 +194,8 @@ export type ProfileDbContext = {
   savePerformancePerCompByPlayerDatId?: Map<number, PlayerStatsPerCompetitionRow[]>
   /** Summary decode from `player stats.dat` (Senior club totals). */
   savePerformanceByPlayerDatId?: Map<number, PlayerSavePerformanceStats>
+  playerStatsHistoryBuf?: Buffer
+  playerStatsDatBuf?: Buffer
 }
 
 function calendarYearFromGameIso(iso: string | null): number | null {
@@ -342,8 +345,9 @@ function buildProfileSeasonStats(
         })()
       : null
 
-  const savePerformanceHint =
-    perCompetitionRows.length > 0
+  const savePerformanceHint = cmHistoryAvailable
+    ? 'Current season by scope (League / Cup / Continental / …) from `player stats history.tmp` and Senior club totals from `player stats.dat`. Per-scope average ratings are not decoded yet.'
+    : perCompetitionRows.length > 0
       ? 'Current season by competition from `player stats.dat` in this save. Career assists and average rating are not stored in `staff_history.dat` (purged each season rollover).'
       : fromSave
         ? 'Current-season apps, goals, and assists from `player stats.dat` summary decode (Senior club combined).'
@@ -360,6 +364,22 @@ function buildProfileSeasonStats(
   const seasonHeaderTotals = currentSeasonPerformance
     ? { apps: currentSeasonPerformance.apps, goals: currentSeasonPerformance.goals }
     : { apps: cApps, goals: cGoals }
+
+  const cmHistoryScopes = row.cmSeason?.scopes?.length
+    ? row.cmSeason.scopes
+    : ctx.playerStatsHistoryBuf?.length || ctx.playerStatsDatBuf?.length
+      ? decodePlayerCurrentSeasonStats(
+          row.player.id,
+          ctx.playerStatsHistoryBuf,
+          ctx.playerStatsDatBuf,
+          undefined,
+          { apps: row.staff.int_apps, goals: row.staff.int_goals },
+        ).scopes
+      : []
+
+  const cmHistoryAvailable =
+    cmHistoryScopes.length > 0 &&
+    cmHistoryScopes.some((r) => r.apps > 0 || r.goals > 0 || r.assists > 0)
 
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },
@@ -390,6 +410,14 @@ function buildProfileSeasonStats(
           averageRating: savePerf.averageRating ?? null,
         }
       : null,
+    cmHistoryScopes,
+    cmHistoryAvailable,
+    cmHistorySeasonLabel:
+      highlightHistoryYear != null
+        ? `${highlightHistoryYear}/${String((highlightHistoryYear + 1) % 100).padStart(2, '0')}`
+        : saveCalendarYear != null
+          ? `${saveCalendarYear}/${String((saveCalendarYear + 1) % 100).padStart(2, '0')}`
+          : null,
   }
 }
 

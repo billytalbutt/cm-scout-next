@@ -33,6 +33,18 @@ export type GetRowsFilter = {
   shSeasonGoalsMax?: number
   shCareerAppsMin?: number
   shSeasonAppsMin?: number
+  /** CM save current season — Senior club (`player stats history.tmp` + `player stats.dat`). */
+  csGoalsMin?: number
+  csGoalsMax?: number
+  csAssistsMin?: number
+  csAssistsMax?: number
+  csAppsMin?: number
+  csAppsMax?: number
+  /** League-only goals this save (scope decode). */
+  csLeagueGoalsMin?: number
+  csLeagueGoalsMax?: number
+  csLeagueAssistsMin?: number
+  csLeagueAssistsMax?: number
   /** CM Scout–style contract category (not a single raw byte). */
   contractTypeCategory?: ContractTypeCategoryId
   transferListedClub?: boolean
@@ -101,6 +113,32 @@ function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string
   if (f.shSeasonGoalsMax != null && r.staffHistSeasonGoals > f.shSeasonGoalsMax) return false
   if (f.shCareerAppsMin != null && r.staffHistCareerApps < f.shCareerAppsMin) return false
   if (f.shSeasonAppsMin != null && r.staffHistSeasonApps < f.shSeasonAppsMin) return false
+
+  const cs = r.cmSeason
+  if (
+    f.csGoalsMin != null ||
+    f.csGoalsMax != null ||
+    f.csAssistsMin != null ||
+    f.csAssistsMax != null ||
+    f.csAppsMin != null ||
+    f.csAppsMax != null ||
+    f.csLeagueGoalsMin != null ||
+    f.csLeagueGoalsMax != null ||
+    f.csLeagueAssistsMin != null ||
+    f.csLeagueAssistsMax != null
+  ) {
+    if (!cs?.available) return false
+    if (f.csGoalsMin != null && cs.seniorGoals < f.csGoalsMin) return false
+    if (f.csGoalsMax != null && cs.seniorGoals > f.csGoalsMax) return false
+    if (f.csAssistsMin != null && cs.seniorAssists < f.csAssistsMin) return false
+    if (f.csAssistsMax != null && cs.seniorAssists > f.csAssistsMax) return false
+    if (f.csAppsMin != null && cs.seniorApps < f.csAppsMin) return false
+    if (f.csAppsMax != null && cs.seniorApps > f.csAppsMax) return false
+    if (f.csLeagueGoalsMin != null && cs.leagueGoals < f.csLeagueGoalsMin) return false
+    if (f.csLeagueGoalsMax != null && cs.leagueGoals > f.csLeagueGoalsMax) return false
+    if (f.csLeagueAssistsMin != null && cs.leagueAssists < f.csLeagueAssistsMin) return false
+    if (f.csLeagueAssistsMax != null && cs.leagueAssists > f.csLeagueAssistsMax) return false
+  }
 
   if (f.cmScoutMin != null) {
     if (r.cmScoutRatingBp == null || r.cmScoutRatingBp < f.cmScoutMin) return false

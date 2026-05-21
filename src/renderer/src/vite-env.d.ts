@@ -198,6 +198,19 @@ export interface ProfileSeasonStats {
   playerStatsDatPresent?: boolean
   /** Short explanation for performance columns (goals/assists/rating per competition). */
   savePerformanceHint?: string
+  /** CM History tab — current season by scope (League / Cup / …). */
+  cmHistoryScopes: Array<{
+    key: string
+    label: string
+    apps: number
+    goals: number
+    assists: number
+    averageRating: number | null
+    source: string
+  }>
+  cmHistoryAvailable: boolean
+  /** e.g. `2005/06` from season year or save calendar year. */
+  cmHistorySeasonLabel: string | null
 }
 
 export interface StaffProfilePayload {

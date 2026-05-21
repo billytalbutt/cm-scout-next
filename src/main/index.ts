@@ -350,6 +350,8 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
       playerStatsDatPresent: loaded.db.playerStatsDatPresent ?? false,
       savePerformancePerCompByPlayerDatId: loaded.db.savePerformancePerCompByPlayerDatId,
       savePerformanceByPlayerDatId: loaded.db.savePerformanceByPlayerDatId,
+      playerStatsHistoryBuf: loaded.db.playerStatsHistoryBuf,
+      playerStatsDatBuf: loaded.db.playerStatsDatBuf,
     }),
     isDemo: false as const,
   }
