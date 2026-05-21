@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { DatabaseLoadProgress } from '../shared/loadProgress'
 
 contextBridge.exposeInMainWorld('cmapi', {
+  onDatabaseLoadProgress: (handler: (p: DatabaseLoadProgress) => void) => {
+    const listener = (_e: unknown, p: DatabaseLoadProgress) => handler(p)
+    ipcRenderer.on('database-load-progress', listener)
+    return () => {
+      ipcRenderer.removeListener('database-load-progress', listener)
+    }
+  },
   openDatabase: () =>
     ipcRenderer.invoke('open-database') as Promise<
       | {

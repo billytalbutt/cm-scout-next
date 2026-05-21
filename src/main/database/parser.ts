@@ -337,6 +337,8 @@ export function isValidPlayerRow(
 export type ParseIndexDatOptions = {
   /** Folders to search for `staff_history.dat` when it is not embedded in the archive (normal CM Data layout). */
   staffHistorySearchDirs?: readonly string[]
+  /** When true, skip slow current-season index (built after UI rows in `open-database`). */
+  skipCurrentSeasonIndex?: boolean
 }
 
 export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}): ParsedDatabase {
@@ -590,7 +592,7 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     }
   }
 
-  if (playerStatsHistoryBuf?.length || playerStatsDatBuf?.length) {
+  if (!options.skipCurrentSeasonIndex && (playerStatsHistoryBuf?.length || playerStatsDatBuf?.length)) {
     try {
       currentSeasonByPlayerDatId = buildPlayerCurrentSeasonIndex(
         players,
@@ -719,6 +721,42 @@ function applyCmCurrentSeasonToRow(
       : (savePerformanceByPlayerDatId?.get(playerId)?.averageRating ?? null),
     savePerformance: savePerformanceByPlayerDatId?.get(playerId) ?? null,
     cmSeason: null,
+  }
+}
+
+/** Apply `currentSeasonByPlayerDatId` after a deferred index build. */
+export function patchUiRowsCurrentSeason(rows: readonly UiPlayerRow[], db: ParsedDatabase): void {
+  const {
+    staffHistoryByStaffId,
+    staffCompHistoryByStaffId,
+    nationSeasonUpdateDaySamples,
+    gameDateIso,
+    savePerformanceByPlayerDatId,
+    currentSeasonByPlayerDatId,
+  } = db
+  if (!currentSeasonByPlayerDatId?.size) return
+  const baseYearPick = resolveStaffHistoryHighlightYear(gameDateIso, nationSeasonUpdateDaySamples)
+  for (const r of rows) {
+    const hist = staffHistoryByStaffId?.get(r.staff.id)
+    const yearPick = refineHighlightYearWithHistoryFallback(hist ?? [], baseYearPick)
+    const compRows = staffCompHistoryByStaffId?.get(r.staff.id) ?? []
+    const compTotals = aggregateStaffCompSeasonTotals(compRows)
+    const hasCompRows = compRows.length > 0
+    const sums = sumStaffHistoryCareerAndSeason(hist, yearPick.highlightHistoryYear)
+    const season = applyCmCurrentSeasonToRow(
+      r.player.id,
+      hasCompRows,
+      compTotals,
+      sums,
+      savePerformanceByPlayerDatId,
+      currentSeasonByPlayerDatId,
+    )
+    r.curSeasonApps = season.curSeasonApps
+    r.curSeasonGoals = season.curSeasonGoals
+    r.curSeasonAssists = season.curSeasonAssists
+    r.curSeasonAvgRating = season.curSeasonAvgRating
+    r.savePerformance = season.savePerformance
+    r.cmSeason = season.cmSeason
   }
 }
 

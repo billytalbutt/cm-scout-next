@@ -9,6 +9,8 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ProfileAttrCell, ProfilePayload, StaffProfilePayload } from './vite-env.d'
 import type { GridPlayerRow } from '../../shared/gridTypes'
+import type { DatabaseLoadProgress } from '../../shared/loadProgress'
+import { DatabaseLoadOverlay } from './DatabaseLoadOverlay'
 import { gridFlagsForVisibleColumnIds, GRID_DEFAULT_COLUMN_ORDER, sanitizeGridColumnOrder } from '../../shared/gridColumnCatalog'
 import { buildGridColumns, createGridColumnHelper } from './grid/gridColumns'
 import { EliteEngineStar } from './grid/EliteEngineStar'
@@ -350,6 +352,7 @@ export function App() {
   const [staffTableSel, setStaffTableSel] = useState<number | null>(null)
   const [sel, setSel] = useState<number | null>(null)
   const [opening, setOpening] = useState(false)
+  const [loadProgress, setLoadProgress] = useState<DatabaseLoadProgress | null>(null)
   const [gridMeta, setGridMeta] = useState<{ total: number } | null>(null)
   const [columnOrder, setColumnOrder] = useState<string[]>(() => loadGridColumnOrder())
   const [columnPickerOpen, setColumnPickerOpen] = useState(false)
@@ -925,8 +928,20 @@ export function App() {
     void refresh()
   }, [refresh])
 
+  useEffect(() => {
+    const unsub = window.cmapi?.onDatabaseLoadProgress?.((p) => {
+      setLoadProgress(p)
+    })
+    return () => unsub?.()
+  }, [])
+
   const loadDatabase = useCallback(async () => {
     setErr(null)
+    setLoadProgress({
+      phase: 'read',
+      message: 'Starting load…',
+      progress: 0.02,
+    })
     if (typeof window.cmapi?.openDatabase !== 'function') {
       setErr(
         'CM-01/02 Merlin must run inside the Electron app window (the packaged .app or npm run dev). A normal browser tab cannot open files.',
@@ -971,6 +986,7 @@ export function App() {
       setRows([])
     } finally {
       setOpening(false)
+      setLoadProgress(null)
     }
   }, [])
 
@@ -1192,6 +1208,10 @@ export function App() {
           {opening ? 'Opening…' : 'Load Database'}
         </button>
       </header>
+
+      {(opening || loadProgress) && loadProgress ? (
+        <DatabaseLoadOverlay progress={loadProgress} />
+      ) : null}
 
       {err && (
         <div className="border-b border-rose-900/50 bg-rose-950/40 px-5 py-2 text-sm text-rose-200">{err}</div>

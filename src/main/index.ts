@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, type WebContents } from 'electron'
 import { join, dirname, basename, extname } from 'path'
 import { fileURLToPath } from 'url'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
@@ -6,7 +6,14 @@ import { homedir } from 'os'
 import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
-import { buildUiRows, parseIndexDat, buildUiPlayerRowAtIndex } from './database/parser'
+import {
+  buildUiRows,
+  parseIndexDat,
+  buildUiPlayerRowAtIndex,
+  patchUiRowsCurrentSeason,
+} from './database/parser'
+import { buildPlayerCurrentSeasonIndex } from './database/playerStatsCurrentSeason'
+import type { DatabaseLoadProgress } from '../shared/loadProgress'
 import { collectStaffHistorySearchDirs } from './database/staffHistoryLoad'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
 import { applyCmScoutRatings, scoutFilterComparisonVector48, scoutDisplayVector48 } from './cmScoutRating'
@@ -68,10 +75,16 @@ function refreshLoadedDbFromArchive(indexPath: string, archiveBuf: Buffer): Pars
   })
 }
 
-function loadArchiveForPath(selectedPath: string): { db: ParsedDatabase; archiveBuf: Buffer } {
+function loadArchiveForPath(
+  selectedPath: string,
+  opts?: { skipCurrentSeasonIndex?: boolean },
+): { db: ParsedDatabase; archiveBuf: Buffer } {
   let archiveBuf = readFileSync(selectedPath)
   const historyDirs = collectStaffHistorySearchDirs(selectedPath)
-  const parseOpts = { staffHistorySearchDirs: historyDirs }
+  const parseOpts = {
+    staffHistorySearchDirs: historyDirs,
+    skipCurrentSeasonIndex: opts?.skipCurrentSeasonIndex,
+  }
   try {
     return { db: parseIndexDat(archiveBuf, parseOpts), archiveBuf }
   } catch (e) {
@@ -83,6 +96,7 @@ function loadArchiveForPath(selectedPath: string): { db: ParsedDatabase; archive
         return {
           db: parseIndexDat(archiveBuf, {
             staffHistorySearchDirs: collectStaffHistorySearchDirs(alt),
+            skipCurrentSeasonIndex: opts?.skipCurrentSeasonIndex,
           }),
           archiveBuf,
         }
@@ -90,6 +104,10 @@ function loadArchiveForPath(selectedPath: string): { db: ParsedDatabase; archive
     }
     throw e
   }
+}
+
+function emitLoadProgress(sender: WebContents, p: DatabaseLoadProgress): void {
+  if (!sender.isDestroyed()) sender.send('database-load-progress', p)
 }
 
 function sortedCompetitionOptions(db: ParsedDatabase): { id: number; name: string }[] {
@@ -179,16 +197,63 @@ ipcMain.handle('open-database', async (event) => {
   }
   const r = parent ? await dialog.showOpenDialog(parent, opts) : await dialog.showOpenDialog(opts)
   if (r.canceled || !r.filePaths[0]) return { ok: false as const, error: 'cancelled' }
+  const sender = event.sender
   try {
     const indexPath = r.filePaths[0]
-    const { db, archiveBuf } = loadArchiveForPath(indexPath)
+    emitLoadProgress(sender, {
+      phase: 'read',
+      message: 'Reading save file from disk…',
+      progress: 0.06,
+    })
+    const { db, archiveBuf } = loadArchiveForPath(indexPath, { skipCurrentSeasonIndex: true })
+    emitLoadProgress(sender, {
+      phase: 'parse',
+      message: 'Parsed players, clubs, contracts, and stats blocks…',
+      progress: 0.38,
+    })
+    emitLoadProgress(sender, {
+      phase: 'rows',
+      message: 'Building searchable player rows…',
+      progress: 0.48,
+    })
     const rows = buildUiRows(db)
+    emitLoadProgress(sender, {
+      phase: 'ratings',
+      message: 'Computing CM Scout % and effectiveness…',
+      progress: 0.62,
+    })
     applyCmScoutRatings(rows)
     applyEffectivenessRatings(rows)
     applyEngineMetaProfiles(rows)
+    emitLoadProgress(sender, {
+      phase: 'regen',
+      message: 'Applying regen snapshot hints…',
+      progress: 0.74,
+    })
     const pathKey = pathKeyForDb(indexPath)
     const baseline = loadBaselineFromDisk(pathKey)
     applyRegenPipeline(rows, baseline, pathKey)
+    if (db.playerStatsHistoryBuf?.length || db.playerStatsDatBuf?.length) {
+      emitLoadProgress(sender, {
+        phase: 'season',
+        message: 'Indexing current-season goals, assists, and competitions…',
+        progress: 0.84,
+      })
+      try {
+        db.currentSeasonByPlayerDatId = buildPlayerCurrentSeasonIndex(
+          db.players,
+          db.staff,
+          db.playerStatsHistoryBuf,
+          db.playerStatsDatBuf,
+          db.competitionNamesById ?? new Map(),
+          db.staffCompHistoryByStaffId,
+        )
+        patchUiRowsCurrentSeason(rows, db)
+      } catch {
+        db.currentSeasonByPlayerDatId = undefined
+      }
+    }
+    emitLoadProgress(sender, { phase: 'done', message: 'Load complete.', progress: 1 })
     loaded = { db, rows, indexPath, pathKey, archiveBuf }
     return {
       ok: true as const,

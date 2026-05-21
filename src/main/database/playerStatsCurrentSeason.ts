@@ -31,12 +31,6 @@ export const PLAYER_STATS_HISTORY_RECORD = {
   scopeRel: 12,
 } as const
 
-/** 47-byte stride layouts from CM0102Patcher / Blackburn probes. */
-const HISTORY_STRIDE_LAYOUTS = [
-  { playerRel: 0, compRel: 8, appsRel: 4, goalsRel: 5, assistsRel: 6 },
-  { playerRel: 20, compRel: 8, appsRel: 24, goalsRel: 25, assistsRel: 26 },
-] as const
-
 export interface PlayerCompSeasonRow {
   competitionId: number
   competitionName: string
@@ -216,31 +210,28 @@ export interface PlayerStatsHistoryIndex {
   byComp: Map<number, HistoryCompRow[]>
 }
 
-function indexHistoryCompStride(
+function decodeHistoryRowLayout(
   buf: Buffer,
-  playerIds: ReadonlySet<number>,
-  competitionNames: CompetitionNamesById,
-  out: Map<number, HistoryCompRow[]>,
-): void {
-  const stride = PLAYER_STATS_HISTORY_ROW_BYTES_CANDIDATE
-  for (let row = 0; row + stride <= buf.length; row += stride) {
-    for (const layout of HISTORY_STRIDE_LAYOUTS) {
-      if (row + layout.assistsRel + 1 > buf.length) continue
-      const playerDatId = buf.readInt32LE(row + layout.playerRel)
-      if (!playerIds.has(playerDatId)) continue
-      const comp = buf.readInt32LE(row + layout.compRel)
-      if (!isKnownCompetitionId(comp, competitionNames, playerDatId)) continue
-      const apps = readU8(buf, row, layout.appsRel)
-      const goals = readU8(buf, row, layout.goalsRel)
-      const assists = readU8(buf, row, layout.assistsRel)
-      if (apps == null || goals == null || assists == null) continue
-      if (!plausibleTriple(apps, goals, assists)) continue
-      pushCompRow(out, { playerDatId, competitionId: comp, apps, goals, assists })
-    }
-  }
+  row: number,
+  playerRel: number,
+  appsRel: number,
+  goalsRel: number,
+  assistsRel: number,
+  playerDatId: number,
+): { apps: number; goals: number; assists: number } | null {
+  const apps = readU8(buf, row, appsRel)
+  const goals = readU8(buf, row, goalsRel)
+  const assists = readU8(buf, row, assistsRel)
+  if (apps == null || goals == null || assists == null) return null
+  if (!plausibleTriple(apps, goals, assists)) return null
+  if (buf.readInt32LE(row + playerRel) !== playerDatId) return null
+  return { apps, goals, assists }
 }
 
-/** One pass: scope rows + `club_comp` id rows in `player stats history.tmp`. */
+/**
+ * Fast index: 47-byte CM rows only (~2M steps on a 99MB file).
+ * Avoids the old 4-byte full-file scan (~25M steps) that blocked the UI for minutes.
+ */
 export function indexPlayerStatsHistory(
   buf: Buffer,
   playerIds: ReadonlySet<number>,
@@ -248,29 +239,44 @@ export function indexPlayerStatsHistory(
 ): PlayerStatsHistoryIndex {
   const byScope = new Map<number, HistoryScopeRow[]>()
   const byComp = new Map<number, HistoryCompRow[]>()
-  if (!buf.length) return { byScope, byComp }
+  if (!buf.length || !playerIds.size) return { byScope, byComp }
 
-  const max = buf.length - R.scopeRel
-  for (let rowStart = 0; rowStart <= max; rowStart += 4) {
-    const maybeId = buf.readInt32LE(rowStart)
-    if (!playerIds.has(maybeId)) continue
-    const rec = decodeHistoryRecord(buf, rowStart)
-    if (!rec || !playerIds.has(rec.playerDatId)) continue
-    pushHistoryRow(byScope, rec)
-    const compId = readCompIdAtRow(buf, rowStart, rec.playerDatId, competitionNames)
-    if (compId != null) {
-      pushCompRow(byComp, {
-        playerDatId: rec.playerDatId,
-        competitionId: compId,
-        apps: rec.apps,
-        goals: rec.goals,
-        assists: rec.assists,
-      })
+  const stride = PLAYER_STATS_HISTORY_ROW_BYTES_CANDIDATE
+  for (let row = 0; row + stride <= buf.length; row += stride) {
+    const pid0 = buf.readInt32LE(row)
+    if (playerIds.has(pid0)) {
+      const rec = decodeHistoryRecord(buf, row)
+      if (rec) {
+        pushHistoryRow(byScope, rec)
+        const compId = readCompIdAtRow(buf, row, rec.playerDatId, competitionNames)
+        if (compId != null) {
+          pushCompRow(byComp, {
+            playerDatId: rec.playerDatId,
+            competitionId: compId,
+            apps: rec.apps,
+            goals: rec.goals,
+            assists: rec.assists,
+          })
+        }
+      }
     }
-  }
 
-  if (competitionNames.size) {
-    indexHistoryCompStride(buf, playerIds, competitionNames, byComp)
+    const pid20 = buf.readInt32LE(row + 20)
+    if (playerIds.has(pid20)) {
+      const triple = decodeHistoryRowLayout(buf, row, 20, 24, 25, 26, pid20)
+      if (triple) {
+        const comp = buf.readInt32LE(row + 8)
+        if (isKnownCompetitionId(comp, competitionNames, pid20)) {
+          pushCompRow(byComp, {
+            playerDatId: pid20,
+            competitionId: comp,
+            apps: triple.apps,
+            goals: triple.goals,
+            assists: triple.assists,
+          })
+        }
+      }
+    }
   }
 
   return { byScope, byComp }
@@ -283,19 +289,7 @@ export function indexPlayerStatsHistoryByPlayerDatId(
 ): Map<number, HistoryScopeRow[]> {
   if (!buf.length) return new Map()
   const ids = playerIds ?? new Set<number>()
-  const byScope = new Map<number, HistoryScopeRow[]>()
-  const max = buf.length - R.scopeRel
-  for (let rowStart = 0; rowStart <= max; rowStart += 4) {
-    if (playerIds) {
-      const maybeId = buf.readInt32LE(rowStart)
-      if (!playerIds.has(maybeId)) continue
-    }
-    const rec = decodeHistoryRecord(buf, rowStart)
-    if (!rec) continue
-    if (playerIds && !playerIds.has(rec.playerDatId)) continue
-    pushHistoryRow(byScope, rec)
-  }
-  return byScope
+  return indexPlayerStatsHistory(buf, ids, new Map()).byScope
 }
 
 function readEmbeddedSeniorClub(

@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import type { GridPlayerRow } from '../../shared/gridTypes'
+import type { DatabaseLoadProgress } from '../../shared/loadProgress'
 import type {
   EffectivenessArchetypeRow,
   EffectivenessFullResult,
@@ -39,6 +40,7 @@ type RegenBaselineMutationResult =
 declare global {
   interface Window {
     cmapi: {
+      onDatabaseLoadProgress: (handler: (p: DatabaseLoadProgress) => void) => () => void
       openDatabase: () => Promise<OpenResult>
       getRows: (filter: Record<string, unknown>) => Promise<{
         total: number
