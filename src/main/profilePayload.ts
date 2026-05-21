@@ -323,6 +323,12 @@ function buildProfileSeasonStats(
 
   const playerStatsDatPresent = ctx.playerStatsDatPresent === true
 
+  const indexedSeason = row.cmSeason ?? ctx.currentSeasonByPlayerDatId?.get(row.player.id) ?? null
+  const cmHistoryScopes = indexedSeason?.scopes ?? []
+  const cmHistoryAvailable =
+    cmHistoryScopes.length > 0 &&
+    cmHistoryScopes.some((r) => r.apps > 0 || r.goals > 0 || r.assists > 0)
+
   const perCompetitionTotals =
     perCompetitionRows.length > 0
       ? (() => {
@@ -364,12 +370,6 @@ function buildProfileSeasonStats(
   const seasonHeaderTotals = currentSeasonPerformance
     ? { apps: currentSeasonPerformance.apps, goals: currentSeasonPerformance.goals }
     : { apps: cApps, goals: cGoals }
-
-  const indexedSeason = row.cmSeason ?? ctx.currentSeasonByPlayerDatId?.get(row.player.id) ?? null
-  const cmHistoryScopes = indexedSeason?.scopes ?? []
-  const cmHistoryAvailable =
-    cmHistoryScopes.length > 0 &&
-    cmHistoryScopes.some((r) => r.apps > 0 || r.goals > 0 || r.assists > 0)
 
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },
