@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, screen, type WebContents } from 'electron'
 import { join, dirname, basename, extname } from 'path'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
 import { computeEffectivenessFull } from '../shared/effectivenessEngine'
@@ -166,6 +166,31 @@ function splashHtmlPath(): string {
   return join(__dirname, '../../src/renderer/splash.html')
 }
 
+function resolveSplashStickerPath(): string | null {
+  const htmlPath = splashHtmlPath()
+  const htmlDir = dirname(htmlPath)
+  const candidates = [
+    join(htmlDir, 'splash-sticker.png'),
+    join(htmlDir, 'public', 'splash-sticker.png'),
+    join(__dirname, '../renderer/splash-sticker.png'),
+    join(__dirname, '../../src/renderer/public/splash-sticker.png'),
+  ]
+  for (const p of candidates) {
+    if (existsSync(p)) return p
+  }
+  return null
+}
+
+function setSplashStickerImage(splash: BrowserWindow, stickerPath: string): void {
+  const href = pathToFileURL(stickerPath).href
+  void splash.webContents
+    .executeJavaScript(
+      `(() => { const img = document.querySelector('.sticker'); if (img) img.src = ${JSON.stringify(href)}; })()`,
+      true,
+    )
+    .catch(() => {})
+}
+
 function createSplashWindow(): Promise<void> {
   return new Promise((resolve) => {
     const { width, height } = splashWindowSize()
@@ -195,6 +220,10 @@ function createSplashWindow(): Promise<void> {
       resolve()
     }
 
+    const stickerPath = resolveSplashStickerPath()
+    splash.webContents.once('did-finish-load', () => {
+      if (stickerPath) setSplashStickerImage(splash, stickerPath)
+    })
     void splash.loadFile(splashHtmlPath()).catch(() => finish())
 
     const fadeAt = Math.max(0, SPLASH_DURATION_MS - SPLASH_FADE_MS)

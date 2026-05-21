@@ -15,6 +15,10 @@ function copyRendererStaticAssets(): Plugin {
       if (existsSync(splashSrc)) {
         copyFileSync(splashSrc, join(outDir, 'splash.html'))
       }
+      const splashSticker = resolve('src/renderer/public/splash-sticker.png')
+      if (existsSync(splashSticker)) {
+        copyFileSync(splashSticker, join(outDir, 'splash-sticker.png'))
+      }
       const publicDir = resolve('src/renderer/public')
       if (existsSync(publicDir)) {
         for (const name of readdirSync(publicDir)) {
