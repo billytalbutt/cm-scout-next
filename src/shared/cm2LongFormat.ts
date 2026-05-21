@@ -46,11 +46,14 @@ function isPackedCm2LongOnDisk(raw: number): boolean {
 }
 
 export function cashLooksPlainOnDisk(raw: number): boolean {
-  if (raw < 0 || raw > MAX_CASH_POUNDS) return false
-  if (isPackedCm2LongOnDisk(raw)) return false
-  const packedPounds = cm2LongDiskToDisplay(raw, CASH_DISPLAY_SCALE)
+  const r = Math.trunc(raw)
+  if (r < 0 || r > MAX_CASH_POUNDS) return false
+  if (isPackedCm2LongOnDisk(r)) return false
+  const packedPounds = cm2LongDiskToDisplay(r, CASH_DISPLAY_SCALE)
+  // Packed decode nonsense → trust raw int32 as pounds (third-party / old editors).
   if (packedPounds > MAX_CASH_POUNDS) return true
-  return true
+  if (r >= 100_000 && Math.abs(packedPounds - r) > Math.max(50_000, r * 0.05)) return true
+  return false
 }
 
 /** Bank balance in pounds for UI / club browse. */
@@ -59,8 +62,14 @@ export function readCashDisplay(raw: number): number {
   return cm2LongDiskToDisplay(raw, CASH_DISPLAY_SCALE)
 }
 
-/** Write pounds — always packed for CM0102 (same as CM0102Patcher). */
-export function writeCashDisplay(pounds: number, _priorRaw?: number): number {
+/**
+ * Write pounds using the same representation already on disk.
+ * Vanilla CM0102 uses packed CM2 long; some saves use plain int32 pounds.
+ */
+export function writeCashDisplay(pounds: number, priorRaw?: number): number {
   const p = Math.min(MAX_CASH_POUNDS, Math.max(0, Math.trunc(pounds)))
+  if (priorRaw !== undefined && cashLooksPlainOnDisk(priorRaw)) {
+    return p
+  }
   return cm2LongDisplayToDisk(p, CASH_DISPLAY_SCALE)
 }

@@ -36,11 +36,28 @@ describe('cm2LongFormat', () => {
     expect(readCashDisplay(raw)).toBe(2_000_000_000)
   })
 
-  it('writes 100M packed even when prior on disk was misread as plain-shaped', () => {
+  it('writes 100M packed when prior on disk was packed', () => {
     const packedPrior = cm2LongFromNormal(21_000)
     expect(cashLooksPlainOnDisk(packedPrior)).toBe(false)
     const written = writeCashDisplay(100_000_000, packedPrior)
     expect(readCashDisplay(written)).toBe(100_000_000)
     expect(written).not.toBe(100_000_000)
+  })
+
+  it('preserves plain int32 pounds on disk when prior was plain', () => {
+    const plainPrior = 21_000_000
+    expect(cashLooksPlainOnDisk(plainPrior)).toBe(true)
+    expect(readCashDisplay(plainPrior)).toBe(21_000_000)
+    const written = writeCashDisplay(50_000_000, plainPrior)
+    expect(written).toBe(50_000_000)
+    expect(readCashDisplay(written)).toBe(50_000_000)
+  })
+
+  it('does not treat vanilla packed cash as plain', () => {
+    const packed120m = writeCashDisplay(120_000_000)
+    expect(cashLooksPlainOnDisk(packed120m)).toBe(false)
+    expect(readCashDisplay(packed120m)).toBe(120_000_000)
+    const written = writeCashDisplay(50_000_000, packed120m)
+    expect(readCashDisplay(written)).toBe(50_000_000)
   })
 })

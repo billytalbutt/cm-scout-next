@@ -64,7 +64,8 @@ export function writeClubEditorDisplayAt(
 ): void {
   const abs = base + meta.offset
   if (meta.kind === 'cm2long') {
-    buf.writeInt32LE(writeCashDisplay(displayValue), abs)
+    const priorRaw = buf.readInt32LE(abs)
+    buf.writeInt32LE(writeCashDisplay(displayValue, priorRaw), abs)
     return
   }
   if (meta.kind === 'u8') {
