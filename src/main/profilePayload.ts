@@ -5,19 +5,10 @@ import {
   transferListedByRequest,
 } from './cmScoutRating'
 import { contractTypeLabel } from '../shared/contractTypes'
-import { buildCompetitionNamesById } from './database/competitionNames'
 import type { ClubCompRecord, StaffCompRecord } from './database/clubComp'
-import {
-  aggregateStaffCompSeasonTotals,
-  staffCompHistoryToProfileRows,
-} from './database/staffCompHistory'
-import {
-  currentSeasonPerformanceFromRows,
-  currentSeasonPerformanceFromSave,
-  pickCurrentSeasonStaffHistoryAtClub,
-} from './database/currentSeasonPerformance'
+import type { CurrentSeasonPerformance } from './database/currentSeasonPerformance'
 import type { PlayerCurrentSeasonIndexed } from './database/playerStatsCurrentSeason'
-import type { StaffHistoryRecord } from './database/staffHistory'
+import { resolveStaffHistoryHighlightYear } from './database/seasonYear'
 import {
   buildCa18Display,
   CA18_KEYS,
@@ -25,13 +16,7 @@ import {
   type AttrDisplayBlock,
   type Ca18Key,
 } from './database/attributes'
-import type {
-  PlayerRecord,
-  PlayerSavePerformanceStats,
-  PlayerStatsPerCompetitionRow,
-  StaffRecord,
-  UiPlayerRow,
-} from './database/types'
+import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
 import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
@@ -198,12 +183,6 @@ export type ProfileDbContext = {
   currentSeasonByPlayerDatId?: Map<number, PlayerCurrentSeasonIndexed>
 }
 
-function calendarYearFromGameIso(iso: string | null): number | null {
-  if (!iso || iso.length < 4) return null
-  const y = parseInt(iso.slice(0, 4), 10)
-  return Number.isFinite(y) ? y : null
-}
-
 /** `staff.club_job_id` and `contract.club_id` can differ on some saves. */
 function employerClubIdsForRow(row: UiPlayerRow): number[] {
   const ids: number[] = []
@@ -215,20 +194,29 @@ function employerClubIdsForRow(row: UiPlayerRow): number[] {
   return ids
 }
 
-function historyToSeasonRow(h: StaffHistoryRecord, clubNames: Map<number, string>) {
-  const name = clubNames.get(h.clubId)?.trim()
-  return {
-    year: h.year,
-    club: name && name.length > 0 ? name : h.clubId < 0 ? '—' : `#${h.clubId}`,
-    onLoan: h.onLoan !== 0,
-    apps: h.apps,
-    goals: h.goals,
-    assists: null as number | null,
-    averageRating: null as number | null,
-    tackles: null as number | null,
-    passes: null as number | null,
-    headers: null as number | null,
+function formatSeasonLabel(startYear: number): string {
+  return `${startYear}/${String((startYear + 1) % 100).padStart(2, '0')}`
+}
+
+/** Senior club combined from index; if missing, sum league + cup + continental scopes. */
+function seniorTotalsFromIndex(cm: PlayerCurrentSeasonIndexed): {
+  apps: number
+  goals: number
+  assists: number
+  averageRating: number | null
+} {
+  if (cm.seniorApps > 0 || cm.seniorGoals > 0 || cm.seniorAssists > 0 || cm.seniorAvgRating != null) {
+    return {
+      apps: cm.seniorApps,
+      goals: cm.seniorGoals,
+      assists: cm.seniorAssists,
+      averageRating: cm.seniorAvgRating,
+    }
   }
+  const apps = cm.leagueApps + cm.cupApps + cm.continentalApps
+  const goals = cm.leagueGoals + cm.cupGoals + cm.continentalGoals
+  const assists = cm.leagueAssists + cm.cupAssists + cm.continentalAssists
+  return { apps, goals, assists, averageRating: null }
 }
 
 function buildProfileSeasonStats(
@@ -237,178 +225,84 @@ function buildProfileSeasonStats(
   gameDateIso: string | null,
   ctx: ProfileDbContext,
 ) {
-  const hist = row.staffHistory ?? []
   const clubIds = employerClubIdsForRow(row)
   const employerClubId = clubIds[0] ?? row.staff.club_job_id
-  const alternateClubIds = clubIds.slice(1)
   const clubLabel =
     clubNames.get(employerClubId)?.trim() ||
     clubNames.get(row.staff.club_job_id)?.trim() ||
+    row.club.trim() ||
     `Club #${employerClubId}`
 
-  const { rows: currentHist, pick: seasonPick } = pickCurrentSeasonStaffHistoryAtClub(
-    hist,
-    employerClubId,
-    gameDateIso,
-    ctx.nationSeasonUpdateDaySamples,
-    alternateClubIds,
-  )
-  const saveCalendarYear = seasonPick.saveCalendarYear ?? calendarYearFromGameIso(gameDateIso)
-  const highlightHistoryYear = seasonPick.highlightHistoryYear
-
-  const toRow = (h: StaffHistoryRecord) => historyToSeasonRow(h, clubNames)
-  const allSeasons = [...hist].map(toRow).sort((a, b) => {
-    if (b.year !== a.year) return b.year - a.year
-    return a.club.localeCompare(b.club)
-  })
-  const compRows = row.staffCompHistory ?? []
-  const competitionNames = buildCompetitionNamesById(ctx.clubCompsById, ctx.staffCompsById)
-  const perCompetitionRows =
-    compRows.length > 0
-      ? staffCompHistoryToProfileRows(compRows, competitionNames, row.player.id)
-      : (ctx.savePerformancePerCompByPlayerDatId?.get(row.player.id) ?? [])
-
-  let cApps = 0
-  let cGoals = 0
-  for (const h of currentHist) {
-    cApps += h.apps
-    cGoals += h.goals
-  }
-
-  let currentSeasonPerformance = currentSeasonPerformanceFromRows(
-    currentHist,
-    employerClubId,
-    clubLabel,
-    alternateClubIds,
-  )
-  const currentAtEmployerClub =
-    currentHist.length > 0 && currentHist.some((h) => clubIds.includes(h.clubId))
-
-  const savePerf = ctx.savePerformanceByPlayerDatId?.get(row.player.id) ?? null
-  const seasonYearForSave =
-    highlightHistoryYear ?? saveCalendarYear ?? new Date().getFullYear()
-  const fromSave =
-    savePerf != null
-      ? currentSeasonPerformanceFromSave(savePerf, clubLabel, employerClubId, seasonYearForSave)
-      : null
-
-  if (compRows.length > 0) {
-    const compTotals = aggregateStaffCompSeasonTotals(compRows)
-    currentSeasonPerformance = {
-      label: 'All competitions',
-      apps: compTotals.apps,
-      goals: compTotals.goals,
-      assists: compTotals.assists,
-      averageRating: compTotals.averageRating,
-      historyYear: seasonYearForSave,
-      clubId: employerClubId,
-      source: 'player_stats_dat',
-    }
-  } else if (fromSave) {
-    const saveHasAssists = fromSave.assists != null
-    const preferSave =
-      !currentSeasonPerformance ||
-      !hist.length ||
-      !currentAtEmployerClub ||
-      saveHasAssists
-    if (preferSave) currentSeasonPerformance = fromSave
-  }
-  const divCompId = ctx.clubDivisionCompIdByClubId.get(employerClubId)
-  let inferredDomesticLeague: { competitionId: number; name: string } | null = null
-  if (divCompId != null && divCompId !== 0 && ctx.clubCompsById) {
-    const comp = ctx.clubCompsById.get(divCompId)
-    const label = (comp?.name ?? '').trim() || (comp?.shortName ?? '').trim()
-    if (label) inferredDomesticLeague = { competitionId: divCompId, name: label }
-  }
-
-  const playerStatsDatPresent = ctx.playerStatsDatPresent === true
+  const yearPick = resolveStaffHistoryHighlightYear(gameDateIso, ctx.nationSeasonUpdateDaySamples)
+  const seasonStart = yearPick.highlightHistoryYear ?? yearPick.saveCalendarYear
+  const cmHistorySeasonLabel = seasonStart != null ? formatSeasonLabel(seasonStart) : null
 
   const indexedSeason = row.cmSeason ?? ctx.currentSeasonByPlayerDatId?.get(row.player.id) ?? null
-  const cmHistoryScopes = indexedSeason?.scopes ?? []
-  const cmHistoryAvailable =
-    cmHistoryScopes.length > 0 &&
-    cmHistoryScopes.some((r) => r.apps > 0 || r.goals > 0 || r.assists > 0)
+  const playerStatsDatPresent = ctx.playerStatsDatPresent === true
 
-  const perCompetitionTotals =
-    perCompetitionRows.length > 0
-      ? (() => {
-          const t = aggregateStaffCompSeasonTotals(
-            perCompetitionRows.map((r) => ({
-              staffId: row.staffId,
-              competitionId: r.competitionId,
-              apps: r.apps,
-              goals: r.goals,
-              assists: r.assists ?? 0,
-              averageRating: r.averageRating ?? null,
-            })),
-          )
-          return {
-            apps: t.apps,
-            goals: t.goals,
-            assists: t.assists,
-            averageRating: t.averageRating,
-          }
-        })()
-      : null
+  let currentSeasonPerformance: CurrentSeasonPerformance | null = null
+  if (seasonStart != null) {
+    if (indexedSeason?.available) {
+      const totals = seniorTotalsFromIndex(indexedSeason)
+      currentSeasonPerformance = {
+        label: clubLabel,
+        apps: totals.apps,
+        goals: totals.goals,
+        assists: totals.assists,
+        averageRating: totals.averageRating,
+        historyYear: seasonStart,
+        clubId: employerClubId,
+        source: 'player_stats_dat',
+      }
+    } else {
+      currentSeasonPerformance = {
+        label: clubLabel,
+        apps: 0,
+        goals: 0,
+        assists: null,
+        averageRating: null,
+        historyYear: seasonStart,
+        clubId: employerClubId,
+        source: 'player_stats_dat',
+      }
+    }
+  }
 
-  const savePerformanceHint = cmHistoryAvailable
-    ? 'Current season by scope (League / Cup / Continental / …) from `player stats history.tmp` and Senior club totals from `player stats.dat`. Per-scope average ratings are not decoded yet.'
-    : perCompetitionRows.length > 0
-      ? 'Current season by competition from `player stats.dat` in this save. Career assists and average rating are not stored in `staff_history.dat` (purged each season rollover).'
-      : fromSave
-        ? 'Current-season apps, goals, and assists from `player stats.dat` summary decode (Senior club combined).'
-        : !ctx.staffHistoryParsed
-      ? 'No staff_history.dat found. Load a .sav from your CM Game folder (e.g. …/Game/Game/) so Data/staff_history.dat is found, or ensure this save includes `player stats.dat`.'
-      : !hist.length
-        ? 'No career rows for this staff id in staff_history.dat and no summary row in `player stats.dat` for this player.'
-        : currentSeasonPerformance && currentAtEmployerClub
-          ? 'Apps and goals from staff history (league + cups combined). Assists and average rating are not in staff_history.dat.'
-          : currentSeasonPerformance
-            ? 'Best matching season-year from career history; no live save summary was decoded for this player.'
-            : 'Career rows exist but none match the resolved current season year — check highlighted rows in the table below.'
-
-  const seasonHeaderTotals = currentSeasonPerformance
-    ? { apps: currentSeasonPerformance.apps, goals: currentSeasonPerformance.goals }
-    : { apps: cApps, goals: cGoals }
+  const savePerformanceHint = !playerStatsDatPresent
+    ? 'This save has no player stats blocks — reload an uncompressed save that includes `player stats.dat` and `player stats history.tmp`.'
+    : !indexedSeason?.available
+      ? 'No current-season stats were decoded for this player in this save.'
+      : undefined
 
   return {
     internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },
-    saveCalendarYear,
-    highlightHistoryYear,
-    currentYearResolution: seasonPick.resolution,
-    boundaryDayOfYearUsed: seasonPick.boundaryDayOfYearUsed,
-    currentSeasonRows: currentHist.map(toRow).sort((a, b) => a.club.localeCompare(b.club)),
-    currentSeasonTotals: seasonHeaderTotals,
+    saveCalendarYear: yearPick.saveCalendarYear,
+    highlightHistoryYear: yearPick.highlightHistoryYear,
+    currentYearResolution: yearPick.resolution,
+    boundaryDayOfYearUsed: yearPick.boundaryDayOfYearUsed,
+    currentSeasonRows: [],
+    currentSeasonTotals: {
+      apps: currentSeasonPerformance?.apps ?? 0,
+      goals: currentSeasonPerformance?.goals ?? 0,
+    },
     currentSeasonPerformance,
     careerTotals: { apps: row.careerAppsTotal, goals: row.careerGoalsTotal },
     careerAssists: null as number | null,
     careerAvgRating: null as number | null,
-    allSeasons,
-    inferredDomesticLeague,
+    allSeasons: [],
+    inferredDomesticLeague: null,
     staffHistoryParsed: ctx.staffHistoryParsed,
     staffHistorySourcePath: ctx.staffHistorySourcePath,
     playerStatsDatPresent,
     savePerformanceHint,
-    perCompetitionRows,
-    perCompetitionTotals,
-    perCompetitionStatsInSave: perCompetitionRows.length > 0,
-    saveFilePerformance: savePerf
-      ? {
-          apps: savePerf.apps,
-          goals: savePerf.goals,
-          assists: savePerf.assists,
-          averageRating: savePerf.averageRating ?? null,
-        }
-      : null,
-    cmHistoryScopes,
-    cmHistoryAvailable,
-    cmHistorySeasonLabel:
-      highlightHistoryYear != null
-        ? `${highlightHistoryYear}/${String((highlightHistoryYear + 1) % 100).padStart(2, '0')}`
-        : saveCalendarYear != null
-          ? `${saveCalendarYear}/${String((saveCalendarYear + 1) % 100).padStart(2, '0')}`
-          : null,
-    cmCompetitionRows: indexedSeason?.byCompetition ?? [],
+    perCompetitionRows: [],
+    perCompetitionTotals: null,
+    perCompetitionStatsInSave: false,
+    saveFilePerformance: null,
+    cmHistoryScopes: [],
+    cmHistoryAvailable: false,
+    cmHistorySeasonLabel,
+    cmCompetitionRows: [],
   }
 }
 
