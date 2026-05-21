@@ -41,10 +41,25 @@ export interface StaffGridRow {
   jobByte: number
   club: string
   nation: string
+  /** `nonplayer.dat` current reputation, or player reputations when dual-role. */
+  reputationCurrent: number | null
   determination: number
   score: number
   scoreDetail: string
   nonPlayerCa: number | null
+}
+
+function staffReputationCurrent(
+  db: ParsedDatabase,
+  s: StaffRecord,
+  np: NonPlayerRecord | undefined,
+): number | null {
+  if (np) return np.currentReputation
+  if (s.player_id >= 0 && s.player_id < db.players.length) {
+    const p = db.players[s.player_id]
+    if (p) return p.current_reputation
+  }
+  return null
 }
 
 /** Exported for IPC — same name check as player grid. */
@@ -206,6 +221,7 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
       jobByte: s.job_for_club,
       club: clubName,
       nation: nationDisp,
+      reputationCurrent: staffReputationCurrent(db, s, np),
       determination: s.determination,
       score: Math.min(100, score),
       scoreDetail,

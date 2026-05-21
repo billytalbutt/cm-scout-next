@@ -9,6 +9,7 @@ export type StaffGridApiRow = {
   jobByte: number
   club: string
   nation: string
+  reputationCurrent: number | null
   determination: number
   score: number
   scoreDetail: string
@@ -82,7 +83,7 @@ export function StaffBrowsePanel({
         <table className="w-full min-w-[56rem] border-collapse text-left text-xs">
           <thead className="sticky top-0 z-20 bg-zinc-950/95 shadow-[0_4px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm">
             <tr className="border-b border-zinc-800/80 text-zinc-500">
-              <th colSpan={9} className="px-2 py-2 text-left text-[11px] font-normal text-zinc-500">
+              <th colSpan={10} className="px-2 py-2 text-left text-[11px] font-normal text-zinc-500">
                 Showing <span className="font-mono text-zinc-300">{rows.length}</span> of{' '}
                 <span className="font-mono text-zinc-300">{total}</span> matching rows · use filters on the left
               </th>
@@ -93,6 +94,7 @@ export function StaffBrowsePanel({
               <th className="px-2 py-2">Job</th>
               <th className="px-2 py-2">Club</th>
               <th className="px-2 py-2">Nation</th>
+              <th className="px-2 py-2">Reputation</th>
               <th className="px-2 py-2">Det</th>
               <th className="px-2 py-2">NPCA</th>
               <th className="px-2 py-2">Heuristic detail</th>
@@ -125,6 +127,9 @@ export function StaffBrowsePanel({
                 </td>
                 <td className="max-w-[12rem] truncate px-2 py-1.5 text-zinc-500" title={r.nation}>
                   {r.nation}
+                </td>
+                <td className="px-2 py-1.5 font-mono text-zinc-300">
+                  {r.reputationCurrent != null ? r.reputationCurrent.toLocaleString() : '—'}
                 </td>
                 <td className="px-2 py-1.5 font-mono text-zinc-400">{r.determination}</td>
                 <td className="px-2 py-1.5 font-mono text-zinc-400">{r.nonPlayerCa ?? '—'}</td>
