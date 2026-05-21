@@ -1974,7 +1974,14 @@ export function App() {
             )}
             {browseTab === 'editor' && (
               <div className="cm-scroll min-h-0 flex-1 overflow-y-auto">
-                <ClubEditorPanel loadInfo={!!loadInfo} compressed={!!loadInfo?.compressed} />
+                <ClubEditorPanel
+                  loadInfo={!!loadInfo}
+                  compressed={!!loadInfo?.compressed}
+                  databasePath={loadInfo?.path ?? null}
+                  onSavedToPath={(path) =>
+                    setLoadInfo((prev) => (prev ? { ...prev, path } : prev))
+                  }
+                />
                 <AttributeEditorPanel
                   loadInfo={!!loadInfo}
                   compressed={!!loadInfo?.compressed}

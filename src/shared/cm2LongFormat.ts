@@ -40,12 +40,17 @@ export function cm2LongDisplayToDisk(display: number, displayScale: number): num
  * Plain int32 pounds (rare third-party edits). Packed decode of e.g. 21_000_000 raw
  * explodes to billions, so we trust the raw value instead.
  */
+/** True when `raw` is a valid packed CM2 long (large balances encode to small ints). */
+function isPackedCm2LongOnDisk(raw: number): boolean {
+  return cm2LongFromNormal(cm2LongToNormal(raw)) === Math.trunc(raw)
+}
+
 export function cashLooksPlainOnDisk(raw: number): boolean {
   if (raw < 0 || raw > MAX_CASH_POUNDS) return false
+  if (isPackedCm2LongOnDisk(raw)) return false
   const packedPounds = cm2LongDiskToDisplay(raw, CASH_DISPLAY_SCALE)
-  if (packedPounds > 100_000_000 && raw < packedPounds / 50) return true
   if (packedPounds > MAX_CASH_POUNDS) return true
-  return false
+  return true
 }
 
 /** Bank balance in pounds for UI / club browse. */

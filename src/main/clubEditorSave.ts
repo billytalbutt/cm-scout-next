@@ -64,13 +64,14 @@ export function buildClubEditorSnapshot(
   }
 }
 
+/** Apply every supplied editor field (full form state), not a delta from an old baseline. */
 export function buildPatchedArchiveForClubEdits(
   archiveBuffer: Buffer,
   blocks: BlockInfo[],
   compressed: boolean,
   db: ParsedDatabase,
   clubId: number,
-  changes: Record<string, number>,
+  values: Record<string, number>,
 ): ClubEditorSaveResult {
   if (compressed) {
     return {
@@ -86,7 +87,7 @@ export function buildPatchedArchiveForClubEdits(
   if ('error' in bases) return { ok: false, error: bases.error }
 
   const out = Buffer.from(archiveBuffer)
-  for (const [key, rawVal] of Object.entries(changes)) {
+  for (const [key, rawVal] of Object.entries(values)) {
     if (!Number.isFinite(rawVal)) continue
     if (!CLUB_EDITOR_DISK_FIELDS[key]) continue
     writeClubEditorField(out, bases.clubBase, bases.stadiumBase, key, clampClubEditorValue(key, Number(rawVal)))

@@ -61,8 +61,8 @@ contextBridge.exposeInMainWorld('cmapi', {
   saveAttributeEdits: (staffIndex: number, changes: Record<string, number>) =>
     ipcRenderer.invoke('save-attribute-edits', { staffIndex, changes }),
   getClubEditorSnapshot: (clubId: number) => ipcRenderer.invoke('get-club-editor-snapshot', clubId),
-  saveClubEdits: (clubId: number, changes: Record<string, number>) =>
-    ipcRenderer.invoke('save-club-edits', { clubId, changes }),
+  saveClubEdits: (clubId: number, values: Record<string, number>) =>
+    ipcRenderer.invoke('save-club-edits', { clubId, values }),
   getShortlistPlayerRows: (staffIndices: number[]) =>
     ipcRenderer.invoke('get-shortlist-player-rows', staffIndices) as Promise<Array<Record<string, unknown>>>,
   exportShortlistPls: (payload: { staffIndices: number[]; defaultName?: string }) =>

@@ -94,7 +94,7 @@ declare global {
       >
       saveClubEdits: (
         clubId: number,
-        changes: Record<string, number>,
+        values: Record<string, number>,
       ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
       getShortlistPlayerRows: (staffIndices: number[]) => Promise<GridPlayerRow[]>
       exportShortlistPls: (payload: {

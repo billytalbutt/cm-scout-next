@@ -61,6 +61,13 @@ let loaded: {
  * CM Scout–style: open *.sav or index.dat; same block directory format.
  * Returns the DB plus the exact buffer that was parsed (for later attribute patching).
  */
+/** Re-parse `club.dat` / `stadium.dat` (etc.) after patching the in-memory archive. */
+function refreshLoadedDbFromArchive(indexPath: string, archiveBuf: Buffer): ParsedDatabase {
+  return parseIndexDat(archiveBuf, {
+    staffHistorySearchDirs: collectStaffHistorySearchDirs(indexPath),
+  })
+}
+
 function loadArchiveForPath(selectedPath: string): { db: ParsedDatabase; archiveBuf: Buffer } {
   let archiveBuf = readFileSync(selectedPath)
   const historyDirs = collectStaffHistorySearchDirs(selectedPath)
@@ -490,20 +497,23 @@ ipcMain.handle('get-club-editor-snapshot', async (_e, clubId: unknown) => {
 
 ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
   if (!loaded) return { ok: false as const, error: 'No database loaded.' }
-  const p = payload as { clubId?: unknown; changes?: unknown }
+  const p = payload as { clubId?: unknown; values?: unknown; changes?: unknown }
   const clubId = Math.floor(Number(p.clubId))
-  const ch = p.changes
+  const ch = p.values ?? p.changes
   if (!Number.isFinite(clubId) || clubId <= 0 || typeof ch !== 'object' || ch === null) {
     return { ok: false as const, error: 'Invalid save payload.' }
   }
-  const changes = ch as Record<string, number>
+  const values = ch as Record<string, number>
+  if (Object.keys(values).length === 0) {
+    return { ok: false as const, error: 'No club fields to save.' }
+  }
   const built = buildPatchedArchiveForClubEdits(
     loaded.archiveBuf,
     loaded.db.blocks,
     loaded.db.compressed,
     loaded.db,
     clubId,
-    changes,
+    values,
   )
   if (!built.ok) return { ok: false as const, error: built.error }
 
@@ -512,7 +522,10 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
   const base = basename(loaded.indexPath)
   const ext = extname(base) || '.dat'
   const stem = ext.length > 0 ? base.slice(0, -ext.length) : base
-  const suggested = join(dirname(loaded.indexPath), `${stem}-club-edited${ext}`)
+  const suggested =
+    loaded.indexPath.toLowerCase().includes('-club-edited')
+      ? loaded.indexPath
+      : join(dirname(loaded.indexPath), `${stem}-club-edited${ext}`)
   const dlg = parent
     ? await dialog.showSaveDialog(parent, {
         title: 'Save edited database',
@@ -533,6 +546,10 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
   if (dlg.canceled || !dlg.filePath) return { ok: false as const, error: 'cancelled' }
   try {
     writeFileSync(dlg.filePath, built.buffer)
+    loaded.archiveBuf = built.buffer
+    loaded.indexPath = dlg.filePath
+    loaded.pathKey = pathKeyForDb(dlg.filePath)
+    loaded.db = refreshLoadedDbFromArchive(dlg.filePath, built.buffer)
     return { ok: true as const, path: dlg.filePath }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

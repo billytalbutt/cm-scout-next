@@ -90,9 +90,13 @@ function FieldGrid({
 export function ClubEditorPanel({
   loadInfo,
   compressed,
+  databasePath,
+  onSavedToPath,
 }: {
   loadInfo: boolean
   compressed: boolean
+  databasePath?: string | null
+  onSavedToPath?: (path: string) => void
 }) {
   const clubBrowse = useClubBrowse(loadInfo)
   const clubId = clubBrowse.selId
@@ -194,14 +198,13 @@ export function ClubEditorPanel({
     if (!snap || compressed || typeof window.cmapi?.saveClubEdits !== 'function') return
     const base = baselineRef.current
     if (!base) return
-    const changes: Record<string, number> = {}
+    const values: Record<string, number> = {}
     for (const key of Object.keys(base)) {
       const spec = [...CLUB_EDITOR_FIELDS, ...STADIUM_EDITOR_FIELDS].find((f) => f.key === key)
       const raw = draft[key]
       if (raw === undefined) continue
       if (spec?.kind === 'bool') {
-        const t = raw === '1' ? 1 : 0
-        if (t !== base[key]) changes[key] = t
+        values[key] = raw === '1' ? 1 : 0
         continue
       }
       const n = Number(raw)
@@ -209,23 +212,34 @@ export function ClubEditorPanel({
         setErr(`Invalid number for ${spec?.label ?? key}`)
         return
       }
-      const t = clampClubEditorValue(key, Math.trunc(n))
-      if (t !== base[key]) changes[key] = t
-    }
-    if (Object.keys(changes).length === 0) {
-      setSaveMsg('No changes to save.')
-      return
+      values[key] = clampClubEditorValue(key, Math.trunc(n))
     }
     setSaving(true)
     setErr(null)
     setSaveMsg(null)
     try {
-      const out = await window.cmapi.saveClubEdits(snap.clubId, changes)
+      const out = await window.cmapi.saveClubEdits(snap.clubId, values)
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
+        const savedPath = String((out as { path: string }).path)
+        onSavedToPath?.(savedPath)
         setSaveMsg(
-          `Saved to ${String((out as { path: string }).path)} — load that save in CM (Continue) to see changes in Finances.`,
+          `Saved ${savedPath}. In CM: Continue that exact file (not an older copy). After playing and saving in-game, use File → Load that same path here before editing again.`,
         )
-        baselineRef.current = { ...base, ...changes }
+        baselineRef.current = { ...values }
+        const refreshed = await window.cmapi.getClubEditorSnapshot(snap.clubId)
+        if (refreshed && typeof refreshed === 'object' && 'values' in refreshed && !('error' in refreshed)) {
+          const s = refreshed as ClubEditorSnapshot
+          setSnap(s)
+          const d: Record<string, string> = {}
+          const nextBase: Record<string, number> = {}
+          for (const [key, v] of Object.entries(s.values)) {
+            const c = clampClubEditorValue(key, v)
+            nextBase[key] = c
+            d[key] = String(c)
+          }
+          baselineRef.current = nextBase
+          setDraft(d)
+        }
       } else if (out && typeof out === 'object' && 'error' in out) {
         const er = (out as { error?: string }).error
         if (er === 'cancelled') setSaveMsg('Save cancelled.')
@@ -236,7 +250,7 @@ export function ClubEditorPanel({
     } finally {
       setSaving(false)
     }
-  }, [compressed, draft, snap])
+  }, [compressed, draft, onSavedToPath, snap])
 
   if (!loadInfo) {
     return null
@@ -259,11 +273,19 @@ export function ClubEditorPanel({
       <div>
         <h2 className="text-sm font-semibold text-zinc-200">Club &amp; stadium editor</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          Edit bank balance, attendance, training, reputation, and linked stadium capacity and features. Transfer budget
-          is calculated in-game from cash and other rules — only cash is stored on the club row. CM0102{' '}
+          Edit bank balance, attendance, training, reputation, and linked stadium capacity and features. In CM, check{' '}
+          <strong className="font-normal text-zinc-400">Finances → Bank balance</strong> (transfer budget is calculated
+          separately). Very large balances may need the EnsureCashDoesNotResetToZero exe patch. CM0102{' '}
           <code className="text-zinc-400">stadium.dat</code> has covered stands and under-soil heating; there is no
           retractable-roof flag in the canonical save layout.
         </p>
+        {databasePath && (
+          <p className="mt-2 text-xs text-amber-200/80">
+            Loaded file: <span className="font-mono text-amber-100/90">{databasePath}</span> — always edit and load the
+            same file you Continue in CM. Saving creates/updates a <span className="font-mono">*-club-edited.sav</span>;
+            in-game saves go to a new filename, so reload that new file here after playing.
+          </p>
+        )}
       </div>
 
       <ClubSearchSidebar

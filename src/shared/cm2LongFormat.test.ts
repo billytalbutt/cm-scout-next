@@ -30,6 +30,12 @@ describe('cm2LongFormat', () => {
     expect(readCashDisplay(21_000_000)).toBe(21_000_000)
   })
 
+  it('reads £2bn packed bytes as pounds not as plain int', () => {
+    const raw = writeCashDisplay(2_000_000_000)
+    expect(cashLooksPlainOnDisk(raw)).toBe(false)
+    expect(readCashDisplay(raw)).toBe(2_000_000_000)
+  })
+
   it('writes 100M packed even when prior on disk was misread as plain-shaped', () => {
     const packedPrior = cm2LongFromNormal(21_000)
     expect(cashLooksPlainOnDisk(packedPrior)).toBe(false)
