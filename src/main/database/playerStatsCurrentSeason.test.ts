@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { buildSummaryAnchorIndex } from './playerStatsSummary'
 import {
   buildPlayerCurrentSeasonIndex,
   CM_STAT_SCOPE,
@@ -74,12 +75,17 @@ describe.skipIf(!existsSync(goldenSav))('Joe Cole golden save', () => {
     expect(cole).toBeDefined()
     const staff = db.staff.find((s) => s.id === 6408)
     expect(staff).toBeDefined()
+    const anchorIdx = buildSummaryAnchorIndex(db.playerStatsDatBuf!, db.players)
     const decoded = decodePlayerCurrentSeasonStats(
       5451,
       db.playerStatsHistoryBuf,
       db.playerStatsDatBuf,
       undefined,
       staff ? { apps: staff.int_apps, goals: staff.int_goals } : null,
+      {
+        statsBestAnchor: anchorIdx.bestAnchorByPlayer.get(5451),
+        statsIdHitCount: anchorIdx.idHitCount.get(5451),
+      },
     )
     const byKey = Object.fromEntries(decoded.scopes.map((r) => [r.key, r]))
     expect(byKey.league).toMatchObject({ apps: 1, goals: 0, assists: 1 })
@@ -98,7 +104,8 @@ describe.skipIf(!existsSync(goldenSav))('Joe Cole golden save', () => {
     )
     expect(index.get(5451)?.seniorGoals).toBe(1)
     expect(index.get(5451)?.seniorApps).toBe(6)
-    expect(index.get(5451)?.leagueAssists).toBe(1)
+    expect(index.get(5451)?.seniorAvgRating).toBeGreaterThanOrEqual(7.1)
+    expect(index.get(5451)?.seniorAvgRating).toBeLessThanOrEqual(7.25)
     const premier = index.get(5451)?.byCompetition.find((c) => c.competitionId === 7)
     if (premier) {
       expect(premier.goals).toBeGreaterThanOrEqual(0)

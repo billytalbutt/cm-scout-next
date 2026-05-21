@@ -20,11 +20,15 @@ import {
 } from './competitionNames'
 import { PLAYER_STATS_HISTORY_ROW_BYTES_CANDIDATE } from './playerStatsHistoryProbe'
 import {
+  buildSummaryAnchorIndex,
   embeddedIdRecordStart,
   readEmbeddedIdRecordStats,
+  readEmbeddedSeniorRating,
+  readSeniorClubRatingAtAnchor,
   readSummaryStatsAtAnchor,
+  type SummaryAnchorIndex,
 } from './playerStatsSummary'
-import { collectPlayerDatIdOccurrences, pickPlayerStatsAnchor } from './playerStatsDat'
+import { pickPlayerStatsAnchor } from './playerStatsDat'
 import type {
   PlayerRecord,
   PlayerSavePerformanceStats,
@@ -99,31 +103,10 @@ const SCOPE_ORDER: CmStatScopeKey[] = [
   'seniorClub',
 ]
 
-const RATING_U8_SCALE = 0.1
-
 function readU8(buf: Buffer, base: number, rel: number): number | null {
   const i = base + rel
   if (i < 0 || i >= buf.length) return null
   return buf.readUInt8(i)
-}
-
-function ratingFromU8(v: number | null): number | null {
-  if (v == null || v < 50 || v > 100) return null
-  return Math.round(v * RATING_U8_SCALE * 100) / 100
-}
-
-/** CM-style av. rating stored as hundredths (e.g. 717 → 7.17) in embedded record. */
-function ratingFromEmbeddedRecord(buf: Buffer, rec: number): number | null {
-  if (rec < 0 || rec + 128 > buf.length) return null
-  for (let rel = 56; rel <= 118; rel += 2) {
-    if (rel + 1 >= buf.length) continue
-    const v = buf.readUInt16LE(rec + rel)
-    if (v >= 650 && v <= 750) {
-      const r = v / 100
-      if (r >= 5.5 && r <= 9.5) return Math.round(r * 100) / 100
-    }
-  }
-  return ratingFromU8(readU8(buf, rec, 64))
 }
 
 function plausibleTriple(apps: number, goals: number, assists: number): boolean {
@@ -324,13 +307,19 @@ export function indexPlayerStatsHistoryByPlayerDatId(
 function seniorClubFromEmbedded(
   statsBuf: Buffer,
   playerDatId: number,
-  anchorOccurrences: readonly number[] | undefined,
+  opts?: {
+    anchorOccurrences?: readonly number[]
+    bestAnchor?: number
+    idHitCount?: number
+  },
 ): CmScopeStatRow | null {
-  const occ = anchorOccurrences ?? []
-  const anchor = pickPlayerStatsAnchor(statsBuf, playerDatId, occ)
+  const occ = opts?.anchorOccurrences ?? []
+  const anchor =
+    opts?.bestAnchor ?? pickPlayerStatsAnchor(statsBuf, playerDatId, occ)
   if (anchor == null) return null
 
-  const summary = readSummaryStatsAtAnchor(statsBuf, anchor, playerDatId, occ.length)
+  const hits = opts?.idHitCount ?? occ.length
+  const summary = readSummaryStatsAtAnchor(statsBuf, anchor, playerDatId, hits)
   const rec = embeddedIdRecordStart(statsBuf, anchor, playerDatId)
   let apps: number
   let goals: number
@@ -370,13 +359,20 @@ function seniorClubFromEmbedded(
     }
   }
 
+  const triple = { apps, goals, assists }
+  const averageRating = summary
+    ? readSeniorClubRatingAtAnchor(statsBuf, anchor, playerDatId, hits, triple)
+    : rec != null
+      ? readEmbeddedSeniorRating(statsBuf, rec)
+      : null
+
   return {
     key: 'seniorClub',
     label: 'Senior club',
     apps,
     goals,
     assists,
-    averageRating: rec != null ? ratingFromEmbeddedRecord(statsBuf, rec) : null,
+    averageRating,
     source: 'player stats.dat',
   }
 }
@@ -461,6 +457,8 @@ export function decodePlayerCurrentSeasonStats(
   staffInternational?: { apps: number; goals: number } | null,
   opts?: {
     statsAnchorOccurrences?: readonly number[]
+    statsBestAnchor?: number
+    statsIdHitCount?: number
     savePerformance?: PlayerSavePerformanceStats | null
   },
 ): PlayerCurrentSeasonStats {
@@ -469,7 +467,11 @@ export function decodePlayerCurrentSeasonStats(
     (historyBuf?.length ? historyRowsForPlayer(historyBuf, playerDatId) : [])
   let seniorClub: CmScopeStatRow | null = null
   if (statsBuf?.length) {
-    seniorClub = seniorClubFromEmbedded(statsBuf, playerDatId, opts?.statsAnchorOccurrences)
+    seniorClub = seniorClubFromEmbedded(statsBuf, playerDatId, {
+      anchorOccurrences: opts?.statsAnchorOccurrences,
+      bestAnchor: opts?.statsBestAnchor,
+      idHitCount: opts?.statsIdHitCount,
+    })
   }
   if (!seniorClub) {
     seniorClub = seniorClubFromSaveSummary(opts?.savePerformance)
@@ -727,10 +729,11 @@ export function buildPlayerCurrentSeasonIndex(
   }
 
   onProgress?.(0.35)
-  const statsOccByPlayer =
-    statsBuf?.length && playerIds.size
-      ? collectPlayerDatIdOccurrences(statsBuf, playerIds)
-      : undefined
+  let summaryAnchorIndex: SummaryAnchorIndex | undefined
+  if (statsBuf?.length && playerIds.size) {
+    const playerList = players.filter((p) => playerIds.has(p.id))
+    summaryAnchorIndex = buildSummaryAnchorIndex(statsBuf, playerList)
+  }
 
   onProgress?.(0.45)
   const intlByPlayerId = new Map<number, { apps: number; goals: number }>()
@@ -753,7 +756,8 @@ export function buildPlayerCurrentSeasonIndex(
       historyByScope,
       intlByPlayerId.get(pid) ?? null,
       {
-        statsAnchorOccurrences: statsOccByPlayer?.get(pid),
+        statsBestAnchor: summaryAnchorIndex?.bestAnchorByPlayer.get(pid),
+        statsIdHitCount: summaryAnchorIndex?.idHitCount.get(pid),
         savePerformance: savePerformanceByPlayerDatId?.get(pid) ?? null,
       },
     )

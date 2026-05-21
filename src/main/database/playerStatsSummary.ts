@@ -556,6 +556,75 @@ export function compareSummaryCandidates(
   return 0
 }
 
+/** CM average rating from u8 (50–100 → 5.0–10.0). */
+export function ratingFromU8Byte(v: number | null): number | null {
+  if (v == null || v < 50 || v > 100) return null
+  return Math.round(v * 0.1 * 100) / 100
+}
+
+/** Embedded-id record (Cole-style): u16 hundredths then u8 @ rec+64. */
+export function readEmbeddedSeniorRating(buf: Buffer, rec: number): number | null {
+  if (rec < 0 || rec + 128 > buf.length) return null
+  for (let rel = 56; rel <= 118; rel += 2) {
+    if (rel + 1 >= buf.length) continue
+    const v = buf.readUInt16LE(rec + rel)
+    if (v >= 650 && v <= 750) {
+      const r = v / 100
+      if (r >= 5.5 && r <= 9.5) return Math.round(r * 100) / 100
+    }
+  }
+  return ratingFromU8Byte(readU8(buf, rec, 64))
+}
+
+/** Av. rating at the same anchor as Senior club totals (layout-specific offsets). */
+export function readSeniorClubRatingAtAnchor(
+  buf: Buffer,
+  anchor: number,
+  playerDatId: number,
+  idHitCount: number | undefined,
+  stats: SummaryStatsTriple,
+): number | null {
+  const hits = idHitCount ?? 0
+  const kind = classifySeniorClubSlotKind(buf, anchor, playerDatId, hits)
+  const rec = embeddedIdRecordStart(buf, anchor, playerDatId)
+  if (kind === 'embedded' && rec != null) {
+    return readEmbeddedSeniorRating(buf, rec)
+  }
+
+  const skip = new Set<number>()
+  if (stats.apps > 0 && stats.apps <= 60) skip.add(stats.apps)
+  if (stats.goals > 0 && stats.goals <= 60) skip.add(stats.goals)
+  if (stats.assists > 0 && stats.assists <= 60) skip.add(stats.assists)
+
+  let rels: number[]
+  switch (kind) {
+    case 'slotB-senior':
+      rels = [70, 59, 60, 106, 58, 64]
+      break
+    case 'slotA':
+      rels = [60, 59, 106, 64]
+      break
+    case 'grid-extra':
+      rels = [106, 60, 59, 70]
+      break
+    case 'offGrid':
+      rels = [60, 58, 70, 57]
+      break
+    default:
+      rels = [106, 60, 59, 70, 64]
+  }
+
+  for (const rel of rels) {
+    const u = readU8(buf, anchor, rel)
+    if (u == null || skip.has(u)) continue
+    const r = ratingFromU8Byte(u)
+    if (r != null) return r
+  }
+
+  if (rec != null) return readEmbeddedSeniorRating(buf, rec)
+  return null
+}
+
 export function decodePlayerStatsSummaryAtAnchor(
   buf: Buffer,
   anchor: number,
@@ -568,8 +637,86 @@ export function decodePlayerStatsSummaryAtAnchor(
     apps: stats.apps,
     goals: stats.goals,
     assists: stats.assists,
-    averageRating: null,
+    averageRating: readSeniorClubRatingAtAnchor(buf, anchor, playerDatId, idHitCount, stats),
     layout: 'summaryV1',
+  }
+}
+
+/** Result of one pass over `player stats.dat` to pick the best id anchor per player. */
+export type SummaryAnchorIndex = {
+  bestAnchorByPlayer: Map<number, number>
+  idHitCount: Map<number, number>
+  max76ByStatKey: Map<number, Map<string, number>>
+  maxApps91ByStatKey: Map<number, Map<string, number>>
+}
+
+/** Same anchor selection as `parsePlayerStatsSummary` (Dyer grid, Cole embedded, Tsigalko v4=-1, …). */
+export function buildSummaryAnchorIndex(
+  buf: Buffer,
+  players: readonly PlayerRecord[],
+): SummaryAnchorIndex {
+  const bestAnchor = new Map<number, number>()
+  const idHitCount = new Map<number, number>()
+  const max76ByStatKey = new Map<number, Map<string, number>>()
+  const maxApps91ByStatKey = new Map<number, Map<string, number>>()
+  const gridPeaksByPlayer = new Map<number, GridExtraPeaks>()
+
+  if (!buf.length) {
+    return { bestAnchorByPlayer: bestAnchor, idHitCount, max76ByStatKey, maxApps91ByStatKey }
+  }
+
+  const playerIds = new Set<number>()
+  for (const p of players) playerIds.add(p.id)
+
+  const len = buf.length
+  for (let anchor = 0; anchor <= len - 4; anchor++) {
+    const playerDatId = buf.readInt32LE(anchor)
+    if (!playerIds.has(playerDatId)) continue
+    idHitCount.set(playerDatId, (idHitCount.get(playerDatId) ?? 0) + 1)
+    if (anchor <= len - SLOT_GRID_MAX_REL && buf.readInt32LE(anchor + 4) === 0) {
+      recordSeniorSlotBBase(buf, anchor, playerDatId, max76ByStatKey)
+    }
+  }
+
+  const anchorScanEnd = Math.max(0, len - GRID_EXTRA_MAX_REL)
+  for (let anchor = 0; anchor <= anchorScanEnd; anchor++) {
+    const playerDatId = buf.readInt32LE(anchor)
+    if (!playerIds.has(playerDatId)) continue
+    const hits = idHitCount.get(playerDatId) ?? 0
+    if (isHighHitGridOnlyPlayer(hits)) {
+      recordGridExtraPeaks(buf, anchor, playerDatId, gridPeaksByPlayer)
+    }
+  }
+
+  for (let anchor = 0; anchor <= len - SLOT_GRID_MAX_REL; anchor++) {
+    const playerDatId = buf.readInt32LE(anchor)
+    if (!playerIds.has(playerDatId)) continue
+    if (buf.readInt32LE(anchor + 4) === 0) {
+      recordSeniorSlotAApps(buf, anchor, playerDatId, max76ByStatKey, maxApps91ByStatKey)
+    }
+  }
+
+  for (let anchor = 0; anchor <= anchorScanEnd; anchor++) {
+    const playerDatId = buf.readInt32LE(anchor)
+    if (!playerIds.has(playerDatId)) continue
+    const hits = idHitCount.get(playerDatId) ?? 0
+    if (!isSummaryCandidateAnchor(buf, anchor, hits)) continue
+    const prevAnchor = bestAnchor.get(playerDatId)
+    const peaks = gridPeaksByPlayer.get(playerDatId)
+    if (
+      prevAnchor != null &&
+      compareSummaryCandidates(buf, anchor, prevAnchor, hits, peaks) <= 0
+    ) {
+      continue
+    }
+    bestAnchor.set(playerDatId, anchor)
+  }
+
+  return {
+    bestAnchorByPlayer: bestAnchor,
+    idHitCount,
+    max76ByStatKey,
+    maxApps91ByStatKey,
   }
 }
 
@@ -668,68 +815,8 @@ export function parsePlayerStatsSummary(
   const out = new Map<number, PlayerSavePerformanceStats>()
   if (!buf.length) return out
 
-  const playerIds = new Set<number>()
-  for (const p of players) playerIds.add(p.id)
-
-  const len = buf.length
-  const idHitCount = new Map<number, number>()
-  const max76ByStatKey = new Map<number, Map<string, number>>()
-  for (let anchor = 0; anchor <= len - 4; anchor++) {
-    const playerDatId = buf.readInt32LE(anchor)
-    if (!playerIds.has(playerDatId)) continue
-    idHitCount.set(playerDatId, (idHitCount.get(playerDatId) ?? 0) + 1)
-    if (anchor <= len - SLOT_GRID_MAX_REL && buf.readInt32LE(anchor + 4) === 0) {
-      recordSeniorSlotBBase(buf, anchor, playerDatId, max76ByStatKey)
-    }
-  }
-
-  const bestAnchor = new Map<number, number>()
-  const maxApps91ByStatKey = new Map<number, Map<string, number>>()
-  const gridPeaksByPlayer = new Map<number, GridExtraPeaks>()
-  const anchorScanEnd = Math.max(0, len - GRID_EXTRA_MAX_REL)
-
-  for (let anchor = 0; anchor <= anchorScanEnd; anchor++) {
-    const playerDatId = buf.readInt32LE(anchor)
-    if (!playerIds.has(playerDatId)) continue
-    const hits = idHitCount.get(playerDatId) ?? 0
-    if (isHighHitGridOnlyPlayer(hits)) {
-      recordGridExtraPeaks(buf, anchor, playerDatId, gridPeaksByPlayer)
-    }
-  }
-
-  for (let anchor = 0; anchor <= len - SLOT_GRID_MAX_REL; anchor++) {
-    const playerDatId = buf.readInt32LE(anchor)
-    if (!playerIds.has(playerDatId)) continue
-
-    if (buf.readInt32LE(anchor + 4) === 0) {
-      recordSeniorSlotAApps(
-        buf,
-        anchor,
-        playerDatId,
-        max76ByStatKey,
-        maxApps91ByStatKey,
-      )
-    }
-  }
-
-  for (let anchor = 0; anchor <= anchorScanEnd; anchor++) {
-    const playerDatId = buf.readInt32LE(anchor)
-    if (!playerIds.has(playerDatId)) continue
-
-    const hits = idHitCount.get(playerDatId) ?? 0
-    if (!isSummaryCandidateAnchor(buf, anchor, hits)) continue
-
-    const prevAnchor = bestAnchor.get(playerDatId)
-    const peaks = gridPeaksByPlayer.get(playerDatId)
-    if (
-      prevAnchor != null &&
-      compareSummaryCandidates(buf, anchor, prevAnchor, hits, peaks) <= 0
-    ) {
-      continue
-    }
-
-    bestAnchor.set(playerDatId, anchor)
-  }
+  const { bestAnchorByPlayer: bestAnchor, idHitCount, max76ByStatKey, maxApps91ByStatKey } =
+    buildSummaryAnchorIndex(buf, players)
 
   for (const [playerDatId, anchor] of bestAnchor) {
     const hits = idHitCount.get(playerDatId) ?? 0
