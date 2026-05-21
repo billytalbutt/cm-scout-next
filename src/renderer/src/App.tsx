@@ -1194,7 +1194,7 @@ export function App() {
           <img
             src="/soccer-wizard-mascot.png"
             alt=""
-            className="h-[4.125rem] w-auto max-h-[4.125rem] shrink-0 object-contain object-left"
+            className="h-[4.75rem] w-auto max-h-[4.75rem] shrink-0 object-contain object-left"
             title="CM Merlin"
           />
           <div className="min-w-0">

@@ -145,13 +145,69 @@ function allRowsForGrid(): UiPlayerRow[] {
   return loaded.rows
 }
 
-function createWindow() {
+const SPLASH_DURATION_MS = 3200
+const SPLASH_FADE_MS = 420
+
+function splashHtmlPath(): string {
+  const built = join(__dirname, '../renderer/splash.html')
+  if (existsSync(built)) return built
+  return join(__dirname, '../../src/renderer/splash.html')
+}
+
+function createSplashWindow(): Promise<void> {
+  return new Promise((resolve) => {
+    const splash = new BrowserWindow({
+      width: 440,
+      height: 620,
+      frame: false,
+      transparent: true,
+      center: true,
+      resizable: false,
+      movable: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      show: false,
+      backgroundColor: '#00000000',
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    })
+
+    splash.once('ready-to-show', () => splash.show())
+
+    const finish = () => {
+      if (!splash.isDestroyed()) splash.destroy()
+      resolve()
+    }
+
+    void splash.loadFile(splashHtmlPath()).catch(() => finish())
+
+    const fadeAt = Math.max(0, SPLASH_DURATION_MS - SPLASH_FADE_MS)
+    setTimeout(() => {
+      if (splash.isDestroyed()) {
+        resolve()
+        return
+      }
+      void splash.webContents
+        .executeJavaScript(
+          `document.getElementById('wrap')?.classList.add('is-out')`,
+          true,
+        )
+        .catch(() => {})
+      setTimeout(finish, SPLASH_FADE_MS)
+    }, fadeAt)
+  })
+}
+
+function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1024,
     minHeight: 700,
     title: 'CM Merlin',
+    show: false,
     webPreferences: {
       // Must be CommonJS: sandboxed preloads cannot use ESM `import` (see Electron docs).
       preload: join(__dirname, '../preload/index.cjs'),
@@ -159,15 +215,18 @@ function createWindow() {
       nodeIntegration: false,
     },
   })
+  win.once('ready-to-show', () => win.show())
   if (process.env.ELECTRON_RENDERER_URL) {
-    win.loadURL(process.env.ELECTRON_RENDERER_URL)
+    void win.loadURL(process.env.ELECTRON_RENDERER_URL)
     if (!app.isPackaged) win.webContents.openDevTools({ mode: 'detach' })
   } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'))
+    void win.loadFile(join(__dirname, '../renderer/index.html'))
   }
+  return win
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await createSplashWindow()
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
