@@ -120,4 +120,6 @@ export type GridPlayerRow = {
   csLeagueAst?: number
   csCupGoals?: number
   csIntlApps?: number
+  /** Number of decoded per-competition rows this save. */
+  csCompCount?: number
 }

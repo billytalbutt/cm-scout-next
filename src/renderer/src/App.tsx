@@ -244,6 +244,8 @@ export function App() {
     playerCount: number
     staffDatRows: number
     playerBlobRows: number
+    competitions: Array<{ id: number; name: string }>
+    playerStatsHistoryPresent?: boolean
     regenBaseline: {
       active: boolean
       savedAt?: string
@@ -281,6 +283,12 @@ export function App() {
   const [csAppsMin, setCsAppsMin] = useState('')
   const [csLeagueGoalsMin, setCsLeagueGoalsMin] = useState('')
   const [csLeagueAssistsMin, setCsLeagueAssistsMin] = useState('')
+  const [csCompetitionId, setCsCompetitionId] = useState('')
+  const [csCompGoalsMin, setCsCompGoalsMin] = useState('')
+  const [csCompGoalsMax, setCsCompGoalsMax] = useState('')
+  const [csCompAssistsMin, setCsCompAssistsMin] = useState('')
+  const [csCompAssistsMax, setCsCompAssistsMax] = useState('')
+  const [csCompAppsMin, setCsCompAppsMin] = useState('')
   const [contractTypeCategory, setContractTypeCategory] = useState<'' | ContractTypeCategoryId>('')
   const [tlClub, setTlClub] = useState(false)
   const [tlRequest, setTlRequest] = useState(false)
@@ -685,6 +693,20 @@ export function App() {
     if (Number.isFinite(csapMin)) f.csAppsMin = csapMin
     if (Number.isFinite(clgMin)) f.csLeagueGoalsMin = clgMin
     if (Number.isFinite(claMin)) f.csLeagueAssistsMin = claMin
+    const compId = Math.floor(Number(csCompetitionId))
+    if (csCompetitionId.trim() !== '' && Number.isFinite(compId) && compId > 0) {
+      f.csCompetitionId = compId
+    }
+    const ccgMin = num(csCompGoalsMin)
+    const ccgMax = num(csCompGoalsMax)
+    const ccaMin = num(csCompAssistsMin)
+    const ccaMax = num(csCompAssistsMax)
+    const ccAppsMin = num(csCompAppsMin)
+    if (Number.isFinite(ccgMin)) f.csCompGoalsMin = ccgMin
+    if (Number.isFinite(ccgMax)) f.csCompGoalsMax = ccgMax
+    if (Number.isFinite(ccaMin)) f.csCompAssistsMin = ccaMin
+    if (Number.isFinite(ccaMax)) f.csCompAssistsMax = ccaMax
+    if (Number.isFinite(ccAppsMin)) f.csCompAppsMin = ccAppsMin
     if (contractTypeCategory) f.contractTypeCategory = contractTypeCategory
     if (tlClub) f.transferListedClub = true
     if (tlRequest) f.transferListedRequest = true
@@ -819,6 +841,12 @@ export function App() {
     csAppsMin,
     csLeagueGoalsMin,
     csLeagueAssistsMin,
+    csCompetitionId,
+    csCompGoalsMin,
+    csCompGoalsMax,
+    csCompAssistsMin,
+    csCompAssistsMax,
+    csCompAppsMin,
     contractTypeCategory,
     tlClub,
     tlRequest,
@@ -924,6 +952,8 @@ export function App() {
         staffDatRows: r.staffDatRows,
         playerBlobRows: r.playerBlobRows,
         regenBaseline: r.regenBaseline,
+        competitions: r.competitions ?? [],
+        playerStatsHistoryPresent: r.playerStatsHistoryPresent,
       })
       setTacticsSeedClubId(null)
       setClubList(r.clubs)
@@ -1636,6 +1666,85 @@ export function App() {
                 />
               </label>
             </div>
+            {loadInfo && loadInfo.competitions.length > 0 && (
+              <>
+                <p className="mb-2 text-[11px] font-medium text-sky-200/80">
+                  CM save — by competition (pick a comp, then set min/max goals or assists)
+                </p>
+                <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <label className="col-span-2 sm:col-span-3">
+                    <span className="mb-1 block text-xs text-zinc-500">Competition</span>
+                    <select
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+                      value={csCompetitionId}
+                      onChange={(e) => setCsCompetitionId(e.target.value)}
+                    >
+                      <option value="">Any (no comp filter)</option>
+                      {loadInfo.competitions.map((c) => (
+                        <option key={c.id} value={String(c.id)}>
+                          {c.name} (id {c.id})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span className="mb-1 block text-xs text-zinc-500">Goals min</span>
+                    <input
+                      type="number"
+                      min={0}
+                      disabled={!csCompetitionId}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 disabled:opacity-40"
+                      value={csCompGoalsMin}
+                      onChange={(e) => setCsCompGoalsMin(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span className="mb-1 block text-xs text-zinc-500">Goals max</span>
+                    <input
+                      type="number"
+                      min={0}
+                      disabled={!csCompetitionId}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 disabled:opacity-40"
+                      value={csCompGoalsMax}
+                      onChange={(e) => setCsCompGoalsMax(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span className="mb-1 block text-xs text-zinc-500">Assists min</span>
+                    <input
+                      type="number"
+                      min={0}
+                      disabled={!csCompetitionId}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 disabled:opacity-40"
+                      value={csCompAssistsMin}
+                      onChange={(e) => setCsCompAssistsMin(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span className="mb-1 block text-xs text-zinc-500">Assists max</span>
+                    <input
+                      type="number"
+                      min={0}
+                      disabled={!csCompetitionId}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 disabled:opacity-40"
+                      value={csCompAssistsMax}
+                      onChange={(e) => setCsCompAssistsMax(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span className="mb-1 block text-xs text-zinc-500">Apps min</span>
+                    <input
+                      type="number"
+                      min={0}
+                      disabled={!csCompetitionId}
+                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 disabled:opacity-40"
+                      value={csCompAppsMin}
+                      onChange={(e) => setCsCompAppsMin(e.target.value)}
+                    />
+                  </label>
+                </div>
+              </>
+            )}
             <label>
               <span className="mb-1 block text-xs text-zinc-500">Contract type</span>
               <select
@@ -2965,6 +3074,42 @@ export function App() {
                             <td className="px-2 py-1.5 text-right">
                               {formatProfileStatCell(r.averageRating, 'rating')}
                             </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {profile.seasonStats.cmCompetitionRows.length > 0 && (
+                  <div className="mb-3 overflow-x-auto rounded border border-violet-900/35 bg-violet-950/10">
+                    <p className="border-b border-zinc-800/80 px-2 py-1.5 text-[10px] font-medium uppercase tracking-wide text-violet-200/80">
+                      Current season by competition name
+                      <span className="ml-1 font-normal normal-case text-zinc-500">
+                        (club_comp id from save)
+                      </span>
+                    </p>
+                    <table className="w-full min-w-[18rem] border-collapse text-left text-[11px]">
+                      <thead>
+                        <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
+                          <th className="px-2 py-1.5 font-medium">Competition</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
+                          <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {profile.seasonStats.cmCompetitionRows.map((r) => (
+                          <tr
+                            key={r.competitionId}
+                            className="border-b border-zinc-800/40"
+                          >
+                            <td className="max-w-[14rem] truncate px-2 py-1.5 text-zinc-100" title={r.competitionName}>
+                              {r.competitionName}
+                              <span className="ml-1 text-zinc-500">({r.competitionId})</span>
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-mono text-violet-100">{r.apps}</td>
+                            <td className="px-2 py-1.5 text-right font-mono text-violet-100">{r.goals}</td>
+                            <td className="px-2 py-1.5 text-right">{formatProfileStatCell(r.assists)}</td>
                           </tr>
                         ))}
                       </tbody>

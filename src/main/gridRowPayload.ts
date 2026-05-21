@@ -52,6 +52,7 @@ function baseRow(r: UiPlayerRow): GridPlayerRow {
     csLeagueAst: r.cmSeason?.leagueAssists,
     csCupGoals: r.cmSeason?.cupGoals,
     csIntlApps: r.cmSeason?.internationalApps,
+    csCompCount: r.cmSeason?.byCompetition.length,
   }
 }
 

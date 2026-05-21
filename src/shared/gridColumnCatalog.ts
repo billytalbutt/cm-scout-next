@@ -45,6 +45,7 @@ const CORE: GridColumnCatalogEntry[] = [
   { id: 'csLeagueAst', label: 'CS League ast', group: 'CM save season' },
   { id: 'csCupGoals', label: 'CS Cup gls', group: 'CM save season' },
   { id: 'csIntlApps', label: 'CS Intl apps', group: 'CM save season' },
+  { id: 'csCompCount', label: 'CS comps', group: 'CM save season' },
   { id: 'isRegen', label: 'Is Regen', group: 'Regen (heuristic)' },
   { id: 'regenOf', label: 'Regen of', group: 'Regen (heuristic)' },
   { id: 'playerId', label: 'Player ID', group: 'Misc', requires: { misc: true } },

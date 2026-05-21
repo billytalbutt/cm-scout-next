@@ -308,6 +308,12 @@ function defFor(
         header: lab,
         cell: csNumCell,
       })
+    case 'csCompCount':
+      return h.accessor((r) => r.csCompCount, {
+        id,
+        header: lab,
+        cell: csNumCell,
+      })
     case 'csAvR':
       return h.accessor((r) => r.csAvR ?? null, {
         id,

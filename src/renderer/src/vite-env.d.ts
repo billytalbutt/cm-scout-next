@@ -21,6 +21,8 @@ type OpenResult =
       playerBlobRows: number
       clubs: string[]
       nations: string[]
+      competitions: Array<{ id: number; name: string }>
+      playerStatsHistoryPresent?: boolean
       regenBaseline: {
         active: boolean
         savedAt?: string
@@ -211,6 +213,13 @@ export interface ProfileSeasonStats {
   cmHistoryAvailable: boolean
   /** e.g. `2005/06` from season year or save calendar year. */
   cmHistorySeasonLabel: string | null
+  cmCompetitionRows: Array<{
+    competitionId: number
+    competitionName: string
+    apps: number
+    goals: number
+    assists: number
+  }>
 }
 
 export interface StaffProfilePayload {

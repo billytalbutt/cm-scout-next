@@ -92,6 +92,18 @@ function loadArchiveForPath(selectedPath: string): { db: ParsedDatabase; archive
   }
 }
 
+function sortedCompetitionOptions(db: ParsedDatabase): { id: number; name: string }[] {
+  const m = db.competitionNamesById
+  if (!m?.size) return []
+  return [...m.entries()]
+    .filter(([id]) => id > 0)
+    .map(([id, name]) => ({
+      id,
+      name: (name ?? '').trim() || `Competition #${id}`,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+}
+
 function sortedUniqueClubNames(db: ParsedDatabase): string[] {
   const seen = new Set<string>()
   for (const name of db.clubNames.values()) {
@@ -191,6 +203,8 @@ ipcMain.handle('open-database', async (event) => {
       regenBaseline: baselineStatusForPath(pathKey),
       staffHistoryParsed: db.staffHistoryParsed ?? false,
       staffHistorySourcePath: db.staffHistorySourcePath,
+      competitions: sortedCompetitionOptions(db),
+      playerStatsHistoryPresent: !!(db.playerStatsHistoryBuf && db.playerStatsHistoryBuf.length > 0),
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

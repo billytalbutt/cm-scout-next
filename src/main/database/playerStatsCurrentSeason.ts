@@ -10,17 +10,40 @@
  *   Senior club totals: apps +65, goals +66, assists +104, rating u8 +64 (÷10)
  */
 
+import {
+  competitionNameFromMaps,
+  isKnownCompetitionId,
+  type CompetitionNamesById,
+} from './competitionNames'
+import { PLAYER_STATS_HISTORY_ROW_BYTES_CANDIDATE } from './playerStatsHistoryProbe'
 import { embeddedIdRecordStart } from './playerStatsSummary'
 import { collectPlayerDatIdOccurrences, pickPlayerStatsAnchor } from './playerStatsDat'
-import type { PlayerRecord } from './types'
+import { buildPlayerDatIdToStaffId } from './playerStatsJoins'
+import type { PlayerRecord, StaffCompHistoryRecord, StaffRecord } from './types'
 
 export const PLAYER_STATS_HISTORY_RECORD = {
   playerDatIdRel: 0,
   appsRel: 4,
   goalsRel: 5,
   assistsRel: 6,
+  /** `club_comp.dat` / `staff_comp.dat` id when present (verified Cole Premier id 7 @ +8). */
+  competitionIdRel: 8,
   scopeRel: 12,
 } as const
+
+/** 47-byte stride layouts from CM0102Patcher / Blackburn probes. */
+const HISTORY_STRIDE_LAYOUTS = [
+  { playerRel: 0, compRel: 8, appsRel: 4, goalsRel: 5, assistsRel: 6 },
+  { playerRel: 20, compRel: 8, appsRel: 24, goalsRel: 25, assistsRel: 26 },
+] as const
+
+export interface PlayerCompSeasonRow {
+  competitionId: number
+  competitionName: string
+  apps: number
+  goals: number
+  assists: number
+}
 
 /** CM profile “scope” ids in `player stats history.tmp` (verified Cole). */
 export const CM_STAT_SCOPE = {
@@ -114,8 +137,59 @@ function decodeHistoryRecord(buf: Buffer, rowStart: number): {
   return { playerDatId, apps, goals, assists, scope }
 }
 
+type HistoryScopeRow = { apps: number; goals: number; assists: number; scope: number }
+type HistoryCompRow = { competitionId: number; apps: number; goals: number; assists: number }
+
+function readCompIdAtRow(
+  buf: Buffer,
+  rowStart: number,
+  playerDatId: number,
+  competitionNames: CompetitionNamesById,
+): number | null {
+  for (const compRel of [R.competitionIdRel, 4] as const) {
+    if (rowStart + compRel + 4 > buf.length) continue
+    const comp = buf.readInt32LE(rowStart + compRel)
+    if (!isKnownCompetitionId(comp, competitionNames, playerDatId)) continue
+    return comp
+  }
+  return null
+}
+
+function pushCompRow(
+  out: Map<number, HistoryCompRow[]>,
+  rec: HistoryCompRow & { playerDatId: number },
+): void {
+  const entry = {
+    competitionId: rec.competitionId,
+    apps: rec.apps,
+    goals: rec.goals,
+    assists: rec.assists,
+  }
+  const list = out.get(rec.playerDatId)
+  if (list) {
+    const dup = list.some(
+      (x) =>
+        x.competitionId === entry.competitionId &&
+        x.apps === entry.apps &&
+        x.goals === entry.goals &&
+        x.assists === entry.assists,
+    )
+    if (!dup) list.push(entry)
+  } else out.set(rec.playerDatId, [entry])
+}
+
+function pickBestCompRow(rows: HistoryCompRow[], competitionId: number): HistoryCompRow | null {
+  const hits = rows.filter((r) => r.competitionId === competitionId)
+  if (!hits.length) return null
+  return hits.reduce((a, b) => {
+    if (a.apps !== b.apps) return a.apps < b.apps ? a : b
+    if (a.assists !== b.assists) return a.assists > b.assists ? a : b
+    return a.goals <= b.goals ? a : b
+  })
+}
+
 function pushHistoryRow(
-  out: Map<number, Array<{ apps: number; goals: number; assists: number; scope: number }>>,
+  out: Map<number, HistoryScopeRow[]>,
   rec: { playerDatId: number; apps: number; goals: number; assists: number; scope: number },
 ): void {
   const entry = {
@@ -137,14 +211,79 @@ function pushHistoryRow(
   } else out.set(rec.playerDatId, [entry])
 }
 
-/** One pass over `player stats history.tmp` (4-byte step at id @ +0). */
+export interface PlayerStatsHistoryIndex {
+  byScope: Map<number, HistoryScopeRow[]>
+  byComp: Map<number, HistoryCompRow[]>
+}
+
+function indexHistoryCompStride(
+  buf: Buffer,
+  playerIds: ReadonlySet<number>,
+  competitionNames: CompetitionNamesById,
+  out: Map<number, HistoryCompRow[]>,
+): void {
+  const stride = PLAYER_STATS_HISTORY_ROW_BYTES_CANDIDATE
+  for (let row = 0; row + stride <= buf.length; row += stride) {
+    for (const layout of HISTORY_STRIDE_LAYOUTS) {
+      if (row + layout.assistsRel + 1 > buf.length) continue
+      const playerDatId = buf.readInt32LE(row + layout.playerRel)
+      if (!playerIds.has(playerDatId)) continue
+      const comp = buf.readInt32LE(row + layout.compRel)
+      if (!isKnownCompetitionId(comp, competitionNames, playerDatId)) continue
+      const apps = readU8(buf, row, layout.appsRel)
+      const goals = readU8(buf, row, layout.goalsRel)
+      const assists = readU8(buf, row, layout.assistsRel)
+      if (apps == null || goals == null || assists == null) continue
+      if (!plausibleTriple(apps, goals, assists)) continue
+      pushCompRow(out, { playerDatId, competitionId: comp, apps, goals, assists })
+    }
+  }
+}
+
+/** One pass: scope rows + `club_comp` id rows in `player stats history.tmp`. */
+export function indexPlayerStatsHistory(
+  buf: Buffer,
+  playerIds: ReadonlySet<number>,
+  competitionNames: CompetitionNamesById,
+): PlayerStatsHistoryIndex {
+  const byScope = new Map<number, HistoryScopeRow[]>()
+  const byComp = new Map<number, HistoryCompRow[]>()
+  if (!buf.length) return { byScope, byComp }
+
+  const max = buf.length - R.scopeRel
+  for (let rowStart = 0; rowStart <= max; rowStart += 4) {
+    const maybeId = buf.readInt32LE(rowStart)
+    if (!playerIds.has(maybeId)) continue
+    const rec = decodeHistoryRecord(buf, rowStart)
+    if (!rec || !playerIds.has(rec.playerDatId)) continue
+    pushHistoryRow(byScope, rec)
+    const compId = readCompIdAtRow(buf, rowStart, rec.playerDatId, competitionNames)
+    if (compId != null) {
+      pushCompRow(byComp, {
+        playerDatId: rec.playerDatId,
+        competitionId: compId,
+        apps: rec.apps,
+        goals: rec.goals,
+        assists: rec.assists,
+      })
+    }
+  }
+
+  if (competitionNames.size) {
+    indexHistoryCompStride(buf, playerIds, competitionNames, byComp)
+  }
+
+  return { byScope, byComp }
+}
+
+/** @deprecated Use `indexPlayerStatsHistory` — scope map only. */
 export function indexPlayerStatsHistoryByPlayerDatId(
   buf: Buffer,
   playerIds?: ReadonlySet<number>,
-): Map<number, Array<{ apps: number; goals: number; assists: number; scope: number }>> {
-  const out = new Map<number, Array<{ apps: number; goals: number; assists: number; scope: number }>>()
-  if (!buf.length) return out
-
+): Map<number, HistoryScopeRow[]> {
+  if (!buf.length) return new Map()
+  const ids = playerIds ?? new Set<number>()
+  const byScope = new Map<number, HistoryScopeRow[]>()
   const max = buf.length - R.scopeRel
   for (let rowStart = 0; rowStart <= max; rowStart += 4) {
     if (playerIds) {
@@ -154,9 +293,9 @@ export function indexPlayerStatsHistoryByPlayerDatId(
     const rec = decodeHistoryRecord(buf, rowStart)
     if (!rec) continue
     if (playerIds && !playerIds.has(rec.playerDatId)) continue
-    pushHistoryRow(out, rec)
+    pushHistoryRow(byScope, rec)
   }
-  return out
+  return byScope
 }
 
 function readEmbeddedSeniorClub(
@@ -326,13 +465,55 @@ export function decodePlayerCurrentSeasonStatsFromIndex(
   return decodePlayerCurrentSeasonStats(playerDatId, null, statsBuf, historyByPlayer)
 }
 
-export function indexAllPlayersHistory(
-  historyBuf: Buffer | null | undefined,
-  players: readonly PlayerRecord[],
-): Map<number, Array<{ apps: number; goals: number; assists: number; scope: number }>> | undefined {
-  if (!historyBuf?.length) return undefined
-  const ids = new Set(players.map((p) => p.id))
-  return indexPlayerStatsHistoryByPlayerDatId(historyBuf, ids)
+export function compRowsForPlayer(
+  raw: readonly HistoryCompRow[],
+  competitionNames: CompetitionNamesById,
+  playerDatId: number,
+): PlayerCompSeasonRow[] {
+  const compIds = [...new Set(raw.map((r) => r.competitionId))].sort((a, b) => a - b)
+  const out: PlayerCompSeasonRow[] = []
+  for (const competitionId of compIds) {
+    const best = pickBestCompRow(raw, competitionId)
+    if (!best) continue
+    out.push({
+      competitionId,
+      competitionName: competitionNameFromMaps(competitionId, competitionNames, playerDatId),
+      apps: best.apps,
+      goals: best.goals,
+      assists: best.assists,
+    })
+  }
+  return out.sort((a, b) => a.competitionName.localeCompare(b.competitionName))
+}
+
+export function mergeCompSeasonRows(
+  historyRows: readonly PlayerCompSeasonRow[],
+  gridRows: readonly StaffCompHistoryRecord[],
+  competitionNames: CompetitionNamesById,
+  playerDatId: number,
+): PlayerCompSeasonRow[] {
+  const byId = new Map<number, PlayerCompSeasonRow>()
+  for (const r of historyRows) byId.set(r.competitionId, r)
+  for (const g of gridRows) {
+    if (byId.has(g.competitionId)) continue
+    if (g.apps === 0 && g.goals === 0 && g.assists === 0) continue
+    byId.set(g.competitionId, {
+      competitionId: g.competitionId,
+      competitionName: competitionNameFromMaps(g.competitionId, competitionNames, playerDatId),
+      apps: g.apps,
+      goals: g.goals,
+      assists: g.assists,
+    })
+  }
+  return [...byId.values()].sort((a, b) => a.competitionName.localeCompare(b.competitionName))
+}
+
+export function compSeasonStat(
+  cm: PlayerCurrentSeasonIndexed | null | undefined,
+  competitionId: number,
+): PlayerCompSeasonRow | null {
+  if (!cm?.byCompetition.length) return null
+  return cm.byCompetition.find((c) => c.competitionId === competitionId) ?? null
 }
 
 /** Flattened current-season stats for grid, filters, and profile (keyed by `player.dat` id). */
@@ -354,7 +535,9 @@ export interface PlayerCurrentSeasonIndexed {
   internationalApps: number
   internationalGoals: number
   internationalAssists: number
-  /** True when Senior club or any scope row has decoded data for this save. */
+  /** Per-competition rows (`club_comp` id @ history +8, 47-byte stride, or grid fallback). */
+  byCompetition: PlayerCompSeasonRow[]
+  /** True when Senior club, scope, or per-competition row has decoded data for this save. */
   available: boolean
 }
 
@@ -371,7 +554,10 @@ function scopeStats(
   }
 }
 
-export function indexedFromDecoded(decoded: PlayerCurrentSeasonStats): PlayerCurrentSeasonIndexed {
+export function indexedFromDecoded(
+  decoded: PlayerCurrentSeasonStats,
+  byCompetition: PlayerCompSeasonRow[] = [],
+): PlayerCurrentSeasonIndexed {
   const senior = decoded.seniorClub ?? decoded.scopes.find((s) => s.key === 'seniorClub')
   const league = scopeStats(decoded, 'league')
   const cup = scopeStats(decoded, 'cup')
@@ -395,10 +581,12 @@ export function indexedFromDecoded(decoded: PlayerCurrentSeasonStats): PlayerCur
     continental.assists > 0 ||
     international.apps > 0 ||
     international.goals > 0 ||
-    international.assists > 0
+    international.assists > 0 ||
+    byCompetition.some((c) => c.apps > 0 || c.goals > 0 || c.assists > 0)
 
   return {
     scopes: decoded.scopes,
+    byCompetition,
     seniorApps,
     seniorGoals,
     seniorAssists,
@@ -428,14 +616,27 @@ export function buildPlayerCurrentSeasonIndex(
   staff: readonly StaffRecord[],
   historyBuf: Buffer | null | undefined,
   statsBuf: Buffer | null | undefined,
+  competitionNames: CompetitionNamesById,
+  staffCompHistoryByStaffId?: Map<number, StaffCompHistoryRecord[]>,
 ): Map<number, PlayerCurrentSeasonIndexed> {
   const out = new Map<number, PlayerCurrentSeasonIndexed>()
   if (!historyBuf?.length && !statsBuf?.length) return out
 
-  const historyByPlayer = historyBuf?.length
-    ? indexAllPlayersHistory(historyBuf, players)
-    : undefined
+  const playerIds = new Set<number>()
+  for (const s of staff) {
+    const pid = players[s.player_id]?.id
+    if (pid != null) playerIds.add(pid)
+  }
 
+  let historyByScope: Map<number, HistoryScopeRow[]> | undefined
+  let historyByComp: Map<number, HistoryCompRow[]> | undefined
+  if (historyBuf?.length && competitionNames.size && playerIds.size) {
+    const hist = indexPlayerStatsHistory(historyBuf, playerIds, competitionNames)
+    historyByScope = hist.byScope
+    historyByComp = hist.byComp
+  }
+
+  const playerToStaff = buildPlayerDatIdToStaffId(players, staff)
   const intlByPlayerId = new Map<number, { apps: number; goals: number }>()
   for (const s of staff) {
     const pid = players[s.player_id]?.id
@@ -451,10 +652,18 @@ export function buildPlayerCurrentSeasonIndex(
       pid,
       null,
       statsBuf,
-      historyByPlayer,
+      historyByScope,
       intlByPlayerId.get(pid) ?? null,
     )
-    const indexed = indexedFromDecoded(decoded)
+    const histComp = historyByComp?.get(pid) ?? []
+    const gridComp = staffCompHistoryByStaffId?.get(s.id) ?? []
+    const byCompetition = mergeCompSeasonRows(
+      compRowsForPlayer(histComp, competitionNames, pid),
+      gridComp,
+      competitionNames,
+      pid,
+    )
+    const indexed = indexedFromDecoded(decoded, byCompetition)
     if (indexed.available) out.set(pid, indexed)
   }
   return out

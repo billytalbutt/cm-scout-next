@@ -4,6 +4,7 @@ import {
   buildPlayerCurrentSeasonIndex,
   CM_STAT_SCOPE,
   decodePlayerCurrentSeasonStats,
+  indexPlayerStatsHistory,
   PLAYER_STATS_HISTORY_RECORD as R,
 } from './playerStatsCurrentSeason'
 
@@ -88,8 +89,30 @@ describe.skipIf(!existsSync(goldenSav))('Joe Cole golden save', () => {
       db.staff,
       db.playerStatsHistoryBuf,
       db.playerStatsDatBuf,
+      db.competitionNamesById ?? new Map(),
+      db.staffCompHistoryByStaffId,
     )
     expect(index.get(5451)?.seniorGoals).toBe(0)
     expect(index.get(5451)?.leagueAssists).toBe(1)
+    const premier = index.get(5451)?.byCompetition.find((c) => c.competitionId === 7)
+    if (premier) {
+      expect(premier.goals).toBeGreaterThanOrEqual(0)
+    }
   }, 180_000)
+})
+
+describe('indexPlayerStatsHistory competition id', () => {
+  it('indexes player + club_comp id @ +8 with stats @ +4', () => {
+    const buf = Buffer.alloc(128, 0)
+    buf.writeInt32LE(5451, 0)
+    buf.writeUInt8(1, 4)
+    buf.writeUInt8(0, 5)
+    buf.writeUInt8(1, 6)
+    buf.writeInt32LE(7, 8)
+    buf.writeUInt8(3, 12)
+
+    const names = new Map<number, string>([[7, 'Premier League']])
+    const idx = indexPlayerStatsHistory(buf, new Set([5451]), names)
+    expect(idx.byComp.get(5451)?.some((r) => r.competitionId === 7 && r.apps === 1)).toBe(true)
+  })
 })

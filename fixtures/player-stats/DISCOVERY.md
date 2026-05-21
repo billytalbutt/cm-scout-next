@@ -98,3 +98,9 @@ Spec: [docs/PLAYER_STATS_DECODING_SPEC.md](../../docs/PLAYER_STATS_DECODING_SPEC
 1. Record `rowStart`, field offsets, and decoder in the spec doc.
 2. Add a golden vector or env integration test (`CM0102_GOLDEN_SAV` + `CM0102_GOLDEN_JSON`).
 3. Only then update Merlin production (`CM_SCOUT_PLAYER_STATS_PARSE=summary`).
+
+## Merlin production (wired)
+
+- **Scope rows:** `player.dat` id @ +0, apps/goals/assists @ +4/+5/+6, scope u8 @ +12.
+- **Per-competition rows:** same stats when `club_comp` id @ +8 resolves (47-byte stride also scanned with player@+20).
+- **Grid filters:** pick competition from save’s `club_comp.dat` list, then min/max goals, assists, or apps.

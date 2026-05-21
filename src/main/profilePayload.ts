@@ -418,6 +418,7 @@ function buildProfileSeasonStats(
         : saveCalendarYear != null
           ? `${saveCalendarYear}/${String((saveCalendarYear + 1) % 100).padStart(2, '0')}`
           : null,
+    cmCompetitionRows: row.cmSeason?.byCompetition ?? [],
   }
 }
 

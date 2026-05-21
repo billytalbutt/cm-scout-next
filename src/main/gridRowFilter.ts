@@ -1,4 +1,5 @@
 import { calendarDaysBetween } from './database/dates'
+import { compSeasonStat } from './database/playerStatsCurrentSeason'
 import type { UiPlayerRow } from './database/types'
 import { matchesEngineSniffer, type EngineSnifferId } from './engineSniffer'
 import {
@@ -45,6 +46,14 @@ export type GetRowsFilter = {
   csLeagueGoalsMax?: number
   csLeagueAssistsMin?: number
   csLeagueAssistsMax?: number
+  /** `club_comp.dat` / `staff_comp.dat` id — filters per-competition stats for this save. */
+  csCompetitionId?: number
+  csCompGoalsMin?: number
+  csCompGoalsMax?: number
+  csCompAssistsMin?: number
+  csCompAssistsMax?: number
+  csCompAppsMin?: number
+  csCompAppsMax?: number
   /** CM Scout–style contract category (not a single raw byte). */
   contractTypeCategory?: ContractTypeCategoryId
   transferListedClub?: boolean
@@ -138,6 +147,28 @@ function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string
     if (f.csLeagueGoalsMax != null && cs.leagueGoals > f.csLeagueGoalsMax) return false
     if (f.csLeagueAssistsMin != null && cs.leagueAssists < f.csLeagueAssistsMin) return false
     if (f.csLeagueAssistsMax != null && cs.leagueAssists > f.csLeagueAssistsMax) return false
+  }
+
+  if (f.csCompetitionId != null) {
+    const comp = compSeasonStat(cs, f.csCompetitionId)
+    const hasStatBound =
+      f.csCompGoalsMin != null ||
+      f.csCompGoalsMax != null ||
+      f.csCompAssistsMin != null ||
+      f.csCompAssistsMax != null ||
+      f.csCompAppsMin != null ||
+      f.csCompAppsMax != null
+    if (!hasStatBound) {
+      if (!comp) return false
+    } else {
+      if (!comp) return false
+      if (f.csCompGoalsMin != null && comp.goals < f.csCompGoalsMin) return false
+      if (f.csCompGoalsMax != null && comp.goals > f.csCompGoalsMax) return false
+      if (f.csCompAssistsMin != null && comp.assists < f.csCompAssistsMin) return false
+      if (f.csCompAssistsMax != null && comp.assists > f.csCompAssistsMax) return false
+      if (f.csCompAppsMin != null && comp.apps < f.csCompAppsMin) return false
+      if (f.csCompAppsMax != null && comp.apps > f.csCompAppsMax) return false
+    }
   }
 
   if (f.cmScoutMin != null) {
