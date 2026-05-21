@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, type WebContents } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, screen, type WebContents } from 'electron'
 import { join, dirname, basename, extname } from 'path'
 import { fileURLToPath } from 'url'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
@@ -147,6 +147,18 @@ function allRowsForGrid(): UiPlayerRow[] {
 
 const SPLASH_DURATION_MS = 3200
 const SPLASH_FADE_MS = 420
+/** Portrait sticker asset (~400×560). */
+const SPLASH_STICKER_ASPECT = 400 / 560
+
+function splashWindowSize(): { width: number; height: number } {
+  const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize
+  const height = Math.min(Math.round(sh * 0.82), 980)
+  const width = Math.min(Math.round(height * SPLASH_STICKER_ASPECT), Math.round(sw * 0.48))
+  return {
+    width: Math.max(520, width),
+    height: Math.max(720, height),
+  }
+}
 
 function splashHtmlPath(): string {
   const built = join(__dirname, '../renderer/splash.html')
@@ -156,9 +168,11 @@ function splashHtmlPath(): string {
 
 function createSplashWindow(): Promise<void> {
   return new Promise((resolve) => {
+    const { width, height } = splashWindowSize()
     const splash = new BrowserWindow({
-      width: 440,
-      height: 620,
+      width,
+      height,
+      useContentSize: true,
       frame: false,
       transparent: true,
       center: true,
