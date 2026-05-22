@@ -148,7 +148,14 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
   const out: StaffGridRow[] = []
   staff.forEach((s, staffIndex) => {
     if (!isValidStaffName(s, firstNames, secondNames, commonNames)) return
-    if (!f.includePlayers && isValidPlayerRow(s, firstNames, secondNames, commonNames, nPlayers)) return
+    // Only hide player duplicates when browsing all roles; a specific job filter should show everyone in that role (e.g. manager with a player link).
+    if (
+      f.jobForClub == null &&
+      !f.includePlayers &&
+      isValidPlayerRow(s, firstNames, secondNames, commonNames, nPlayers)
+    ) {
+      return
+    }
 
     const name = staffDisplayName(s, firstNames, secondNames, commonNames)
     if (q && !name.toLowerCase().includes(q)) return

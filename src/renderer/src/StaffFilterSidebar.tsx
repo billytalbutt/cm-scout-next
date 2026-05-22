@@ -122,10 +122,6 @@ export function StaffFilterSidebar({
 }: StaffFilterSidebarProps) {
   return (
     <>
-      <p className="text-[11px] leading-snug text-zinc-500">
-        Staff / backroom search — coaching attributes apply when{' '}
-        <span className="font-mono text-zinc-400">nonplayer.dat</span> is linked.
-      </p>
       <label>
         <span className="mb-1 block text-xs text-zinc-500">Job role</span>
         <select

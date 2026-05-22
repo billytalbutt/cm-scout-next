@@ -446,6 +446,8 @@ ipcMain.handle('get-staff-rows', async (_e, payload: unknown) => {
   if (jobRaw !== undefined && jobRaw !== null && jobRaw !== '') {
     const jn = Math.floor(Number(jobRaw))
     if (Number.isFinite(jn)) jobForClub = jn
+  } else {
+    jobForClub = undefined
   }
   const num = (key: string): number | undefined => {
     const v = raw[key]
