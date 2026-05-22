@@ -307,6 +307,10 @@ export function App() {
   const [staffIncludePlayers, setStaffIncludePlayers] = useState(false)
   const [staffCoachingCaMin, setStaffCoachingCaMin] = useState('')
   const [staffCoachingCaMax, setStaffCoachingCaMax] = useState('')
+  const [staffReputationMin, setStaffReputationMin] = useState('')
+  const [staffReputationMax, setStaffReputationMax] = useState('')
+  const [staffCoachingPaMin, setStaffCoachingPaMin] = useState('')
+  const [staffCoachingPaMax, setStaffCoachingPaMax] = useState('')
   const [staffAttrMins, setStaffAttrMins] = useState<string[]>(() =>
     Array.from({ length: STAFF_ATTR_FILTER_COUNT }, () => ''),
   )
@@ -390,6 +394,10 @@ export function App() {
       wageMax: num(wageMax),
       coachingCaMin: num(staffCoachingCaMin),
       coachingCaMax: num(staffCoachingCaMax),
+      reputationMin: num(staffReputationMin),
+      reputationMax: num(staffReputationMax),
+      coachingPaMin: num(staffCoachingPaMin),
+      coachingPaMax: num(staffCoachingPaMax),
       contractTypeCategory: contractTypeCategory || undefined,
       contractExpiresWithinMonths:
         expiresWithinMonths.trim() !== '' && expM != null && expM >= 1 ? Math.floor(expM) : undefined,
@@ -409,6 +417,10 @@ export function App() {
     wageMax,
     staffCoachingCaMin,
     staffCoachingCaMax,
+    staffReputationMin,
+    staffReputationMax,
+    staffCoachingPaMin,
+    staffCoachingPaMax,
     contractTypeCategory,
     expiresWithinMonths,
     bosmanOnly,
@@ -541,6 +553,10 @@ export function App() {
     setStaffIncludePlayers(false)
     setStaffCoachingCaMin('')
     setStaffCoachingCaMax('')
+    setStaffReputationMin('')
+    setStaffReputationMax('')
+    setStaffCoachingPaMin('')
+    setStaffCoachingPaMax('')
     setStaffAttrMins(Array.from({ length: STAFF_ATTR_FILTER_COUNT }, () => ''))
     setStaffAttrMinMatchAtLeast('')
     setRegenOnly(false)
@@ -1391,6 +1407,14 @@ export function App() {
                 setStaffCoachingCaMin={setStaffCoachingCaMin}
                 staffCoachingCaMax={staffCoachingCaMax}
                 setStaffCoachingCaMax={setStaffCoachingCaMax}
+                staffReputationMin={staffReputationMin}
+                setStaffReputationMin={setStaffReputationMin}
+                staffReputationMax={staffReputationMax}
+                setStaffReputationMax={setStaffReputationMax}
+                staffCoachingPaMin={staffCoachingPaMin}
+                setStaffCoachingPaMin={setStaffCoachingPaMin}
+                staffCoachingPaMax={staffCoachingPaMax}
+                setStaffCoachingPaMax={setStaffCoachingPaMax}
                 staffJobForClub={staffJobForClub}
                 setStaffJobForClub={setStaffJobForClub}
                 staffJobOptions={staffJobOptions}

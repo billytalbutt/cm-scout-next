@@ -477,6 +477,10 @@ ipcMain.handle('get-staff-rows', async (_e, payload: unknown) => {
     wageMax: num('wageMax'),
     coachingCaMin: num('coachingCaMin'),
     coachingCaMax: num('coachingCaMax'),
+    reputationMin: num('reputationMin'),
+    reputationMax: num('reputationMax'),
+    coachingPaMin: num('coachingPaMin'),
+    coachingPaMax: num('coachingPaMax'),
     contractTypeCategory:
       typeof contractCat === 'string' && contractCat.length > 0
         ? (contractCat as ContractTypeCategoryId)

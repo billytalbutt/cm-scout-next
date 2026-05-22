@@ -66,6 +66,14 @@ export type StaffFilterSidebarProps = {
   setStaffCoachingCaMin: (v: string) => void
   staffCoachingCaMax: string
   setStaffCoachingCaMax: (v: string) => void
+  staffReputationMin: string
+  setStaffReputationMin: (v: string) => void
+  staffReputationMax: string
+  setStaffReputationMax: (v: string) => void
+  staffCoachingPaMin: string
+  setStaffCoachingPaMin: (v: string) => void
+  staffCoachingPaMax: string
+  setStaffCoachingPaMax: (v: string) => void
   staffJobForClub: string
   setStaffJobForClub: (v: string) => void
   staffJobOptions: { id: number; label: string }[]
@@ -100,6 +108,14 @@ export function StaffFilterSidebar({
   setStaffCoachingCaMin,
   staffCoachingCaMax,
   setStaffCoachingCaMax,
+  staffReputationMin,
+  setStaffReputationMin,
+  staffReputationMax,
+  setStaffReputationMax,
+  staffCoachingPaMin,
+  setStaffCoachingPaMin,
+  staffCoachingPaMax,
+  setStaffCoachingPaMax,
   staffJobForClub,
   setStaffJobForClub,
   staffJobOptions,
@@ -180,6 +196,46 @@ export function StaffFilterSidebar({
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
             value={staffCoachingCaMax}
             onChange={(e) => setStaffCoachingCaMax(e.target.value)}
+          />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs text-zinc-500">Coaching PA min</span>
+          <input
+            type="number"
+            className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+            value={staffCoachingPaMin}
+            onChange={(e) => setStaffCoachingPaMin(e.target.value)}
+            title="Backroom potential ability from nonplayer.dat"
+          />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs text-zinc-500">Coaching PA max</span>
+          <input
+            type="number"
+            className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+            value={staffCoachingPaMax}
+            onChange={(e) => setStaffCoachingPaMax(e.target.value)}
+            title="Backroom potential ability from nonplayer.dat"
+          />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs text-zinc-500">Reputation min</span>
+          <input
+            type="number"
+            className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+            value={staffReputationMin}
+            onChange={(e) => setStaffReputationMin(e.target.value)}
+            title="Current reputation (nonplayer.dat or player record when linked)"
+          />
+        </label>
+        <label>
+          <span className="mb-1 block text-xs text-zinc-500">Reputation max</span>
+          <input
+            type="number"
+            className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+            value={staffReputationMax}
+            onChange={(e) => setStaffReputationMax(e.target.value)}
+            title="Current reputation (nonplayer.dat or player record when linked)"
           />
         </label>
         <label>

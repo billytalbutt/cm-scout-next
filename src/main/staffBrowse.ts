@@ -25,6 +25,10 @@ export type StaffBrowseFilter = {
   wageMax?: number
   coachingCaMin?: number
   coachingCaMax?: number
+  reputationMin?: number
+  reputationMax?: number
+  coachingPaMin?: number
+  coachingPaMax?: number
   contractTypeCategory?: ContractTypeCategoryId
   contractExpiresWithinMonths?: number
   leavingOnBosman?: boolean
@@ -60,6 +64,10 @@ function staffReputationCurrent(
     if (p) return p.current_reputation
   }
   return null
+}
+
+function staffCoachingPa(np: NonPlayerRecord | undefined): number | null {
+  return np?.potentialAbility ?? null
 }
 
 /** Exported for IPC — same name check as player grid. */
@@ -213,6 +221,22 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
       if (np == null || np.currentAbility > f.coachingCaMax) return
     }
 
+    const reputation = staffReputationCurrent(db, s, np)
+    if (f.reputationMin != null) {
+      if (reputation == null || reputation < f.reputationMin) return
+    }
+    if (f.reputationMax != null) {
+      if (reputation == null || reputation > f.reputationMax) return
+    }
+
+    const coachingPa = staffCoachingPa(np)
+    if (f.coachingPaMin != null) {
+      if (coachingPa == null || coachingPa < f.coachingPaMin) return
+    }
+    if (f.coachingPaMax != null) {
+      if (coachingPa == null || coachingPa > f.coachingPaMax) return
+    }
+
     if (f.attrMins?.length) {
       if (!passesStaffAttrMins(s, np, f.attrMins, f.attrMinMatchAtLeast)) return
     }
@@ -228,7 +252,7 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
       jobByte: s.job_for_club,
       club: clubName,
       nation: nationDisp,
-      reputationCurrent: staffReputationCurrent(db, s, np),
+      reputationCurrent: reputation,
       determination: s.determination,
       score: Math.min(100, score),
       scoreDetail,
