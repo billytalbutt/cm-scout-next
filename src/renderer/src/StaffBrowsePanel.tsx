@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react'
 import type { StaffBrowseFilter } from '../../main/staffBrowse'
 
 export type StaffGridApiRow = {
@@ -14,6 +21,90 @@ export type StaffGridApiRow = {
   score: number
   scoreDetail: string
   nonPlayerCa: number | null
+}
+
+type StaffSortKey =
+  | 'score'
+  | 'name'
+  | 'job'
+  | 'club'
+  | 'nation'
+  | 'reputation'
+  | 'determination'
+  | 'coachingCa'
+
+type SortState = { key: StaffSortKey; desc: boolean }
+
+function compareStaffRows(a: StaffGridApiRow, b: StaffGridApiRow, sort: SortState): number {
+  const { key, desc } = sort
+  const mul = desc ? -1 : 1
+
+  const num = (va: number | null, vb: number | null): number => {
+    const aNull = va == null
+    const bNull = vb == null
+    if (aNull && bNull) return 0
+    if (aNull) return 1
+    if (bNull) return -1
+    return (va - vb) * mul
+  }
+
+  const str = (va: string, vb: string) => va.localeCompare(vb, undefined, { sensitivity: 'base' }) * mul
+
+  switch (key) {
+    case 'score':
+      return num(a.score, b.score) || str(a.name, b.name)
+    case 'name':
+      return str(a.name, b.name)
+    case 'job':
+      return str(a.jobLabel, b.jobLabel) || str(a.name, b.name)
+    case 'club':
+      return str(a.club, b.club) || str(a.name, b.name)
+    case 'nation':
+      return str(a.nation, b.nation) || str(a.name, b.name)
+    case 'reputation':
+      return num(a.reputationCurrent, b.reputationCurrent) || str(a.name, b.name)
+    case 'determination':
+      return num(a.determination, b.determination) || str(a.name, b.name)
+    case 'coachingCa':
+      return num(a.nonPlayerCa, b.nonPlayerCa) || str(a.name, b.name)
+    default:
+      return 0
+  }
+}
+
+function SortableTh({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className = '',
+  title,
+}: {
+  label: string
+  sortKey: StaffSortKey
+  sort: SortState
+  onSort: (key: StaffSortKey) => void
+  className?: string
+  title?: string
+}) {
+  const active = sort.key === sortKey
+  return (
+    <th className={`bg-zinc-950 px-2 py-2 ${className}`}>
+      <button
+        type="button"
+        title={title}
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 font-normal transition hover:text-zinc-200 ${
+          active ? 'text-emerald-200/90' : 'text-zinc-500'
+        }`}
+      >
+        {label}
+        <span className="font-mono text-[10px] text-zinc-600" aria-hidden>
+          {active ? (sort.desc ? '▼' : '▲') : '↕'}
+        </span>
+      </button>
+    </th>
+  )
 }
 
 type Props = {
@@ -37,7 +128,20 @@ export function StaffBrowsePanel({
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [sort, setSort] = useState<SortState>({ key: 'score', desc: true })
   const seqRef = useRef(0)
+
+  const onSort = useCallback((key: StaffSortKey) => {
+    setSort((prev) =>
+      prev.key === key ? { key, desc: !prev.desc } : { key, desc: key !== 'name' && key !== 'job' && key !== 'club' && key !== 'nation' },
+    )
+  }, [])
+
+  const sortedRows = useMemo(() => {
+    const copy = [...rows]
+    copy.sort((a, b) => compareStaffRows(a, b, sort))
+    return copy
+  }, [rows, sort])
 
   const load = useCallback(async () => {
     if (!loadInfo || typeof window.cmapi?.getStaffRows !== 'function') {
@@ -80,29 +184,34 @@ export function StaffBrowsePanel({
       {loading && <p className="shrink-0 text-xs text-zinc-500">Loading staff…</p>}
       {err && <p className="shrink-0 text-xs text-rose-300">{err}</p>}
       <div className="cm-scroll min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-800">
-        <table className="w-full min-w-[56rem] border-collapse text-left text-xs">
+        <table className="w-full min-w-[48rem] border-collapse text-left text-xs">
           <thead className="cm-grid-sticky-head">
             <tr className="border-b border-zinc-800/80 text-zinc-500">
-              <th colSpan={10} className="bg-zinc-950 px-2 py-2 text-left text-[11px] font-normal text-zinc-500">
+              <th colSpan={9} className="bg-zinc-950 px-2 py-2 text-left text-[11px] font-normal text-zinc-500">
                 Showing <span className="font-mono text-zinc-300">{rows.length}</span> of{' '}
-                <span className="font-mono text-zinc-300">{total}</span> matching rows · use filters on the left
+                <span className="font-mono text-zinc-300">{total}</span> matching rows · click a column header to sort
               </th>
             </tr>
             <tr className="border-b border-zinc-800 text-zinc-500">
-              <th className="bg-zinc-950 px-2 py-2">Score</th>
-              <th className="bg-zinc-950 px-2 py-2">Name</th>
-              <th className="bg-zinc-950 px-2 py-2">Job</th>
-              <th className="bg-zinc-950 px-2 py-2">Club</th>
-              <th className="bg-zinc-950 px-2 py-2">Nation</th>
-              <th className="bg-zinc-950 px-2 py-2">Reputation</th>
-              <th className="bg-zinc-950 px-2 py-2">Det</th>
-              <th className="bg-zinc-950 px-2 py-2">NPCA</th>
-              <th className="bg-zinc-950 px-2 py-2">Heuristic detail</th>
-              <th className="bg-zinc-950 px-2 py-2"> </th>
+              <SortableTh label="Score" sortKey="score" sort={sort} onSort={onSort} />
+              <SortableTh label="Name" sortKey="name" sort={sort} onSort={onSort} />
+              <SortableTh label="Job" sortKey="job" sort={sort} onSort={onSort} />
+              <SortableTh label="Club" sortKey="club" sort={sort} onSort={onSort} />
+              <SortableTh label="Nation" sortKey="nation" sort={sort} onSort={onSort} />
+              <SortableTh label="Reputation" sortKey="reputation" sort={sort} onSort={onSort} />
+              <SortableTh label="Det" sortKey="determination" sort={sort} onSort={onSort} />
+              <SortableTh
+                label="Coaching CA"
+                sortKey="coachingCa"
+                sort={sort}
+                onSort={onSort}
+                title="Backroom current ability from nonplayer.dat (coaches, scouts, physios)"
+              />
+              <th className="bg-zinc-950 px-2 py-2" />
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <tr
                 key={r.staffIndex}
                 role="button"
@@ -133,7 +242,6 @@ export function StaffBrowsePanel({
                 </td>
                 <td className="px-2 py-1.5 font-mono text-zinc-400">{r.determination}</td>
                 <td className="px-2 py-1.5 font-mono text-zinc-400">{r.nonPlayerCa ?? '—'}</td>
-                <td className="max-w-xl px-2 py-1.5 text-[10px] text-zinc-500">{r.scoreDetail}</td>
                 <td className="px-2 py-1.5">
                   {(r.jobByte === 11 ||
                     r.jobByte === 12 ||

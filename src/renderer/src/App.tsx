@@ -575,12 +575,19 @@ export function App() {
 
   const gridInclude = useMemo(() => gridFlagsForVisibleColumnIds(columnOrder), [columnOrder])
   const profileAsideRef = useRef<HTMLDivElement>(null)
+  const profileAsideShellRef = useRef<HTMLElement>(null)
   const lastProfilePanePxRef = useRef(readProfilePanePx())
   const [profilePanePx, setProfilePanePx] = useState(() => lastProfilePanePxRef.current)
 
+  const applyProfilePaneWidth = useCallback((px: number) => {
+    const shell = profileAsideShellRef.current
+    if (shell) shell.style.width = `${px}px`
+  }, [])
+
   useEffect(() => {
     lastProfilePanePxRef.current = profilePanePx
-  }, [profilePanePx])
+    applyProfilePaneWidth(profilePanePx)
+  }, [profilePanePx, applyProfilePaneWidth])
 
   const onProfileSplitterMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -592,13 +599,14 @@ export function App() {
       const dw = ev.clientX - startX
       const next = Math.min(MAX_PROFILE_PANE_PX, Math.max(MIN_PROFILE_PANE_PX, startW + dw))
       lastProfilePanePxRef.current = next
-      setProfilePanePx(next)
+      applyProfilePaneWidth(next)
     }
     const onUp = () => {
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      setProfilePanePx(lastProfilePanePxRef.current)
       try {
         localStorage.setItem(PROFILE_PANE_WIDTH_LS, String(lastProfilePanePxRef.current))
       } catch {
@@ -607,18 +615,19 @@ export function App() {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }, [])
+  }, [applyProfilePaneWidth])
 
   const onProfileSplitterDoubleClick = useCallback((e: MouseEvent<HTMLDivElement>) => {
     e.preventDefault()
     lastProfilePanePxRef.current = DEFAULT_PROFILE_PANE_PX
     setProfilePanePx(DEFAULT_PROFILE_PANE_PX)
+    applyProfilePaneWidth(DEFAULT_PROFILE_PANE_PX)
     try {
       localStorage.setItem(PROFILE_PANE_WIDTH_LS, String(DEFAULT_PROFILE_PANE_PX))
     } catch {
       /* ignore */
     }
-  }, [])
+  }, [applyProfilePaneWidth])
 
   const refreshSeq = useRef(0)
 
@@ -2415,6 +2424,7 @@ export function App() {
         </div>
 
         <aside
+          ref={profileAsideShellRef}
           style={{ width: profilePanePx, maxWidth: 'min(720px, 92vw)' }}
           className="flex min-h-0 min-w-[240px] shrink-0 flex-col overflow-hidden border-l border-zinc-800/80 bg-zinc-950/60"
         >
