@@ -608,15 +608,15 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     }
   }
 
-  let nonPlayersById = undefined as ReturnType<typeof parseNonPlayerData> | undefined
+  let nonPlayersByRowIndex = undefined as ReturnType<typeof parseNonPlayerData> | undefined
   const npBlock = find('nonplayer.dat') ?? findBlockLoose('nonplayer.dat')
   if (npBlock && npBlock.size > 0) {
     try {
       const npbuf = blockData(file, compressed, npBlock)
-      const m = parseNonPlayerData(npbuf)
-      if (m.size > 0) nonPlayersById = m
+      const rows = parseNonPlayerData(npbuf)
+      if (rows.length > 0) nonPlayersByRowIndex = rows
     } catch {
-      nonPlayersById = undefined
+      nonPlayersByRowIndex = undefined
     }
   }
 
@@ -668,7 +668,7 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     clubsById,
     stadiumsById,
     tacticsIndex,
-    nonPlayersById,
+    nonPlayersByRowIndex,
     firstNames,
     secondNames,
     commonNames,

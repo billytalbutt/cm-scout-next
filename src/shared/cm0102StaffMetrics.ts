@@ -1,5 +1,3 @@
-import { cm0102MoraleWord } from './cm0102Bands'
-
 /** Empty / unused `nonplayer.dat` or reputation slots in saves. */
 export const CM0102_INVALID_U16 = 65535
 
@@ -12,21 +10,30 @@ export function sanitizeStaffAbility(raw: number | null | undefined): number | n
 }
 
 /**
- * Current/home/world reputation (`UInt16` on player & non-player records).
- * Values 0–1 are unused slots; 65535-class values are empty rows.
+ * Reputation bytes on `nonplayer.dat` / player records (`UInt16`).
+ * Very low values are empty slots, not real ratings.
  */
 export function sanitizeStaffReputation(raw: number | null | undefined): number | null {
   if (raw == null || !Number.isFinite(raw)) return null
   const n = Math.trunc(raw)
-  // 0–1 and 65535-class values are empty rows; single-digit reps are unused slots, not real ratings.
   if (n < 200 || n >= 65_500) return null
   return n
 }
 
 /**
- * In-game style reputation band (CM manual manager categories:
- * Unproven → Superb). Thresholds tuned for typical player/non-player
- * reputation range (~400–8000 on updated databases).
+ * CM shows staff reputation from **world** reputation on the linked `nonplayer.dat`
+ * row. `currentReputation` is often inflated (especially for coaches) and must not
+ * be used when world is unset — that mismatch caused thousands of false "Superb" rows.
+ */
+export function staffReputationRawFromNonPlayer(np: {
+  worldReputation: number
+}): number | null {
+  return sanitizeStaffReputation(np.worldReputation)
+}
+
+/**
+ * In-game manager/staff reputation wording (CM manual: Unproven → Superb).
+ * Thresholds applied to **world** reputation (typical updated DB range ~400–10000).
  */
 export function cm0102ReputationWord(raw: number | null | undefined): string {
   const v = sanitizeStaffReputation(raw)
@@ -40,25 +47,12 @@ export function cm0102ReputationWord(raw: number | null | undefined): string {
   return 'Superb'
 }
 
-/** Verbal band for coaching CA/PA using the same 1–20 morale-style scale as in-game attribute wording. */
-export function cm0102CoachingAbilityWord(raw: number | null | undefined): string {
-  const ca = sanitizeStaffAbility(raw)
-  if (ca == null) return '—'
-  const band = Math.min(20, Math.max(1, Math.round(ca / 10)))
-  return cm0102MoraleWord(band)
-}
-
-export type StaffMetricDisplay = {
+export type StaffReputationDisplay = {
   raw: number | null
   label: string
 }
 
-export function staffReputationDisplay(raw: number | null | undefined): StaffMetricDisplay {
+export function staffReputationDisplay(raw: number | null | undefined): StaffReputationDisplay {
   const v = sanitizeStaffReputation(raw)
   return { raw: v, label: cm0102ReputationWord(v) }
-}
-
-export function staffCoachingAbilityDisplay(raw: number | null | undefined): StaffMetricDisplay {
-  const v = sanitizeStaffAbility(raw)
-  return { raw: v, label: cm0102CoachingAbilityWord(v) }
 }

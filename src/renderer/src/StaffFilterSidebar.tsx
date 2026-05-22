@@ -181,7 +181,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Backroom CA min</span>
+          <span className="mb-1 block text-xs text-zinc-500">Staff CA min</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -190,7 +190,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Backroom CA max</span>
+          <span className="mb-1 block text-xs text-zinc-500">Staff CA max</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -199,23 +199,23 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Coaching PA min</span>
+          <span className="mb-1 block text-xs text-zinc-500">Staff PA min</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
             value={staffCoachingPaMin}
             onChange={(e) => setStaffCoachingPaMin(e.target.value)}
-            title="Backroom potential ability from nonplayer.dat"
+            title="Staff potential ability from nonplayer.dat (1–200)"
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Coaching PA max</span>
+          <span className="mb-1 block text-xs text-zinc-500">Staff PA max</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
             value={staffCoachingPaMax}
             onChange={(e) => setStaffCoachingPaMax(e.target.value)}
-            title="Backroom potential ability from nonplayer.dat"
+            title="Staff potential ability from nonplayer.dat (1–200)"
           />
         </label>
         <label>
@@ -225,7 +225,7 @@ export function StaffFilterSidebar({
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
             value={staffReputationMin}
             onChange={(e) => setStaffReputationMin(e.target.value)}
-            title="Current reputation (nonplayer.dat or player record when linked)"
+            title="World reputation (matches in-game staff reputation)"
           />
         </label>
         <label>
@@ -235,7 +235,7 @@ export function StaffFilterSidebar({
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
             value={staffReputationMax}
             onChange={(e) => setStaffReputationMax(e.target.value)}
-            title="Current reputation (nonplayer.dat or player record when linked)"
+            title="World reputation (matches in-game staff reputation)"
           />
         </label>
         <label>

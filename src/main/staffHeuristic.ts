@@ -5,6 +5,12 @@
  * physios on physiotherapy + motivating; assistant managers spread across tactics, man-management, youngsters.
  */
 import type { NonPlayerRecord } from './database/types'
+import { staffNpAttrInGame } from '../shared/cm0102StaffNpAttributeDisplay'
+
+function npDisp(np: NonPlayerRecord, key: string): number {
+  const raw = np[key as keyof NonPlayerRecord] as number
+  return staffNpAttrInGame(key, raw, np.currentAbility)
+}
 
 function clamp20(n: number): number {
   if (n >= 21) return 20
@@ -20,16 +26,16 @@ function avg(nums: number[]): number {
 /** 0–100 style score for UI bars. */
 export function staffRoleHeuristicScore(jobForClub: number, np: NonPlayerRecord | undefined): number {
   if (!np) return 0
-  const co = clamp20(np.coaching)
-  const cgk = clamp20(np.coachingGks)
-  const tac = clamp20(np.tactics)
-  const mot = clamp20(np.motivating)
-  const dis = clamp20(np.discipline)
-  const man = clamp20(np.manHandling)
-  const jA = clamp20(np.judgement)
-  const jP = clamp20(np.judgingPotential)
-  const phys = clamp20(np.physiotherapy)
-  const yng = clamp20(np.youngsters)
+  const co = clamp20(npDisp(np, 'coaching'))
+  const cgk = clamp20(npDisp(np, 'coachingGks'))
+  const tac = clamp20(npDisp(np, 'tactics'))
+  const mot = clamp20(npDisp(np, 'motivating'))
+  const dis = clamp20(npDisp(np, 'discipline'))
+  const man = clamp20(npDisp(np, 'manHandling'))
+  const jA = clamp20(npDisp(np, 'judgement'))
+  const jP = clamp20(npDisp(np, 'judgingPotential'))
+  const phys = clamp20(npDisp(np, 'physiotherapy'))
+  const yng = clamp20(npDisp(np, 'youngsters'))
 
   switch (jobForClub) {
     case 8: // Coach — outfield bias unless GK coach shape (GK much higher than outfield)
@@ -54,9 +60,9 @@ export function staffHeuristicDetail(jobForClub: number, np: NonPlayerRecord | u
   if (!np) return 'No non-player profile linked (non_player_id).'
   const bits: string[] = []
   bits.push(`NPCA ${np.currentAbility}`)
-  if (jobForClub === 9) bits.push(`Judge ${np.judgement}`, `J.Pot ${np.judgingPotential}`)
-  else if (jobForClub === 10) bits.push(`Physio ${np.physiotherapy}`)
-  else bits.push(`Coach ${np.coaching}`, `GK ${np.coachingGks}`, `Tactics ${np.tactics}`)
+  if (jobForClub === 9) bits.push(`Judge ${npDisp(np, 'judgement')}`, `J.Pot ${npDisp(np, 'judgingPotential')}`)
+  else if (jobForClub === 10) bits.push(`Physio ${npDisp(np, 'physiotherapy')}`)
+  else bits.push(`Coach ${npDisp(np, 'coaching')}`, `GK ${npDisp(np, 'coachingGks')}`, `Tactics ${npDisp(np, 'tactics')}`)
   bits.push(`Mot ${np.motivating}`, `Young ${np.youngsters}`)
   return bits.join(' · ')
 }

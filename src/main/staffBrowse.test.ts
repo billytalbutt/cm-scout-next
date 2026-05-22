@@ -11,7 +11,7 @@ function minimalDb(staff: StaffRecord[]): ParsedDatabase {
     firstNames: ['', 'John'],
     secondNames: ['', 'Smith'],
     commonNames: [''],
-    nonPlayersById: undefined,
+    nonPlayersByRowIndex: undefined,
     contractsByStaffIndex: new Map(),
     gameDateIso: '2001-08-01',
     nationEuEligible: new Map(),
@@ -122,15 +122,18 @@ describe('filterStaffGridRows', () => {
       wingBackPref: 0,
       formation: 0,
     }
-    const npHigh: NonPlayerRecord = { ...npLow, id: 2, currentReputation: 9000, potentialAbility: 18 }
+    const npHigh: NonPlayerRecord = {
+      ...npLow,
+      id: 2,
+      currentReputation: 9000,
+      worldReputation: 9000,
+      potentialAbility: 18,
+    }
     const db = minimalDb([
       staffRow({ id: 20, job_for_club: 8, player_id: -1, non_player_id: 1 }),
       staffRow({ id: 21, job_for_club: 8, player_id: -1, non_player_id: 2 }),
     ])
-    db.nonPlayersById = new Map([
-      [1, npLow],
-      [2, npHigh],
-    ])
+    db.nonPlayersByRowIndex = [npLow, npLow, npHigh]
 
     const base = { q: '', nation: '', club: '', includePlayers: false }
     expect(
@@ -182,19 +185,25 @@ describe('filterStaffGridRows', () => {
       wingBackPref: 0,
       formation: 0,
     }
-    const npGood: NonPlayerRecord = { ...npBad, id: 4, currentAbility: 125, potentialAbility: 140, currentReputation: 4200 }
+    const npGood: NonPlayerRecord = {
+      ...npBad,
+      id: 4,
+      currentAbility: 125,
+      potentialAbility: 140,
+      worldReputation: 4200,
+    }
     const db = minimalDb([staffRow({ id: 30, job_for_club: 8, player_id: -1, non_player_id: 3 })])
-    db.nonPlayersById = new Map([[3, npBad], [4, npGood]])
+    db.nonPlayersByRowIndex = [npBad, npBad, npBad, npBad, npGood]
     db.staff.push(staffRow({ id: 31, job_for_club: 8, player_id: -1, non_player_id: 4 }))
 
     const rows = filterStaffGridRows(db, { q: '', nation: '', club: '', includePlayers: false })
     const bad = rows.find((r) => r.staffId === 30)!
     const good = rows.find((r) => r.staffId === 31)!
-    expect(bad.coachingCa).toBeNull()
-    expect(bad.coachingCaLabel).toBe('—')
+    expect(bad.staffCa).toBeNull()
     expect(bad.reputationCurrent).toBeNull()
-    expect(good.coachingCa).toBe(125)
-    expect(good.coachingCaLabel).toBe('Good')
+    expect(good.staffCa).toBe(125)
+    expect(good.staffPa).toBe(140)
+    expect(good.reputationCurrent).toBe(4200)
     expect(good.reputationLabel).toBe('Good')
   })
 })

@@ -21,10 +21,8 @@ export type StaffGridApiRow = {
   determination: number
   score: number
   scoreDetail: string
-  coachingCa: number | null
-  coachingCaLabel: string
-  coachingPa: number | null
-  coachingPaLabel: string
+  staffCa: number | null
+  staffPa: number | null
 }
 
 type StaffSortKey =
@@ -35,8 +33,8 @@ type StaffSortKey =
   | 'nation'
   | 'reputation'
   | 'determination'
-  | 'coachingCa'
-  | 'coachingPa'
+  | 'staffCa'
+  | 'staffPa'
 
 type SortState = { key: StaffSortKey; desc: boolean }
 
@@ -70,10 +68,10 @@ function compareStaffRows(a: StaffGridApiRow, b: StaffGridApiRow, sort: SortStat
       return num(a.reputationCurrent, b.reputationCurrent) || str(a.name, b.name)
     case 'determination':
       return num(a.determination, b.determination) || str(a.name, b.name)
-    case 'coachingCa':
-      return num(a.coachingCa, b.coachingCa) || str(a.name, b.name)
-    case 'coachingPa':
-      return num(a.coachingPa, b.coachingPa) || str(a.name, b.name)
+    case 'staffCa':
+      return num(a.staffCa, b.staffCa) || str(a.name, b.name)
+    case 'staffPa':
+      return num(a.staffPa, b.staffPa) || str(a.name, b.name)
     default:
       return 0
   }
@@ -231,22 +229,22 @@ export function StaffBrowsePanel({
               sortKey="reputation"
               sort={sort}
               onSort={onSort}
-              title="In-game reputation band; number is the raw save value"
+              title="In-game wording from world reputation on nonplayer.dat"
             />
             <SortableTh label="Det" sortKey="determination" sort={sort} onSort={onSort} />
             <SortableTh
-              label="Coaching CA"
-              sortKey="coachingCa"
+              label="Staff CA"
+              sortKey="staffCa"
               sort={sort}
               onSort={onSort}
-              title="Backroom current ability (1–200); label uses CM-style wording"
+              title="Staff current ability from nonplayer.dat (1–200 scale, same as player CA on disk)"
             />
             <SortableTh
-              label="Coaching PA"
-              sortKey="coachingPa"
+              label="Staff PA"
+              sortKey="staffPa"
               sort={sort}
               onSort={onSort}
-              title="Backroom potential ability (1–200)"
+              title="Staff potential ability from nonplayer.dat"
             />
             <th className="bg-zinc-950 px-2 py-2" />
           </tr>
@@ -282,12 +280,8 @@ export function StaffBrowsePanel({
                 <MetricCell label={r.reputationLabel} raw={r.reputationCurrent} />
               </td>
               <td className="px-2 py-1.5 font-mono text-zinc-400">{r.determination}</td>
-              <td className="px-2 py-1.5">
-                <MetricCell label={r.coachingCaLabel} raw={r.coachingCa} />
-              </td>
-              <td className="px-2 py-1.5">
-                <MetricCell label={r.coachingPaLabel} raw={r.coachingPa} />
-              </td>
+                <td className="px-2 py-1.5 font-mono text-zinc-300">{r.staffCa ?? '—'}</td>
+                <td className="px-2 py-1.5 font-mono text-zinc-300">{r.staffPa ?? '—'}</td>
               <td className="px-2 py-1.5">
                 {(r.jobByte === 11 ||
                   r.jobByte === 12 ||

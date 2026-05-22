@@ -111,7 +111,7 @@ export interface StaffRecord {
   club_valuation: number
   /** `TStaff.StaffPreferences` id (favourite clubs/staff live in separate table). */
   staff_preferences_id: number
-  /** Links to `nonplayer.dat` row id for coaching / scout / physio attributes. */
+  /** Row index into `nonplayer.dat` for coaching / scout / physio attributes (not the row's `id` field). */
   non_player_id: number
   squad_selected_for: number
 }
@@ -293,8 +293,8 @@ export interface ParsedDatabase {
   playerStatsDatBuf?: Buffer
   /** CM History-tab current season (all players with data in this save). */
   currentSeasonByPlayerDatId?: Map<number, PlayerCurrentSeasonIndexed>
-  /** `nonplayer.dat` keyed by non-player id (from `StaffRecord.non_player_id`). */
-  nonPlayersById?: Map<number, NonPlayerRecord>
+  /** `nonplayer.dat` rows in file order; `StaffRecord.non_player_id` indexes this array. */
+  nonPlayersByRowIndex?: NonPlayerRecord[]
   /** Full `club.dat` rows keyed by club id (includes squad staff ids). */
   clubsById?: Map<number, ClubRecord>
   /** Optional `stadium.dat` keyed by stadium id (`TClub.Stadium`). */

@@ -1,5 +1,7 @@
+import { nonPlayerForStaffLink } from './database/nonplayer'
 import { staffDisplayName } from './database/parser'
 import { otherAttrDisplay } from './database/attributes'
+import { staffNpAttrDisplay } from '../shared/cm0102StaffNpAttributeDisplay'
 import type { NonPlayerRecord, ParsedDatabase, StaffRecord } from './database/types'
 import { splitIntoThreeColumns } from './profileLayout'
 import { staffJobForClubLabel } from '../shared/staffJobCatalog'
@@ -25,6 +27,26 @@ function nationLine(db: ParsedDatabase, firstId: number, secondId: number): stri
 
 function toCell(key: string, label: string, raw: number, invert = false): AttrCell {
   const o = otherAttrDisplay(raw)
+  return {
+    key,
+    label,
+    inGame: o.inGame,
+    inGameUncapped: o.inGameUncapped,
+    raw: o.raw,
+    inMatch: o.inMatch,
+    invert,
+  }
+}
+
+function toNpCell(
+  key: string,
+  label: string,
+  field: keyof NonPlayerRecord,
+  np: NonPlayerRecord,
+  invert = false,
+): AttrCell {
+  const raw = np[field] as number
+  const o = staffNpAttrDisplay(key, raw, np.currentAbility)
   return {
     key,
     label,
@@ -108,7 +130,7 @@ function readMainCell(
     return toCell(spec.key, spec.label, s[spec.field as keyof StaffRecord] as number)
   }
   if (!np) return null
-  return toCell(spec.key, spec.label, np[spec.field as keyof NonPlayerRecord] as number)
+  return toNpCell(spec.key, spec.label, spec.field as keyof NonPlayerRecord, np)
 }
 
 function buildMainColumns(
@@ -129,7 +151,7 @@ function buildHiddenColumns(
   if (np) {
     for (const { key, label } of NP_HIDDEN_EXTRA) {
       if (MAIN_ATTR_KEYS.has(key)) continue
-      flat.push(toCell(key, label, np[key] as number))
+      flat.push(toNpCell(key, label, key, np))
     }
     for (const { key, label } of NP_HIDDEN_POS_FIELDS) {
       flat.push(toCell(String(key), label, np[key] as number))
@@ -153,7 +175,7 @@ export function buildStaffProfilePayload(db: ParsedDatabase, staffIndex: number)
   const club = clubNames.get(s.club_job_id) ?? ''
   const ageFromDob = ageOnGameDate(s.dob_iso, gameDateIso)
   const age = ageFromDob != null ? ageFromDob : ageFromBirthYearOnly(s.year_of_birth, gameDateIso)
-  const np = s.non_player_id > 0 ? db.nonPlayersById?.get(s.non_player_id) : undefined
+  const np = nonPlayerForStaffLink(s.non_player_id, db.nonPlayersByRowIndex)
   const c = contractsByStaffIndex.get(staffIndex) ?? null
 
   const hasNonPlayer = !!np
