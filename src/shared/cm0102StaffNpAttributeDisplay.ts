@@ -46,7 +46,7 @@ const MODE_BY_KEY: Record<StaffNpAttrKey, StaffNpConvertMode> = {
   attacking: 'raw',
   business: 'raw',
   coaching: 'highRounded',
-  coachingGks: 'highRoundedMinusOne',
+  coachingGks: 'highRounded',
   coachingTechnique: 'raw',
   directness: 'raw',
   discipline: 'raw',
@@ -117,12 +117,12 @@ export function staffManManagementInGame(
 }
 
 /**
- * Tactical knowledge: low intrinsic uses CA÷35 (trunc); higher values use CA÷25 (rounded).
- * Matches elite coaches (e.g. Pomaski raw 1 → 13) and mid/high intrinsics (e.g. ~17 at raw 5).
+ * Tactical knowledge: CM uses CA÷35 (trunc) for low/high intrinsic bytes and CA÷25 (rounded)
+ * for mid-range (profile-verified: Pomaski raw 1 → 13; Malkin/Foster mid raw → 17).
  */
 export function staffTacticsInGame(currentAbility: number, intrinsic: number): number {
   const raw = Number.isFinite(intrinsic) ? intrinsic : 0
-  if (raw <= 2) return staffNpQuadraticConvert(currentAbility, raw, 35, false)
+  if (raw <= 3 || raw >= 7) return staffNpQuadraticConvert(currentAbility, raw, 35, false)
   return staffNpQuadraticConvert(currentAbility, raw, 25, true)
 }
 

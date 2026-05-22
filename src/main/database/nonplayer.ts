@@ -113,11 +113,36 @@ export function parseNonPlayerData(data: Buffer): NonPlayerRecord[] {
   return rows
 }
 
-/** Resolve `staff.dat` `non_player_id` to the linked backroom profile row. */
+/** Rows past linked index often hold 0xB0 (-80) sentinels — not a real backroom profile. */
+function isPlausibleNonPlayerRow(np: NonPlayerRecord): boolean {
+  const ca = np.currentAbility
+  if (!Number.isFinite(ca) || ca < 1 || ca > 250 || ca === 65_535) return false
+  if (np.coaching <= -70 || np.tactics <= -70 || np.judgement <= -70) return false
+  return true
+}
+
+/**
+ * Resolve `staff.dat` `non_player_id` (offset 0x69) to a `nonplayer.dat` row.
+ * CM uses the value as a **row index** in most builds; when that row is invalid, fall back
+ * to matching the embedded `id` field (some saves/tools store the profile id instead).
+ */
 export function nonPlayerForStaffLink(
   link: number,
   rows: NonPlayerRecord[] | undefined,
 ): NonPlayerRecord | undefined {
-  if (link <= 0 || !rows?.length || link >= rows.length) return undefined
-  return rows[link]
+  if (link <= 0 || !rows?.length) return undefined
+
+  const byId = rows.find((r) => r.id === link)
+  const byIndex = link < rows.length ? rows[link] : undefined
+
+  const indexOk = byIndex && isPlausibleNonPlayerRow(byIndex)
+  const idOk = byId && isPlausibleNonPlayerRow(byId)
+
+  if (indexOk && idOk && byIndex !== byId) {
+    if (byIndex.id === link) return byIndex
+    return byId
+  }
+  if (indexOk) return byIndex
+  if (idOk) return byId
+  return undefined
 }

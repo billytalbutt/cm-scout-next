@@ -35,4 +35,21 @@ describe('nonPlayerForStaffLink', () => {
     expect(rows[0].coaching).toBe(2)
     expect(rows[0].id).not.toBe(2)
   })
+
+  it('falls back to id match when row index points at an invalid sentinel row', () => {
+    const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 3)
+    writeNpRow(buf, 0, { id: 10, coaching: 2, judgement: 3 })
+    writeNpRow(buf, 1, { id: 999, coaching: 7, judgement: 5 })
+    writeNpRow(buf, 2, { id: 1, coaching: 9, judgement: 11 })
+
+    const rows = parseNonPlayerData(buf)
+    rows[1]!.coaching = -80
+    rows[1]!.tactics = -80
+    rows[1]!.judgement = -80
+    rows[1]!.currentAbility = 40
+
+    const np = nonPlayerForStaffLink(1, rows)
+    expect(np?.coaching).toBe(9)
+    expect(np?.id).toBe(1)
+  })
 })

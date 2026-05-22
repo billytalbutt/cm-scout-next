@@ -8,6 +8,8 @@ import {
 
 describe('cm0102StaffProfileText', () => {
   it('maps preference bytes to in-game phrases', () => {
+    expect(coachingStyleLabel(-1)).toBe('General')
+    expect(coachingStyleLabel(0)).toBe('General')
     expect(coachingStyleLabel(1)).toBe('Fitness-based')
     expect(coachingStyleLabel(2)).toBe('Technique-based')
     expect(preferredFormationLabel(3)).toBe('4-4-2')

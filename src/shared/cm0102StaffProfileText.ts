@@ -4,14 +4,17 @@
  */
 
 /**
- * Training emphasis (`coachingTechnique` byte). CM0102.exe lists “Technique-based” before
- * “Fitness-based” in the string table, but the profile enum uses 1=Fitness, 2=Technique.
+ * Training emphasis (`coachingTechnique` byte). CM0102.exe string table order differs from the
+ * profile enum: unset/General = -1 (or 0), 1 = Fitness-based, 2 = Technique-based.
  */
 const COACHING_STYLE: readonly string[] = [
   'General',
   'Fitness-based',
   'Technique-based',
 ]
+
+/** Default profile line when `coachingTechnique` is unset (-1) in `nonplayer.dat`. */
+export const COACHING_TECHNIQUE_GENERAL = -1
 
 /**
  * Preferred passing/style of play (`directness` byte indexes this table in the profile UI).
@@ -56,6 +59,7 @@ function tableLabel(table: readonly string[], index: number): string | null {
 }
 
 export function coachingStyleLabel(coachingTechnique: number): string | null {
+  if (!Number.isFinite(coachingTechnique) || coachingTechnique < 0) return 'General'
   return tableLabel(COACHING_STYLE, coachingTechnique)
 }
 
