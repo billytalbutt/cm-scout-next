@@ -1,3 +1,8 @@
+import {
+  cm0102ReputationWord,
+  staffCoachingAbilityDisplay,
+  staffReputationDisplay,
+} from '../../shared/cm0102StaffMetrics'
 import { ProfileAttrColumn } from './ProfileAttrBlocks'
 import type { StaffProfilePayload } from './vite-env.d'
 
@@ -35,28 +40,39 @@ export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayloa
             )}
           </p>
         )}
-        {p.hasNonPlayer && (p.currentAbility != null || p.potentialAbility != null) && (
-          <p className="mt-2 text-sm">
-            <span className="text-zinc-500">CA</span>{' '}
-            <span className="font-mono text-emerald-300">{p.currentAbility ?? '—'}</span>
-            <span className="mx-2 text-zinc-600">|</span>
-            <span className="text-zinc-500">PA</span>{' '}
-            <span className="font-mono text-emerald-300">{p.potentialAbility ?? '—'}</span>
-          </p>
-        )}
-        {p.reputation && (
-          <p className="mt-1.5 text-[11px] text-zinc-400">
-            <span className="text-zinc-500">Rep</span>{' '}
-            <span className="text-zinc-600">home</span>{' '}
-            <span className="font-mono text-zinc-200">{p.reputation.home.toLocaleString()}</span>
-            <span className="mx-1.5 text-zinc-700">·</span>
-            <span className="text-zinc-600">current</span>{' '}
-            <span className="font-mono text-zinc-200">{p.reputation.current.toLocaleString()}</span>
-            <span className="mx-1.5 text-zinc-700">·</span>
-            <span className="text-zinc-600">world</span>{' '}
-            <span className="font-mono text-zinc-200">{p.reputation.world.toLocaleString()}</span>
-          </p>
-        )}
+        {p.hasNonPlayer && (() => {
+          const ca = staffCoachingAbilityDisplay(p.currentAbility)
+          const pa = staffCoachingAbilityDisplay(p.potentialAbility)
+          if (ca.raw == null && pa.raw == null) return null
+          return (
+            <p className="mt-2 text-sm text-zinc-300">
+              <span className="text-zinc-500">Coaching CA</span>{' '}
+              <span className="font-medium text-emerald-200/90">{ca.label}</span>
+              {ca.raw != null ? <span className="font-mono text-[11px] text-zinc-500"> ({ca.raw})</span> : null}
+              <span className="mx-2 text-zinc-600">|</span>
+              <span className="text-zinc-500">PA</span>{' '}
+              <span className="font-medium text-emerald-200/90">{pa.label}</span>
+              {pa.raw != null ? <span className="font-mono text-[11px] text-zinc-500"> ({pa.raw})</span> : null}
+            </p>
+          )
+        })()}
+        {p.reputation && (() => {
+          const cur = staffReputationDisplay(p.reputation.current)
+          if (cur.raw == null) return null
+          return (
+            <p className="mt-1.5 text-[11px] text-zinc-400">
+              <span className="text-zinc-500">Reputation</span>{' '}
+              <span className="font-medium text-zinc-200">{cur.label}</span>
+              <span className="font-mono text-zinc-500"> ({cur.raw.toLocaleString()})</span>
+              <span className="mx-1.5 text-zinc-700">·</span>
+              <span className="text-zinc-600">home</span>{' '}
+              <span className="text-zinc-500">{cm0102ReputationWord(p.reputation.home)}</span>
+              <span className="mx-1.5 text-zinc-700">·</span>
+              <span className="text-zinc-600">world</span>{' '}
+              <span className="text-zinc-500">{cm0102ReputationWord(p.reputation.world)}</span>
+            </p>
+          )
+        })()}
       </div>
 
       <div>

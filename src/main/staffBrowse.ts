@@ -11,6 +11,12 @@ import {
   type ContractTypeCategoryId,
 } from '../shared/contractTypes'
 import { calendarDaysBetween, ageFromBirthYearOnly, ageOnGameDate } from './database/dates'
+import {
+  sanitizeStaffAbility,
+  sanitizeStaffReputation,
+  staffCoachingAbilityDisplay,
+  staffReputationDisplay,
+} from '../shared/cm0102StaffMetrics'
 
 export type StaffBrowseFilter = {
   q: string
@@ -45,29 +51,50 @@ export interface StaffGridRow {
   jobByte: number
   club: string
   nation: string
-  /** `nonplayer.dat` current reputation, or player reputations when dual-role. */
   reputationCurrent: number | null
+  reputationLabel: string
   determination: number
   score: number
   scoreDetail: string
-  nonPlayerCa: number | null
+  coachingCa: number | null
+  coachingCaLabel: string
+  coachingPa: number | null
+  coachingPaLabel: string
 }
 
-function staffReputationCurrent(
+function isPlayerLinkedStaffRole(jobForClub: number): boolean {
+  return jobForClub >= 11 && jobForClub <= 16
+}
+
+function staffReputationRaw(
   db: ParsedDatabase,
   s: StaffRecord,
   np: NonPlayerRecord | undefined,
+  nPlayers: number,
+  firstNames: string[],
+  secondNames: string[],
+  commonNames: string[],
 ): number | null {
-  if (np) return np.currentReputation
-  if (s.player_id >= 0 && s.player_id < db.players.length) {
+  if (np) {
+    const fromNp = sanitizeStaffReputation(np.currentReputation)
+    if (fromNp != null) return fromNp
+  }
+  if (
+    isPlayerLinkedStaffRole(s.job_for_club) &&
+    isValidPlayerRow(s, firstNames, secondNames, commonNames, nPlayers)
+  ) {
     const p = db.players[s.player_id]
-    if (p) return p.current_reputation
+    if (p) return sanitizeStaffReputation(p.current_reputation)
   }
   return null
 }
 
-function staffCoachingPa(np: NonPlayerRecord | undefined): number | null {
-  return np?.potentialAbility ?? null
+function staffCoachingCaRaw(np: NonPlayerRecord | undefined): number | null {
+  return np ? sanitizeStaffAbility(np.currentAbility) : null
+}
+
+function staffCoachingPaRaw(np: NonPlayerRecord | undefined): number | null {
+  return np ? sanitizeStaffAbility(np.potentialAbility) : null
 }
 
 /** Exported for IPC — same name check as player grid. */
@@ -214,14 +241,15 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
     if (f.euPassport === true && !staffEuPassport(db, s)) return
 
     const np = s.non_player_id > 0 ? nonPlayersById?.get(s.non_player_id) : undefined
+    const coachingCa = staffCoachingCaRaw(np)
     if (f.coachingCaMin != null) {
-      if (np == null || np.currentAbility < f.coachingCaMin) return
+      if (coachingCa == null || coachingCa < f.coachingCaMin) return
     }
     if (f.coachingCaMax != null) {
-      if (np == null || np.currentAbility > f.coachingCaMax) return
+      if (coachingCa == null || coachingCa > f.coachingCaMax) return
     }
 
-    const reputation = staffReputationCurrent(db, s, np)
+    const reputation = staffReputationRaw(db, s, np, nPlayers, firstNames, secondNames, commonNames)
     if (f.reputationMin != null) {
       if (reputation == null || reputation < f.reputationMin) return
     }
@@ -229,7 +257,7 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
       if (reputation == null || reputation > f.reputationMax) return
     }
 
-    const coachingPa = staffCoachingPa(np)
+    const coachingPa = staffCoachingPaRaw(np)
     if (f.coachingPaMin != null) {
       if (coachingPa == null || coachingPa < f.coachingPaMin) return
     }
@@ -243,6 +271,9 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
 
     const score = staffRoleHeuristicScore(s.job_for_club, np) + Math.min(10, Math.max(0, s.determination - 10))
     const scoreDetail = staffHeuristicDetail(s.job_for_club, np)
+    const repDisp = staffReputationDisplay(reputation)
+    const caDisp = staffCoachingAbilityDisplay(coachingCa)
+    const paDisp = staffCoachingAbilityDisplay(coachingPa)
 
     out.push({
       staffIndex,
@@ -252,11 +283,15 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
       jobByte: s.job_for_club,
       club: clubName,
       nation: nationDisp,
-      reputationCurrent: reputation,
+      reputationCurrent: repDisp.raw,
+      reputationLabel: repDisp.label,
       determination: s.determination,
       score: Math.min(100, score),
       scoreDetail,
-      nonPlayerCa: np?.currentAbility ?? null,
+      coachingCa: caDisp.raw,
+      coachingCaLabel: caDisp.label,
+      coachingPa: paDisp.raw,
+      coachingPaLabel: paDisp.label,
     })
   })
   out.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))

@@ -2182,7 +2182,6 @@ export function App() {
               </div>
             )}
             {browseTab === 'staff' && (
-              <div className="flex min-h-0 flex-1 flex-col">
               <StaffBrowsePanel
                 loadInfo={!!loadInfo}
                 filter={staffBrowseFilter}
@@ -2202,7 +2201,6 @@ export function App() {
                   })
                 }}
               />
-              </div>
             )}
             {browseTab === 'shortlists' && (
               <ShortlistsPanel

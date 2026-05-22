@@ -142,4 +142,59 @@ describe('filterStaffGridRows', () => {
     expect(filterStaffGridRows(db, { ...base, coachingPaMin: 15 }).map((r) => r.staffId)).toEqual([21])
     expect(filterStaffGridRows(db, { ...base, coachingPaMax: 14 }).map((r) => r.staffId)).toEqual([20])
   })
+
+  it('sanitizes invalid non-player metrics and exposes display labels', () => {
+    const npBad: NonPlayerRecord = {
+      id: 3,
+      currentAbility: 65535,
+      potentialAbility: 65535,
+      homeReputation: 0,
+      currentReputation: 6,
+      worldReputation: 0,
+      attacking: 10,
+      business: 10,
+      coaching: 10,
+      coachingGks: 10,
+      coachingTechnique: 10,
+      directness: 10,
+      discipline: 10,
+      freeRoles: 10,
+      interference: 10,
+      judgement: 10,
+      judgingPotential: 10,
+      manHandling: 10,
+      marking: 10,
+      motivating: 10,
+      offside: 10,
+      patience: 10,
+      physiotherapy: 10,
+      pressing: 10,
+      resources: 10,
+      tactics: 10,
+      youngsters: 10,
+      goalKeeperPref: 0,
+      sweeperPref: 0,
+      defenderPref: 0,
+      defensiveMidfielderPref: 0,
+      midfielderPref: 0,
+      attackingMidfielderPref: 0,
+      attackerPref: 0,
+      wingBackPref: 0,
+      formation: 0,
+    }
+    const npGood: NonPlayerRecord = { ...npBad, id: 4, currentAbility: 125, potentialAbility: 140, currentReputation: 4200 }
+    const db = minimalDb([staffRow({ id: 30, job_for_club: 8, player_id: -1, non_player_id: 3 })])
+    db.nonPlayersById = new Map([[3, npBad], [4, npGood]])
+    db.staff.push(staffRow({ id: 31, job_for_club: 8, player_id: -1, non_player_id: 4 }))
+
+    const rows = filterStaffGridRows(db, { q: '', nation: '', club: '', includePlayers: false })
+    const bad = rows.find((r) => r.staffId === 30)!
+    const good = rows.find((r) => r.staffId === 31)!
+    expect(bad.coachingCa).toBeNull()
+    expect(bad.coachingCaLabel).toBe('—')
+    expect(bad.reputationCurrent).toBeNull()
+    expect(good.coachingCa).toBe(125)
+    expect(good.coachingCaLabel).toBe('Good')
+    expect(good.reputationLabel).toBe('Good')
+  })
 })

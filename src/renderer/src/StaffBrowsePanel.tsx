@@ -17,10 +17,14 @@ export type StaffGridApiRow = {
   club: string
   nation: string
   reputationCurrent: number | null
+  reputationLabel: string
   determination: number
   score: number
   scoreDetail: string
-  nonPlayerCa: number | null
+  coachingCa: number | null
+  coachingCaLabel: string
+  coachingPa: number | null
+  coachingPaLabel: string
 }
 
 type StaffSortKey =
@@ -32,6 +36,7 @@ type StaffSortKey =
   | 'reputation'
   | 'determination'
   | 'coachingCa'
+  | 'coachingPa'
 
 type SortState = { key: StaffSortKey; desc: boolean }
 
@@ -66,7 +71,9 @@ function compareStaffRows(a: StaffGridApiRow, b: StaffGridApiRow, sort: SortStat
     case 'determination':
       return num(a.determination, b.determination) || str(a.name, b.name)
     case 'coachingCa':
-      return num(a.nonPlayerCa, b.nonPlayerCa) || str(a.name, b.name)
+      return num(a.coachingCa, b.coachingCa) || str(a.name, b.name)
+    case 'coachingPa':
+      return num(a.coachingPa, b.coachingPa) || str(a.name, b.name)
     default:
       return 0
   }
@@ -104,6 +111,28 @@ function SortableTh({
         </span>
       </button>
     </th>
+  )
+}
+
+function MetricCell({
+  label,
+  raw,
+  title,
+}: {
+  label: string
+  raw: number | null
+  title?: string
+}) {
+  if (label === '—' && raw == null) {
+    return <span className="text-zinc-600">—</span>
+  }
+  return (
+    <span className="inline-flex flex-col gap-0.5" title={title}>
+      <span className="font-medium text-zinc-200">{label}</span>
+      {raw != null ? (
+        <span className="font-mono text-[10px] text-zinc-500">{raw.toLocaleString()}</span>
+      ) : null}
+    </span>
   )
 }
 
@@ -180,91 +209,107 @@ export function StaffBrowsePanel({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <div className="flex flex-col gap-2">
       {loading && <p className="shrink-0 text-xs text-zinc-500">Loading staff…</p>}
       {err && <p className="shrink-0 text-xs text-rose-300">{err}</p>}
-      <div className="cm-scroll min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-800">
-        <table className="w-full min-w-[48rem] border-collapse text-left text-xs">
-          <thead className="cm-grid-sticky-head">
-            <tr className="border-b border-zinc-800/80 text-zinc-500">
-              <th colSpan={9} className="bg-zinc-950 px-2 py-2 text-left text-[11px] font-normal text-zinc-500">
-                Showing <span className="font-mono text-zinc-300">{rows.length}</span> of{' '}
-                <span className="font-mono text-zinc-300">{total}</span> matching rows · click a column header to sort
-              </th>
+      <table className="w-full min-w-[52rem] border-collapse text-left text-xs">
+        <thead className="cm-grid-sticky-head">
+          <tr className="border-b border-zinc-800/80 text-zinc-500">
+            <th colSpan={10} className="bg-zinc-950 px-2 py-2 text-left text-[11px] font-normal text-zinc-500">
+              Showing <span className="font-mono text-zinc-300">{rows.length}</span> of{' '}
+              <span className="font-mono text-zinc-300">{total}</span> matching rows · click a column header to sort
+            </th>
+          </tr>
+          <tr className="border-b border-zinc-800 text-zinc-500">
+            <SortableTh label="Score" sortKey="score" sort={sort} onSort={onSort} />
+            <SortableTh label="Name" sortKey="name" sort={sort} onSort={onSort} />
+            <SortableTh label="Job" sortKey="job" sort={sort} onSort={onSort} />
+            <SortableTh label="Club" sortKey="club" sort={sort} onSort={onSort} />
+            <SortableTh label="Nation" sortKey="nation" sort={sort} onSort={onSort} />
+            <SortableTh
+              label="Reputation"
+              sortKey="reputation"
+              sort={sort}
+              onSort={onSort}
+              title="In-game reputation band; number is the raw save value"
+            />
+            <SortableTh label="Det" sortKey="determination" sort={sort} onSort={onSort} />
+            <SortableTh
+              label="Coaching CA"
+              sortKey="coachingCa"
+              sort={sort}
+              onSort={onSort}
+              title="Backroom current ability (1–200); label uses CM-style wording"
+            />
+            <SortableTh
+              label="Coaching PA"
+              sortKey="coachingPa"
+              sort={sort}
+              onSort={onSort}
+              title="Backroom potential ability (1–200)"
+            />
+            <th className="bg-zinc-950 px-2 py-2" />
+          </tr>
+        </thead>
+        <tbody>
+          {sortedRows.map((r) => (
+            <tr
+              key={r.staffIndex}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectStaff(r.staffIndex)}
+              onContextMenu={(e) => onRowContextMenu?.(e, r)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelectStaff(r.staffIndex)
+                }
+              }}
+              className={`cursor-pointer border-b border-zinc-800/60 hover:bg-zinc-800/30 ${
+                selectedStaffIndex === r.staffIndex ? 'bg-emerald-950/25' : ''
+              }`}
+            >
+              <td className="px-2 py-1.5 font-mono text-emerald-200/90">{r.score}</td>
+              <td className="px-2 py-1.5 font-medium text-zinc-200">{r.name}</td>
+              <td className="px-2 py-1.5 text-zinc-400">{r.jobLabel}</td>
+              <td className="max-w-[14rem] truncate px-2 py-1.5 text-zinc-400" title={r.club}>
+                {r.club}
+              </td>
+              <td className="max-w-[12rem] truncate px-2 py-1.5 text-zinc-500" title={r.nation}>
+                {r.nation}
+              </td>
+              <td className="px-2 py-1.5">
+                <MetricCell label={r.reputationLabel} raw={r.reputationCurrent} />
+              </td>
+              <td className="px-2 py-1.5 font-mono text-zinc-400">{r.determination}</td>
+              <td className="px-2 py-1.5">
+                <MetricCell label={r.coachingCaLabel} raw={r.coachingCa} />
+              </td>
+              <td className="px-2 py-1.5">
+                <MetricCell label={r.coachingPaLabel} raw={r.coachingPa} />
+              </td>
+              <td className="px-2 py-1.5">
+                {(r.jobByte === 11 ||
+                  r.jobByte === 12 ||
+                  r.jobByte === 13 ||
+                  r.jobByte === 14 ||
+                  r.jobByte === 15) && (
+                  <button
+                    type="button"
+                    className="rounded border border-emerald-700/50 bg-emerald-950/40 px-2 py-1 text-[10px] font-medium text-emerald-200 hover:bg-emerald-900/50"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onOpenPlayerProfile(r.staffIndex)
+                    }}
+                  >
+                    Player profile
+                  </button>
+                )}
+              </td>
             </tr>
-            <tr className="border-b border-zinc-800 text-zinc-500">
-              <SortableTh label="Score" sortKey="score" sort={sort} onSort={onSort} />
-              <SortableTh label="Name" sortKey="name" sort={sort} onSort={onSort} />
-              <SortableTh label="Job" sortKey="job" sort={sort} onSort={onSort} />
-              <SortableTh label="Club" sortKey="club" sort={sort} onSort={onSort} />
-              <SortableTh label="Nation" sortKey="nation" sort={sort} onSort={onSort} />
-              <SortableTh label="Reputation" sortKey="reputation" sort={sort} onSort={onSort} />
-              <SortableTh label="Det" sortKey="determination" sort={sort} onSort={onSort} />
-              <SortableTh
-                label="Coaching CA"
-                sortKey="coachingCa"
-                sort={sort}
-                onSort={onSort}
-                title="Backroom current ability from nonplayer.dat (coaches, scouts, physios)"
-              />
-              <th className="bg-zinc-950 px-2 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRows.map((r) => (
-              <tr
-                key={r.staffIndex}
-                role="button"
-                tabIndex={0}
-                onClick={() => onSelectStaff(r.staffIndex)}
-                onContextMenu={(e) => onRowContextMenu?.(e, r)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onSelectStaff(r.staffIndex)
-                  }
-                }}
-                className={`cursor-pointer border-b border-zinc-800/60 hover:bg-zinc-800/30 ${
-                  selectedStaffIndex === r.staffIndex ? 'bg-emerald-950/25' : ''
-                }`}
-              >
-                <td className="px-2 py-1.5 font-mono text-emerald-200/90">{r.score}</td>
-                <td className="px-2 py-1.5 font-medium text-zinc-200">{r.name}</td>
-                <td className="px-2 py-1.5 text-zinc-400">{r.jobLabel}</td>
-                <td className="max-w-[14rem] truncate px-2 py-1.5 text-zinc-400" title={r.club}>
-                  {r.club}
-                </td>
-                <td className="max-w-[12rem] truncate px-2 py-1.5 text-zinc-500" title={r.nation}>
-                  {r.nation}
-                </td>
-                <td className="px-2 py-1.5 font-mono text-zinc-300">
-                  {r.reputationCurrent != null ? r.reputationCurrent.toLocaleString() : '—'}
-                </td>
-                <td className="px-2 py-1.5 font-mono text-zinc-400">{r.determination}</td>
-                <td className="px-2 py-1.5 font-mono text-zinc-400">{r.nonPlayerCa ?? '—'}</td>
-                <td className="px-2 py-1.5">
-                  {(r.jobByte === 11 ||
-                    r.jobByte === 12 ||
-                    r.jobByte === 13 ||
-                    r.jobByte === 14 ||
-                    r.jobByte === 15) && (
-                    <button
-                      type="button"
-                      className="rounded border border-emerald-700/50 bg-emerald-950/40 px-2 py-1 text-[10px] font-medium text-emerald-200 hover:bg-emerald-900/50"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onOpenPlayerProfile(r.staffIndex)
-                      }}
-                    >
-                      Player profile
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
