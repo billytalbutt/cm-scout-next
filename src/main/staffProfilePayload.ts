@@ -6,6 +6,7 @@ import {
   staffNpAttrDisplay,
 } from '../shared/cm0102StaffNpAttributeDisplay'
 import { buildStaffCoachPreferenceLines, coachingStyleLabel } from '../shared/cm0102StaffProfileText'
+import { staffHiddenAttrDisplay } from '../shared/cm0102StaffHiddenDisplay'
 import type { NonPlayerRecord, ParsedDatabase, StaffRecord } from './database/types'
 import { splitIntoThreeColumns } from './profileLayout'
 import { staffJobForClubLabel } from '../shared/staffJobCatalog'
@@ -42,6 +43,21 @@ function toCell(key: string, label: string, raw: number, invert = false): AttrCe
     inMatch: o.inMatch,
     invert,
   }
+}
+
+function toStaffHiddenCell(key: string, label: string, raw: number): AttrCell {
+  const o = staffHiddenAttrDisplay(key, raw)
+  const cell: AttrCell = {
+    key,
+    label,
+    inGame: o.inGame,
+    inGameUncapped: o.inGameUncapped,
+    raw: o.raw,
+    inMatch: o.inMatch,
+    invert: false,
+  }
+  if (o.displayText != null) cell.displayText = o.displayText
+  return cell
 }
 
 function toNpCell(
@@ -189,15 +205,15 @@ function buildHiddenColumns(
   if (np) {
     for (const { key, label } of NP_HIDDEN_EXTRA) {
       if (MAIN_ATTR_KEYS.has(key)) continue
-      flat.push(toNpCell(key, label, key, np))
+      flat.push(toStaffHiddenCell(String(key), label, np[key] as number))
     }
     for (const { key, label } of NP_HIDDEN_POS_FIELDS) {
-      flat.push(toCell(String(key), label, np[key] as number))
+      flat.push(toStaffHiddenCell(String(key), label, np[key] as number))
     }
   }
 
   for (const { key, label } of STAFF_MENTAL_HIDDEN) {
-    flat.push(toCell(String(key), label, s[key] as number))
+    flat.push(toStaffHiddenCell(String(key), label, s[key] as number))
   }
 
   flat.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))

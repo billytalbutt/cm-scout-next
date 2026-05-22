@@ -5,6 +5,7 @@ import {
   staffNpAttrInGame,
   staffTacticsInGame,
 } from '../shared/cm0102StaffNpAttributeDisplay'
+import { staffHiddenFilterValue } from '../shared/cm0102StaffHiddenDisplay'
 import { staffDisplayName, isValidPlayerRow } from './database/parser'
 import { staffJobForClubLabel } from '../shared/staffJobCatalog'
 import { staffHeuristicDetail, staffRoleHeuristicScore } from './staffHeuristic'
@@ -132,6 +133,9 @@ function staffAttrRawValue(
     }
     const field = spec.npField as keyof NonPlayerRecord
     const raw = np[field] as number
+    if (spec.section === 'hidden') {
+      return staffHiddenFilterValue(spec.key, raw)
+    }
     return staffNpAttrInGame(String(field), raw, np.currentAbility)
   }
   return null

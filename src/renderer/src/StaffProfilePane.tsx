@@ -106,6 +106,10 @@ export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayloa
       {hasHidden && (
         <div>
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hidden</h3>
+          <p className="mb-1 text-[10px] leading-snug text-zinc-600">
+            Values CM rarely shows on staff profiles — position prefs use suitability 0–20 when set;{' '}
+            <span className="font-mono">-1</span> on disk means not set (not a rating of 1).
+          </p>
           <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
             <ProfileAttrColumn cells={p.hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
             <ProfileAttrColumn cells={p.hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />

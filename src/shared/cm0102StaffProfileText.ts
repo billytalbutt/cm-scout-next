@@ -74,8 +74,8 @@ export function preferredFormationLabel(formation: number): string | null {
   return tableLabel(PREFERRED_FORMATION, formation)
 }
 
-/** High `pressing` / `marking` / `offside` bytes trigger these profile lines. */
-const PREFERENCE_THRESHOLD = 14
+/** High `pressing` / `marking` / `offside` bytes trigger these profile lines (CM profile ~15+). */
+export const PREFERENCE_THRESHOLD = 14
 
 export type StaffCoachPreferenceLines = {
   coachingStyle: string | null
