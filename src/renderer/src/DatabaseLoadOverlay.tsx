@@ -1,4 +1,5 @@
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
+import soccerWizardMascot from './assets/soccer-wizard-mascot.png'
 
 type Props = {
   progress: DatabaseLoadProgress
@@ -39,20 +40,12 @@ export function DatabaseLoadOverlay({ progress }: Props) {
           />
 
           <div className="relative mb-6 flex justify-center">
-            <div className="relative h-16 w-16">
-              <div
-                className="absolute inset-0 rounded-full border-2 border-zinc-700/60"
-                aria-hidden
-              />
-              <div
-                className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-emerald-400 border-r-sky-400/80"
-                style={{ animationDuration: '1.1s' }}
-                aria-hidden
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg font-bold tracking-tight text-zinc-100">CM</span>
-              </div>
-            </div>
+            <img
+              src={soccerWizardMascot}
+              alt=""
+              className="h-20 w-20 object-contain"
+              aria-hidden
+            />
           </div>
 
           <h2 className="relative text-center text-lg font-semibold text-zinc-100">
