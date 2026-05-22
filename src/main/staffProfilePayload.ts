@@ -6,9 +6,11 @@ import {
   staffNpAttrDisplay,
 } from '../shared/cm0102StaffNpAttributeDisplay'
 import { buildStaffCoachPreferenceLines, coachingStyleLabel } from '../shared/cm0102StaffProfileText'
-import { staffHiddenAttrDisplay } from '../shared/cm0102StaffHiddenDisplay'
+import {
+  staffHiddenAttrDisplay,
+  staffHiddenColumnForKey,
+} from '../shared/cm0102StaffHiddenDisplay'
 import type { NonPlayerRecord, ParsedDatabase, StaffRecord } from './database/types'
-import { splitIntoThreeColumns } from './profileLayout'
 import { staffJobForClubLabel } from '../shared/staffJobCatalog'
 import { contractTypeLabel } from '../shared/contractTypes'
 import { ageOnGameDate, ageFromBirthYearOnly } from './database/dates'
@@ -200,24 +202,34 @@ function buildHiddenColumns(
   s: StaffRecord,
   np: NonPlayerRecord | undefined,
 ): [AttrCell[], AttrCell[], AttrCell[]] {
-  const flat: AttrCell[] = []
+  const numeric: AttrCell[] = []
+  const text: AttrCell[] = []
+
+  const push = (key: string, label: string, raw: number) => {
+    const cell = toStaffHiddenCell(key, label, raw)
+    if (staffHiddenColumnForKey(key) === 'numeric') numeric.push(cell)
+    else text.push(cell)
+  }
 
   if (np) {
     for (const { key, label } of NP_HIDDEN_EXTRA) {
       if (MAIN_ATTR_KEYS.has(key)) continue
-      flat.push(toStaffHiddenCell(String(key), label, np[key] as number))
+      push(String(key), label, np[key] as number)
     }
     for (const { key, label } of NP_HIDDEN_POS_FIELDS) {
-      flat.push(toStaffHiddenCell(String(key), label, np[key] as number))
+      push(String(key), label, np[key] as number)
     }
   }
 
   for (const { key, label } of STAFF_MENTAL_HIDDEN) {
-    flat.push(toStaffHiddenCell(String(key), label, s[key] as number))
+    push(String(key), label, s[key] as number)
   }
 
-  flat.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
-  return splitIntoThreeColumns(flat)
+  const byLabel = (a: AttrCell, b: AttrCell) =>
+    a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+  numeric.sort(byLabel)
+  text.sort(byLabel)
+  return [numeric, text, []]
 }
 
 export function buildStaffProfilePayload(db: ParsedDatabase, staffIndex: number) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   staffHiddenAttrDisplay,
+  staffHiddenColumnForKey,
   staffHiddenFilterValue,
   staffHiddenMeaningfulForDisplay,
   STAFF_JOB_CHAIRMAN,
@@ -31,8 +32,12 @@ describe('cm0102StaffHiddenDisplay', () => {
     expect(staffHiddenAttrDisplay('pressing', 20).displayText).toContain('close down')
   })
 
-  it('labels chairman traits without role suffix', () => {
-    expect(staffHiddenAttrDisplay('business', 12).displayText).toBe('Business 12/20')
+  it('chairman traits use numeric 1–20 display', () => {
+    const d = staffHiddenAttrDisplay('business', 12)
+    expect(d.displayText).toBeUndefined()
+    expect(d.inGame).toBe(12)
+    expect(staffHiddenColumnForKey('business')).toBe('numeric')
+    expect(staffHiddenColumnForKey('pressing')).toBe('text')
   })
 
   it('staffHiddenMeaningfulForDisplay matches CM profile visibility', () => {

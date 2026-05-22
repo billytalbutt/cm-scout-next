@@ -62,7 +62,7 @@ const MODE_BY_KEY: Record<StaffNpAttrKey, StaffNpConvertMode> = {
   physiotherapy: 'highRounded',
   pressing: 'raw',
   resources: 'raw',
-  tactics: 'caDiv35Trunc',
+  tactics: 'highRounded',
   youngsters: 'raw',
 }
 

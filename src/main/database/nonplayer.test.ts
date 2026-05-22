@@ -65,4 +65,21 @@ describe('nonPlayerForStaffLink', () => {
     expect(np?.coaching).toBe(9)
     expect(np?.id).toBe(1)
   })
+
+  it('prefers higher-quality row when index and id both resolve', () => {
+    const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 3)
+    writeNpRow(buf, 0, { id: 100, coaching: 2, judgement: 3 })
+    writeNpRow(buf, 1, { id: 999, coaching: 1, judgement: 1 })
+    buf.writeUInt16LE(35, 1 * NONPLAYER_ROW_BYTES + 4)
+    buf.writeInt8(2, 1 * NONPLAYER_ROW_BYTES + 0x21)
+    writeNpRow(buf, 2, { id: 1, coaching: 7, judgement: 11 })
+    buf.writeUInt16LE(185, 2 * NONPLAYER_ROW_BYTES + 4)
+    buf.writeInt8(5, 2 * NONPLAYER_ROW_BYTES + 0x21)
+
+    const rows = parseNonPlayerData(buf)
+    const np = nonPlayerForStaffLink(1, rows)
+    expect(np?.coaching).toBe(7)
+    expect(np?.tactics).toBe(5)
+    expect(np?.currentAbility).toBe(185)
+  })
 })

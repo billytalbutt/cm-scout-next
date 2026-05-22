@@ -47,6 +47,21 @@ export type StaffTacticalTraitKey = (typeof STAFF_TACTICAL_TRAIT_KEYS)[number]
 
 export const STAFF_CHAIRMAN_ONLY_KEYS = ['business', 'interference', 'resources'] as const
 
+/** `staff.dat` mentals + chairman bytes shown as 1–20 in the hidden left column. */
+export const STAFF_HIDDEN_NUMERIC_KEYS = new Set<string>([
+  'ambition',
+  'loyalty',
+  'pressure',
+  'professionalism',
+  'sportsmanship',
+  'temperament',
+  ...STAFF_CHAIRMAN_ONLY_KEYS,
+])
+
+export function staffHiddenColumnForKey(key: string): 'numeric' | 'text' {
+  return STAFF_HIDDEN_NUMERIC_KEYS.has(key) ? 'numeric' : 'text'
+}
+
 const TACTICAL_ACTIVE_PHRASE: Partial<Record<StaffTacticalTraitKey, string>> = {
   attacking: 'Favours attacking football',
   freeRoles: 'Encourages free roles',
@@ -196,9 +211,7 @@ export function staffHiddenAttrDisplay(key: string, raw: number): StaffHiddenDis
     }
   }
   if ((STAFF_CHAIRMAN_ONLY_KEYS as readonly string[]).includes(key)) {
-    const text = staffChairmanTraitLabel(key as (typeof STAFF_CHAIRMAN_ONLY_KEYS)[number], raw)
-    const o = otherAttrDisplay(raw)
-    return { ...o, displayText: text }
+    return otherAttrDisplay(raw)
   }
   // staff.dat mentals — standard 1–20 personality bytes
   return otherAttrDisplay(raw)

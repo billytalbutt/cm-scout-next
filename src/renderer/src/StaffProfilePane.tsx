@@ -165,10 +165,9 @@ export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayloa
             appear on the in-game staff profile.
           </p>
           {hasHidden ? (
-            <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+            <div className="grid grid-cols-2 gap-x-4 border-t border-zinc-800/60 pt-2">
               <ProfileAttrColumn cells={hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
               <ProfileAttrColumn cells={hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />
-              <ProfileAttrColumn cells={hiddenColumns[2]} showEngineAttrs={showEngineAttrs} />
             </div>
           ) : (
             <p className="border-t border-zinc-800/60 pt-2 text-[11px] text-zinc-500">
