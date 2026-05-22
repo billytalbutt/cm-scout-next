@@ -16,6 +16,19 @@
     0 0 12px rgb(16 185 129 / 0.25);
 }
 
+/* Player/staff grid — opaque sticky header (no bleed-through while scrolling) */
+.cm-grid-sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: rgb(9 9 11);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
+}
+
+.cm-grid-sticky-head th {
+  background-color: rgb(9 9 11);
+}
+
 /* Profile pane name bar — flush to pane top so scroll content does not peek above */
 .profile-pane-sticky {
   position: sticky;

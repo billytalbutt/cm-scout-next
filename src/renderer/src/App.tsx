@@ -2123,7 +2123,7 @@ export function App() {
               </span>
             )}
           </div>
-          <div ref={scrollParentRef} className="cm-scroll relative min-h-0 flex-1 overflow-auto p-3">
+          <div ref={scrollParentRef} className="cm-scroll relative min-h-0 flex-1 overflow-auto px-3 pb-3 pt-0">
             {(textFiltersPending || gridRefreshing) &&
               loadInfo &&
               (browseTab === 'players' || browseTab === 'regens') && (
@@ -2304,12 +2304,12 @@ export function App() {
               </p>
             )}
             <table className="w-full border-collapse text-left text-sm">
-              <thead className="sticky top-0 z-20 bg-zinc-950/95 shadow-[0_4px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+              <thead className="cm-grid-sticky-head">
                 {loadInfo && gridMeta && rows.length > 0 && (
                   <tr className="border-b border-zinc-800/80">
                     <th
                       colSpan={colCount}
-                      className="px-2 py-1.5 text-left text-[11px] font-normal text-zinc-500"
+                      className="bg-zinc-950 px-2 py-1.5 text-left text-[11px] font-normal text-zinc-500"
                     >
                       Showing <span className="font-mono text-zinc-300">{rows.length.toLocaleString()}</span> loaded
                       rows · total matching{' '}
@@ -2329,7 +2329,7 @@ export function App() {
                     {hg.headers.map((h) => (
                       <th
                         key={h.id}
-                        className="cursor-pointer select-none px-2 py-2 font-medium text-zinc-400 hover:text-zinc-200"
+                        className="cursor-pointer select-none bg-zinc-950 px-2 py-2 font-medium text-zinc-400 hover:text-zinc-200"
                         onClick={h.column.getToggleSortingHandler()}
                       >
                         {flexRender(h.column.columnDef.header, h.getContext())}

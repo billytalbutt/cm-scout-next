@@ -81,24 +81,24 @@ export function StaffBrowsePanel({
       {err && <p className="shrink-0 text-xs text-rose-300">{err}</p>}
       <div className="cm-scroll min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-800">
         <table className="w-full min-w-[56rem] border-collapse text-left text-xs">
-          <thead className="sticky top-0 z-20 bg-zinc-950/95 shadow-[0_4px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+          <thead className="cm-grid-sticky-head">
             <tr className="border-b border-zinc-800/80 text-zinc-500">
-              <th colSpan={10} className="px-2 py-2 text-left text-[11px] font-normal text-zinc-500">
+              <th colSpan={10} className="bg-zinc-950 px-2 py-2 text-left text-[11px] font-normal text-zinc-500">
                 Showing <span className="font-mono text-zinc-300">{rows.length}</span> of{' '}
                 <span className="font-mono text-zinc-300">{total}</span> matching rows · use filters on the left
               </th>
             </tr>
             <tr className="border-b border-zinc-800 text-zinc-500">
-              <th className="px-2 py-2">Score</th>
-              <th className="px-2 py-2">Name</th>
-              <th className="px-2 py-2">Job</th>
-              <th className="px-2 py-2">Club</th>
-              <th className="px-2 py-2">Nation</th>
-              <th className="px-2 py-2">Reputation</th>
-              <th className="px-2 py-2">Det</th>
-              <th className="px-2 py-2">NPCA</th>
-              <th className="px-2 py-2">Heuristic detail</th>
-              <th className="px-2 py-2"> </th>
+              <th className="bg-zinc-950 px-2 py-2">Score</th>
+              <th className="bg-zinc-950 px-2 py-2">Name</th>
+              <th className="bg-zinc-950 px-2 py-2">Job</th>
+              <th className="bg-zinc-950 px-2 py-2">Club</th>
+              <th className="bg-zinc-950 px-2 py-2">Nation</th>
+              <th className="bg-zinc-950 px-2 py-2">Reputation</th>
+              <th className="bg-zinc-950 px-2 py-2">Det</th>
+              <th className="bg-zinc-950 px-2 py-2">NPCA</th>
+              <th className="bg-zinc-950 px-2 py-2">Heuristic detail</th>
+              <th className="bg-zinc-950 px-2 py-2"> </th>
             </tr>
           </thead>
           <tbody>
