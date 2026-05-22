@@ -34,16 +34,24 @@ describe('staffNpAttrInGame (Pomaski reference)', () => {
     expect(staffTacticsInGame(182, 7)).toBe(17)
   })
 
-  it('uses ca÷20 rounded for non-elite low raw bytes', () => {
-    expect(staffTacticsInGame(150, 1)).toBe(17)
-  })
-
-  it('adds +5 when ca÷25 base is ≤14', () => {
-    expect(staffTacticsInGame(130, 8)).toBe(19)
-  })
-
-  it('keeps elite Pomaski-style ca÷35 trunc without +5 bump', () => {
+  it('matches Pomaski in-game tactical knowledge (CA 182, raw 1 → 13)', () => {
     expect(staffTacticsInGame(182, 1)).toBe(13)
+    expect(staffNpAttrInGame('tactics', 1, 182)).toBe(13)
+  })
+
+  it('matches Malkin in-game tactical knowledge (CA 186, raw 5 → 17)', () => {
+    expect(staffTacticsInGame(186, 5)).toBe(17)
+    expect(staffNpAttrInGame('tactics', 5, 186)).toBe(17)
+  })
+
+  it('does not treat negative tactics bytes as elite low-intrinsic (avoids stuck at 12)', () => {
+    expect(staffTacticsInGame(186, -4)).toBe(16)
+    expect(staffTacticsInGame(186, -5)).not.toBe(12)
+  })
+
+  it('does not add +5 when quadratic base is already ≥15', () => {
+    expect(staffTacticsInGame(186, 5)).toBe(17)
+    expect(staffTacticsInGame(182, 7)).toBe(17)
   })
 
   it('leaves already-high style bytes unchanged', () => {

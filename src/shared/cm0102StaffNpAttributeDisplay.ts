@@ -119,24 +119,38 @@ export function staffManManagementInGame(
 /** Elite coaches with very low tactics byte keep ca÷35 trunc (Pomaski raw 1 @ CA 182 → 13 in-game). */
 export const STAFF_TACTICS_CA35_ELITE_CA_MIN = 175
 
+/** CM only uses the ca÷35 / ca÷20 low-intrinsic paths for 0–3 on disk (not negative sentinels). */
+function staffTacticsLowIntrinsic(raw: number): boolean {
+  return Number.isFinite(raw) && raw >= 0 && raw <= 3
+}
+
+/** Quadratic base before CM’s typical +5 tactical-knowledge display offset. */
+function staffTacticsBase(currentAbility: number, intrinsic: number): number {
+  const raw = Number.isFinite(intrinsic) ? intrinsic : 0
+  const ca = Number.isFinite(currentAbility) ? currentAbility : 0
+  if (staffTacticsLowIntrinsic(raw) && ca >= STAFF_TACTICS_CA35_ELITE_CA_MIN) {
+    return staffNpQuadraticConvert(ca, raw, 35, false)
+  }
+  if (staffTacticsLowIntrinsic(raw)) {
+    return staffNpQuadraticConvert(ca, raw, 20, true)
+  }
+  return staffNpQuadraticConvert(ca, raw, 25, true)
+}
+
 /**
- * Tactical knowledge display in CM:
- * - Elite + very low raw byte (Pomaski): ca÷35 trunc → 13 @ CA 182 raw 1.
- * - Other low raw bytes: ca÷20 rounded (aligns with `highRounded` coaching attrs).
- * - Mid/high raw: ca÷25 rounded; when that base is still ≤14, add +5 (typical in-game offset).
+ * Tactical knowledge on the staff profile.
+ * Validated on Pomaski (CA 182, raw 1 → 13) and Malkin (CA 186, raw 5 → 17): mid/high intrinsics
+ * use ca÷25; when that base is still under 15, CM shows +5 more. Elite 0–3 @ high CA uses ca÷35.
  */
 export function staffTacticsInGame(currentAbility: number, intrinsic: number): number {
   const raw = Number.isFinite(intrinsic) ? intrinsic : 0
   const ca = Number.isFinite(currentAbility) ? currentAbility : 0
-  if (raw <= 3 && ca >= STAFF_TACTICS_CA35_ELITE_CA_MIN) {
-    return staffNpQuadraticConvert(ca, raw, 35, false)
+  const base = staffTacticsBase(ca, raw)
+  if (staffTacticsLowIntrinsic(raw) && ca >= STAFF_TACTICS_CA35_ELITE_CA_MIN && base >= 12) {
+    return base
   }
-  if (raw <= 3) {
-    return staffNpQuadraticConvert(ca, raw, 20, true)
-  }
-  const base = staffNpQuadraticConvert(ca, raw, 25, true)
-  if (base <= 14) return clamp20(base + 5)
-  return base
+  if (base >= 15) return base
+  return clamp20(base + 5)
 }
 
 export function staffNpConvertMode(key: string): StaffNpConvertMode {

@@ -131,6 +131,8 @@ function isPlausibleNonPlayerRow(np: NonPlayerRecord): boolean {
     np.youngsters,
   ]
   if (!coachingBytes.some((v) => v > 0)) return false
+  // Negative non-sentinel bytes break tactical scaling (elite ca÷35 path misfires).
+  if (coachingBytes.some((v) => v < 0)) return false
   return true
 }
 
@@ -151,6 +153,7 @@ function nonPlayerRowQualityScore(np: NonPlayerRecord): number {
     const v = np[k] as number
     if (v > 0 && v <= 20) score += 40
     else if (v > 20) score += 15
+    else if (v < 0) score -= 25
   }
   return score
 }
