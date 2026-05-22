@@ -117,12 +117,12 @@ export function staffManManagementInGame(
 }
 
 /**
- * Tactical knowledge: CM uses CA÷35 (trunc) for low/high intrinsic bytes and CA÷25 (rounded)
- * for mid-range (profile-verified: Pomaski raw 1 → 13; Malkin/Foster mid raw → 17).
+ * Tactical knowledge: low intrinsic → CA÷35 (trunc); mid/high intrinsic → CA÷25 (rounded).
+ * (Pomaski-style raw 1 → 13; Malkin/Foster-style raw 4–7 → 17 at CA ~186.)
  */
 export function staffTacticsInGame(currentAbility: number, intrinsic: number): number {
   const raw = Number.isFinite(intrinsic) ? intrinsic : 0
-  if (raw <= 3 || raw >= 7) return staffNpQuadraticConvert(currentAbility, raw, 35, false)
+  if (raw <= 3) return staffNpQuadraticConvert(currentAbility, raw, 35, false)
   return staffNpQuadraticConvert(currentAbility, raw, 25, true)
 }
 

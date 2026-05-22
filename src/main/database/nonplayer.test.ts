@@ -36,6 +36,19 @@ describe('nonPlayerForStaffLink', () => {
     expect(rows[0].id).not.toBe(2)
   })
 
+  it('uses row index when plausible even if another row shares the same id value', () => {
+    const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 3)
+    writeNpRow(buf, 0, { id: 10, coaching: 2, judgement: 3 })
+    writeNpRow(buf, 1, { id: 500, coaching: 9, judgement: 11 })
+    writeNpRow(buf, 2, { id: 99, coaching: 19, judgement: 20 })
+
+    const rows = parseNonPlayerData(buf)
+    // Link 1 must resolve to row[1], not row where id===1.
+    const np = nonPlayerForStaffLink(1, rows)
+    expect(np?.coaching).toBe(9)
+    expect(np?.id).toBe(500)
+  })
+
   it('falls back to id match when row index points at an invalid sentinel row', () => {
     const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 3)
     writeNpRow(buf, 0, { id: 10, coaching: 2, judgement: 3 })

@@ -48,7 +48,7 @@ export function ProfileAttrColumn({
           <span className="truncate text-zinc-400" title={a.key}>
             {a.label}
           </span>
-          {a.displayText != null ? (
+          {typeof a.displayText === 'string' ? (
             <span
               className="shrink-0 max-w-[55%] text-right text-[12px] leading-snug text-zinc-200"
               title={`Intrinsic ${a.raw}`}

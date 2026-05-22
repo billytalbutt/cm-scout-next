@@ -59,8 +59,11 @@ function tableLabel(table: readonly string[], index: number): string | null {
 }
 
 export function coachingStyleLabel(coachingTechnique: number): string | null {
-  if (!Number.isFinite(coachingTechnique) || coachingTechnique < 0) return 'General'
-  return tableLabel(COACHING_STYLE, coachingTechnique)
+  if (!Number.isFinite(coachingTechnique)) return 'General'
+  if (coachingTechnique === 1) return 'Fitness-based'
+  if (coachingTechnique === 2) return 'Technique-based'
+  // CM stores unset/General as -1, 0, or other non-special values on many DB rows.
+  return 'General'
 }
 
 export function preferredPlayingStyleLabel(directness: number): string | null {

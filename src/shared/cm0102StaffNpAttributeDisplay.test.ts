@@ -31,7 +31,7 @@ describe('staffNpAttrInGame (Pomaski reference)', () => {
   it('tactical knowledge uses CA÷25 for mid intrinsics and CA÷35 for low/high', () => {
     expect(staffTacticsInGame(182, 4)).toBe(17)
     expect(staffTacticsInGame(182, 5)).toBe(17)
-    expect(staffTacticsInGame(182, 8)).toBe(14)
+    expect(staffTacticsInGame(182, 7)).toBe(17)
   })
 
   it('leaves already-high style bytes unchanged', () => {

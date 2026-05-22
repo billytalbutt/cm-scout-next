@@ -123,8 +123,8 @@ function isPlausibleNonPlayerRow(np: NonPlayerRecord): boolean {
 
 /**
  * Resolve `staff.dat` `non_player_id` (offset 0x69) to a `nonplayer.dat` row.
- * CM uses the value as a **row index** in most builds; when that row is invalid, fall back
- * to matching the embedded `id` field (some saves/tools store the profile id instead).
+ * CM0102 uses this as a **row index** (`hl.nonPlayers[staff.NonPlayer]` in CM0102Patcher).
+ * Only if that row is empty/garbage do we fall back to matching the embedded profile `id`.
  */
 export function nonPlayerForStaffLink(
   link: number,
@@ -132,17 +132,13 @@ export function nonPlayerForStaffLink(
 ): NonPlayerRecord | undefined {
   if (link <= 0 || !rows?.length) return undefined
 
-  const byId = rows.find((r) => r.id === link)
-  const byIndex = link < rows.length ? rows[link] : undefined
-
-  const indexOk = byIndex && isPlausibleNonPlayerRow(byIndex)
-  const idOk = byId && isPlausibleNonPlayerRow(byId)
-
-  if (indexOk && idOk && byIndex !== byId) {
-    if (byIndex.id === link) return byIndex
-    return byId
+  if (link < rows.length) {
+    const byIndex = rows[link]
+    if (byIndex && isPlausibleNonPlayerRow(byIndex)) return byIndex
   }
-  if (indexOk) return byIndex
-  if (idOk) return byId
+
+  const byId = rows.find((r) => r.id === link)
+  if (byId && isPlausibleNonPlayerRow(byId)) return byId
+
   return undefined
 }
