@@ -39,6 +39,7 @@ export type StaffNpConvertMode =
   | 'highRounded'
   | 'highRoundedMinusOne'
   | 'caDiv25'
+  | 'caDiv35Trunc'
   | 'caDiv35Rounded'
 
 const MODE_BY_KEY: Record<StaffNpAttrKey, StaffNpConvertMode> = {
@@ -61,12 +62,12 @@ const MODE_BY_KEY: Record<StaffNpAttrKey, StaffNpConvertMode> = {
   physiotherapy: 'highRounded',
   pressing: 'raw',
   resources: 'raw',
-  tactics: 'caDiv35Rounded',
+  tactics: 'caDiv35Trunc',
   youngsters: 'raw',
 }
 
-/** In-game “Man management” uses `resources`, not the `manHandling` coaching byte. */
-export const STAFF_MAN_MANAGEMENT_NP_FIELD = 'resources' as const
+/** When `resources` is high it is shown as man-management; otherwise scale `manHandling` with CA. */
+export const STAFF_MAN_MANAGEMENT_RESOURCES_RAW_THRESHOLD = 14
 
 function clamp20(v: number): number {
   if (v < 1) return 1
@@ -104,6 +105,27 @@ function staffNpHighRounded(currentAbility: number, intrinsic: number, minusOne:
   return clamp20(v)
 }
 
+/** In-game man management (Pomaski-style high `resources` byte, else CA-scaled `manHandling`). */
+export function staffManManagementInGame(
+  currentAbility: number,
+  manHandling: number,
+  resources: number,
+): number {
+  const res = Number.isFinite(resources) ? resources : 0
+  if (res >= STAFF_MAN_MANAGEMENT_RESOURCES_RAW_THRESHOLD) return clamp20(res)
+  return staffNpHighRounded(currentAbility, manHandling, false)
+}
+
+/**
+ * Tactical knowledge: low intrinsic uses CA÷35 (trunc); higher values use CA÷25 (rounded).
+ * Matches elite coaches (e.g. Pomaski raw 1 → 13) and mid/high intrinsics (e.g. ~17 at raw 5).
+ */
+export function staffTacticsInGame(currentAbility: number, intrinsic: number): number {
+  const raw = Number.isFinite(intrinsic) ? intrinsic : 0
+  if (raw <= 2) return staffNpQuadraticConvert(currentAbility, raw, 35, false)
+  return staffNpQuadraticConvert(currentAbility, raw, 25, true)
+}
+
 export function staffNpConvertMode(key: string): StaffNpConvertMode {
   return MODE_BY_KEY[key as StaffNpAttrKey] ?? 'raw'
 }
@@ -113,7 +135,14 @@ export function staffNpAttrInGame(
   key: string,
   intrinsic: number,
   currentAbility: number,
+  extra?: { manHandling?: number; resources?: number },
 ): number {
+  if (key === 'manHandling' && extra?.manHandling != null && extra?.resources != null) {
+    return staffManManagementInGame(currentAbility, extra.manHandling, extra.resources)
+  }
+  if (key === 'tactics') {
+    return staffTacticsInGame(currentAbility, intrinsic)
+  }
   const mode = staffNpConvertMode(key)
   const ca = Number.isFinite(currentAbility) ? currentAbility : 0
   const raw = Number.isFinite(intrinsic) ? intrinsic : 0
@@ -126,6 +155,8 @@ export function staffNpAttrInGame(
       return staffNpHighRounded(ca, raw, true)
     case 'caDiv25':
       return staffNpQuadraticConvert(ca, raw, 25, false)
+    case 'caDiv35Trunc':
+      return staffNpQuadraticConvert(ca, raw, 35, false)
     case 'caDiv35Rounded':
       return staffNpQuadraticConvert(ca, raw, 35, true)
     default:
@@ -137,16 +168,21 @@ export function staffNpAttrDisplay(
   key: string,
   intrinsic: number,
   currentAbility: number,
+  extra?: { manHandling?: number; resources?: number },
 ): AttrDisplayBlock {
   const raw = Number.isFinite(intrinsic) ? intrinsic : 0
-  const inGame = staffNpAttrInGame(key, raw, currentAbility)
+  const inGame = staffNpAttrInGame(key, raw, currentAbility, extra)
   const mode = staffNpConvertMode(key)
   let inGameUncapped = raw
-  if (mode === 'high' || mode === 'highRounded' || mode === 'highRoundedMinusOne') {
+  if (key === 'manHandling' && extra?.manHandling != null && extra?.resources != null) {
+    inGameUncapped = staffManManagementInGame(currentAbility, extra.manHandling, extra.resources)
+  } else if (key === 'tactics') {
+    inGameUncapped = staffTacticsInGame(currentAbility, raw)
+  } else if (mode === 'high' || mode === 'highRounded' || mode === 'highRoundedMinusOne') {
     const unc = highConvertUncapped(currentAbility, raw)
     inGameUncapped =
       mode === 'highRoundedMinusOne' && unc > 1 ? unc - 1 : mode === 'highRounded' ? Math.round(unc) : unc
-  } else if (mode === 'caDiv25' || mode === 'caDiv35Rounded') {
+  } else if (mode === 'caDiv25' || mode === 'caDiv35Trunc' || mode === 'caDiv35Rounded') {
     inGameUncapped = staffNpQuadraticConvert(
       currentAbility,
       raw,

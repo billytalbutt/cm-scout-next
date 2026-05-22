@@ -124,6 +124,8 @@ export interface ProfileAttrCell {
   highlightTier?: 'primary' | 'secondary'
   /** Thin ring — absolute “engine breaker” bankers for natural role(s). */
   highlightEngine?: boolean
+  /** When set, show this label instead of the numeric in-game rating. */
+  displayText?: string | null
 }
 
 export interface ProfileSeasonStatsRow {

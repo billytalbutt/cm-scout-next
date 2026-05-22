@@ -48,19 +48,28 @@ export function ProfileAttrColumn({
           <span className="truncate text-zinc-400" title={a.key}>
             {a.label}
           </span>
-          <span
-            className={`shrink-0 font-mono text-[13px] tabular-nums ${attrColor(a.inGame, a.invert)}`}
-            title={`In-game ${a.inGame}${
-              showEngineAttrs && a.inGameUncapped !== a.inGame ? ` · engine display ${a.inGameUncapped}` : ''
-            } · intrinsic ${a.raw} · in-match ${a.inMatch}`}
-          >
-            {a.inGame}
-            {showEngineAttrs && a.inGameUncapped !== a.inGame && (
-              <span className={`ml-0.5 text-[12px] ${engineBracketClass(a.inGameUncapped, a.inGame)}`}>
-                ({a.inGameUncapped})
-              </span>
-            )}
-          </span>
+          {a.displayText != null ? (
+            <span
+              className="shrink-0 max-w-[55%] text-right text-[12px] leading-snug text-zinc-200"
+              title={`Intrinsic ${a.raw}`}
+            >
+              {a.displayText}
+            </span>
+          ) : (
+            <span
+              className={`shrink-0 font-mono text-[13px] tabular-nums ${attrColor(a.inGame, a.invert)}`}
+              title={`In-game ${a.inGame}${
+                showEngineAttrs && a.inGameUncapped !== a.inGame ? ` · engine display ${a.inGameUncapped}` : ''
+              } · intrinsic ${a.raw} · in-match ${a.inMatch}`}
+            >
+              {a.inGame}
+              {showEngineAttrs && a.inGameUncapped !== a.inGame && (
+                <span className={`ml-0.5 text-[12px] ${engineBracketClass(a.inGameUncapped, a.inGame)}`}>
+                  ({a.inGameUncapped})
+                </span>
+              )}
+            </span>
+          )}
         </li>
       ))}
     </ul>

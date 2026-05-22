@@ -2,10 +2,10 @@ import { nonPlayerForStaffLink } from './database/nonplayer'
 import { staffDisplayName } from './database/parser'
 import { otherAttrDisplay } from './database/attributes'
 import {
-  STAFF_MAN_MANAGEMENT_NP_FIELD,
+  staffManManagementInGame,
   staffNpAttrDisplay,
 } from '../shared/cm0102StaffNpAttributeDisplay'
-import { buildStaffCoachPreferenceLines } from '../shared/cm0102StaffProfileText'
+import { buildStaffCoachPreferenceLines, coachingStyleLabel } from '../shared/cm0102StaffProfileText'
 import type { NonPlayerRecord, ParsedDatabase, StaffRecord } from './database/types'
 import { splitIntoThreeColumns } from './profileLayout'
 import { staffJobForClubLabel } from '../shared/staffJobCatalog'
@@ -21,6 +21,8 @@ type AttrCell = {
   inMatch: number
   invert: boolean
   highlightTier?: 'primary' | 'secondary'
+  /** Textual profile line (e.g. coaching style) instead of a 1–20 rating. */
+  displayText?: string | null
 }
 
 function nationLine(db: ParsedDatabase, firstId: number, secondId: number): string {
@@ -50,7 +52,10 @@ function toNpCell(
   invert = false,
 ): AttrCell {
   const raw = np[field] as number
-  const o = staffNpAttrDisplay(key, raw, np.currentAbility)
+  const o = staffNpAttrDisplay(key, raw, np.currentAbility, {
+    manHandling: np.manHandling,
+    resources: np.resources,
+  })
   return {
     key,
     label,
@@ -62,6 +67,33 @@ function toNpCell(
   }
 }
 
+function toManManagementCell(np: NonPlayerRecord): AttrCell {
+  const inGame = staffManManagementInGame(np.currentAbility, np.manHandling, np.resources)
+  return {
+    key: 'manHandling',
+    label: 'Man management',
+    inGame,
+    inGameUncapped: inGame,
+    raw: np.manHandling,
+    inMatch: inGame,
+    invert: false,
+  }
+}
+
+function toCoachingStyleCell(np: NonPlayerRecord): AttrCell {
+  const text = coachingStyleLabel(np.coachingTechnique)
+  return {
+    key: 'coachingStyle',
+    label: 'Coaching style',
+    inGame: 0,
+    inGameUncapped: 0,
+    raw: np.coachingTechnique,
+    inMatch: 0,
+    invert: false,
+    displayText: text ?? '—',
+  }
+}
+
 /** CM staff profile — left column (in-game order). */
 const STAFF_MAIN_LEFT: { key: string; label: string; from: 'staff' | 'np'; field: string }[] = [
   { key: 'adaptability', label: 'Adaptability', from: 'staff', field: 'adaptability' },
@@ -70,20 +102,17 @@ const STAFF_MAIN_LEFT: { key: string; label: string; from: 'staff' | 'np'; field
   { key: 'determination', label: 'Determination', from: 'staff', field: 'determination' },
   { key: 'judgement', label: 'Judging player ability', from: 'np', field: 'judgement' },
   { key: 'judgingPotential', label: 'Judging player potential', from: 'np', field: 'judgingPotential' },
+  { key: 'discipline', label: 'Level of discipline', from: 'np', field: 'discipline' },
 ]
 
 /** CM staff profile — right column (in-game order). */
-const STAFF_MAIN_RIGHT: { key: string; label: string; from: 'staff' | 'np'; field: string }[] = [
-  { key: 'discipline', label: 'Level of discipline', from: 'np', field: 'discipline' },
-  {
-    key: 'manHandling',
-    label: 'Man management',
-    from: 'np',
-    field: STAFF_MAN_MANAGEMENT_NP_FIELD,
-  },
+const STAFF_MAIN_RIGHT: { key: string; label: string; from: 'staff' | 'np' | 'npMan' | 'npStyle'; field: string }[] = [
+  { key: 'manHandling', label: 'Man management', from: 'npMan', field: 'manHandling' },
   { key: 'motivating', label: 'Motivating', from: 'np', field: 'motivating' },
+  { key: 'physiotherapy', label: 'Physiotherapy', from: 'np', field: 'physiotherapy' },
   { key: 'tactics', label: 'Tactical knowledge', from: 'np', field: 'tactics' },
   { key: 'youngsters', label: 'Working with youngsters', from: 'np', field: 'youngsters' },
+  { key: 'coachingStyle', label: 'Coaching style', from: 'npStyle', field: 'coachingTechnique' },
 ]
 
 const MAIN_ATTR_KEYS = new Set([
@@ -100,7 +129,6 @@ const NP_HIDDEN_EXTRA: { key: keyof NonPlayerRecord; label: string }[] = [
   { key: 'marking', label: 'Marking' },
   { key: 'offside', label: 'Offside' },
   { key: 'patience', label: 'Patience' },
-  { key: 'physiotherapy', label: 'Physiotherapy' },
   { key: 'pressing', label: 'Pressing' },
   { key: 'resources', label: 'Resources' },
 ]
@@ -130,7 +158,7 @@ const STAFF_MENTAL_HIDDEN: { key: keyof Pick<
 ]
 
 function readMainCell(
-  spec: (typeof STAFF_MAIN_LEFT)[number],
+  spec: (typeof STAFF_MAIN_LEFT)[number] | (typeof STAFF_MAIN_RIGHT)[number],
   s: StaffRecord,
   np: NonPlayerRecord | undefined,
 ): AttrCell | null {
@@ -138,6 +166,8 @@ function readMainCell(
     return toCell(spec.key, spec.label, s[spec.field as keyof StaffRecord] as number)
   }
   if (!np) return null
+  if (spec.from === 'npMan') return toManManagementCell(np)
+  if (spec.from === 'npStyle') return toCoachingStyleCell(np)
   return toNpCell(spec.key, spec.label, spec.field as keyof NonPlayerRecord, np)
 }
 

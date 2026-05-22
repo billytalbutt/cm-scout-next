@@ -1,8 +1,9 @@
 import { nonPlayerForStaffLink } from './database/nonplayer'
 import type { NonPlayerRecord, ParsedDatabase, StaffRecord } from './database/types'
 import {
-  STAFF_MAN_MANAGEMENT_NP_FIELD,
+  staffManManagementInGame,
   staffNpAttrInGame,
+  staffTacticsInGame,
 } from '../shared/cm0102StaffNpAttributeDisplay'
 import { staffDisplayName, isValidPlayerRow } from './database/parser'
 import { staffJobForClubLabel } from '../shared/staffJobCatalog'
@@ -123,10 +124,15 @@ function staffAttrRawValue(
   }
   if (spec.source === 'np' && spec.npField) {
     if (!np) return null
+    if (spec.key === 'manHandling') {
+      return staffManManagementInGame(np.currentAbility, np.manHandling, np.resources)
+    }
+    if (spec.key === 'tactics') {
+      return staffTacticsInGame(np.currentAbility, np.tactics)
+    }
     const field = spec.npField as keyof NonPlayerRecord
     const raw = np[field] as number
-    const displayKey = spec.key === 'manHandling' ? STAFF_MAN_MANAGEMENT_NP_FIELD : field
-    return staffNpAttrInGame(String(displayKey), raw, np.currentAbility)
+    return staffNpAttrInGame(String(field), raw, np.currentAbility)
   }
   return null
 }

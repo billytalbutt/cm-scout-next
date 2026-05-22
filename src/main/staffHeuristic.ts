@@ -6,11 +6,18 @@
  */
 import type { NonPlayerRecord } from './database/types'
 import {
-  STAFF_MAN_MANAGEMENT_NP_FIELD,
+  staffManManagementInGame,
   staffNpAttrInGame,
+  staffTacticsInGame,
 } from '../shared/cm0102StaffNpAttributeDisplay'
 
 function npDisp(np: NonPlayerRecord, key: string): number {
+  if (key === 'manHandling') {
+    return staffManManagementInGame(np.currentAbility, np.manHandling, np.resources)
+  }
+  if (key === 'tactics') {
+    return staffTacticsInGame(np.currentAbility, np.tactics)
+  }
   const raw = np[key as keyof NonPlayerRecord] as number
   return staffNpAttrInGame(key, raw, np.currentAbility)
 }
@@ -34,7 +41,7 @@ export function staffRoleHeuristicScore(jobForClub: number, np: NonPlayerRecord 
   const tac = clamp20(npDisp(np, 'tactics'))
   const mot = clamp20(npDisp(np, 'motivating'))
   const dis = clamp20(npDisp(np, 'discipline'))
-  const man = clamp20(npDisp(np, STAFF_MAN_MANAGEMENT_NP_FIELD))
+  const man = clamp20(npDisp(np, 'manHandling'))
   const jA = clamp20(npDisp(np, 'judgement'))
   const jP = clamp20(npDisp(np, 'judgingPotential'))
   const phys = clamp20(npDisp(np, 'physiotherapy'))
