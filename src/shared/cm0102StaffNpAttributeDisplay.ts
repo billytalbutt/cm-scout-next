@@ -116,14 +116,27 @@ export function staffManManagementInGame(
   return staffNpHighRounded(currentAbility, manHandling, false)
 }
 
+/** Elite coaches with very low tactics byte keep ca÷35 trunc (Pomaski raw 1 @ CA 182 → 13 in-game). */
+export const STAFF_TACTICS_CA35_ELITE_CA_MIN = 175
+
 /**
- * Tactical knowledge: low intrinsic → CA÷35 (trunc); mid/high intrinsic → CA÷25 (rounded).
- * (Pomaski-style raw 1 → 13; Malkin/Foster-style raw 4–7 → 17 at CA ~186.)
+ * Tactical knowledge display in CM:
+ * - Elite + very low raw byte (Pomaski): ca÷35 trunc → 13 @ CA 182 raw 1.
+ * - Other low raw bytes: ca÷20 rounded (aligns with `highRounded` coaching attrs).
+ * - Mid/high raw: ca÷25 rounded; when that base is still ≤14, add +5 (typical in-game offset).
  */
 export function staffTacticsInGame(currentAbility: number, intrinsic: number): number {
   const raw = Number.isFinite(intrinsic) ? intrinsic : 0
-  if (raw <= 3) return staffNpQuadraticConvert(currentAbility, raw, 35, false)
-  return staffNpQuadraticConvert(currentAbility, raw, 25, true)
+  const ca = Number.isFinite(currentAbility) ? currentAbility : 0
+  if (raw <= 3 && ca >= STAFF_TACTICS_CA35_ELITE_CA_MIN) {
+    return staffNpQuadraticConvert(ca, raw, 35, false)
+  }
+  if (raw <= 3) {
+    return staffNpQuadraticConvert(ca, raw, 20, true)
+  }
+  const base = staffNpQuadraticConvert(ca, raw, 25, true)
+  if (base <= 14) return clamp20(base + 5)
+  return base
 }
 
 export function staffNpConvertMode(key: string): StaffNpConvertMode {

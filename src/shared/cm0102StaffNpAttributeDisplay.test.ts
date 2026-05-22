@@ -28,10 +28,22 @@ describe('staffNpAttrInGame (Pomaski reference)', () => {
     expect(staffManManagementInGame(182, 7, 9)).toBe(20)
   })
 
-  it('tactical knowledge uses CA÷25 for mid intrinsics and CA÷35 for low/high', () => {
+  it('tactical knowledge uses CA÷25 for mid intrinsics and CA÷35 for elite low raw', () => {
     expect(staffTacticsInGame(182, 4)).toBe(17)
     expect(staffTacticsInGame(182, 5)).toBe(17)
     expect(staffTacticsInGame(182, 7)).toBe(17)
+  })
+
+  it('uses ca÷20 rounded for non-elite low raw bytes', () => {
+    expect(staffTacticsInGame(150, 1)).toBe(17)
+  })
+
+  it('adds +5 when ca÷25 base is ≤14', () => {
+    expect(staffTacticsInGame(130, 8)).toBe(19)
+  })
+
+  it('keeps elite Pomaski-style ca÷35 trunc without +5 bump', () => {
+    expect(staffTacticsInGame(182, 1)).toBe(13)
   })
 
   it('leaves already-high style bytes unchanged', () => {
