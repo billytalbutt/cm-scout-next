@@ -68,6 +68,39 @@ export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayloa
         })()}
       </div>
 
+      {p.coachPreferences && (
+        <div>
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Coaching preferences
+          </h3>
+          <ul className="space-y-1 border-t border-zinc-800/60 pt-2 text-[12px] leading-snug text-zinc-300">
+            {p.coachPreferences.coachingStyle && (
+              <li>
+                <span className="text-zinc-500">Coaching style</span>{' '}
+                {p.coachPreferences.coachingStyle}
+              </li>
+            )}
+            {p.coachPreferences.preferredFormation && (
+              <li>
+                <span className="text-zinc-500">Preferred formation</span>{' '}
+                {p.coachPreferences.preferredFormation}
+              </li>
+            )}
+            {p.coachPreferences.preferredStyle && (
+              <li>
+                <span className="text-zinc-500">Preferred style</span>{' '}
+                {p.coachPreferences.preferredStyle}
+              </li>
+            )}
+            {p.coachPreferences.closesDownOpposition && (
+              <li>Likes his players to close down the opposition</li>
+            )}
+            {p.coachPreferences.playsOffsideTrap && <li>Likes to play the offside trap</li>}
+            {p.coachPreferences.usesManMarking && <li>Likes to deploy a man-marking system</li>}
+          </ul>
+        </div>
+      )}
+
       <div>
         <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Attributes</h3>
         <div className="grid grid-cols-2 gap-x-4 border-t border-zinc-800/60 pt-2">

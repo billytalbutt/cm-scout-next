@@ -242,6 +242,15 @@ export interface StaffProfilePayload {
   reputation: { home: number; current: number; world: number } | null
   attrColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
   hiddenColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
+  /** Coaching style / formation / playing-style lines (not 1–20 attributes). */
+  coachPreferences: null | {
+    coachingStyle: string | null
+    preferredFormation: string | null
+    preferredStyle: string | null
+    closesDownOpposition: boolean
+    playsOffsideTrap: boolean
+    usesManMarking: boolean
+  }
   contract: null | {
     wage: number
     dateStarted: string | null

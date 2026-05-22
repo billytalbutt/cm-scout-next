@@ -1,7 +1,11 @@
 import { nonPlayerForStaffLink } from './database/nonplayer'
 import { staffDisplayName } from './database/parser'
 import { otherAttrDisplay } from './database/attributes'
-import { staffNpAttrDisplay } from '../shared/cm0102StaffNpAttributeDisplay'
+import {
+  STAFF_MAN_MANAGEMENT_NP_FIELD,
+  staffNpAttrDisplay,
+} from '../shared/cm0102StaffNpAttributeDisplay'
+import { buildStaffCoachPreferenceLines } from '../shared/cm0102StaffProfileText'
 import type { NonPlayerRecord, ParsedDatabase, StaffRecord } from './database/types'
 import { splitIntoThreeColumns } from './profileLayout'
 import { staffJobForClubLabel } from '../shared/staffJobCatalog'
@@ -71,11 +75,15 @@ const STAFF_MAIN_LEFT: { key: string; label: string; from: 'staff' | 'np'; field
 /** CM staff profile — right column (in-game order). */
 const STAFF_MAIN_RIGHT: { key: string; label: string; from: 'staff' | 'np'; field: string }[] = [
   { key: 'discipline', label: 'Level of discipline', from: 'np', field: 'discipline' },
-  { key: 'manHandling', label: 'Man management', from: 'np', field: 'manHandling' },
+  {
+    key: 'manHandling',
+    label: 'Man management',
+    from: 'np',
+    field: STAFF_MAN_MANAGEMENT_NP_FIELD,
+  },
   { key: 'motivating', label: 'Motivating', from: 'np', field: 'motivating' },
   { key: 'tactics', label: 'Tactical knowledge', from: 'np', field: 'tactics' },
   { key: 'youngsters', label: 'Working with youngsters', from: 'np', field: 'youngsters' },
-  { key: 'directness', label: 'Coaching style', from: 'np', field: 'directness' },
 ]
 
 const MAIN_ATTR_KEYS = new Set([
@@ -181,6 +189,7 @@ export function buildStaffProfilePayload(db: ParsedDatabase, staffIndex: number)
   const hasNonPlayer = !!np
   const attrColumns = buildMainColumns(s, np)
   const hiddenColumns = buildHiddenColumns(s, np)
+  const coachPreferences = np ? buildStaffCoachPreferenceLines(np) : null
   const reputation = np
     ? {
         home: np.homeReputation,
@@ -206,6 +215,7 @@ export function buildStaffProfilePayload(db: ParsedDatabase, staffIndex: number)
     reputation,
     attrColumns,
     hiddenColumns,
+    coachPreferences,
     contract: c
       ? {
           wage: c.wage,

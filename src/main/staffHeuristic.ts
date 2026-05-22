@@ -5,7 +5,10 @@
  * physios on physiotherapy + motivating; assistant managers spread across tactics, man-management, youngsters.
  */
 import type { NonPlayerRecord } from './database/types'
-import { staffNpAttrInGame } from '../shared/cm0102StaffNpAttributeDisplay'
+import {
+  STAFF_MAN_MANAGEMENT_NP_FIELD,
+  staffNpAttrInGame,
+} from '../shared/cm0102StaffNpAttributeDisplay'
 
 function npDisp(np: NonPlayerRecord, key: string): number {
   const raw = np[key as keyof NonPlayerRecord] as number
@@ -31,7 +34,7 @@ export function staffRoleHeuristicScore(jobForClub: number, np: NonPlayerRecord 
   const tac = clamp20(npDisp(np, 'tactics'))
   const mot = clamp20(npDisp(np, 'motivating'))
   const dis = clamp20(npDisp(np, 'discipline'))
-  const man = clamp20(npDisp(np, 'manHandling'))
+  const man = clamp20(npDisp(np, STAFF_MAN_MANAGEMENT_NP_FIELD))
   const jA = clamp20(npDisp(np, 'judgement'))
   const jP = clamp20(npDisp(np, 'judgingPotential'))
   const phys = clamp20(npDisp(np, 'physiotherapy'))

@@ -20,11 +20,16 @@ export const STAFF_REGULAR_ATTR_FILTERS: readonly StaffAttrFilterSpec[] = [
   { key: 'judgement', label: 'Judging player ability', source: 'np', npField: 'judgement', section: 'regular' },
   { key: 'judgingPotential', label: 'Judging player potential', source: 'np', npField: 'judgingPotential', section: 'regular' },
   { key: 'discipline', label: 'Level of discipline', source: 'np', npField: 'discipline', section: 'regular' },
-  { key: 'manHandling', label: 'Man management', source: 'np', npField: 'manHandling', section: 'regular' },
+  {
+    key: 'manHandling',
+    label: 'Man management',
+    source: 'np',
+    npField: 'resources',
+    section: 'regular',
+  },
   { key: 'motivating', label: 'Motivating', source: 'np', npField: 'motivating', section: 'regular' },
   { key: 'tactics', label: 'Tactical knowledge', source: 'np', npField: 'tactics', section: 'regular' },
   { key: 'youngsters', label: 'Working with youngsters', source: 'np', npField: 'youngsters', section: 'regular' },
-  { key: 'directness', label: 'Coaching style', source: 'np', npField: 'directness', section: 'regular' },
 ]
 
 export const STAFF_HIDDEN_ATTR_FILTERS: readonly StaffAttrFilterSpec[] = [
