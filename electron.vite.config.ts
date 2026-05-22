@@ -19,6 +19,10 @@ function copyRendererStaticAssets(): Plugin {
       if (existsSync(splashSticker)) {
         copyFileSync(splashSticker, join(outDir, 'splash-sticker.png'))
       }
+      const headerMascot = resolve('src/renderer/src/assets/soccer-wizard-mascot.png')
+      if (existsSync(headerMascot)) {
+        copyFileSync(headerMascot, join(outDir, 'soccer-wizard-mascot.png'))
+      }
       const publicDir = resolve('src/renderer/public')
       if (existsSync(publicDir)) {
         for (const name of readdirSync(publicDir)) {
@@ -42,6 +46,7 @@ export default defineConfig({
     },
   },
   renderer: {
+    base: './',
     publicDir: resolve('src/renderer/public'),
     plugins: [react(), copyRendererStaticAssets()],
     build: {
