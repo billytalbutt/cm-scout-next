@@ -23,7 +23,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "postinstall": "npm run build",
-    "start": "electron .",
+    "start": "electron-vite build && electron .",
     "preview": "electron-vite preview",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac"

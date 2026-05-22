@@ -30,7 +30,16 @@ npm install
 npm start
 ```
 
-`npm install` runs a production build automatically (`postinstall`). Use `npm run dev` for hot-reload while developing.
+`npm install` runs a production build automatically (`postinstall`). **`npm start` rebuilds then launches** — so after `git pull` you do not need a separate build step.
+
+### Pull from GitHub and launch (e.g. Anti-Gravity)
+
+1. Pull latest **`main`** from [github.com/billytalbutt/cm-scout-next](https://github.com/billytalbutt/cm-scout-next) (current staff fixes: commit **`4c8eccc`** and later).
+2. From the repo folder, run **`npm start`** (not `electron .` alone — compiled output lives in `out/`, which is not in git).
+
+First time only: **`npm install`** once in that folder.
+
+Use `npm run dev` for hot-reload while developing.
 
 Use **Load Database** and pick **`index.dat`** (often `…/Game/Data/index.dat` in the Starter Kit, or your install’s `Data` folder).
 
