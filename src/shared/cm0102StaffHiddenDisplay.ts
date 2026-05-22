@@ -81,7 +81,56 @@ export function staffChairmanTraitLabel(key: (typeof STAFF_CHAIRMAN_ONLY_KEYS)[n
     interference: 'Interference',
     resources: 'Resources',
   }
-  return `${names[key]} ${ig}/20 (chairman only)`
+  return `${names[key]} ${ig}/20`
+}
+
+/** CM `JobForClub` byte for chairman (`staff.dat`). */
+export const STAFF_JOB_CHAIRMAN = 1
+
+/**
+ * Whether a hidden field is “active” in CM — i.e. would appear on the staff profile or matters for role.
+ * Below-threshold tactical bytes are stored on disk but CM does not show the preference line (not “broken”).
+ */
+export function staffTacticalTraitIsActive(raw: number): boolean {
+  const r = Number.isFinite(raw) ? raw : 0
+  return r >= PREFERENCE_THRESHOLD
+}
+
+export function staffPositionPrefIsSet(raw: number): boolean {
+  return Number.isFinite(raw) && raw >= 0
+}
+
+export function staffCoachingTechniqueIsSet(raw: number): boolean {
+  return raw === 1 || raw === 2
+}
+
+export function staffFormationIsSet(raw: number): boolean {
+  if (!Number.isFinite(raw) || raw <= 0) return false
+  const label = preferredFormationLabel(raw)
+  return label != null && label !== 'None'
+}
+
+/**
+ * Hidden rows worth showing by default (active / set values only).
+ * Chairman business/interference/resources only when `jobForClub` is chairman.
+ */
+export function staffHiddenMeaningfulForDisplay(
+  key: string,
+  raw: number,
+  jobForClub: number,
+): boolean {
+  if ((STAFF_CHAIRMAN_ONLY_KEYS as readonly string[]).includes(key)) {
+    return jobForClub === STAFF_JOB_CHAIRMAN
+  }
+  if ((STAFF_POSITION_PREF_KEYS as readonly string[]).includes(key)) {
+    return staffPositionPrefIsSet(raw)
+  }
+  if ((STAFF_TACTICAL_TRAIT_KEYS as readonly string[]).includes(key)) {
+    return staffTacticalTraitIsActive(raw)
+  }
+  if (key === 'coachingTechnique') return staffCoachingTechniqueIsSet(raw)
+  if (key === 'formation') return staffFormationIsSet(raw)
+  return true
 }
 
 /** Numeric value for staff browse min-filters (null = unset / not comparable). */

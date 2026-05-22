@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   staffHiddenAttrDisplay,
   staffHiddenFilterValue,
+  staffHiddenMeaningfulForDisplay,
+  STAFF_JOB_CHAIRMAN,
   staffPositionPrefLabel,
   staffTacticalTraitLabel,
 } from './cm0102StaffHiddenDisplay'
@@ -29,7 +31,21 @@ describe('cm0102StaffHiddenDisplay', () => {
     expect(staffHiddenAttrDisplay('pressing', 20).displayText).toContain('close down')
   })
 
-  it('labels chairman-only bytes', () => {
-    expect(staffHiddenAttrDisplay('business', 12).displayText).toContain('chairman only')
+  it('labels chairman traits without role suffix', () => {
+    expect(staffHiddenAttrDisplay('business', 12).displayText).toBe('Business 12/20')
+  })
+
+  it('staffHiddenMeaningfulForDisplay matches CM profile visibility', () => {
+    expect(staffHiddenMeaningfulForDisplay('attacking', 6, 8)).toBe(false)
+    expect(staffHiddenMeaningfulForDisplay('attacking', 15, 8)).toBe(true)
+    expect(staffHiddenMeaningfulForDisplay('attackerPref', -1, 8)).toBe(false)
+    expect(staffHiddenMeaningfulForDisplay('attackerPref', 12, 8)).toBe(true)
+    expect(staffHiddenMeaningfulForDisplay('business', 12, 8)).toBe(false)
+    expect(staffHiddenMeaningfulForDisplay('business', 12, STAFF_JOB_CHAIRMAN)).toBe(true)
+    expect(staffHiddenMeaningfulForDisplay('coachingTechnique', -1, 8)).toBe(false)
+    expect(staffHiddenMeaningfulForDisplay('coachingTechnique', 1, 8)).toBe(true)
+    expect(staffHiddenMeaningfulForDisplay('formation', 0, 8)).toBe(false)
+    expect(staffHiddenMeaningfulForDisplay('formation', 3, 8)).toBe(true)
+    expect(staffHiddenMeaningfulForDisplay('ambition', 10, 8)).toBe(true)
   })
 })

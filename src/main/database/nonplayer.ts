@@ -118,6 +118,19 @@ function isPlausibleNonPlayerRow(np: NonPlayerRecord): boolean {
   const ca = np.currentAbility
   if (!Number.isFinite(ca) || ca < 1 || ca > 250 || ca === 65_535) return false
   if (np.coaching <= -70 || np.tactics <= -70 || np.judgement <= -70) return false
+  // Sentinel / empty rows often have every coaching byte negative except one noise field.
+  const coachingBytes = [
+    np.coaching,
+    np.coachingGks,
+    np.judgement,
+    np.judgingPotential,
+    np.manHandling,
+    np.motivating,
+    np.tactics,
+    np.physiotherapy,
+    np.youngsters,
+  ]
+  if (!coachingBytes.some((v) => v > 0)) return false
   return true
 }
 
