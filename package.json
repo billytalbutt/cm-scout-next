@@ -25,6 +25,7 @@
     "postinstall": "npm run build",
     "start": "electron-vite build && electron .",
     "preview": "electron-vite preview",
+    "icons:build": "powershell -ExecutionPolicy Bypass -File scripts/build-app-icon.ps1",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac"
   },
@@ -51,7 +52,8 @@
   },
   "build": {
     "appId": "com.cmmerlinscout.app",
-    "productName": "CM-01/02 Merlin",
+    "productName": "CM Merlin",
+    "icon": "build/icon.png",
     "directories": {
       "output": "release"
     },

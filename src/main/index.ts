@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, screen, type WebContents } from 'electron'
+import { applyAppIcon, resolveAppIcon } from './appIcon'
 import { join, dirname, basename, extname } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
@@ -244,6 +245,7 @@ function createSplashWindow(): Promise<void> {
 }
 
 function createWindow(): BrowserWindow {
+  const icon = resolveAppIcon()
   const win = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -251,6 +253,7 @@ function createWindow(): BrowserWindow {
     minHeight: 700,
     title: 'CM Merlin',
     show: false,
+    ...(icon ? { icon } : {}),
     webPreferences: {
       // Must be CommonJS: sandboxed preloads cannot use ESM `import` (see Electron docs).
       preload: join(__dirname, '../preload/index.cjs'),
@@ -269,6 +272,7 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(async () => {
+  applyAppIcon()
   await createSplashWindow()
   createWindow()
   app.on('activate', () => {

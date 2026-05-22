@@ -23,6 +23,10 @@ function copyRendererStaticAssets(): Plugin {
       if (existsSync(headerMascot)) {
         copyFileSync(headerMascot, join(outDir, 'soccer-wizard-mascot.png'))
       }
+      const favicon = resolve('src/renderer/public/favicon.png')
+      if (existsSync(favicon)) {
+        copyFileSync(favicon, join(outDir, 'favicon.png'))
+      }
       const publicDir = resolve('src/renderer/public')
       if (existsSync(publicDir)) {
         for (const name of readdirSync(publicDir)) {
