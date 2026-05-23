@@ -31,28 +31,41 @@ export function formatProfileStatCell(v: number | null | undefined, kind: 'int' 
   return <span className="font-mono text-zinc-200">{Math.round(v)}</span>
 }
 
-export function cmScoutRoleTierRingClass(tier: 0 | 1 | 2 | undefined): string {
-  if (tier === 0) return 'ring-1 ring-zinc-400/45'
-  if (tier === 1) return 'ring-1 ring-amber-600/40'
-  if (tier === 2) return 'ring-1 ring-amber-800/35'
-  return ''
+/** Solid fill for CM Scout / Eff % mini tiles (no outline rings). */
+export function cmScoutRoleTierCellClass(tier: 0 | 1 | 2 | undefined): string {
+  if (tier === 0) return 'bg-emerald-600 text-white'
+  if (tier === 1) return 'bg-amber-600 text-white'
+  if (tier === 2) return 'bg-amber-800 text-white'
+  return 'bg-zinc-950 text-zinc-400'
 }
 
-export function cmScoutRoleTierTextClass(tier: 0 | 1 | 2 | undefined): string {
-  if (tier === 0) return 'font-medium text-zinc-100'
-  if (tier === 1) return 'text-amber-200/90'
-  if (tier === 2) return 'text-amber-600/90'
-  return 'text-zinc-300'
+export function cmScoutRoleTierLabelClass(tier: 0 | 1 | 2 | undefined): string {
+  if (tier === 0 || tier === 1 || tier === 2) return 'text-white/75'
+  return 'text-zinc-500'
 }
 
-export function cmScoutRoleSuitableCellClass(suitable: boolean | undefined): string {
-  return suitable ? 'border-zinc-600/70 bg-zinc-800/45' : 'border-zinc-800/80 bg-zinc-950/40'
+export function instructionAdviceClass(tier: 'strong' | 'ok' | 'avoid'): string {
+  if (tier === 'strong') return 'font-medium text-emerald-400'
+  if (tier === 'ok') return 'font-medium text-amber-400'
+  return 'font-medium text-zinc-500'
 }
 
-export function instructionHintTierClass(tier: 'strong' | 'ok' | 'avoid'): string {
-  if (tier === 'strong') return 'border-zinc-600/80 bg-zinc-800/50 text-zinc-300'
-  if (tier === 'ok') return 'border-zinc-700/80 bg-zinc-900/60 text-zinc-400'
-  return 'border-zinc-800/80 bg-zinc-950/50 text-zinc-500'
+export function InstructionHintRow({
+  label,
+  tier,
+  reason,
+}: {
+  label: string
+  tier: 'strong' | 'ok' | 'avoid'
+  reason: string
+}) {
+  return (
+    <li className="text-[10px] leading-snug">
+      <span className="font-medium text-zinc-100">{label}</span>
+      <span className={instructionAdviceClass(tier)}> {playerInstructionAdvice(tier)}</span>
+      <span className="mt-0.5 block text-zinc-500">{reason}</span>
+    </li>
+  )
 }
 
 export function cmScoutRoleValueTierByRole(percents: readonly number[]): Map<number, 0 | 1 | 2> {

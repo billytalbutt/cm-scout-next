@@ -10,8 +10,7 @@ import {
   fmtMoney,
   HoverTip,
   InfoDot,
-  instructionHintTierClass,
-  playerInstructionAdvice,
+  InstructionHintRow,
   ProfileAttrColumn,
   type ProfileTabId,
 } from './profileUi'
@@ -193,14 +192,9 @@ export function PlayerProfileTabViews({
           </div>
         )}
         <p className="text-[11px] text-zinc-400">{profile.freeRoleHint.headline}</p>
-        <ul className="mt-2 space-y-1">
+        <ul className="mt-2 space-y-1.5">
           {profile.tacticalInstructionHints.slice(0, 8).map((h) => (
-            <li
-              key={h.id}
-              className={`rounded border px-2 py-1 text-[10px] ${instructionHintTierClass(h.tier)}`}
-            >
-              <span className="font-medium text-zinc-300">{h.label}</span> {playerInstructionAdvice(h.tier)}
-            </li>
+            <InstructionHintRow key={h.id} label={h.label} tier={h.tier} reason={h.reason} />
           ))}
         </ul>
       </div>

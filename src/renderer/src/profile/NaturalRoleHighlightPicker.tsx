@@ -1,7 +1,8 @@
-import {
-  cmScoutIndexFromEffectivenessArchetypeId,
-} from '../../../shared/profileHighlightRole'
+import { useMemo } from 'react'
+import { cmScoutIndexFromEffectivenessArchetypeId } from '../../../shared/profileHighlightRole'
 import type { ProfilePayload } from '../vite-env.d'
+import { cmScoutRoleValueTierByRole } from './profileUi'
+import { RolePercentMiniCell } from './RolePercentMiniCell'
 
 type Props = {
   profile: ProfilePayload
@@ -16,40 +17,37 @@ export function NaturalRoleHighlightPicker({ profile, activeRoleIdx, onSelectRol
   const rows = profile.effByArchetype
   if (!rows?.length) return null
 
+  const tierByRowIndex = useMemo(() => {
+    const percents = rows.map((r) => r.percent)
+    return cmScoutRoleValueTierByRole(percents)
+  }, [rows])
+
+  const colClass =
+    rows.length >= 7 ? 'grid-cols-7' : rows.length >= 5 ? 'grid-cols-5' : 'grid-cols-4'
+
   return (
     <div>
       <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
         Eff % by recipe (natural roles)
       </p>
       <p className="mt-0.5 text-[9px] leading-snug text-zinc-600">
-        Highlighted = best recipe %. Click a role to update attribute highlights above.
+        Green = best %. Click a role to update attribute highlights above.
       </p>
-      <div className="mt-1 grid grid-cols-4 gap-1 text-center">
-        {rows.map((row) => {
+      <div className={`mt-1 grid ${colClass} gap-1 text-center`}>
+        {rows.map((row, rowIndex) => {
           const roleIdx = cmScoutIndexFromEffectivenessArchetypeId(row.archetypeId)
           if (roleIdx == null) return null
-          const highlightActive = activeRoleIdx === roleIdx
+          const tier = tierByRowIndex.get(rowIndex)
           return (
-            <button
+            <RolePercentMiniCell
               key={row.archetypeId}
-              type="button"
+              label={row.archetypeLabel}
+              percent={`${row.percent.toFixed(1)}%`}
+              tier={tier}
+              selected={activeRoleIdx === roleIdx}
               title={`Highlight key attributes for ${row.archetypeLabel}`}
               onClick={() => onSelectRole(roleIdx)}
-              className={`cursor-pointer rounded px-1 py-1 text-center transition hover:bg-zinc-800/60 ${
-                row.isWinner ? 'bg-zinc-800/70 ring-1 ring-zinc-500/50' : 'bg-zinc-900/50'
-              } ${
-                highlightActive ? 'ring-2 ring-zinc-400/60 ring-offset-1 ring-offset-zinc-900' : ''
-              }`}
-            >
-              <p className="text-[8px] uppercase tracking-wide text-zinc-500">{row.archetypeLabel}</p>
-              <p
-                className={`font-mono text-[11px] ${
-                  row.isWinner ? 'font-medium text-zinc-100' : 'text-zinc-300'
-                }`}
-              >
-                {row.percent.toFixed(1)}%
-              </p>
-            </button>
+            />
           )
         })}
       </div>

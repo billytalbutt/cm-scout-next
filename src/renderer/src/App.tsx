@@ -57,12 +57,8 @@ import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { applyProfileHighlightPack } from './profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
-import {
-  cmScoutRoleSuitableCellClass,
-  cmScoutRoleTierRingClass,
-  cmScoutRoleTierTextClass,
-  instructionHintTierClass,
-} from './profile/profileUi'
+import { InstructionHintRow } from './profile/profileUi'
+import { RolePercentMiniCell } from './profile/RolePercentMiniCell'
 import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
 import {
   getCopiedPlayerAttributes,
@@ -2820,14 +2816,12 @@ export function App() {
                   <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-500">Player Instructions</p>
                   <ul className="mt-1 space-y-1.5">
                     {profile.tacticalInstructionHints.map((h) => (
-                      <li
+                      <InstructionHintRow
                         key={h.id}
-                        className={`rounded border px-2 py-1.5 text-[10px] leading-snug ${instructionHintTierClass(h.tier)}`}
-                      >
-                        <span className="font-medium text-zinc-300">{h.label}</span>
-                        <span className="ml-1.5 font-mono text-zinc-400">{playerInstructionAdvice(h.tier)}</span>
-                        <span className="mt-0.5 block text-zinc-500">{h.reason}</span>
-                      </li>
+                        label={h.label}
+                        tier={h.tier}
+                        reason={h.reason}
+                      />
                     ))}
                   </ul>
                 </div>
@@ -2873,10 +2867,10 @@ export function App() {
                             profile.cmScoutRolePercents &&
                             Math.max(...profile.cmScoutRolePercents) > profile.cmScoutRatingBp + 0.05 && (
                               <p className="text-zinc-400">
-                                <strong className="text-zinc-200">Highlighted</strong> rings mark the best % among
-                                columns; <strong className="text-amber-200/90">amber</strong> shades mark the 2nd- and
-                                3rd-best distinct values (ties share the same tier). Grid BP can be lower if the best
-                                column is not a “suitable” role for this player.
+                                <strong className="text-emerald-400">Green</strong> = best % among columns;{' '}
+                                <strong className="text-amber-400">amber</strong> = 2nd and 3rd best (ties share a tier).
+                                Plain tiles are lower values. Grid BP can be lower if the best column is not a “suitable”
+                                role for this player.
                               </p>
                             )}
                           {profile.effArchetype && (
@@ -3026,20 +3020,14 @@ export function App() {
                         return CM_SCOUT_ROLE_PROFILE_UI_ORDER.map((roleIdx) => {
                           const lab = CM_SCOUT_ROLE_SHORT[roleIdx]!
                           const pct = percents[roleIdx]!
-                          const suit = profile.cmScoutRoleSuitable?.[roleIdx]
                           const tier = tierByRole.get(roleIdx)
-                          const pctTierRing = cmScoutRoleTierRingClass(tier)
-                          const pctClass = cmScoutRoleTierTextClass(tier)
                           return (
-                            <div
+                            <RolePercentMiniCell
                               key={lab + roleIdx}
-                              className={`min-w-0 rounded border px-0.5 py-1 ${cmScoutRoleSuitableCellClass(suit)} ${pctTierRing}`}
-                            >
-                              <div className="truncate text-[8px] font-medium uppercase tracking-tight text-zinc-500">
-                                {lab}
-                              </div>
-                              <div className={`font-mono text-[10px] tabular-nums ${pctClass}`}>{pct}%</div>
-                            </div>
+                              label={lab}
+                              percent={`${pct}%`}
+                              tier={tier}
+                            />
                           )
                         })
                       })()}
