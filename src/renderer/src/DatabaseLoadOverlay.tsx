@@ -1,5 +1,5 @@
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
-import soccerWizardMascot from './assets/soccer-wizard-mascot.png'
+import loadScreenMascot from './assets/load-screen-mascot.png'
 
 type Props = {
   progress: DatabaseLoadProgress
@@ -41,9 +41,9 @@ export function DatabaseLoadOverlay({ progress }: Props) {
 
           <div className="relative mb-6 flex justify-center">
             <img
-              src={soccerWizardMascot}
+              src={loadScreenMascot}
               alt=""
-              className="h-20 w-20 object-contain"
+              className="h-40 w-auto max-w-[min(100%,18rem)] object-contain"
               aria-hidden
             />
           </div>
