@@ -4,6 +4,7 @@ import {
   staffReputationDisplay,
   staffReputationRawFromNonPlayer,
 } from '../../../shared/cm0102StaffMetrics'
+import { formatIsoDateUk } from '../../../shared/dateDisplay'
 import { staffHiddenMeaningfulForDisplay } from '../../../shared/cm0102StaffHiddenDisplay'
 import { ProfileAttrColumn } from '../ProfileAttrBlocks'
 import type { ProfileAttrCell, StaffProfilePayload } from '../vite-env.d'
@@ -98,9 +99,13 @@ export function StaffProfileTabViews({ p, showEngineAttrs }: { p: StaffProfilePa
                 <dt>Wage / week</dt>
                 <dd className="text-right text-zinc-200">{fmtMoney(p.contract.wage)}</dd>
                 <dt>Started</dt>
-                <dd className="text-right font-mono text-zinc-200">{p.contract.dateStarted ?? '—'}</dd>
+                <dd className="text-right font-mono text-zinc-200">
+                  {p.contract.dateStarted ? formatIsoDateUk(p.contract.dateStarted) : '—'}
+                </dd>
                 <dt>Expires</dt>
-                <dd className="text-right font-mono text-zinc-200">{p.contract.contractExpires ?? '—'}</dd>
+                <dd className="text-right font-mono text-zinc-200">
+                  {p.contract.contractExpires ? formatIsoDateUk(p.contract.contractExpires) : '—'}
+                </dd>
                 <dt>Type</dt>
                 <dd className="text-right text-zinc-200">{p.contract.typeLabel ?? String(p.contract.type)}</dd>
               </dl>

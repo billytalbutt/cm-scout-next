@@ -4,6 +4,7 @@ import {
   staffReputationDisplay,
   staffReputationRawFromNonPlayer,
 } from '../../shared/cm0102StaffMetrics'
+import { formatIsoDateUk } from '../../shared/dateDisplay'
 import { staffHiddenMeaningfulForDisplay } from '../../shared/cm0102StaffHiddenDisplay'
 import { ProfileAttrColumn } from './ProfileAttrBlocks'
 import type { ProfileAttrCell, StaffProfilePayload } from './vite-env.d'
@@ -86,7 +87,7 @@ export function StaffProfilePane({
             {p.age != null && p.dobIso && <span className="text-zinc-600"> · </span>}
             {p.dobIso && (
               <>
-                DOB <span className="font-mono text-zinc-400">{p.dobIso}</span>
+                DOB <span className="font-mono text-zinc-400">{formatIsoDateUk(p.dobIso)}</span>
               </>
             )}
           </p>
@@ -203,9 +204,13 @@ export function StaffProfilePane({
             <dt>Wage / week</dt>
             <dd className="font-mono text-zinc-200">{fmtMoney(p.contract.wage)}</dd>
             <dt>Started</dt>
-            <dd className="text-zinc-200">{p.contract.dateStarted ?? '—'}</dd>
+            <dd className="font-mono text-zinc-200">
+              {p.contract.dateStarted ? formatIsoDateUk(p.contract.dateStarted) : '—'}
+            </dd>
             <dt>Expires</dt>
-            <dd className="text-zinc-200">{p.contract.contractExpires ?? '—'}</dd>
+            <dd className="font-mono text-zinc-200">
+              {p.contract.contractExpires ? formatIsoDateUk(p.contract.contractExpires) : '—'}
+            </dd>
             <dt>Contract type</dt>
             <dd className="text-zinc-200">{p.contract.typeLabel ?? p.contract.type}</dd>
           </dl>

@@ -179,16 +179,6 @@ export function AttributeEditorPanel({
     setDraft((prev) => ({ ...prev, [key]: v }))
   }, [])
 
-  const copyAllAttributes = useCallback(() => {
-    if (!snap) return
-    setCopiedPlayerAttributes({
-      staffIndex: snap.staffIndex,
-      name: snap.name,
-      values: { ...snap.values },
-      copiedAt: Date.now(),
-    })
-  }, [snap])
-
   const pasteCopiedAttributes = useCallback(() => {
     const copied = getCopiedPlayerAttributes()
     if (!copied || !snap) return
@@ -341,13 +331,6 @@ export function AttributeEditorPanel({
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={copyAllAttributes}
-            className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800"
-          >
-            Copy attributes
-          </button>
           <button
             type="button"
             disabled={!copiedAttrs}

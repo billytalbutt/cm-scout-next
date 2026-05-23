@@ -57,7 +57,8 @@ import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { applyProfileHighlightPack, highlightPackForRole } from './profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
-import { EuPassportFlag, InstructionHintRow } from './profile/profileUi'
+import { formatIsoDateUk } from '../../shared/dateDisplay'
+import { InstructionHintRow, ProfileNationBlock } from './profile/profileUi'
 import { RolePercentMiniCell } from './profile/RolePercentMiniCell'
 import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
 import {
@@ -1323,7 +1324,7 @@ export function App() {
             <span className="rounded bg-zinc-800 px-2 py-0.5 text-zinc-300">
               {loadInfo.compressed ? 'Compressed' : 'Uncompressed'}
             </span>
-            {loadInfo.gameDate && <span>Game date: {loadInfo.gameDate}</span>}
+            {loadInfo.gameDate && <span>Game date: {formatIsoDateUk(loadInfo.gameDate)}</span>}
             <span className="text-emerald-400/90">
               {loadInfo.playerCount.toLocaleString()} playable in grid
             </span>
@@ -2571,10 +2572,7 @@ export function App() {
                   <span>{profile.name}</span>
                 </h2>
                 <p className="mt-1 text-sm font-medium text-emerald-200/90">{profile.positionLabel}</p>
-                <p className="mt-1.5 text-sm text-zinc-200">
-                  {profile.nationDisplay}
-                  {profile.euPassport && <EuPassportFlag />}
-                </p>
+                <ProfileNationBlock nationDisplay={profile.nationDisplay} euPassport={profile.euPassport} />
                 <p className="mt-0.5 text-xs text-zinc-500">{profile.club}</p>
                 {(profile.age != null || profile.dobIso) && (
                   <p className="mt-1 text-xs text-zinc-500">
@@ -2586,7 +2584,7 @@ export function App() {
                     {profile.age != null && profile.dobIso && <span className="text-zinc-600"> · </span>}
                     {profile.dobIso && (
                       <>
-                        DOB <span className="font-mono text-zinc-400">{profile.dobIso}</span>
+                        DOB <span className="font-mono text-zinc-400">{formatIsoDateUk(profile.dobIso)}</span>
                       </>
                     )}
                   </p>
@@ -3017,11 +3015,13 @@ export function App() {
                     <span className="text-right text-zinc-200">{profile.contract.typeLabel}</span>
                     <span>Started</span>
                     <span className="text-right font-mono text-zinc-200">
-                      {profile.contract.dateStarted ?? '—'}
+                      {profile.contract.dateStarted ? formatIsoDateUk(profile.contract.dateStarted) : '—'}
                     </span>
                     <span>Expires</span>
                     <span className="text-right font-mono text-zinc-200">
-                      {profile.contract.contractExpires ?? '—'}
+                      {profile.contract.contractExpires
+                        ? formatIsoDateUk(profile.contract.contractExpires)
+                        : '—'}
                     </span>
                     <span>Bosman / free</span>
                     <span className="text-right text-zinc-200">{profile.contract.leavingOnBosman ? 'Yes' : 'No'}</span>

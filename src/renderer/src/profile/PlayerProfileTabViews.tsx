@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { formatIsoDateUk } from '../../../shared/dateDisplay'
 import { EliteEngineStar } from '../grid/EliteEngineStar'
 import type { ProfilePayload } from '../vite-env.d'
 import { applyProfileHighlightPack, highlightPackForRole } from '../profileHighlightApply'
@@ -12,6 +13,7 @@ import {
   InfoDot,
   InstructionHintRow,
   ProfileAttrColumn,
+  ProfileNationBlock,
   type ProfileTabId,
 } from './profileUi'
 
@@ -115,9 +117,13 @@ export function PlayerProfileTabViews({
           <span>Contract type</span>
           <span className="text-right text-zinc-200">{profile.contract.typeLabel}</span>
           <span>Started</span>
-          <span className="text-right font-mono text-zinc-200">{profile.contract.dateStarted ?? '—'}</span>
+          <span className="text-right font-mono text-zinc-200">
+            {profile.contract.dateStarted ? formatIsoDateUk(profile.contract.dateStarted) : '—'}
+          </span>
           <span>Expires</span>
-          <span className="text-right font-mono text-zinc-200">{profile.contract.contractExpires ?? '—'}</span>
+          <span className="text-right font-mono text-zinc-200">
+            {profile.contract.contractExpires ? formatIsoDateUk(profile.contract.contractExpires) : '—'}
+          </span>
           <span>Bosman / free</span>
           <span className="text-right text-zinc-200">{profile.contract.leavingOnBosman ? 'Yes' : 'No'}</span>
           <span>Min-fee release</span>
@@ -214,7 +220,7 @@ export function PlayerProfileHeader({ profile }: { profile: ProfilePayload }) {
         <span>{profile.name}</span>
       </h2>
       <p className="mt-1 text-sm text-emerald-200/90">{profile.positionLabel}</p>
-      <p className="mt-1 text-sm text-zinc-200">{profile.nationDisplay}</p>
+      <ProfileNationBlock nationDisplay={profile.nationDisplay} euPassport={profile.euPassport} />
       <p className="text-xs text-zinc-500">{profile.club}</p>
       <p className="mt-2 text-sm">
         <span className="text-zinc-500">CA</span>{' '}

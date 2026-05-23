@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { cm0102FootWord, cm0102MoraleWord } from '../../../shared/cm0102Bands'
+import { nationNameToFlagEmoji, splitNationDisplay } from '../../../shared/nationFlags'
 import {
   attrColor,
   engineBracketClass,
@@ -50,17 +51,63 @@ export function instructionAdviceClass(tier: 'strong' | 'ok' | 'avoid'): string 
   return 'font-medium text-zinc-500'
 }
 
-/** EU passport indicator (1st or 2nd nation GroupMembership) — flag only, no pill styling. */
-export function EuPassportFlag({ className = '' }: { className?: string }) {
+const FLAG_SIZE_CLASS = {
+  grid: 'text-[22px] leading-none',
+  profile: 'text-[20px] leading-none',
+} as const
+
+export function FlagEmoji({
+  emoji,
+  size = 'profile',
+  title,
+  className = '',
+}: {
+  emoji: string
+  size?: keyof typeof FLAG_SIZE_CLASS
+  title?: string
+  className?: string
+}) {
+  if (!emoji) return null
   return (
     <span
-      className={`ml-1.5 inline-block text-[15px] leading-none ${className}`.trim()}
-      title="EU passport (1st or 2nd nation)"
-      aria-label="EU passport"
-      role="img"
+      className={`inline-block ${FLAG_SIZE_CLASS[size]} ${className}`.trim()}
+      title={title}
+      aria-hidden={title ? undefined : true}
+      role={title ? 'img' : undefined}
+      aria-label={title}
     >
-      🇪🇺
+      {emoji}
     </span>
+  )
+}
+
+/** Nation line(s) with flags; EU passport on its own row when applicable. */
+export function ProfileNationBlock({
+  nationDisplay,
+  euPassport,
+}: {
+  nationDisplay: string
+  euPassport?: boolean
+}) {
+  const parts = splitNationDisplay(nationDisplay)
+  return (
+    <>
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-200">
+        {parts.map((name, i) => (
+          <span key={`${name}-${i}`} className="inline-flex items-center gap-1.5">
+            {i > 0 && <span className="text-zinc-600">/</span>}
+            <FlagEmoji emoji={nationNameToFlagEmoji(name)} size="profile" title={name} />
+            <span>{name}</span>
+          </span>
+        ))}
+      </p>
+      {euPassport && (
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-zinc-400">
+          <span>EU passport</span>
+          <FlagEmoji emoji="🇪🇺" size="profile" title="EU passport" />
+        </p>
+      )}
+    </>
   )
 }
 

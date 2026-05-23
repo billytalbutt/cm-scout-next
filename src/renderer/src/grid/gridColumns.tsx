@@ -1,7 +1,8 @@
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table'
-import type { GridPlayerRow } from '../../../shared/gridTypes'
+import { formatIsoDateUk } from '../../../shared/dateDisplay'
 import { GRID_COLUMN_CATALOG } from '../../../shared/gridColumnCatalog'
 import { contractTypeLabel } from '../../../shared/contractTypes'
+import { FlagEmoji } from '../profile/profileUi'
 import { EffPercentCell } from './EffPercentCell'
 import { EliteEngineStar } from './EliteEngineStar'
 
@@ -174,9 +175,7 @@ function defFor(
         header: lab,
         cell: ({ row }) =>
           row.original.euPassport ? (
-            <span className="text-[14px] leading-none" title="EU passport (1st or 2nd nation)" aria-label="EU passport">
-              🇪🇺
-            </span>
+            <FlagEmoji emoji="🇪🇺" size="grid" title="EU passport (1st or 2nd nation)" />
           ) : (
             <span className="text-zinc-600">—</span>
           ),
@@ -642,7 +641,11 @@ function defFor(
         header: lab,
         cell: ({ getValue }) => {
           const s = getValue()
-          return !s ? <span className="text-zinc-600">—</span> : <span className="font-mono text-[11px] text-zinc-300">{s}</span>
+          return !s ? (
+            <span className="text-zinc-600">—</span>
+          ) : (
+            <span className="font-mono text-[11px] text-zinc-300">{formatIsoDateUk(s)}</span>
+          )
         },
       })
     case 'cType':
