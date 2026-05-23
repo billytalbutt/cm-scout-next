@@ -92,7 +92,8 @@ export function ShortlistsPanel({ loadInfo, shortlists, onOpenPlayer, onOpenStaf
         <h2 className="text-sm font-semibold text-zinc-200">Shortlists</h2>
         <p className="mt-0.5 text-[11px] text-zinc-500">
           Player lists export as CM Scout <span className="font-mono">.pls</span> for the game Search folder (max{' '}
-          {SHORTLIST_PLS_MAX_PLAYERS} players). Staff lists are saved in-app and as JSON for reference.
+          {SHORTLIST_PLS_MAX_PLAYERS} players). Lists are saved per save file on this PC (like club favourites). Staff
+          lists can also export as JSON for reference.
         </p>
       </div>
 

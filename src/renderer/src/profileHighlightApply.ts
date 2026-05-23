@@ -51,6 +51,15 @@ function footTier(
   return footMoraleHighlightTier(key, [positionRoleFromCmScoutIndex(roleCmScoutIndex)])
 }
 
+export function highlightPackForRole(
+  profile: ProfilePayload,
+  roleCmScoutIndex: number,
+): ProfileHighlightPack | undefined {
+  const packs = profile.highlightPacksByCmScoutIndex
+  if (!packs?.length) return undefined
+  return packs.find((p) => p.roleCmScoutIndex === roleCmScoutIndex) ?? packs[roleCmScoutIndex]
+}
+
 /** Clone profile with attribute/hidden highlights for one CM Scout role column. */
 export function applyProfileHighlightPack(
   profile: ProfilePayload,

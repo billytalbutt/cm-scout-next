@@ -104,6 +104,10 @@ declare global {
         clubId: number,
         values: Record<string, number>,
       ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
+      getShortlistStore: () => Promise<{ version: 1; lists: import('../../shared/shortlistTypes').Shortlist[] }>
+      setShortlistStore: (
+        store: import('../../shared/shortlistTypes').ShortlistStore,
+      ) => Promise<{ ok: true } | { ok: false; error: string }>
       getShortlistPlayerRows: (staffIndices: number[]) => Promise<GridPlayerRow[]>
       exportShortlistPls: (payload: {
         staffIndices: number[]

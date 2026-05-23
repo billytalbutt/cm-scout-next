@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyProfileHighlightPack } from './profileHighlightApply'
+import { applyProfileHighlightPack, highlightPackForRole } from './profileHighlightApply'
 import type { ProfileHighlightPack, ProfilePayload } from './vite-env.d'
 
 function minimalProfile(): ProfilePayload {
@@ -56,7 +56,7 @@ function minimalProfile(): ProfilePayload {
     hiddenColumns: [[], [], []],
     highlightRolesLabel: 'DM',
     defaultHighlightRoleCmScoutIndex: 2,
-    highlightPacksByCmScoutIndex: [],
+    highlightPacksByCmScoutIndex: [dmPack, wbPack],
     seasonStats: {
       internationalCaps: { apps: 0, goals: 0 },
       cmHistorySeasonLabel: null,
@@ -88,6 +88,14 @@ const wbPack: ProfileHighlightPack = {
   staffPrimary: [],
   staffSecondary: [],
 }
+
+describe('highlightPackForRole', () => {
+  it('finds pack by roleCmScoutIndex not array position', () => {
+    const base = minimalProfile()
+    expect(highlightPackForRole(base, 6)?.roleLabel).toBe('WB')
+    expect(highlightPackForRole(base, 2)?.roleLabel).toBe('DM')
+  })
+})
 
 describe('applyProfileHighlightPack', () => {
   it('switches primary highlights between DM and WB packs', () => {

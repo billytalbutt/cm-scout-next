@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { EliteEngineStar } from '../grid/EliteEngineStar'
 import type { ProfilePayload } from '../vite-env.d'
-import { applyProfileHighlightPack } from '../profileHighlightApply'
+import { applyProfileHighlightPack, highlightPackForRole } from '../profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './NaturalRoleHighlightPicker'
 import { RegenProfileHint } from './RegenProfileHint'
 import {
@@ -33,12 +33,7 @@ export function PlayerProfileTabViews({
   onOpenPredecessor,
 }: Props) {
   const displayProfile = useMemo(() => {
-    if (!profile.highlightPacksByCmScoutIndex?.length) return profile
-    const idx = Math.min(
-      Math.max(0, profileHighlightRoleIdx),
-      profile.highlightPacksByCmScoutIndex.length - 1,
-    )
-    const pack = profile.highlightPacksByCmScoutIndex[idx]
+    const pack = highlightPackForRole(profile, profileHighlightRoleIdx)
     if (!pack) return profile
     return applyProfileHighlightPack(profile, pack)
   }, [profile, profileHighlightRoleIdx])

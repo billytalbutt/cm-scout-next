@@ -13,7 +13,7 @@ type Props = {
 export function RolePercentMiniCell({ label, percent, tier, selected, onClick, title }: Props) {
   const cellClass = cmScoutRoleTierCellClass(tier)
   const labelClass = cmScoutRoleTierLabelClass(tier)
-  const selectedClass = selected ? 'shadow-[inset_0_0_0_2px_rgba(255,255,255,0.55)]' : ''
+  const selectedClass = selected ? 'brightness-110 contrast-125' : ''
   const inner = (
     <>
       <div className={`truncate text-[8px] font-medium uppercase tracking-tight ${labelClass}`}>{label}</div>

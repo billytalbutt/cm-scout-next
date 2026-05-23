@@ -33,6 +33,8 @@ import {
   saveBaselineToDisk,
 } from './regenBaseline'
 import { applyRegenPipeline } from './regenDetection'
+import { loadShortlistStoreFromDisk, saveShortlistStoreToDisk } from './shortlistStore'
+import type { ShortlistStore } from '../shared/shortlistTypes'
 import type { GridIncludeFlags } from '../shared/gridTypes'
 import { ENGINE_SNIFFER_IDS, type EngineSnifferId } from './engineSniffer'
 import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
@@ -336,11 +338,11 @@ ipcMain.handle('open-database', async (event) => {
     BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
 
   const opts = {
-    title: 'Load database',
+    title: 'Open CM0102 save game (.sav only)',
     defaultPath: suggested,
-    buttonLabel: 'Load',
+    buttonLabel: 'Load save',
     properties: ['openFile'] as const,
-    filters: [{ name: 'CM0102 save games', extensions: ['sav'] }],
+    filters: [{ name: 'CM0102 save games (*.sav)', extensions: ['sav'] }],
   }
   const r = parent ? await dialog.showOpenDialog(parent, opts) : await dialog.showOpenDialog(opts)
   if (r.canceled || !r.filePaths[0]) return { ok: false as const, error: 'cancelled' }
@@ -877,6 +879,25 @@ function gridRowsForStaffIndices(staffIndices: number[], inc?: GridIncludeFlags)
   }
   return out
 }
+
+ipcMain.handle('get-shortlist-store', async () => {
+  if (!loaded?.indexPath) return { version: 1 as const, lists: [] }
+  return loadShortlistStoreFromDisk(loaded.indexPath)
+})
+
+ipcMain.handle('set-shortlist-store', async (_e, store: unknown) => {
+  if (!loaded?.indexPath) return { ok: false as const, error: 'Load a save game first.' }
+  const s = store as ShortlistStore
+  if (s?.version !== 1 || !Array.isArray(s.lists)) {
+    return { ok: false as const, error: 'Invalid shortlist data.' }
+  }
+  try {
+    saveShortlistStoreToDisk(loaded.indexPath, s)
+    return { ok: true as const }
+  } catch (e) {
+    return { ok: false as const, error: e instanceof Error ? e.message : String(e) }
+  }
+})
 
 ipcMain.handle('get-shortlist-player-rows', async (_e, staffIndices: unknown) => {
   const ids = Array.isArray(staffIndices)

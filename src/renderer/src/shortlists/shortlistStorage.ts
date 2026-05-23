@@ -9,11 +9,7 @@ import {
 
 const LS_KEY = 'cm-scout-next-shortlists-v1'
 
-function storageKey(dbPath: string | null): string {
-  return dbPath ?? '__no_db__'
-}
-
-function readAll(): Record<string, ShortlistStore> {
+function readLocalFallback(): Record<string, ShortlistStore> {
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return {}
@@ -24,21 +20,43 @@ function readAll(): Record<string, ShortlistStore> {
   }
 }
 
-function writeAll(data: Record<string, ShortlistStore>): void {
-  localStorage.setItem(LS_KEY, JSON.stringify(data))
+function writeLocalFallback(dbPath: string, store: ShortlistStore): void {
+  const all = readLocalFallback()
+  all[dbPath] = store
+  localStorage.setItem(LS_KEY, JSON.stringify(all))
 }
 
-export function loadShortlistStore(dbPath: string | null): ShortlistStore {
-  const all = readAll()
-  const store = all[storageKey(dbPath)]
-  if (store?.version === 1 && Array.isArray(store.lists)) return store
+/** Load shortlists for this save — persisted in app userData (survives restarts). */
+export async function loadShortlistStore(dbPath: string | null): Promise<ShortlistStore> {
+  if (!dbPath) return { version: 1, lists: [] }
+  if (typeof window.cmapi?.getShortlistStore === 'function') {
+    try {
+      const store = await window.cmapi.getShortlistStore()
+      if (store?.version === 1 && Array.isArray(store.lists)) {
+        if (store.lists.length > 0) return store
+        const local = readLocalFallback()[dbPath]
+        if (local?.version === 1 && local.lists.length > 0) {
+          await saveShortlistStore(dbPath, local)
+          return local
+        }
+        return store
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  const local = readLocalFallback()[dbPath]
+  if (local?.version === 1 && Array.isArray(local.lists)) return local
   return { version: 1, lists: [] }
 }
 
-export function saveShortlistStore(dbPath: string | null, store: ShortlistStore): void {
-  const all = readAll()
-  all[storageKey(dbPath)] = store
-  writeAll(all)
+export async function saveShortlistStore(dbPath: string | null, store: ShortlistStore): Promise<void> {
+  if (!dbPath) return
+  if (typeof window.cmapi?.setShortlistStore === 'function') {
+    const r = await window.cmapi.setShortlistStore(store)
+    if (r.ok) return
+  }
+  writeLocalFallback(dbPath, store)
 }
 
 export function createShortlist(

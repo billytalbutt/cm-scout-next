@@ -10,17 +10,29 @@ import {
   saveShortlistStore,
 } from './shortlistStorage'
 
+const EMPTY_STORE: ShortlistStore = { version: 1, lists: [] }
+
 export function useShortlists(dbPath: string | null) {
-  const [store, setStore] = useState<ShortlistStore>(() => loadShortlistStore(dbPath))
+  const [store, setStore] = useState<ShortlistStore>(EMPTY_STORE)
 
   useEffect(() => {
-    setStore(loadShortlistStore(dbPath))
+    if (!dbPath) {
+      setStore(EMPTY_STORE)
+      return
+    }
+    let cancelled = false
+    void loadShortlistStore(dbPath).then((s) => {
+      if (!cancelled) setStore(s)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [dbPath])
 
   const persist = useCallback(
     (next: ShortlistStore) => {
       setStore(next)
-      saveShortlistStore(dbPath, next)
+      if (dbPath) void saveShortlistStore(dbPath, next)
     },
     [dbPath],
   )

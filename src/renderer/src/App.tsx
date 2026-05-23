@@ -55,7 +55,7 @@ import {
 import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
-import { applyProfileHighlightPack } from './profileHighlightApply'
+import { applyProfileHighlightPack, highlightPackForRole } from './profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
 import { InstructionHintRow } from './profile/profileUi'
 import { RolePercentMiniCell } from './profile/RolePercentMiniCell'
@@ -995,12 +995,8 @@ export function App() {
   }, [sel, profile?.defaultHighlightRoleCmScoutIndex, profile?.effByArchetype])
 
   const displayProfile = useMemo(() => {
-    if (!profile?.highlightPacksByCmScoutIndex?.length) return profile
-    const idx = Math.min(
-      Math.max(0, profileHighlightRoleIdx),
-      profile.highlightPacksByCmScoutIndex.length - 1,
-    )
-    const pack = profile.highlightPacksByCmScoutIndex[idx]
+    if (!profile) return profile
+    const pack = highlightPackForRole(profile, profileHighlightRoleIdx)
     if (!pack) return profile
     return applyProfileHighlightPack(profile, pack)
   }, [profile, profileHighlightRoleIdx])
@@ -3027,6 +3023,9 @@ export function App() {
                               label={lab}
                               percent={`${pct}%`}
                               tier={tier}
+                              selected={profileHighlightRoleIdx === roleIdx}
+                              title={`Highlight attributes for ${lab}`}
+                              onClick={() => setProfileHighlightRoleIdx(roleIdx)}
                             />
                           )
                         })

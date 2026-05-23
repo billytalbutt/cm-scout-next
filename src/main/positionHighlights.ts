@@ -95,7 +95,7 @@ const BY_ROLE: Record<PositionRoleId, Pack> = {
   },
   AM: {
     playerPrimary: ['creativity', 'technique', 'dribbling', 'passing', 'decisions', 'flair', 'off_the_ball', 'long_shots'],
-    playerSecondary: ['finishing', 'teamwork', 'work_rate', 'stamina', 'tackling', 'anticipation', 'pace', 'acceleration'],
+    playerSecondary: ['finishing', 'teamwork', 'work_rate', 'stamina', 'anticipation', 'pace', 'acceleration', 'balance'],
     playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.AM,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'temperament', 'loyalty', 'adaptability', 'sportsmanship'],
