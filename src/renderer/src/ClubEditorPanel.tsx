@@ -275,9 +275,7 @@ export function ClubEditorPanel({
         <p className="mt-1 text-xs text-zinc-500">
           Edit bank balance, attendance, training, reputation, and linked stadium capacity and features. In CM, check{' '}
           <strong className="font-normal text-zinc-400">Finances → Bank balance</strong> (transfer budget is calculated
-          separately). Very large balances may need the EnsureCashDoesNotResetToZero exe patch. CM0102{' '}
-          <code className="text-zinc-400">stadium.dat</code> has covered stands and under-soil heating; there is no
-          retractable-roof flag in the canonical save layout.
+          separately).
         </p>
         {databasePath && (
           <p className="mt-2 text-xs text-amber-200/80">

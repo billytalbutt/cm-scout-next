@@ -293,8 +293,6 @@ export function AttributeEditorPanel({
           <p>
             Select a row on <span className="text-zinc-300">All players</span> or{' '}
             <span className="text-zinc-300">Regens</span> (or open a profile from Staff / Clubs), or search below.
-            Values are the on-disk bytes (same as the profile “intrinsic” column); CA18 “in-game” numbers are derived
-            in-game from CA + these bytes.
           </p>
         </div>
         <EditorPlayerPicker

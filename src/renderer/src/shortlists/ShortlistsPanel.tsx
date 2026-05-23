@@ -96,17 +96,17 @@ export function ShortlistsPanel({ loadInfo, shortlists, onOpenPlayer, onOpenStaf
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1">
         <button
           type="button"
-          className={`rounded-md border px-3 py-1 text-xs ${kind === 'players' ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100' : 'border-zinc-700 text-zinc-400'}`}
+          className={`pill-tab ${kind === 'players' ? 'pill-tab-active' : 'pill-tab-inactive'}`}
           onClick={() => setKind('players')}
         >
           Player shortlists
         </button>
         <button
           type="button"
-          className={`rounded-md border px-3 py-1 text-xs ${kind === 'staff' ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100' : 'border-zinc-700 text-zinc-400'}`}
+          className={`pill-tab ${kind === 'staff' ? 'pill-tab-active' : 'pill-tab-inactive'}`}
           onClick={() => setKind('staff')}
         >
           Staff shortlists
@@ -158,7 +158,7 @@ export function ShortlistsPanel({ loadInfo, shortlists, onOpenPlayer, onOpenStaf
                 <div className="flex flex-wrap gap-1">
                   <button
                     type="button"
-                    className="rounded border border-emerald-700/50 px-2 py-0.5 text-[10px] text-emerald-200"
+                    className="rounded border border-zinc-700 px-2 py-0.5 text-[10px] text-zinc-300 hover:bg-zinc-800"
                     onClick={() => void exportList()}
                   >
                     Export {selected.kind === 'players' ? '.pls' : 'JSON'}
@@ -260,7 +260,7 @@ export function ShortlistsPanel({ loadInfo, shortlists, onOpenPlayer, onOpenStaf
         </div>
       )}
 
-      {exportMsg && <p className="text-[11px] text-emerald-300/90">{exportMsg}</p>}
+      {exportMsg && <p className="text-[11px] text-zinc-400">{exportMsg}</p>}
     </div>
   )
 }

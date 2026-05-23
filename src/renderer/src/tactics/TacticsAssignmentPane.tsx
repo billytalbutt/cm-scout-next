@@ -289,7 +289,7 @@ export function TacticsAssignmentPane({
           {clubSquadOnly && seedClubId != null && (
             <button
               type="button"
-              className="min-w-0 flex-1 rounded-lg border border-emerald-700/50 bg-emerald-900/35 px-3 py-2 text-xs font-medium text-emerald-100 transition hover:bg-emerald-900/55 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!clubOnlyReady || squadLoading}
               onClick={handleAutoPick}
             >
@@ -308,9 +308,9 @@ export function TacticsAssignmentPane({
           </button>
         </div>
       )}
-      <div className="rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-2.5 py-2">
-        <div className="text-[10px] font-medium uppercase tracking-wide text-emerald-300/90">Team rating</div>
-        <div className="font-mono text-2xl text-emerald-100">{teamRating != null ? teamRating : '—'}</div>
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-2.5 py-2">
+        <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Team rating</div>
+        <div className="font-mono text-2xl text-zinc-100">{teamRating != null ? teamRating : '—'}</div>
         <p className="text-[10px] text-zinc-500">Average of assigned players’ role % in their slot.</p>
       </div>
       <div className="space-y-3">

@@ -83,9 +83,6 @@ export function TacticsLabPanel({
   const [mentality, setMentality] = useState<Mentality>('attacking')
   const [offside, setOffside] = useState(false)
   const [tackling, setTackling] = useState<TacklingStyle>('normal')
-  const [saveWireMsg, setSaveWireMsg] = useState<string | null>(null)
-  const [saveWireLoading, setSaveWireLoading] = useState(false)
-
   const p = useMemo(() => TACTIC_PRESETS.find((x) => x.id === preset)!, [preset])
   const forwardArrows = useMemo(() => pitchSlots.filter((z) => z.arrow === 'forward').length, [pitchSlots])
   const lineupRating = useMemo(
@@ -116,54 +113,6 @@ export function TacticsLabPanel({
     const next = TACTIC_PRESETS.find((x) => x.id === id)!
     onPitchSlotsChange(pitchSlotsFromPreset(next))
   }
-
-  const pullFromSaveClub = useCallback(async () => {
-    if (tacticsSeedClubId == null || typeof window.cmapi?.getClubDetail !== 'function') {
-      setSaveWireMsg('Select a squad club on the tactics pitch panel first.')
-      return
-    }
-    setSaveWireLoading(true)
-    setSaveWireMsg(null)
-    try {
-      const d = (await window.cmapi.getClubDetail(tacticsSeedClubId)) as Record<string, unknown> | null
-      if (!d) {
-        setSaveWireMsg('Club detail not available.')
-        return
-      }
-      const tw = d.tacticsWire as
-        | {
-            experimentalSlots: { x: number; y: number; label: string }[] | null
-            tacticRowFound: boolean
-            tacticsBlockPresent: boolean
-          }
-        | undefined
-      const exp = tw?.experimentalSlots
-      if (exp && exp.length >= 11) {
-        onPitchSlotsChange(
-          snapAndRedistributePitch(
-            exp.map((s, i) => ({
-              id: `save-${i}`,
-              role: s.label,
-              x: s.x,
-              y: s.y,
-              arrow: 'none' as TacticArrow,
-            })),
-          ),
-        )
-        setSaveWireMsg(
-          `Experimental: loaded ${exp.length} pitch nodes from tactics.dat for “${String(d.name)}” (heuristic decode — verify in-game).`,
-        )
-      } else {
-        setSaveWireMsg(
-          `Loaded “${String(d.name)}”: tactics.dat ${tw?.tacticsBlockPresent ? 'present' : 'missing'}, tactic row ${tw?.tacticRowFound ? 'found' : 'not found'} — no heuristic pitch window matched.`,
-        )
-      }
-    } catch (e) {
-      setSaveWireMsg(e instanceof Error ? e.message : String(e))
-    } finally {
-      setSaveWireLoading(false)
-    }
-  }, [tacticsSeedClubId, onPitchSlotsChange])
 
   const onPointerMove = useCallback(
     (e: PointerEvent) => {
@@ -225,33 +174,8 @@ export function TacticsLabPanel({
           onClearSquadClub={onClearTacticsSquadClub}
         />
       )}
-      {loadInfo && (
-        <div className="rounded-lg border border-sky-900/30 bg-sky-950/15 p-3 text-[11px] text-zinc-400">
-          <span className="font-medium text-sky-200/90">From save</span> — with a squad club selected, pull{' '}
-          <span className="font-mono text-zinc-300">tactics.dat</span> into the pitch (experimental).
-          {tacticsSeedClubId != null ? (
-            <span className="ml-1 font-mono text-emerald-300/90">
-              {' '}
-              {tacticsSeedClubName ?? `Club #${tacticsSeedClubId}`}
-            </span>
-          ) : (
-            <span className="ml-1 text-zinc-500"> No club selected yet.</span>
-          )}
-          <div className="mt-2">
-            <button
-              type="button"
-              disabled={saveWireLoading}
-              onClick={() => void pullFromSaveClub()}
-              className="rounded-md border border-sky-700/50 bg-sky-950/50 px-3 py-1.5 text-xs font-medium text-sky-100 hover:bg-sky-900/50 disabled:opacity-50"
-            >
-              {saveWireLoading ? 'Loading…' : 'Load tactic snapshot from seed club'}
-            </button>
-          </div>
-          {saveWireMsg && <p className="mt-2 text-[11px] text-zinc-400">{saveWireMsg}</p>}
-        </div>
-      )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div className="rounded-xl border border-emerald-900/40 bg-gradient-to-b from-emerald-950/30 to-zinc-950 p-4">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
           <div
             ref={pitchRef}
             className="relative mx-auto aspect-[68/105] max-h-[min(52vh,520px)] w-full max-w-md touch-none rounded-lg border border-zinc-700/80 bg-zinc-950 shadow-inner shadow-black/40"
