@@ -25,7 +25,7 @@ import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../share
 import { DebouncedTextFilters } from './DebouncedTextFilters'
 import { StaffBrowsePanel } from './StaffBrowsePanel'
 import { StaffFilterSidebar } from './StaffFilterSidebar'
-import { BrowseTabBar } from './BrowseTabBar'
+import { BrowseTabBar, type BrowseTabId } from './BrowseTabBar'
 import {
   PlayerPositionFilterPanel,
   type PlayerPositionFilterState,
@@ -57,6 +57,12 @@ import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { applyProfileHighlightPack } from './profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
+import {
+  cmScoutRoleSuitableCellClass,
+  cmScoutRoleTierRingClass,
+  cmScoutRoleTierTextClass,
+  instructionHintTierClass,
+} from './profile/profileUi'
 import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
 import {
   getCopiedPlayerAttributes,
@@ -453,9 +459,7 @@ export function App() {
       return false
     }
   })
-  const [browseTab, setBrowseTab] = useState<
-    'players' | 'regens' | 'staff' | 'clubs' | 'tactics' | 'editor' | 'shortlists'
-  >('players')
+  const [browseTab, setBrowseTab] = useState<BrowseTabId>('players')
   /** Last club selected in Clubs tab — Tactics Lab uses this for save tactic wiring. */
   const [tacticsSeedClubId, setTacticsSeedClubId] = useState<number | null>(null)
   const [tacticsSeedClubName, setTacticsSeedClubName] = useState<string | null>(null)
@@ -1088,6 +1092,12 @@ export function App() {
   })
 
   const scrollParentRef = useRef<HTMLDivElement>(null)
+  const browseTabScrollRef = useRef<Partial<Record<BrowseTabId, number>>>({})
+  const changeBrowseTab = useCallback((next: BrowseTabId) => {
+    const el = scrollParentRef.current
+    if (el) browseTabScrollRef.current[browseTab] = el.scrollTop
+    setBrowseTab(next)
+  }, [browseTab])
   const tableRows = table.getRowModel().rows
   const colCount = table.getAllLeafColumns().length
 
@@ -1103,11 +1113,24 @@ export function App() {
   const padBottom = vItems.length > 0 ? rowVirtualizer.getTotalSize() - vItems[vItems.length - 1]!.end : 0
 
   useEffect(() => {
+    const el = scrollParentRef.current
+    if (!el) return
+    const saved = browseTabScrollRef.current[browseTab] ?? 0
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: saved, behavior: 'auto' })
+    })
+  }, [browseTab])
+
+  useEffect(() => {
+    if (browseTab !== 'players' && browseTab !== 'regens') return
     scrollParentRef.current?.scrollTo({ top: 0 })
+    browseTabScrollRef.current[browseTab] = 0
   }, [sorting])
 
   useEffect(() => {
+    if (browseTab !== 'players' && browseTab !== 'regens') return
     scrollParentRef.current?.scrollTo({ top: 0 })
+    browseTabScrollRef.current[browseTab] = 0
   }, [rows])
 
   const loadStaffProfile = useCallback(async (staffIndex: number) => {
@@ -2147,7 +2170,7 @@ export function App() {
         <div className="flex min-h-0 min-w-0 flex-1">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ flex: '1 1 0%', minWidth: '12rem' }}>
           <div className="flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-2 border-b border-zinc-800/80 bg-zinc-950/40 px-3 pt-3.5 pb-3">
-            <BrowseTabBar active={browseTab} onChange={setBrowseTab} />
+            <BrowseTabBar active={browseTab} onChange={changeBrowseTab} />
           </div>
           <div ref={scrollParentRef} className="cm-scroll relative min-h-0 flex-1 overflow-auto px-3 pb-3 pt-0">
             {(textFiltersPending || gridRefreshing) &&
@@ -2200,11 +2223,11 @@ export function App() {
                 loadInfo={!!loadInfo}
                 shortlists={shortlists}
                 onOpenPlayer={(si) => {
-                  setBrowseTab('players')
+                  changeBrowseTab('players')
                   void pick(si)
                 }}
                 onOpenStaff={(si) => {
-                  setBrowseTab('staff')
+                  changeBrowseTab('staff')
                   setStaffTableSel(si)
                   void loadStaffProfile(si)
                 }}
@@ -2786,7 +2809,7 @@ export function App() {
                 <div className="mb-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2">
                   <p
                     className={`text-[11px] font-medium ${
-                      profile.freeRoleHint.recommend ? 'text-emerald-300/95' : 'text-zinc-400'
+                      profile.freeRoleHint.recommend ? 'text-zinc-200' : 'text-zinc-400'
                     }`}
                   >
                     {profile.freeRoleHint.headline}
@@ -2799,13 +2822,7 @@ export function App() {
                     {profile.tacticalInstructionHints.map((h) => (
                       <li
                         key={h.id}
-                        className={`rounded border px-2 py-1.5 text-[10px] leading-snug ${
-                          h.tier === 'strong'
-                            ? 'border-emerald-700/40 bg-emerald-950/30 text-emerald-100/95'
-                            : h.tier === 'ok'
-                              ? 'border-amber-700/35 bg-amber-950/25 text-amber-100/90'
-                              : 'border-zinc-800/80 bg-zinc-950/50 text-zinc-500'
-                        }`}
+                        className={`rounded border px-2 py-1.5 text-[10px] leading-snug ${instructionHintTierClass(h.tier)}`}
                       >
                         <span className="font-medium text-zinc-300">{h.label}</span>
                         <span className="ml-1.5 font-mono text-zinc-400">{playerInstructionAdvice(h.tier)}</span>
@@ -2855,9 +2872,9 @@ export function App() {
                           {profile.cmScoutRatingBp != null &&
                             profile.cmScoutRolePercents &&
                             Math.max(...profile.cmScoutRolePercents) > profile.cmScoutRatingBp + 0.05 && (
-                              <p className="text-amber-200/90">
-                                <strong className="text-emerald-200/90">Green</strong> rings mark the best % among
-                                columns; <strong className="text-amber-200/90">two amber</strong> shades mark the 2nd- and
+                              <p className="text-zinc-400">
+                                <strong className="text-zinc-200">Highlighted</strong> rings mark the best % among
+                                columns; <strong className="text-amber-200/90">amber</strong> shades mark the 2nd- and
                                 3rd-best distinct values (ties share the same tier). Grid BP can be lower if the best
                                 column is not a “suitable” role for this player.
                               </p>
@@ -2868,7 +2885,7 @@ export function App() {
                               {profile.effPercent != null ? (
                                 <p className="mt-1 text-zinc-400">
                                   Best archetype:{' '}
-                                  <span className="font-mono text-emerald-200/90">
+                                  <span className="font-mono text-zinc-200">
                                     {profile.effPercent.toFixed(1)}% ({profile.effArchetype})
                                   </span>
                                 </p>
@@ -2882,7 +2899,7 @@ export function App() {
                                   <p className="mt-2 font-semibold text-zinc-300">Why this Eff %</p>
                                   <p className="mt-1 text-zinc-500">
                                     Winning recipe{' '}
-                                    <span className="text-emerald-200/90">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
+                                    <span className="text-zinc-300">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
                                     — primary ×5, secondary ×1.5, engine rows on lighter weights; values use
                                     uncapped engine display where the profile shows bracketed elites above 20. ↑ =
                                     engine value above on-screen 20; ★ = 20 without overflow. Consistency multiplies
@@ -2899,7 +2916,7 @@ export function App() {
                                     <p className="mt-1 text-zinc-500">
                                       Consistency {profile.effWinnerDetail.consistencyReliability.consistency.toFixed(0)}
                                       /20 → ×{profile.effWinnerDetail.consistencyReliability.factor.toFixed(3)} →{' '}
-                                      <span className="font-mono text-emerald-200/90">
+                                      <span className="font-mono text-zinc-200">
                                         {profile.effPercent.toFixed(1)}%
                                       </span>{' '}
                                       final
@@ -2921,9 +2938,9 @@ export function App() {
                       </h3>
                     </HoverTip>
                     {profile.cmScoutRatingBp != null && (
-                      <p className="mt-1 font-mono text-[11px] text-emerald-300/95">
+                      <p className="mt-1 font-mono text-[11px] text-zinc-400">
                         BP (grid){' '}
-                        <span className="text-emerald-200">{profile.cmScoutRatingBp}%</span>
+                        <span className="font-medium text-zinc-100">{profile.cmScoutRatingBp}%</span>
                       </p>
                     )}
                     {profile.effByArchetype && profile.effByArchetype.length > 0 && (
@@ -3011,30 +3028,12 @@ export function App() {
                           const pct = percents[roleIdx]!
                           const suit = profile.cmScoutRoleSuitable?.[roleIdx]
                           const tier = tierByRole.get(roleIdx)
-                          const pctTierRing =
-                            tier === 0
-                              ? 'ring-1 ring-emerald-500/50'
-                              : tier === 1
-                                ? 'ring-1 ring-amber-400/55'
-                                : tier === 2
-                                  ? 'ring-1 ring-amber-800/50'
-                                  : ''
-                          const pctClass =
-                            tier === 0
-                              ? 'text-emerald-200'
-                              : tier === 1
-                                ? 'text-amber-200'
-                                : tier === 2
-                                  ? 'text-amber-500'
-                                  : 'text-zinc-200'
+                          const pctTierRing = cmScoutRoleTierRingClass(tier)
+                          const pctClass = cmScoutRoleTierTextClass(tier)
                           return (
                             <div
                               key={lab + roleIdx}
-                              className={`min-w-0 rounded border px-0.5 py-1 ${
-                                suit
-                                  ? 'border-emerald-500/35 bg-emerald-500/[0.06]'
-                                  : 'border-zinc-800/80 bg-zinc-950/40'
-                              } ${pctTierRing}`}
+                              className={`min-w-0 rounded border px-0.5 py-1 ${cmScoutRoleSuitableCellClass(suit)} ${pctTierRing}`}
                             >
                               <div className="truncate text-[8px] font-medium uppercase tracking-tight text-zinc-500">
                                 {lab}

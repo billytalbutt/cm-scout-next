@@ -10,6 +10,7 @@ import {
   fmtMoney,
   HoverTip,
   InfoDot,
+  instructionHintTierClass,
   playerInstructionAdvice,
   ProfileAttrColumn,
   type ProfileTabId,
@@ -172,19 +173,19 @@ export function PlayerProfileTabViews({
 
       {naturalRolePicker}
       {profile.cmScoutRatingBp != null && (
-        <p className="font-mono text-[11px] text-emerald-300/95">
-          Grid BP (best suitable role): <span className="text-emerald-200">{profile.cmScoutRatingBp}%</span>
+        <p className="font-mono text-[11px] text-zinc-400">
+          Grid BP (best suitable role): <span className="font-medium text-zinc-100">{profile.cmScoutRatingBp}%</span>
         </p>
       )}
 
-      <div className="rounded-lg border border-sky-900/40 bg-sky-950/20 p-3 text-xs">
-        <h3 className="mb-1.5 font-semibold text-sky-200/95">Scouting DNA &amp; instructions</h3>
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
+        <h3 className="mb-1.5 font-semibold text-zinc-300">Scouting DNA &amp; instructions</h3>
         {profile.engineMetaProfiles.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1">
             {profile.engineMetaProfiles.map((m) => (
               <span
                 key={m.id}
-                className="rounded border border-sky-600/35 bg-sky-950/40 px-1.5 py-0.5 font-mono text-[10px] text-sky-100/95"
+                className="rounded border border-zinc-700/80 bg-zinc-950/60 px-1.5 py-0.5 font-mono text-[10px] text-zinc-200"
               >
                 {m.label}
               </span>
@@ -194,8 +195,11 @@ export function PlayerProfileTabViews({
         <p className="text-[11px] text-zinc-400">{profile.freeRoleHint.headline}</p>
         <ul className="mt-2 space-y-1">
           {profile.tacticalInstructionHints.slice(0, 8).map((h) => (
-            <li key={h.id} className="text-[10px] text-zinc-400">
-              <span className="text-zinc-300">{h.label}</span> {playerInstructionAdvice(h.tier)}
+            <li
+              key={h.id}
+              className={`rounded border px-2 py-1 text-[10px] ${instructionHintTierClass(h.tier)}`}
+            >
+              <span className="font-medium text-zinc-300">{h.label}</span> {playerInstructionAdvice(h.tier)}
             </li>
           ))}
         </ul>

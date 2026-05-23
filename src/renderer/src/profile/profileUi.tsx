@@ -31,6 +31,30 @@ export function formatProfileStatCell(v: number | null | undefined, kind: 'int' 
   return <span className="font-mono text-zinc-200">{Math.round(v)}</span>
 }
 
+export function cmScoutRoleTierRingClass(tier: 0 | 1 | 2 | undefined): string {
+  if (tier === 0) return 'ring-1 ring-zinc-400/45'
+  if (tier === 1) return 'ring-1 ring-amber-600/40'
+  if (tier === 2) return 'ring-1 ring-amber-800/35'
+  return ''
+}
+
+export function cmScoutRoleTierTextClass(tier: 0 | 1 | 2 | undefined): string {
+  if (tier === 0) return 'font-medium text-zinc-100'
+  if (tier === 1) return 'text-amber-200/90'
+  if (tier === 2) return 'text-amber-600/90'
+  return 'text-zinc-300'
+}
+
+export function cmScoutRoleSuitableCellClass(suitable: boolean | undefined): string {
+  return suitable ? 'border-zinc-600/70 bg-zinc-800/45' : 'border-zinc-800/80 bg-zinc-950/40'
+}
+
+export function instructionHintTierClass(tier: 'strong' | 'ok' | 'avoid'): string {
+  if (tier === 'strong') return 'border-zinc-600/80 bg-zinc-800/50 text-zinc-300'
+  if (tier === 'ok') return 'border-zinc-700/80 bg-zinc-900/60 text-zinc-400'
+  return 'border-zinc-800/80 bg-zinc-950/50 text-zinc-500'
+}
+
 export function cmScoutRoleValueTierByRole(percents: readonly number[]): Map<number, 0 | 1 | 2> {
   const uniq = [...new Set(percents)].sort((a, b) => b - a)
   const valueToTier = new Map<number, 0 | 1 | 2>()
