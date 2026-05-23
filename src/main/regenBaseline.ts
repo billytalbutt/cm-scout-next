@@ -12,6 +12,9 @@ export type RegenBaselineEntry = {
   commonNameId: number
   playerId: number
   pa: number
+  /** Current ability at snapshot — useful when regen CA grows later. */
+  ca: number
+  staffIndex: number
 }
 
 /** Sidecar-style snapshot (same idea as GPF2’s `.gpf2` next to a save). */
@@ -58,6 +61,8 @@ export function buildBaselineFromRows(
       commonNameId: s.common_name_id,
       playerId: s.player_id,
       pa: r.pa,
+      ca: r.ca,
+      staffIndex: r.staffIndex,
     }
   }
   return {

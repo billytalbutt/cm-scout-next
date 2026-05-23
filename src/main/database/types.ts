@@ -358,6 +358,7 @@ export interface UiPlayerRow {
   /** Predecessor display name (snapshot) or older player in-bucket name (heuristic). */
   regenOfName?: string
   regenOfStaffIndex?: number
+  regenDetectionSource?: 'snapshot' | 'heuristic'
   /** Optional rows from `staff_history.dat` for this staff `id`. */
   staffHistory?: StaffHistoryRecord[]
   /** Totals from `staff_history.dat` (career = all rows; season = rows whose `year` matches resolved highlight year). */

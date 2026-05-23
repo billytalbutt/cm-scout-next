@@ -1,2 +1,2 @@
 /** Shown on the database load overlay so you can confirm you are on the latest build. */
-export const BUILD_STAMP = '2026-05-21b · load icon flush on panel'
+export const BUILD_STAMP = '2026-05-22 · profile pop-out · regen v2'

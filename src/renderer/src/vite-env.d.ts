@@ -64,6 +64,10 @@ declare global {
       getClubSquadGridRows: (clubId: number) => Promise<GridPlayerRow[]>
       getProfile: (staffIndex: number) => Promise<ProfilePayload | null>
       getStaffProfile: (staffIndex: number) => Promise<StaffProfilePayload | null>
+      openProfileWindow: (args: {
+        staffIndex: number
+        kind: 'player' | 'staff'
+      }) => Promise<{ ok: true } | { ok: false; error: string }>
       getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>
       saveRegenBaseline: () => Promise<RegenBaselineMutationResult>
       clearRegenBaseline: () => Promise<RegenBaselineMutationResult>
@@ -384,8 +388,13 @@ export interface ProfilePayload {
     contractExpires: string | null
     leavingOnBosman: boolean
     minimumReleaseClause: boolean
-    nonPromotionClause: boolean
     nonPlayingClause: boolean
     relegationClause: boolean
   } | null
+  regen?: {
+    isLikely: boolean
+    ofName?: string
+    ofStaffIndex?: number
+    source: 'snapshot' | 'heuristic' | null
+  }
 }

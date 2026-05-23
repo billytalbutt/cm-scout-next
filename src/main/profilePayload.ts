@@ -572,5 +572,13 @@ export function buildProfilePayload(
     hiddenColumns,
     contract,
     seasonStats: buildProfileSeasonStats(row, clubNames, gameDateIso, dbContext),
+    regen: row.isRegenLikely
+      ? {
+          isLikely: true,
+          ofName: row.regenOfName,
+          ofStaffIndex: row.regenOfStaffIndex,
+          source: row.regenDetectionSource ?? null,
+        }
+      : undefined,
   }
 }

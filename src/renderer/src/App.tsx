@@ -2556,15 +2556,30 @@ export function App() {
           )}
           {(browseTab === 'staff' || browseTab === 'clubs') && staffProfile && (
             <div className="space-y-3">
-              <AddToShortlistButton
-                kind="staff"
-                target={{
-                  staffIndex: staffProfile.staffIndex,
-                  staffId: staffProfile.staffId,
-                  name: staffProfile.name,
-                }}
-                shortlists={shortlists}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  title="Open staff profile in a separate window"
+                  onClick={() =>
+                    void window.cmapi?.openProfileWindow({
+                      staffIndex: staffProfile.staffIndex,
+                      kind: 'staff',
+                    })
+                  }
+                  className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60"
+                >
+                  Pop out
+                </button>
+                <AddToShortlistButton
+                  kind="staff"
+                  target={{
+                    staffIndex: staffProfile.staffIndex,
+                    staffId: staffProfile.staffId,
+                    name: staffProfile.name,
+                  }}
+                  shortlists={shortlists}
+                />
+              </div>
               <StaffProfilePane p={staffProfile} showEngineAttrs={showEngineAttrs} />
             </div>
           )}
@@ -2641,6 +2656,16 @@ export function App() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {sel != null && (
+                  <button
+                    type="button"
+                    title="Open this profile in a separate window (Attributes / Hidden / Other tabs)"
+                    onClick={() => void window.cmapi?.openProfileWindow({ staffIndex: sel, kind: 'player' })}
+                    className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60"
+                  >
+                    Pop out
+                  </button>
+                )}
                 {sel != null && loadInfo && (
                   <AddToShortlistButton
                     kind="players"
@@ -2666,6 +2691,33 @@ export function App() {
                   <span className="text-[10px] text-zinc-500">Editor copy needs an uncompressed save.</span>
                 )}
               </div>
+
+              {profile.regen?.isLikely && (
+                <div className="rounded-lg border border-violet-800/45 bg-violet-950/20 px-3 py-2 text-[11px] text-zinc-300">
+                  Likely regen
+                  {profile.regen.ofName ? (
+                    <>
+                      {' '}
+                      of <span className="font-medium text-violet-100">{profile.regen.ofName}</span>
+                    </>
+                  ) : null}
+                  {profile.regen.source === 'snapshot' ? ' (snapshot)' : ' (heuristic)'}
+                  {profile.regen.ofStaffIndex != null && (
+                    <button
+                      type="button"
+                      className="ml-2 text-violet-200/90 underline hover:text-violet-100"
+                      onClick={() =>
+                        void window.cmapi?.openProfileWindow({
+                          staffIndex: profile.regen!.ofStaffIndex!,
+                          kind: 'player',
+                        })
+                      }
+                    >
+                      Open predecessor
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div>
                 <HoverTip

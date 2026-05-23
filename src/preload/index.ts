@@ -56,6 +56,10 @@ contextBridge.exposeInMainWorld('cmapi', {
     ipcRenderer.invoke('get-club-squad-grid-rows', clubId) as Promise<Array<Record<string, unknown>>>,
   getProfile: (staffIndex: number) => ipcRenderer.invoke('get-profile', staffIndex),
   getStaffProfile: (staffIndex: number) => ipcRenderer.invoke('get-staff-profile', staffIndex),
+  openProfileWindow: (args: { staffIndex: number; kind: 'player' | 'staff' }) =>
+    ipcRenderer.invoke('open-profile-window', args) as Promise<
+      { ok: true } | { ok: false; error: string }
+    >,
   getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),
   clearRegenBaseline: () => ipcRenderer.invoke('clear-regen-baseline'),

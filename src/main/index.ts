@@ -65,6 +65,45 @@ let loaded: {
   archiveBuf: Buffer
 } | null = null
 
+const profileWindows = new Map<string, BrowserWindow>()
+
+function profileWindowKey(kind: string, staffIndex: number): string {
+  return `${kind}:${staffIndex}`
+}
+
+function loadProfileWindow(win: BrowserWindow, kind: 'player' | 'staff', staffIndex: number): void {
+  const hash = `profile/${kind}/${staffIndex}`
+  if (process.env.ELECTRON_RENDERER_URL) {
+    void win.loadURL(`${process.env.ELECTRON_RENDERER_URL}#/${hash}`)
+  } else {
+    void win.loadFile(join(__dirname, '../renderer/index.html'), { hash })
+  }
+}
+
+function createProfileWindow(kind: 'player' | 'staff', staffIndex: number): BrowserWindow {
+  const icon = resolveAppIcon()
+  const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  const win = new BrowserWindow({
+    width: 500,
+    height: 780,
+    minWidth: 380,
+    minHeight: 520,
+    title: 'Profile',
+    show: false,
+    parent: parent && !parent.isDestroyed() ? parent : undefined,
+    modal: false,
+    ...(icon ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+  win.once('ready-to-show', () => win.show())
+  loadProfileWindow(win, kind, staffIndex)
+  return win
+}
+
 /**
  * CM Scout–style: open *.sav or index.dat; same block directory format.
  * Returns the DB plus the exact buffer that was parsed (for later attribute patching).
@@ -527,6 +566,28 @@ ipcMain.handle('get-staff-profile', async (_e, staffIndex: unknown) => {
   if (!Number.isFinite(idx) || idx < 0) return null
   return buildStaffProfilePayload(loaded.db, idx)
 })
+
+ipcMain.handle(
+  'open-profile-window',
+  async (_e, args: { staffIndex?: unknown; kind?: unknown }) => {
+    if (!loaded) return { ok: false as const, error: 'Load a save in the main window first.' }
+    const staffIndex = Math.floor(Number(args?.staffIndex))
+    const kind = args?.kind === 'staff' ? 'staff' : 'player'
+    if (!Number.isFinite(staffIndex) || staffIndex < 0) {
+      return { ok: false as const, error: 'Invalid profile.' }
+    }
+    const key = profileWindowKey(kind, staffIndex)
+    const existing = profileWindows.get(key)
+    if (existing && !existing.isDestroyed()) {
+      existing.focus()
+      return { ok: true as const }
+    }
+    const win = createProfileWindow(kind, staffIndex)
+    profileWindows.set(key, win)
+    win.on('closed', () => profileWindows.delete(key))
+    return { ok: true as const }
+  },
+)
 
 ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
   if (!loaded) return null

@@ -1,48 +1,59 @@
 /**
  * Regen detection uses two layers (see `regenBaseline.ts` for snapshot I/O):
  *
- * **1. GPF2-style snapshot (community “best” method)**  
- * [GPF2 / Generated Player Finder 2](https://champman0102.net/viewtopic.php?t=2941) and similar save tools work by
- * comparing an **early snapshot** of the uncompressed save to a **later** load: the same `staff.dat` person
- * **id** keeps the same slot while **name indices** change when the game replaces a retiring player with a regen.
- * We mirror that: save a baseline after you load a save (ideally before many retirements), then reload later —
- * anyone whose `(first_name_id, second_name_id, common_name_id)` changed vs baseline is flagged; **Regen of**
- * shows the **snapshot display name** (the identity before the name change).
+ * **1. GPF2-style snapshot (community “best” method)**
+ * Same `staff.dat` id, name indices changed → predecessor name from snapshot.
  *
- * **2. Same-save heuristic (fallback)**  
- * When no baseline exists for this file path, we use PA + nationalities + natural positions + DOB rules as a
- * weaker single-snapshot guess (see comments on `applyHeuristicRegenHints`). This cannot match GPF2’s accuracy
- * without two points in time.
- *
- * `TPlayer` / `TStaff` in vanilla CM0102 index blocks do **not** include height/weight in the 70 / 110-byte rows
- * we parse — other tools may read additional structures.
+ * **2. Same-save heuristic (fallback)**
+ * PA + nationalities + natural positions + DOB; prefers retired job (16), then CA/reputation proxy.
  */
 import type { RegenBaselineFile } from './regenBaseline'
 import type { PlayerRecord, UiPlayerRow } from './database/types'
 
 const YOUNG_MAX_AGE = 23
 const OLD_MIN_AGE = 30
-/** Require young players to still be notably below their PA (typical regen / youth). */
 const MIN_PA_CA_GAP = 5
-/** With DOB / MD matching, collisions are rarer — allow slightly larger buckets before skipping. */
 const MAX_GROUP = 24
 const MAX_AMBIG_OLD = 2
 const MAX_AMBIG_YOUNG = 2
-/** Legacy fallback: only when young has no DOB and the bucket is tiny with a single old. */
 const MAX_GROUP_NULL_DOB_FALLBACK = 6
+/** Elite PA buckets: no guess without DOB month/day or full match. */
+const ELITE_PA_NO_GUESS = 170
+const RETIRED_JOB_FOR_CLUB = 16
 
 function clearRegenMarkers(rows: UiPlayerRow[]): void {
   for (const r of rows) {
     delete r.isRegenLikely
     delete r.regenOfName
     delete r.regenOfStaffIndex
+    delete r.regenDetectionSource
   }
 }
 
-/**
- * Same `staff.dat` **id** as baseline, but name-id triple changed → treated like GPF2 “name changed at same id”.
- * `regenOfName` is the predecessor’s display name from the snapshot (not necessarily still in the DB).
- */
+function normName(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/** Find predecessor still in the save (e.g. retired legend) by `player_id` from snapshot. */
+export function findStaffIndexByPlayerId(
+  rows: UiPlayerRow[],
+  playerId: number,
+  snapshotName?: string,
+): number | undefined {
+  if (playerId <= 0) return undefined
+  const matches = rows.filter((r) => r.staffIndex >= 0 && r.staff.player_id === playerId)
+  if (matches.length === 0) return undefined
+  if (matches.length === 1) return matches[0]!.staffIndex
+  if (snapshotName) {
+    const want = normName(snapshotName)
+    const byName = matches.find((r) => normName(r.name) === want)
+    if (byName) return byName.staffIndex
+  }
+  const retired = matches.filter((r) => r.staff.job_for_club === RETIRED_JOB_FOR_CLUB)
+  if (retired.length === 1) return retired[0]!.staffIndex
+  return matches.sort((a, b) => (b.age ?? 0) - (a.age ?? 0))[0]!.staffIndex
+}
+
 export function applyBaselineRegenFromSnapshot(
   rows: UiPlayerRow[],
   baseline: RegenBaselineFile,
@@ -62,13 +73,15 @@ export function applyBaselineRegenFromSnapshot(
     if (sameFace) continue
     r.isRegenLikely = true
     r.regenOfName = b.name
-    delete r.regenOfStaffIndex
+    r.regenDetectionSource = 'snapshot'
+    r.regenOfStaffIndex =
+      findStaffIndexByPlayerId(rows, b.playerId, b.name) ??
+      (Number.isFinite(b.staffIndex) && b.staffIndex >= 0 ? b.staffIndex : undefined)
     n++
   }
   return n
 }
 
-/** Clear markers, apply snapshot rules if baseline matches `pathKey`, then heuristic for everyone not yet flagged. */
 export function applyRegenPipeline(
   rows: UiPlayerRow[],
   baseline: RegenBaselineFile | null,
@@ -98,15 +111,10 @@ function posSig(p: PlayerRecord): string {
   ].join(',')
 }
 
-/** Second nation only when distinct from first — tightens unrelated PA+nation collisions. */
 function regenKey(pa: number, firstNationId: number, secondNationId: number, p: PlayerRecord): string {
   const sec =
     secondNationId > 0 && secondNationId !== firstNationId ? secondNationId : 0
   return `${pa}|${firstNationId}|${sec}|${posSig(p)}`
-}
-
-function normName(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
 function validDob(iso: string | null): iso is string {
@@ -118,37 +126,48 @@ function dobFullMatch(a: string | null, b: string | null): boolean {
   return a === b
 }
 
-/** Month–day (wiki: same day/month as lineage); ignores birth year. */
 function dobMonthDayMatch(a: string | null, b: string | null): boolean {
   if (!validDob(a) || !validDob(b)) return false
   return a.slice(5, 10) === b.slice(5, 10)
 }
 
-/**
- * Pick the lineage “source” old for this young row: DOB-first, then month–day, then tiny-bucket fallback.
- */
-function pickSourceForYoung(young: UiPlayerRow, olds: UiPlayerRow[], groupSize: number): UiPlayerRow | null {
+function isRetiredPlayer(r: UiPlayerRow): boolean {
+  return r.staff.job_for_club === RETIRED_JOB_FOR_CLUB
+}
+
+function scoreOldCandidate(a: UiPlayerRow, b: UiPlayerRow): number {
+  const ar = isRetiredPlayer(a) ? 1000 : 0
+  const br = isRetiredPlayer(b) ? 1000 : 0
+  if (br !== ar) return br - ar
+  if (b.ca !== a.ca) return b.ca - a.ca
+  return (b.age ?? 0) - (a.age ?? 0)
+}
+
+function pickSourceForYoung(
+  young: UiPlayerRow,
+  olds: UiPlayerRow[],
+  groupSize: number,
+  pa: number,
+): UiPlayerRow | null {
   const full = olds.filter((o) => dobFullMatch(o.staff.dob_iso, young.staff.dob_iso))
   const pool = full.length > 0 ? full : olds.filter((o) => dobMonthDayMatch(o.staff.dob_iso, young.staff.dob_iso))
 
   if (pool.length > 0) {
-    return [...pool].sort((a, b) => (b.age ?? 0) - (a.age ?? 0))[0]!
+    return [...pool].sort(scoreOldCandidate)[0]!
   }
 
-  if (
-    !validDob(young.staff.dob_iso) &&
-    olds.length === 1 &&
-    olds[0] &&
-    groupSize <= MAX_GROUP_NULL_DOB_FALLBACK
-  ) {
+  if (validDob(young.staff.dob_iso)) return null
+
+  if (pa >= ELITE_PA_NO_GUESS) return null
+
+  if (olds.length === 1 && olds[0] && groupSize <= MAX_GROUP_NULL_DOB_FALLBACK) {
     return olds[0]
   }
 
   return null
 }
 
-/** Single-snapshot fingerprinting — skipped for rows already marked by a GPF2-style baseline. */
-function applyHeuristicRegenHints(rows: UiPlayerRow[]): void {
+export function applyHeuristicRegenHints(rows: UiPlayerRow[]): void {
   const dataRows = rows.filter((r) => r.staffIndex >= 0 && !r.isRegenLikely)
   if (dataRows.length < 2) return
 
@@ -168,6 +187,7 @@ function applyHeuristicRegenHints(rows: UiPlayerRow[]): void {
   for (const group of byKey.values()) {
     if (group.length < 2 || group.length > MAX_GROUP) continue
 
+    const pa = group[0]!.player.potential_ability
     const olds = group.filter((r) => (r.age ?? -1) >= OLD_MIN_AGE)
     const youngs = group.filter(
       (r) =>
@@ -183,12 +203,13 @@ function applyHeuristicRegenHints(rows: UiPlayerRow[]): void {
     if (nullDobYoungs.length > 1) continue
 
     for (const y of youngs) {
-      const source = pickSourceForYoung(y, olds, group.length)
+      const source = pickSourceForYoung(y, olds, group.length, pa)
       if (!source) continue
       if (normName(y.name) === normName(source.name)) continue
       y.isRegenLikely = true
       y.regenOfName = source.name
       y.regenOfStaffIndex = source.staffIndex
+      y.regenDetectionSource = 'heuristic'
     }
   }
 }
