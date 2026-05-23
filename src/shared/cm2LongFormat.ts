@@ -36,42 +36,37 @@ export function cm2LongDisplayToDisk(display: number, displayScale: number): num
   return cm2LongFromNormal(normal)
 }
 
-/**
- * Plain int32 pounds (rare third-party edits). Packed decode of e.g. 21_000_000 raw
- * explodes to billions, so we trust the raw value instead.
- */
-/** True when `raw` is a valid packed CM2 long (large balances encode to small ints). */
-function isPackedCm2LongOnDisk(raw: number): boolean {
-  return cm2LongFromNormal(cm2LongToNormal(raw)) === Math.trunc(raw)
+/** True when `raw` is a valid packed CM2 long (CM0102Patcher ConvertLongToCM2Format). */
+export function isPackedCm2LongOnDisk(raw: number): boolean {
+  const r = Math.trunc(raw)
+  return cm2LongFromNormal(cm2LongToNormal(r)) === r
 }
 
+/** True when cash is stored as plain int32 pounds (some third-party tools), not CM2 packed. */
 export function cashLooksPlainOnDisk(raw: number): boolean {
   const r = Math.trunc(raw)
   if (r < 0 || r > MAX_CASH_POUNDS) return false
-  if (isPackedCm2LongOnDisk(r)) return false
-  const packedPounds = cm2LongDiskToDisplay(r, CASH_DISPLAY_SCALE)
-  // Packed decode nonsense → trust raw int32 as pounds (third-party / old editors).
-  if (packedPounds > MAX_CASH_POUNDS) return true
-  if (r >= 100_000 && Math.abs(packedPounds - r) > Math.max(50_000, r * 0.05)) return true
-  return false
+  return !isPackedCm2LongOnDisk(r)
 }
 
 /** Bank balance in pounds for UI / club browse. */
 export function readCashDisplay(raw: number): number {
-  if (cashLooksPlainOnDisk(raw)) return raw
-  return cm2LongDiskToDisplay(raw, CASH_DISPLAY_SCALE)
+  const r = Math.trunc(raw)
+  if (isPackedCm2LongOnDisk(r)) {
+    return cm2LongDiskToDisplay(r, CASH_DISPLAY_SCALE)
+  }
+  if (r >= 0 && r <= MAX_CASH_POUNDS) {
+    return r
+  }
+  return cm2LongDiskToDisplay(r, CASH_DISPLAY_SCALE)
 }
 
 /**
- * Write pounds using the same representation already on disk.
- * Vanilla CM0102 uses packed CM2 long; some saves use plain int32 pounds.
+ * Write pounds to disk. CM0102 always expects packed CM2 long in club.dat (same as
+ * CM0102Patcher / Graeme Kelly save editor — Cash is ConvertLongToCM2Format(pounds/1000)).
  */
-export function writeCashDisplay(pounds: number, priorRaw?: number): number {
-  const p = Math.min(MAX_CASH_POUNDS, Math.max(0, Math.trunc(pounds)))
-  if (priorRaw !== undefined && cashLooksPlainOnDisk(priorRaw)) {
-    return p
-  }
-  return cm2LongDisplayToDisk(p, CASH_DISPLAY_SCALE)
+export function writeCashDisplay(pounds: number, _priorRaw?: number): number {
+  return writeCm0102CashToDisk(pounds)
 }
 
 /** CM0102 vanilla saves always store bank balance as packed CM2 long — use when writing from the editor. */

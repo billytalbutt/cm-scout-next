@@ -5,6 +5,7 @@ import {
   cm2LongFromNormal,
   cm2LongToNormal,
   cashLooksPlainOnDisk,
+  isPackedCm2LongOnDisk,
   readCashDisplay,
   writeCashDisplay,
 } from './cm2LongFormat'
@@ -44,13 +45,21 @@ describe('cm2LongFormat', () => {
     expect(written).not.toBe(100_000_000)
   })
 
-  it('preserves plain int32 pounds on disk when prior was plain', () => {
+  it('reads plain int32 pounds when bytes are not packed CM2', () => {
     const plainPrior = 21_000_000
     expect(cashLooksPlainOnDisk(plainPrior)).toBe(true)
     expect(readCashDisplay(plainPrior)).toBe(21_000_000)
-    const written = writeCashDisplay(50_000_000, plainPrior)
-    expect(written).toBe(50_000_000)
-    expect(readCashDisplay(written)).toBe(50_000_000)
+  })
+
+  it('always writes packed CM2 so CM Finances matches (fixes plain-prior bug)', () => {
+    const plain11m = 11_000_000
+    expect(cashLooksPlainOnDisk(plain11m)).toBe(true)
+    const written = writeCashDisplay(2_000_000_000, plain11m)
+    expect(written).not.toBe(2_000_000_000)
+    expect(isPackedCm2LongOnDisk(written)).toBe(true)
+    expect(readCashDisplay(written)).toBe(2_000_000_000)
+    const packed11m = writeCashDisplay(11_000_000)
+    expect(readCashDisplay(packed11m)).toBe(11_000_000)
   })
 
   it('does not treat vanilla packed cash as plain', () => {

@@ -51,6 +51,36 @@ describe('clubStadiumDiskLayout', () => {
     expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(1_000_000)
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'cash', 100_000_000)
     expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(100_000_000)
+  })
+
+  it('writes packed £2bn when prior cash on disk was plain int32 (e.g. £11m)', () => {
+    const clubId = 42
+    const stadiumId = 7
+    const archive = Buffer.alloc(2000)
+    const clubBlockPos = 100
+    const stadiumBlockPos = 800
+    const clubBase = clubBlockPos + 2 * CLUB_ROW_BYTES
+    const stadiumBase = stadiumBlockPos + STADIUM_ROW_BYTES
+
+    archive.writeInt32LE(clubId, clubBase)
+    archive.writeInt32LE(11_000_000, clubBase + CLUB_CASH_OFF)
+    archive.writeInt32LE(stadiumId, clubBase + 105)
+    archive.writeInt32LE(stadiumId, stadiumBase)
+
+    const blocks: BlockInfo[] = [
+      { name: 'club.dat', position: clubBlockPos, size: CLUB_ROW_BYTES * 5, compressed: false },
+      { name: 'stadium.dat', position: stadiumBlockPos, size: STADIUM_ROW_BYTES * 5, compressed: false },
+    ]
+
+    const resolved = resolveClubAndStadiumBases(archive, blocks, clubId, stadiumId)
+    if (!('clubBase' in resolved)) throw new Error('resolve failed')
+
+    expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(11_000_000)
+    writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'cash', 2_000_000_000)
+    const raw = archive.readInt32LE(clubBase + CLUB_CASH_OFF)
+    expect(raw).not.toBe(2_000_000_000)
+    expect(readCashDisplay(raw)).toBe(2_000_000_000)
+
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'stadium_capacity', 55_000)
     expect(archive.readInt32LE(stadiumBase + 60)).toBe(55_000)
   })

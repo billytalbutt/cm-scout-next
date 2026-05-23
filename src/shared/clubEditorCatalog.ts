@@ -16,7 +16,7 @@ export const CLUB_EDITOR_FIELDS: readonly ClubEditorFieldSpec[] = [
     label: 'Bank balance',
     kind: 'i32',
     section: 'club_finance',
-    hint: 'Pounds in-game (CM0102 packed save format). Max £2bn; transfer budget is derived in-game.',
+    hint: 'Pounds in Finances → Bank balance (CM0102 packed CM2 format, same as Graeme Kelly editor). Max £2bn; transfer budget is calculated in-game from this.',
   },
   {
     key: 'attendance',
