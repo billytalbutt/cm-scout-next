@@ -71,27 +71,29 @@ function profileWindowKey(kind: string, staffIndex: number): string {
   return `${kind}:${staffIndex}`
 }
 
+function profileWindowSearch(kind: 'player' | 'staff', staffIndex: number): string {
+  return `profileKind=${encodeURIComponent(kind)}&staffIndex=${encodeURIComponent(String(staffIndex))}`
+}
+
 function loadProfileWindow(win: BrowserWindow, kind: 'player' | 'staff', staffIndex: number): void {
-  const hash = `profile/${kind}/${staffIndex}`
+  const search = profileWindowSearch(kind, staffIndex)
   if (process.env.ELECTRON_RENDERER_URL) {
-    void win.loadURL(`${process.env.ELECTRON_RENDERER_URL}#/${hash}`)
+    const base = process.env.ELECTRON_RENDERER_URL.split('#')[0]!.split('?')[0]!
+    void win.loadURL(`${base}?${search}`)
   } else {
-    void win.loadFile(join(__dirname, '../renderer/index.html'), { hash })
+    void win.loadFile(join(__dirname, '../renderer/index.html'), { search })
   }
 }
 
 function createProfileWindow(kind: 'player' | 'staff', staffIndex: number): BrowserWindow {
   const icon = resolveAppIcon()
-  const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
   const win = new BrowserWindow({
-    width: 500,
+    width: 520,
     height: 780,
     minWidth: 380,
     minHeight: 520,
     title: 'Profile',
     show: false,
-    parent: parent && !parent.isDestroyed() ? parent : undefined,
-    modal: false,
     ...(icon ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
@@ -579,6 +581,7 @@ ipcMain.handle(
     const key = profileWindowKey(kind, staffIndex)
     const existing = profileWindows.get(key)
     if (existing && !existing.isDestroyed()) {
+      loadProfileWindow(existing, kind, staffIndex)
       existing.focus()
       return { ok: true as const }
     }

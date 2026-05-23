@@ -5,7 +5,7 @@ import { App } from './App'
 import { ProfileWindowApp } from './profile/ProfileWindowApp'
 import { parseProfileWindowRoute } from './profile/profileWindowRoute'
 
-const route = parseProfileWindowRoute(window.location.hash)
+const route = parseProfileWindowRoute()
 const root = document.getElementById('root')!
 
 ReactDOM.createRoot(root).render(
