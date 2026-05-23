@@ -57,12 +57,6 @@ export const STADIUM_EDITOR_FIELDS: readonly ClubEditorFieldSpec[] = [
   { key: 'stadium_expansion', label: 'Expansion capacity', kind: 'i32', section: 'stadium' },
   { key: 'stadium_nearby_id', label: 'Nearby stadium ID', kind: 'i32', section: 'stadium' },
   {
-    key: 'stadium_covered',
-    label: 'Covered stands',
-    kind: 'bool',
-    section: 'stadium',
-  },
-  {
     key: 'stadium_under_soil_heating',
     label: 'Under-soil heating',
     kind: 'bool',

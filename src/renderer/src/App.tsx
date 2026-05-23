@@ -57,7 +57,7 @@ import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { applyProfileHighlightPack, highlightPackForRole } from './profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
-import { InstructionHintRow } from './profile/profileUi'
+import { EuPassportFlag, InstructionHintRow } from './profile/profileUi'
 import { RolePercentMiniCell } from './profile/RolePercentMiniCell'
 import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
 import {
@@ -2573,11 +2573,7 @@ export function App() {
                 <p className="mt-1 text-sm font-medium text-emerald-200/90">{profile.positionLabel}</p>
                 <p className="mt-1.5 text-sm text-zinc-200">
                   {profile.nationDisplay}
-                  {profile.euPassport && (
-                    <span className="ml-1.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
-                      EU
-                    </span>
-                  )}
+                  {profile.euPassport && <EuPassportFlag />}
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-500">{profile.club}</p>
                 {(profile.age != null || profile.dobIso) && (

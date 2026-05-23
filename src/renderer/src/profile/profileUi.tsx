@@ -50,6 +50,20 @@ export function instructionAdviceClass(tier: 'strong' | 'ok' | 'avoid'): string 
   return 'font-medium text-zinc-500'
 }
 
+/** EU passport indicator (1st or 2nd nation GroupMembership) — flag only, no pill styling. */
+export function EuPassportFlag({ className = '' }: { className?: string }) {
+  return (
+    <span
+      className={`ml-1.5 inline-block text-[15px] leading-none ${className}`.trim()}
+      title="EU passport (1st or 2nd nation)"
+      aria-label="EU passport"
+      role="img"
+    >
+      🇪🇺
+    </span>
+  )
+}
+
 export function InstructionHintRow({
   label,
   tier,

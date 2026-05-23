@@ -174,8 +174,8 @@ function defFor(
         header: lab,
         cell: ({ row }) =>
           row.original.euPassport ? (
-            <span className="text-emerald-400/90" title="EU-style nation (nation.dat GroupMembership)">
-              Y
+            <span className="text-[14px] leading-none" title="EU passport (1st or 2nd nation)" aria-label="EU passport">
+              🇪🇺
             </span>
           ) : (
             <span className="text-zinc-600">—</span>

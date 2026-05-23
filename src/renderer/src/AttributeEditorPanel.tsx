@@ -327,9 +327,8 @@ export function AttributeEditorPanel({
     <div className="editor-section-intro mx-auto max-w-6xl space-y-4 pb-8">
       <div className="space-y-3 border-b border-zinc-800 pb-4">
         <h2 className="text-lg font-semibold text-zinc-100">Player attribute editor</h2>
+        <p className="text-base font-semibold tracking-tight text-emerald-200/95">{snap.name}</p>
         <p className="text-xs text-zinc-500">
-          <span className="font-medium text-emerald-200/90">{snap.name}</span>
-          <span className="text-zinc-600"> · </span>
           staff row <span className="font-mono text-zinc-400">{snap.staffIndex}</span>
           <span className="text-zinc-600"> · </span>
           player.dat row <span className="font-mono text-zinc-400">{snap.playerRow}</span>
@@ -342,12 +341,10 @@ export function AttributeEditorPanel({
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          {err && <span className="text-xs text-rose-300/90">{err}</span>}
-          {saveMsg && !err && <span className="max-w-md truncate text-xs text-emerald-300/90">{saveMsg}</span>}
           <button
             type="button"
             onClick={copyAllAttributes}
-            className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800"
+            className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800"
           >
             Copy attributes
           </button>
@@ -356,17 +353,9 @@ export function AttributeEditorPanel({
             disabled={!copiedAttrs}
             onClick={pasteCopiedAttributes}
             title={copiedAttrs ? `Paste from ${copiedAttrs.name}` : undefined}
-            className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Paste attributes
-          </button>
-          <button
-            type="button"
-            disabled={saveDisabled}
-            onClick={() => void onSave()}
-            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saving ? 'Saving…' : 'Save copy…'}
           </button>
         </div>
       </div>
@@ -476,6 +465,19 @@ export function AttributeEditorPanel({
           ))}
         </div>
       </section>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-zinc-800 pt-4">
+        <button
+          type="button"
+          disabled={saveDisabled}
+          onClick={() => void onSave()}
+          className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {saving ? 'Saving…' : 'Save copy…'}
+        </button>
+        {err && <span className="text-xs text-rose-300/90">{err}</span>}
+        {saveMsg && !err && <span className="max-w-md text-xs text-zinc-400">{saveMsg}</span>}
+      </div>
     </div>
   )
 }

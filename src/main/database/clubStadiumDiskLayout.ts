@@ -28,7 +28,6 @@ export const STADIUM_CAPACITY_OFF = 60
 export const STADIUM_SEATING_OFF = 64
 export const STADIUM_EXPANSION_OFF = 68
 export const STADIUM_NEARBY_OFF = 72
-export const STADIUM_COVERED_OFF = 76
 export const STADIUM_SOIL_HEATING_OFF = 77
 
 export const CLUB_EDITOR_DISK_FIELDS: Record<string, ClubDiskFieldMeta> = {
@@ -42,7 +41,6 @@ export const CLUB_EDITOR_DISK_FIELDS: Record<string, ClubDiskFieldMeta> = {
   stadium_seating: { target: 'stadium', offset: STADIUM_SEATING_OFF, kind: 'i32' },
   stadium_expansion: { target: 'stadium', offset: STADIUM_EXPANSION_OFF, kind: 'i32' },
   stadium_nearby_id: { target: 'stadium', offset: STADIUM_NEARBY_OFF, kind: 'i32' },
-  stadium_covered: { target: 'stadium', offset: STADIUM_COVERED_OFF, kind: 'u8' },
   stadium_under_soil_heating: { target: 'stadium', offset: STADIUM_SOIL_HEATING_OFF, kind: 'u8' },
 }
 
@@ -117,7 +115,7 @@ export function writeClubEditorField(
   if (!meta) return false
   const base = meta.target === 'club' ? clubBase : stadiumBase
   const v =
-    meta.kind === 'u8' && (key === 'stadium_covered' || key === 'stadium_under_soil_heating')
+    meta.kind === 'u8' && key === 'stadium_under_soil_heating'
       ? displayValue
         ? 1
         : 0
