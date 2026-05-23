@@ -14,11 +14,9 @@ function appIconCandidates(): string[] {
     ]
   }
   return [
-    join(__dirname, '../renderer/soccer-wizard-mascot.png'),
     join(__dirname, '../renderer/favicon.png'),
     join(__dirname, '../../build/icon.png'),
     join(__dirname, '../../src/renderer/public/favicon.png'),
-    join(__dirname, '../../src/renderer/src/assets/soccer-wizard-mascot.png'),
   ]
 }
 

@@ -43,7 +43,7 @@ export function DatabaseLoadOverlay({ progress }: Props) {
             <img
               src={loadScreenMascot}
               alt=""
-              className="h-40 w-auto max-w-[min(100%,18rem)] object-contain"
+              className="h-44 w-auto max-w-[min(100%,20rem)] object-contain"
               aria-hidden
             />
           </div>
