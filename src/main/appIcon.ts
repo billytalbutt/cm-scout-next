@@ -15,8 +15,10 @@ function appIconCandidates(): string[] {
   }
   return [
     join(__dirname, '../renderer/favicon.png'),
+    join(__dirname, '../renderer/favicon-256.png'),
     join(__dirname, '../../build/icon.png'),
     join(__dirname, '../../src/renderer/public/favicon.png'),
+    join(__dirname, '../../src/renderer/public/favicon-256.png'),
   ]
 }
 

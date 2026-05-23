@@ -14,21 +14,21 @@ if (-not (Test-Path $srcPath)) {
 
 Add-Type -AssemblyName System.Drawing
 
-function Save-FittedPng(
+function Save-CoverPng(
   [System.Drawing.Image]$src,
   [string]$outPath,
   [int]$boxW,
   [int]$boxH,
-  [System.Drawing.Color]$backdrop
+  [double]$zoom
 ) {
   $bmp = New-Object System.Drawing.Bitmap $boxW, $boxH, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
   $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
   $g.CompositingMode = [System.Drawing.Drawing2D.CompositingMode]::SourceOver
-  $g.Clear($backdrop)
+  $g.Clear([System.Drawing.Color]::Transparent)
 
-  $scale = [Math]::Min($boxW / $src.Width, $boxH / $src.Height) * 0.92
+  $scale = [Math]::Max($boxW / $src.Width, $boxH / $src.Height) * $zoom
   $newW = [int]($src.Width * $scale)
   $newH = [int]($src.Height * $scale)
   $x = [int](($boxW - $newW) / 2)
@@ -68,19 +68,26 @@ try {
     Write-Host "Downscaled master cutout to 720px height in assets."
   }
 
-  $transparent = [System.Drawing.Color]::Transparent
-  $faviconPath = Join-Path $root 'src\renderer\public\favicon.png'
+  $publicDir = Join-Path $root 'src\renderer\public'
   $buildDir = Join-Path $root 'build'
-  $installerIcon = Join-Path $buildDir 'icon.png'
-  New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
+  New-Item -ItemType Directory -Force -Path $publicDir, $buildDir | Out-Null
 
-  Save-FittedPng $srcFile $faviconPath 32 32 $transparent
-  Save-FittedPng $srcFile $installerIcon 1024 1024 $transparent
+  $zoom = 1.08
+  foreach ($size in @(32, 48, 64, 128, 256)) {
+    $out = Join-Path $publicDir "favicon-$size.png"
+    Save-CoverPng $srcFile $out $size $size $zoom
+  }
+  $faviconPath = Join-Path $publicDir 'favicon.png'
+  Save-CoverPng $srcFile $faviconPath 256 256 $zoom
+  Copy-Item $faviconPath (Join-Path $publicDir 'favicon-256.png') -Force
+
+  $installerIcon = Join-Path $buildDir 'icon.png'
+  Save-CoverPng $srcFile $installerIcon 1024 1024 1.05
   Save-HeightPng $srcFile (Join-Path $root 'src\renderer\src\assets\load-screen-mascot.png') 360
 
-  Write-Host "Wrote $faviconPath (32px, transparent)"
+  Write-Host "Wrote favicon.png + favicon-{32,48,64,128,256}.png (cover fill)"
   Write-Host "Wrote load-screen-mascot.png (360px tall, transparent)"
-  Write-Host "Wrote $installerIcon (1024px, transparent)"
+  Write-Host "Wrote $installerIcon"
 } finally {
   $srcFile.Dispose()
 }
