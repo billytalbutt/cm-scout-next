@@ -960,16 +960,6 @@ export function App() {
     return () => unsub?.()
   }, [])
 
-  const autoOpenDatabaseDone = useRef(false)
-  useEffect(() => {
-    if (autoOpenDatabaseDone.current || loadInfo) return
-    autoOpenDatabaseDone.current = true
-    const id = window.setTimeout(() => {
-      void loadDatabase()
-    }, 0)
-    return () => window.clearTimeout(id)
-  }, [loadDatabase, loadInfo])
-
   const loadDatabase = useCallback(async () => {
     setErr(null)
     if (typeof window.cmapi?.openDatabase !== 'function') {
@@ -1019,6 +1009,17 @@ export function App() {
       setLoadProgress(null)
     }
   }, [])
+
+  const autoOpenDatabaseDone = useRef(false)
+  useEffect(() => {
+    if (loadInfo || autoOpenDatabaseDone.current) return
+    const id = window.setTimeout(() => {
+      if (autoOpenDatabaseDone.current) return
+      autoOpenDatabaseDone.current = true
+      void loadDatabase()
+    }, 200)
+    return () => window.clearTimeout(id)
+  }, [loadDatabase, loadInfo])
 
   const columns = useMemo(() => buildGridColumns(gridColHelper, columnOrder), [columnOrder])
 
@@ -1247,9 +1248,26 @@ export function App() {
         </button>
       </header>
 
-      {(opening || loadProgress) && loadProgress ? (
-        <DatabaseLoadOverlay progress={loadProgress} />
-      ) : null}
+      {loadProgress ? <DatabaseLoadOverlay progress={loadProgress} /> : null}
+
+      {!loadInfo && !loadProgress && !opening && (
+        <div className="flex shrink-0 items-center justify-center gap-3 border-b border-zinc-800/60 bg-zinc-900/50 px-5 py-6">
+          <p className="text-sm text-zinc-400">Choose a CM0102 save to get started.</p>
+          <button
+            type="button"
+            onClick={() => void loadDatabase()}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            Load Database
+          </button>
+        </div>
+      )}
+
+      {opening && !loadProgress && (
+        <div className="flex shrink-0 items-center justify-center border-b border-zinc-800/60 bg-zinc-900/50 px-5 py-3 text-sm text-zinc-400">
+          Choose your save file in the dialog…
+        </div>
+      )}
 
       {err && (
         <div className="border-b border-rose-900/50 bg-rose-950/40 px-5 py-2 text-sm text-rose-200">{err}</div>
