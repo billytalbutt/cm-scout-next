@@ -194,10 +194,9 @@ export function ClubEditorPanel({
 
   const saveDisabled = compressed || !snap || saving || !hasChanges
 
-  const onSave = useCallback(async () => {
-    if (!snap || compressed || typeof window.cmapi?.saveClubEdits !== 'function') return
+  const collectValues = useCallback((): Record<string, number> | null => {
     const base = baselineRef.current
-    if (!base) return
+    if (!base) return null
     const values: Record<string, number> = {}
     for (const key of Object.keys(base)) {
       const spec = [...CLUB_EDITOR_FIELDS, ...STADIUM_EDITOR_FIELDS].find((f) => f.key === key)
@@ -210,36 +209,83 @@ export function ClubEditorPanel({
       const n = Number(raw)
       if (!Number.isFinite(n)) {
         setErr(`Invalid number for ${spec?.label ?? key}`)
-        return
+        return null
       }
       values[key] = clampClubEditorValue(key, Math.trunc(n))
     }
+    return values
+  }, [draft])
+
+  const refreshAfterSave = useCallback(
+    async (clubId: number, values: Record<string, number>, savedPath: string) => {
+      onSavedToPath?.(savedPath)
+      baselineRef.current = { ...values }
+      const refreshed = await window.cmapi.getClubEditorSnapshot(clubId)
+      if (refreshed && typeof refreshed === 'object' && 'values' in refreshed && !('error' in refreshed)) {
+        const s = refreshed as ClubEditorSnapshot
+        setSnap(s)
+        const d: Record<string, string> = {}
+        const nextBase: Record<string, number> = {}
+        for (const [key, v] of Object.entries(s.values)) {
+          const c = clampClubEditorValue(key, v)
+          nextBase[key] = c
+          d[key] = String(c)
+        }
+        baselineRef.current = nextBase
+        setDraft(d)
+      }
+    },
+    [onSavedToPath],
+  )
+
+  const onSaveInPlace = useCallback(async () => {
+    if (!snap || compressed || typeof window.cmapi?.saveClubEdits !== 'function') return
+    const values = collectValues()
+    if (!values) return
+    if (
+      !window.confirm(
+        `Overwrite the loaded save file?\n\n${databasePath ?? 'Current save'}\n\nCM must Continue this exact file to see bank balance and stadium changes.`,
+      )
+    ) {
+      return
+    }
+    setSaving(true)
+    setErr(null)
+    setSaveMsg(null)
+    try {
+      const out = await window.cmapi.saveClubEdits(snap.clubId, values, { inPlace: true })
+      if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
+        const savedPath = String(out.path)
+        await refreshAfterSave(snap.clubId, values, savedPath)
+        setSaveMsg(
+          `Updated ${savedPath}. In CM: Continue that same file, then check Finances → Bank balance.`,
+        )
+      } else if (out && typeof out === 'object' && 'error' in out) {
+        const er = (out as { error?: string }).error
+        if (er !== 'cancelled') setErr(er ?? 'Save failed.')
+      } else setErr('Save failed.')
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSaving(false)
+    }
+  }, [collectValues, compressed, databasePath, refreshAfterSave, snap])
+
+  const onSave = useCallback(async () => {
+    if (!snap || compressed || typeof window.cmapi?.saveClubEdits !== 'function') return
+    const values = collectValues()
+    if (!values) return
     setSaving(true)
     setErr(null)
     setSaveMsg(null)
     try {
       const out = await window.cmapi.saveClubEdits(snap.clubId, values)
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
-        const savedPath = String((out as { path: string }).path)
-        onSavedToPath?.(savedPath)
+        const savedPath = String(out.path)
+        await refreshAfterSave(snap.clubId, values, savedPath)
         setSaveMsg(
           `Saved ${savedPath}. In CM: Continue that exact file (not an older copy). After playing and saving in-game, use File → Load that same path here before editing again.`,
         )
-        baselineRef.current = { ...values }
-        const refreshed = await window.cmapi.getClubEditorSnapshot(snap.clubId)
-        if (refreshed && typeof refreshed === 'object' && 'values' in refreshed && !('error' in refreshed)) {
-          const s = refreshed as ClubEditorSnapshot
-          setSnap(s)
-          const d: Record<string, string> = {}
-          const nextBase: Record<string, number> = {}
-          for (const [key, v] of Object.entries(s.values)) {
-            const c = clampClubEditorValue(key, v)
-            nextBase[key] = c
-            d[key] = String(c)
-          }
-          baselineRef.current = nextBase
-          setDraft(d)
-        }
       } else if (out && typeof out === 'object' && 'error' in out) {
         const er = (out as { error?: string }).error
         if (er === 'cancelled') setSaveMsg('Save cancelled.')
@@ -250,7 +296,7 @@ export function ClubEditorPanel({
     } finally {
       setSaving(false)
     }
-  }, [compressed, draft, onSavedToPath, snap])
+  }, [collectValues, compressed, refreshAfterSave, snap])
 
   if (!loadInfo) {
     return null
@@ -269,26 +315,32 @@ export function ClubEditorPanel({
   }
 
   return (
-    <section className="mb-8 max-w-4xl space-y-4 border-b border-zinc-800/80 pb-8">
+    <section className="editor-section-intro mb-8 max-w-4xl space-y-4 border-b border-zinc-800/80 pb-8">
       <div>
-        <h2 className="text-sm font-semibold text-zinc-200">Club &amp; stadium editor</h2>
+        <h2 className="text-lg font-semibold text-zinc-100">Club &amp; stadium editor</h2>
         <p className="mt-1 text-xs text-zinc-500">
           Edit bank balance, attendance, training, reputation, and linked stadium capacity and features. In CM, check{' '}
           <strong className="font-normal text-zinc-400">Finances → Bank balance</strong> (transfer budget is calculated
           separately).
         </p>
         {databasePath && (
-          <p className="mt-2 text-xs text-amber-200/80">
-            Loaded file: <span className="font-mono text-amber-100/90">{databasePath}</span> — always edit and load the
-            same file you Continue in CM. Saving creates/updates a <span className="font-mono">*-club-edited.sav</span>;
-            in-game saves go to a new filename, so reload that new file here after playing.
-          </p>
+          <div className="mt-3 rounded-lg border border-zinc-800/90 bg-zinc-950/50 px-3 py-2.5 text-[11px] leading-relaxed">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Loaded save</p>
+            <p className="mt-1 break-all font-mono text-[10px] text-zinc-400" title={databasePath}>
+              {databasePath}
+            </p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-zinc-500">
+              <li>Continue this exact file in CM after you use Update loaded save.</li>
+              <li>Save a copy keeps a backup; reload here after CM creates a new in-game save.</li>
+            </ul>
+          </div>
         )}
       </div>
 
       <ClubSearchSidebar
         loadInfo={loadInfo}
         showFavorites={false}
+        showBrowseHelper={false}
         q={clubBrowse.q}
         debouncedQ={clubBrowse.debouncedQ}
         suggestions={clubBrowse.suggestions}
@@ -301,10 +353,6 @@ export function ClubEditorPanel({
         onInputBlur={clubBrowse.onInputBlur}
         onPickClub={clubBrowse.pickClub}
       />
-
-      {clubId == null && (
-        <p className="text-sm text-zinc-500">Search and pick a club above to edit finances and stadium.</p>
-      )}
 
       {clubId != null && loading && <p className="text-sm text-zinc-500">Loading club data…</p>}
 
@@ -356,16 +404,24 @@ export function ClubEditorPanel({
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={saveDisabled}
+              onClick={() => void onSaveInPlace()}
+              className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-40"
+            >
+              {saving ? 'Saving…' : 'Update loaded save'}
+            </button>
             <button
               type="button"
               disabled={saveDisabled}
               onClick={() => void onSave()}
-              className="rounded-md border border-emerald-700/60 bg-emerald-950/40 px-3 py-1.5 text-xs font-medium text-emerald-100 hover:bg-emerald-900/50 disabled:opacity-40"
+              className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 disabled:opacity-40"
             >
-              {saving ? 'Saving…' : 'Save club & stadium to file…'}
+              Save a copy…
             </button>
-            {saveMsg && <span className="text-xs text-emerald-300/90">{saveMsg}</span>}
+            {saveMsg && <span className="w-full text-xs text-zinc-400">{saveMsg}</span>}
           </div>
         </>
       )}

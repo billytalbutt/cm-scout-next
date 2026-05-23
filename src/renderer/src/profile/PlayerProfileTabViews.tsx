@@ -173,22 +173,9 @@ export function PlayerProfileTabViews({
       )}
 
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-        <h3 className="mb-1.5 font-semibold text-zinc-300">Scouting DNA &amp; instructions</h3>
-        {profile.engineMetaProfiles.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1">
-            {profile.engineMetaProfiles.map((m) => (
-              <span
-                key={m.id}
-                className="rounded border border-zinc-700/80 bg-zinc-950/60 px-1.5 py-0.5 font-mono text-[10px] text-zinc-200"
-              >
-                {m.label}
-              </span>
-            ))}
-          </div>
-        )}
-        <p className="text-[11px] text-zinc-400">{profile.freeRoleHint.headline}</p>
-        <ul className="mt-2 space-y-1.5">
-          {profile.tacticalInstructionHints.slice(0, 8).map((h) => (
+        <h3 className="mb-1.5 font-semibold text-zinc-300">Player Instructions</h3>
+        <ul className="space-y-1.5">
+          {profile.tacticalInstructionHints.map((h) => (
             <InstructionHintRow key={h.id} label={h.label} tier={h.tier} reason={h.reason} />
           ))}
         </ul>

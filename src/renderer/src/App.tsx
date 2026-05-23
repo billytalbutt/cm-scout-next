@@ -2256,7 +2256,7 @@ export function App() {
               />
             )}
             {browseTab === 'editor' && (
-              <div className="cm-scroll min-h-0 flex-1 overflow-y-auto">
+              <div className="cm-scroll min-h-0 flex-1 overflow-y-auto px-4 pb-4">
                 <ClubEditorPanel
                   loadInfo={!!loadInfo}
                   compressed={!!loadInfo?.compressed}
@@ -2773,54 +2773,25 @@ export function App() {
                   tip={
                     <p className="text-zinc-300">
                       Instruction names match the CM0102 manual Player Instruction dialog (Run with the Ball, Try Through
-                      Balls, etc.). Yes / No is heuristic scout advice only — not decompiled match AI.
+                      Balls, Free Role, etc.). Yes / No is heuristic scout advice only — not decompiled match AI.
                     </p>
                   }
                 >
                   <h3 className="mb-1.5 flex cursor-default items-center font-semibold text-zinc-300">
-                    Scouting DNA &amp; Player Instructions
+                    Player Instructions
                     <InfoDot />
                   </h3>
                 </HoverTip>
-                {profile.engineMetaProfiles.length > 0 && (
-                  <div className="mb-2">
-                    <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-500">Meta profile DNA</p>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {profile.engineMetaProfiles.map((m) => (
-                        <span
-                          key={m.id}
-                          className="rounded border border-zinc-700/80 bg-zinc-950/60 px-1.5 py-0.5 font-mono text-[10px] text-zinc-200"
-                          title={m.id}
-                        >
-                          {m.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="mb-2 rounded border border-zinc-800/80 bg-zinc-950/40 p-2">
-                  <p
-                    className={`text-[11px] font-medium ${
-                      profile.freeRoleHint.recommend ? 'text-zinc-200' : 'text-zinc-400'
-                    }`}
-                  >
-                    {profile.freeRoleHint.headline}
-                  </p>
-                  <p className="mt-1 text-[10px] leading-snug text-zinc-500">{profile.freeRoleHint.detail}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-500">Player Instructions</p>
-                  <ul className="mt-1 space-y-1.5">
-                    {profile.tacticalInstructionHints.map((h) => (
-                      <InstructionHintRow
-                        key={h.id}
-                        label={h.label}
-                        tier={h.tier}
-                        reason={h.reason}
-                      />
-                    ))}
-                  </ul>
-                </div>
+                <ul className="space-y-1.5">
+                  {profile.tacticalInstructionHints.map((h) => (
+                    <InstructionHintRow
+                      key={h.id}
+                      label={h.label}
+                      tier={h.tier}
+                      reason={h.reason}
+                    />
+                  ))}
+                </ul>
               </div>
 
               <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">

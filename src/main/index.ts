@@ -777,9 +777,29 @@ ipcMain.handle('get-club-editor-snapshot', async (_e, clubId: unknown) => {
   return snap
 })
 
+function applyClubEditsToLoadedArchive(
+  clubId: number,
+  values: Record<string, number>,
+): { ok: true; buffer: Buffer } | { ok: false; error: string } {
+  if (!loaded) return { ok: false, error: 'No database loaded.' }
+  const built = buildPatchedArchiveForClubEdits(
+    loaded.archiveBuf,
+    loaded.db.blocks,
+    loaded.db.compressed,
+    loaded.db,
+    clubId,
+    values,
+  )
+  if (!built.ok) return built
+  loaded.archiveBuf = built.buffer
+  loaded.pathKey = pathKeyForDb(loaded.indexPath)
+  loaded.db = refreshLoadedDbFromArchive(loaded.indexPath, built.buffer)
+  return { ok: true, buffer: built.buffer }
+}
+
 ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
   if (!loaded) return { ok: false as const, error: 'No database loaded.' }
-  const p = payload as { clubId?: unknown; values?: unknown; changes?: unknown }
+  const p = payload as { clubId?: unknown; values?: unknown; changes?: unknown; inPlace?: unknown }
   const clubId = Math.floor(Number(p.clubId))
   const ch = p.values ?? p.changes
   if (!Number.isFinite(clubId) || clubId <= 0 || typeof ch !== 'object' || ch === null) {
@@ -789,6 +809,19 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
   if (Object.keys(values).length === 0) {
     return { ok: false as const, error: 'No club fields to save.' }
   }
+
+  if (p.inPlace === true) {
+    try {
+      const applied = applyClubEditsToLoadedArchive(clubId, values)
+      if (!applied.ok) return { ok: false as const, error: applied.error }
+      writeFileSync(loaded.indexPath, applied.buffer)
+      return { ok: true as const, path: loaded.indexPath, inPlace: true as const }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return { ok: false as const, error: msg }
+    }
+  }
+
   const built = buildPatchedArchiveForClubEdits(
     loaded.archiveBuf,
     loaded.db.blocks,
@@ -801,16 +834,10 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
 
   const parent =
     BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
-  const base = basename(loaded.indexPath)
-  const ext = extname(base) || '.dat'
-  const stem = ext.length > 0 ? base.slice(0, -ext.length) : base
-  const suggested =
-    loaded.indexPath.toLowerCase().includes('-club-edited')
-      ? loaded.indexPath
-      : join(dirname(loaded.indexPath), `${stem}-club-edited${ext}`)
+  const suggested = loaded.indexPath
   const dlg = parent
     ? await dialog.showSaveDialog(parent, {
-        title: 'Save edited database',
+        title: 'Save club & stadium copy',
         defaultPath: suggested,
         filters: [
           { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
@@ -818,7 +845,7 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
         ],
       })
     : await dialog.showSaveDialog({
-        title: 'Save edited database',
+        title: 'Save club & stadium copy',
         defaultPath: suggested,
         filters: [
           { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
@@ -832,7 +859,7 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
     loaded.indexPath = dlg.filePath
     loaded.pathKey = pathKeyForDb(dlg.filePath)
     loaded.db = refreshLoadedDbFromArchive(dlg.filePath, built.buffer)
-    return { ok: true as const, path: dlg.filePath }
+    return { ok: true as const, path: dlg.filePath, inPlace: false as const }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return { ok: false as const, error: msg }

@@ -289,7 +289,7 @@ export function AttributeEditorPanel({
     return (
       <div className="max-w-xl space-y-4 text-sm text-zinc-400">
         <div className="space-y-2">
-          <p className="font-medium text-zinc-200">Player attributes</p>
+          <p className="text-lg font-semibold text-zinc-100">Player attribute editor</p>
           <p>
             Select a row on <span className="text-zinc-300">All players</span> or{' '}
             <span className="text-zinc-300">Regens</span> (or open a profile from Staff / Clubs), or search below.
@@ -324,7 +324,7 @@ export function AttributeEditorPanel({
   ] as const
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-8">
+    <div className="editor-section-intro mx-auto max-w-6xl space-y-6 pb-8">
       <EditorPlayerPicker
         loadInfo={loadInfo}
         selectedStaffIndex={effectiveStaffIndex}
@@ -333,7 +333,7 @@ export function AttributeEditorPanel({
       />
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-800 pb-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-100">Attribute editor</h2>
+          <h2 className="text-lg font-semibold text-zinc-100">Player attribute editor</h2>
           <p className="mt-1 text-xs text-zinc-500">
             <span className="font-medium text-emerald-200/90">{snap.name}</span>
             <span className="text-zinc-600"> · </span>
@@ -355,7 +355,7 @@ export function AttributeEditorPanel({
           <button
             type="button"
             onClick={copyAllAttributes}
-            className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:bg-zinc-700/60"
+            className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800"
           >
             Copy attributes
           </button>
@@ -364,7 +364,7 @@ export function AttributeEditorPanel({
             disabled={!copiedAttrs}
             onClick={pasteCopiedAttributes}
             title={copiedAttrs ? `Paste from ${copiedAttrs.name}` : undefined}
-            className="rounded-md border border-sky-700/50 bg-sky-950/40 px-3 py-2 text-sm font-medium text-sky-100 transition hover:bg-sky-900/50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Paste attributes
           </button>
@@ -372,7 +372,7 @@ export function AttributeEditorPanel({
             type="button"
             disabled={saveDisabled}
             onClick={() => void onSave()}
-            className="rounded-md border border-emerald-600/50 bg-emerald-950/50 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:bg-emerald-900/60 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {saving ? 'Saving…' : 'Save copy…'}
           </button>
@@ -477,11 +477,6 @@ export function AttributeEditorPanel({
           ))}
         </div>
       </section>
-
-      <p className="text-[11px] leading-relaxed text-zinc-500">
-        Writes a <strong className="text-zinc-400">new file</strong> only; your loaded copy in memory is unchanged until you reload.
-        Close CM0102 before overwriting a file it has open. Prefer testing on a copy of an uncompressed database (e.g. Blackburn data pack).
-      </p>
     </div>
   )
 }

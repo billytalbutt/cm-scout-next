@@ -21,6 +21,8 @@ type Props = {
   onInputFocus: () => void
   onInputBlur: () => void
   onPickClub: (c: ClubListRow) => void
+  /** When false, hides the browse-tab helper (e.g. club editor has its own intro). */
+  showBrowseHelper?: boolean
 }
 
 function StarIcon({ filled, gold }: { filled: boolean; gold?: boolean }) {
@@ -58,6 +60,7 @@ export function ClubSearchSidebar({
   onInputFocus,
   onInputBlur,
   onPickClub,
+  showBrowseHelper = true,
 }: Props) {
   if (!loadInfo) {
     return <p className="text-sm text-zinc-500">Load a database to browse clubs.</p>
@@ -67,10 +70,13 @@ export function ClubSearchSidebar({
   const favActive = showFavorites && selectedClub != null && isFavorite(selectedClub.id)
 
   return (
-    <div className="space-y-4">
-      <p className="text-[11px] leading-snug text-zinc-500">
-        Search by club name, then pick a row. Use Squad or Staff tabs; click a row to open their profile on the right.
-      </p>
+    <div className="space-y-3">
+      {showBrowseHelper && (
+        <p className="text-[11px] leading-snug text-zinc-500">
+          Search by club name, then pick a row. Use Squad or Staff tabs; click a row to open their profile on the
+          right.
+        </p>
+      )}
       <label className="block">
         <span className="filter-field-label">Search club</span>
         <div className="relative">

@@ -73,3 +73,11 @@ export function writeCashDisplay(pounds: number, priorRaw?: number): number {
   }
   return cm2LongDisplayToDisk(p, CASH_DISPLAY_SCALE)
 }
+
+/** CM0102 vanilla saves always store bank balance as packed CM2 long — use when writing from the editor. */
+export function writeCm0102CashToDisk(pounds: number): number {
+  return cm2LongDisplayToDisk(
+    Math.min(MAX_CASH_POUNDS, Math.max(0, Math.trunc(pounds))),
+    CASH_DISPLAY_SCALE,
+  )
+}

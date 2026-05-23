@@ -291,5 +291,20 @@ export function computeTacticalInstructionHints(p: PlayerRecord, s: StaffRecord)
         : 'Can press in spells if stamina allows.',
   })
 
+  const freeRole = computeFreeRoleHint(p, s)
+  let freeRoleTier: InstructionTier = 'avoid'
+  if (freeRole.recommend) {
+    freeRoleTier = freeRole.headline.includes('strong') ? 'strong' : 'ok'
+  } else if (freeRole.headline.includes('OK')) {
+    freeRoleTier = 'ok'
+  }
+
+  out.push({
+    id: 'free_role',
+    label: 'Free Role',
+    tier: freeRoleTier,
+    reason: freeRole.detail,
+  })
+
   return out
 }
