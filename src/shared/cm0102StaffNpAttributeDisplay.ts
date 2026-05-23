@@ -139,18 +139,13 @@ function staffTacticsBase(currentAbility: number, intrinsic: number): number {
 
 /**
  * Tactical knowledge on the staff profile.
- * Validated on Pomaski (CA 182, raw 1 → 13) and Malkin (CA 186, raw 5 → 17): mid/high intrinsics
- * use ca÷25; when that base is still under 15, CM shows +5 more. Elite 0–3 @ high CA uses ca÷35.
+ * Pomaski (CA 182, raw 1 → 13) uses elite ca÷35; Malkin (CA 186, raw 5 → 17) uses ca÷25 rounded.
+ * Negative tactics bytes on disk are not used in-game — treat as unset (0) if they slip through linking.
  */
 export function staffTacticsInGame(currentAbility: number, intrinsic: number): number {
-  const raw = Number.isFinite(intrinsic) ? intrinsic : 0
-  const ca = Number.isFinite(currentAbility) ? currentAbility : 0
-  const base = staffTacticsBase(ca, raw)
-  if (staffTacticsLowIntrinsic(raw) && ca >= STAFF_TACTICS_CA35_ELITE_CA_MIN && base >= 12) {
-    return base
-  }
-  if (base >= 15) return base
-  return clamp20(base + 5)
+  const disk = Number.isFinite(intrinsic) ? intrinsic : 0
+  const raw = disk < 0 ? 0 : disk
+  return staffTacticsBase(currentAbility, raw)
 }
 
 export function staffNpConvertMode(key: string): StaffNpConvertMode {

@@ -960,13 +960,18 @@ export function App() {
     return () => unsub?.()
   }, [])
 
+  const autoOpenDatabaseDone = useRef(false)
+  useEffect(() => {
+    if (autoOpenDatabaseDone.current || loadInfo) return
+    autoOpenDatabaseDone.current = true
+    const id = window.setTimeout(() => {
+      void loadDatabase()
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [loadDatabase, loadInfo])
+
   const loadDatabase = useCallback(async () => {
     setErr(null)
-    setLoadProgress({
-      phase: 'read',
-      message: 'Starting load…',
-      progress: 0.02,
-    })
     if (typeof window.cmapi?.openDatabase !== 'function') {
       setErr(
         'CM-01/02 Merlin must run inside the Electron app window (the packaged .app or npm run dev). A normal browser tab cannot open files.',

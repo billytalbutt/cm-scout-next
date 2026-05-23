@@ -131,6 +131,8 @@ function isPlausibleNonPlayerRow(np: NonPlayerRecord): boolean {
     np.youngsters,
   ]
   if (!coachingBytes.some((v) => v > 0)) return false
+  // Tactics byte must be a real 0–20 rating; -1..-5 on index rows breaks ca÷25 display (shows 15–16).
+  if (np.tactics < 0 || np.tactics > 20) return false
   return true
 }
 
@@ -153,6 +155,8 @@ function nonPlayerRowQualityScore(np: NonPlayerRecord): number {
     else if (v > 20) score += 15
     else if (v < 0) score -= 25
   }
+  if (np.tactics >= 0 && np.tactics <= 20) score += 80
+  else if (np.tactics < 0) score -= 200
   return score
 }
 

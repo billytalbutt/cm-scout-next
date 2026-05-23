@@ -44,14 +44,9 @@ describe('staffNpAttrInGame (Pomaski reference)', () => {
     expect(staffNpAttrInGame('tactics', 5, 186)).toBe(17)
   })
 
-  it('does not treat negative tactics bytes as elite low-intrinsic (avoids stuck at 12)', () => {
-    expect(staffTacticsInGame(186, -4)).toBe(16)
-    expect(staffTacticsInGame(186, -5)).not.toBe(12)
-  })
-
-  it('does not add +5 when quadratic base is already ≥15', () => {
-    expect(staffTacticsInGame(186, 5)).toBe(17)
-    expect(staffTacticsInGame(182, 7)).toBe(17)
+  it('treats negative tactics disk bytes as unset (0) for scaling', () => {
+    expect(staffTacticsInGame(182, -4)).toBe(13)
+    expect(staffTacticsInGame(186, -8)).toBe(13)
   })
 
   it('leaves already-high style bytes unchanged', () => {

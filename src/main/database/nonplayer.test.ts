@@ -66,17 +66,31 @@ describe('nonPlayerForStaffLink', () => {
     expect(np?.id).toBe(1)
   })
 
-  it('still links when some coaching bytes are mildly negative (common on real saves)', () => {
+  it('prefers id row when index row has negative tactics byte', () => {
+    const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 3)
+    writeNpRow(buf, 1, { id: 500, coaching: 7, judgement: 11 })
+    buf.writeUInt16LE(182, 1 * NONPLAYER_ROW_BYTES + 4)
+    buf.writeInt8(-4, 1 * NONPLAYER_ROW_BYTES + 0x21)
+    writeNpRow(buf, 2, { id: 1, coaching: 7, judgement: 11 })
+    buf.writeUInt16LE(182, 2 * NONPLAYER_ROW_BYTES + 4)
+    buf.writeInt8(1, 2 * NONPLAYER_ROW_BYTES + 0x21)
+
+    const rows = parseNonPlayerData(buf)
+    const np = nonPlayerForStaffLink(1, rows)
+    expect(np?.tactics).toBe(1)
+    expect(np?.currentAbility).toBe(182)
+  })
+
+  it('still links when manHandling is negative but tactics is valid', () => {
     const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 2)
     writeNpRow(buf, 1, { id: 10, coaching: 7, judgement: 11 })
     const rows = parseNonPlayerData(buf)
-    rows[1]!.tactics = -4
     rows[1]!.manHandling = -1
-    rows[1]!.coachingGks = 1
+    rows[1]!.tactics = 5
 
     const np = nonPlayerForStaffLink(1, rows)
     expect(np?.coaching).toBe(7)
-    expect(np?.tactics).toBe(-4)
+    expect(np?.tactics).toBe(5)
   })
 
   it('prefers higher-quality row when index and id both resolve', () => {
