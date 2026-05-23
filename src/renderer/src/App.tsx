@@ -47,6 +47,7 @@ import {
 import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
+import { applyProfileHighlightPack } from './profileHighlightApply'
 import {
   getCopiedPlayerAttributes,
   setCopiedPlayerAttributes,
@@ -351,6 +352,8 @@ export function App() {
   }, [staffAttrMins, activeStaffAttrFilterCount])
 
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
+  /** CM Scout % column (0–6) driving attribute highlight rings on the open profile. */
+  const [profileHighlightRoleIdx, setProfileHighlightRoleIdx] = useState(0)
   const [copyAttrsMsg, setCopyAttrsMsg] = useState<string | null>(null)
   const [copiedAttrs, setCopiedAttrs] = useState<CopiedPlayerAttributes | null>(() => getCopiedPlayerAttributes())
   const [staffProfile, setStaffProfile] = useState<StaffProfilePayload | null>(null)
@@ -959,6 +962,19 @@ export function App() {
     })
     return () => unsub?.()
   }, [])
+
+  useEffect(() => {
+    if (profile?.defaultHighlightRoleCmScoutIndex != null) {
+      setProfileHighlightRoleIdx(profile.defaultHighlightRoleCmScoutIndex)
+    }
+  }, [profile])
+
+  const displayProfile = useMemo(() => {
+    if (!profile?.highlightPacksByCmScoutIndex?.length) return profile
+    const pack = profile.highlightPacksByCmScoutIndex[profileHighlightRoleIdx]
+    if (!pack) return profile
+    return applyProfileHighlightPack(profile, pack)
+  }, [profile, profileHighlightRoleIdx])
 
   const loadDatabase = useCallback(async () => {
     setErr(null)
@@ -2648,9 +2664,13 @@ export function App() {
                   tip={
                     <div className="space-y-2">
                       <p>
-                        In-game CM0102 three-column order (12 / 12 / 7, then feet and morale). Row tint marks key
-                        attributes for natural positions (suitability &gt;14):{' '}
-                        <span className="font-mono text-zinc-200">{profile.highlightRolesLabel}</span>.
+                        In-game CM0102 three-column order (12 / 12 / 7, then feet and morale). Row tint and amber
+                        rings follow the selected role in <span className="text-zinc-300">CM Scout % by role</span>{' '}
+                        (default: best % among suitable roles):{' '}
+                        <span className="font-mono text-zinc-200">
+                          {displayProfile?.highlightRolesLabel ?? profile.highlightRolesLabel}
+                        </span>
+                        . Click another role column to switch highlights.
                       </p>
                       <p>
                         Hover a value for intrinsic and in-match numbers. Engine brackets: use the strip under the
@@ -2686,11 +2706,11 @@ export function App() {
                   </h3>
                 </HoverTip>
                 <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
-                  <ProfileAttrColumn cells={profile.attrColumns[0]} showEngineAttrs={showEngineAttrs} />
-                  <ProfileAttrColumn cells={profile.attrColumns[1]} showEngineAttrs={showEngineAttrs} />
+                  <ProfileAttrColumn cells={(displayProfile ?? profile).attrColumns[0]} showEngineAttrs={showEngineAttrs} />
+                  <ProfileAttrColumn cells={(displayProfile ?? profile).attrColumns[1]} showEngineAttrs={showEngineAttrs} />
                   <div className="min-w-0">
-                    <ProfileAttrColumn cells={profile.attrColumns[2]} showEngineAttrs={showEngineAttrs} />
-                    <FeetMoraleBlock feet={profile.feetMorale} showEngineAttrs={showEngineAttrs} />
+                    <ProfileAttrColumn cells={(displayProfile ?? profile).attrColumns[2]} showEngineAttrs={showEngineAttrs} />
+                    <FeetMoraleBlock feet={(displayProfile ?? profile).feetMorale} showEngineAttrs={showEngineAttrs} />
                   </div>
                 </div>
               </div>
@@ -2718,9 +2738,9 @@ export function App() {
                   </h3>
                 </HoverTip>
                 <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
-                  <ProfileAttrColumn cells={profile.hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
-                  <ProfileAttrColumn cells={profile.hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />
-                  <ProfileAttrColumn cells={profile.hiddenColumns[2]} showEngineAttrs={showEngineAttrs} />
+                  <ProfileAttrColumn cells={(displayProfile ?? profile).hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
+                  <ProfileAttrColumn cells={(displayProfile ?? profile).hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />
+                  <ProfileAttrColumn cells={(displayProfile ?? profile).hiddenColumns[2]} showEngineAttrs={showEngineAttrs} />
                 </div>
               </div>
 
@@ -3001,7 +3021,8 @@ export function App() {
                           const pct = percents[roleIdx]!
                           const suit = profile.cmScoutRoleSuitable?.[roleIdx]
                           const tier = tierByRole.get(roleIdx)
-                          const ring =
+                          const highlightActive = profileHighlightRoleIdx === roleIdx
+                          const pctTierRing =
                             tier === 0
                               ? 'ring-1 ring-emerald-500/50'
                               : tier === 1
@@ -3018,19 +3039,26 @@ export function App() {
                                   ? 'text-amber-500'
                                   : 'text-zinc-200'
                           return (
-                            <div
+                            <button
                               key={lab + roleIdx}
-                              className={`min-w-0 rounded border px-0.5 py-1 ${
+                              type="button"
+                              title={`Show key attributes for ${lab}`}
+                              onClick={() => setProfileHighlightRoleIdx(roleIdx)}
+                              className={`min-w-0 cursor-pointer rounded border px-0.5 py-1 text-center transition hover:bg-zinc-800/60 ${
                                 suit
                                   ? 'border-emerald-500/35 bg-emerald-500/[0.06]'
                                   : 'border-zinc-800/80 bg-zinc-950/40'
-                              } ${ring}`}
+                              } ${pctTierRing} ${
+                                highlightActive
+                                  ? 'ring-2 ring-sky-400/70 ring-offset-1 ring-offset-zinc-900'
+                                  : ''
+                              }`}
                             >
                               <div className="truncate text-[8px] font-medium uppercase tracking-tight text-zinc-500">
                                 {lab}
                               </div>
                               <div className={`font-mono text-[10px] tabular-nums ${pctClass}`}>{pct}%</div>
-                            </div>
+                            </button>
                           )
                         })
                       })()}

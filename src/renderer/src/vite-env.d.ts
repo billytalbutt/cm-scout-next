@@ -113,6 +113,16 @@ declare global {
   }
 }
 
+export interface ProfileHighlightPack {
+  roleCmScoutIndex: number
+  roleLabel: string
+  playerPrimary: string[]
+  playerSecondary: string[]
+  playerEngineBreaker: string[]
+  staffPrimary: string[]
+  staffSecondary: string[]
+}
+
 export interface ProfileAttrCell {
   key: string
   label: string
@@ -342,6 +352,10 @@ export interface ProfilePayload {
   }
   hiddenColumns: [ProfileAttrCell[], ProfileAttrCell[], ProfileAttrCell[]]
   highlightRolesLabel: string
+  /** CM Scout column index (0–6) used for attribute rings on open; click another column to switch. */
+  defaultHighlightRoleCmScoutIndex?: number
+  /** One pack per GK/D/DM/M/AM/A/WB column — drives highlight rings when user picks a role. */
+  highlightPacksByCmScoutIndex?: ProfileHighlightPack[]
   seasonStats: ProfileSeasonStats
   /** Meta-profile DNA tags from `engineMetaProfiles` (grid filter + profile). */
   engineMetaProfiles: { id: string; label: string }[]

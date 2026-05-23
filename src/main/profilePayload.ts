@@ -21,7 +21,15 @@ import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
-import { computeHighlightSets, footMoraleHighlightTier, formatHighlightRoles } from './positionHighlights'
+import { CM_SCOUT_ROLE_SHORT } from '../shared/cmScoutRoles'
+import {
+  computeHighlightSetsForRole,
+  footMoraleHighlightTier,
+  pickBestCmScoutRoleIndex,
+  positionRoleFromCmScoutIndex,
+  type HighlightSets,
+  type PositionRoleId,
+} from './positionHighlights'
 import { ENGINE_META_PROFILE_LABELS, type EngineMetaProfileId } from '../shared/engineMetaProfileCatalog'
 import { computeFreeRoleHint, computeTacticalInstructionHints } from './playerTacticalHints'
 
@@ -136,6 +144,29 @@ export type ProfileAttrCell = {
   /** FM-style row tint: key attributes for natural position(s) */
   highlightTier?: 'primary' | 'secondary'
   highlightEngine?: boolean
+}
+
+/** Serialized highlight pack per CM Scout role column (renderer applies on role click). */
+export type ProfileHighlightPack = {
+  roleCmScoutIndex: number
+  roleLabel: string
+  playerPrimary: string[]
+  playerSecondary: string[]
+  playerEngineBreaker: string[]
+  staffPrimary: string[]
+  staffSecondary: string[]
+}
+
+function serializeHighlightPack(roleCmScoutIndex: number, sets: HighlightSets): ProfileHighlightPack {
+  return {
+    roleCmScoutIndex,
+    roleLabel: CM_SCOUT_ROLE_SHORT[roleCmScoutIndex] ?? positionRoleFromCmScoutIndex(roleCmScoutIndex),
+    playerPrimary: [...sets.playerPrimary],
+    playerSecondary: [...sets.playerSecondary],
+    playerEngineBreaker: [...sets.playerEngineBreaker],
+    staffPrimary: [...sets.staffPrimary],
+    staffSecondary: [...sets.staffSecondary],
+  }
 }
 
 export type ProfileFeetMorale = {
@@ -352,8 +383,14 @@ export function buildProfilePayload(
   }
   for (const k of HIDDEN_DISPLAY_ORDER) putProfileAttrIntoOther(k, p, s, ca18, other)
 
-  const hl = computeHighlightSets(p)
-  const rolesUsed = hl.rolesUsed
+  const cmScoutRoleSuitable = [0, 1, 2, 3, 4, 5, 6].map((i) => ratingPositionSuitable(i, p))
+  const rolePercents = row.cmScoutRolePercents ?? []
+  const defaultHighlightRoleCmScoutIndex = pickBestCmScoutRoleIndex(rolePercents, cmScoutRoleSuitable)
+  const highlightPacksByCmScoutIndex = [0, 1, 2, 3, 4, 5, 6].map((idx) =>
+    serializeHighlightPack(idx, computeHighlightSetsForRole(positionRoleFromCmScoutIndex(idx))),
+  )
+  const hl = computeHighlightSetsForRole(positionRoleFromCmScoutIndex(defaultHighlightRoleCmScoutIndex))
+  const rolesUsed: PositionRoleId[] = [positionRoleFromCmScoutIndex(defaultHighlightRoleCmScoutIndex)]
 
   const tierForPlayerAttr = (key: string): 'primary' | 'secondary' | undefined => {
     if (key === 'injury_proneness' || key === 'dirtiness') return undefined
@@ -459,8 +496,6 @@ export function buildProfilePayload(
       ? `${row.nation} / ${row.secondNation}`
       : row.nation
 
-  const cmScoutRoleSuitable = [0, 1, 2, 3, 4, 5, 6].map((i) => ratingPositionSuitable(i, p))
-
   const c = row.contract
   const transferStatus = c?.transfer_status ?? 0
   const arrangedClubId = c != null && c.transfer_arranged_for > 0 ? c.transfer_arranged_for : null
@@ -496,7 +531,9 @@ export function buildProfilePayload(
     dobIso: s.dob_iso,
     euPassport: row.euPassport,
     positionLabel: formatNaturalPositions(p),
-    highlightRolesLabel: formatHighlightRoles(rolesUsed),
+    highlightRolesLabel: CM_SCOUT_ROLE_SHORT[defaultHighlightRoleCmScoutIndex] ?? rolesUsed[0]!,
+    defaultHighlightRoleCmScoutIndex,
+    highlightPacksByCmScoutIndex,
     reputation: {
       home: p.home_reputation,
       current: p.current_reputation,

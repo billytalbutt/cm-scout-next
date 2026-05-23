@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeHighlightSets,
+  computeHighlightSetsForRole,
+  pickBestCmScoutRoleIndex,
   ENGINE_BREAKERS_BY_ROLE,
   UNIVERSAL_HIDDEN_ENGINE_BREAKERS,
   UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS,
@@ -59,15 +61,29 @@ describe('positionHighlights engine breakers', () => {
     }
   })
 
-  it('merges engine breakers when multiple naturals', () => {
+  it('single-role highlights do not merge M and AM engine breakers', () => {
     const p = minimalPlayer({
       midfielder: 18,
       attacking_midfielder: 18,
       attacker: 5,
       defender: 5,
     })
-    const hl = computeHighlightSets(p)
-    expect(hl.playerEngineBreaker.has('technique')).toBe(true)
-    expect(hl.playerEngineBreaker.has('creativity')).toBe(true)
+    const merged = computeHighlightSets(p)
+    expect(merged.playerEngineBreaker.has('technique')).toBe(true)
+    expect(merged.playerEngineBreaker.has('creativity')).toBe(true)
+
+    const mOnly = computeHighlightSetsForRole('M')
+    expect(mOnly.playerEngineBreaker.has('technique')).toBe(true)
+    expect(mOnly.playerEngineBreaker.has('creativity')).toBe(false)
+
+    const amOnly = computeHighlightSetsForRole('AM')
+    expect(amOnly.playerEngineBreaker.has('creativity')).toBe(true)
+    expect(amOnly.playerEngineBreaker.has('marking')).toBe(false)
+  })
+
+  it('pickBestCmScoutRoleIndex prefers suitable roles then highest %', () => {
+    const percents = [50, 88, 40, 70, 90, 30, 85]
+    const suitable = [false, true, false, true, true, false, true]
+    expect(pickBestCmScoutRoleIndex(percents, suitable)).toBe(4)
   })
 })

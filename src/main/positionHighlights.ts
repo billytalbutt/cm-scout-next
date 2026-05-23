@@ -206,6 +206,60 @@ function mergePacks(roles: PositionRoleId[]): HighlightSets {
 
 export { ENGINE_BREAKERS_BY_ROLE }
 
+/** CM Scout `WeightsSet` column index → profile highlight role (8-field ladder uses ST for “A”). */
+const CM_SCOUT_INDEX_TO_ROLE: Record<number, PositionRoleId> = {
+  0: 'GK',
+  1: 'D',
+  2: 'DM',
+  3: 'M',
+  4: 'AM',
+  5: 'ST',
+  6: 'WB',
+}
+
+export function positionRoleFromCmScoutIndex(index: number): PositionRoleId {
+  return CM_SCOUT_INDEX_TO_ROLE[index] ?? 'M'
+}
+
+/** Highlights for a single role only (not merged across all natural positions). */
+export function computeHighlightSetsForRole(role: PositionRoleId): HighlightSets {
+  return mergePacks([role])
+}
+
+/**
+ * Role column for attribute rings: best CM Scout % among suitable roles, else best overall.
+ * Aligns with grid BP (suitable naturals first).
+ */
+export function pickBestCmScoutRoleIndex(
+  percents: readonly number[],
+  suitable?: readonly boolean[],
+): number {
+  let bestIdx = 0
+  let bestVal = -1
+  const consider = (i: number) => {
+    const v = percents[i]
+    if (v == null || !Number.isFinite(v)) return
+    if (v > bestVal) {
+      bestVal = v
+      bestIdx = i
+    }
+  }
+  let anySuit = false
+  if (suitable && suitable.length === percents.length) {
+    for (let i = 0; i < percents.length; i++) {
+      if (suitable[i]) {
+        anySuit = true
+        consider(i)
+      }
+    }
+  }
+  if (!anySuit) {
+    for (let i = 0; i < percents.length; i++) consider(i)
+  }
+  return bestIdx
+}
+
+/** @deprecated Prefer {@link computeHighlightSetsForRole} + {@link pickBestCmScoutRoleIndex} for profiles. */
 export function computeHighlightSets(p: PlayerRecord): HighlightSets {
   return mergePacks(naturalRolesForHighlight(p))
 }
