@@ -26,6 +26,11 @@ import { DebouncedTextFilters } from './DebouncedTextFilters'
 import { StaffBrowsePanel } from './StaffBrowsePanel'
 import { StaffFilterSidebar } from './StaffFilterSidebar'
 import { BrowseTabBar } from './BrowseTabBar'
+import {
+  PlayerPositionFilterPanel,
+  type PlayerPositionFilterState,
+} from './filters/PlayerPositionFilterPanel'
+import type { PositionRoleFilterId, PositionSideFilterId } from '../../shared/playerPositionFilter'
 import { RegenProfileHint } from './profile/RegenProfileHint'
 import { StaffProfilePane } from './StaffProfilePane'
 import { BrandHeaderStickers } from './BrandHeaderStickers'
@@ -510,6 +515,8 @@ export function App() {
   const [tacticsAssignments, setTacticsAssignments] = useState<
     Partial<Record<string, TacticsPlayerAssignment | null>>
   >({})
+  const [positionFilterRoles, setPositionFilterRoles] = useState<PositionRoleFilterId[]>([])
+  const [positionFilterSides, setPositionFilterSides] = useState<PositionSideFilterId[]>([])
   const [regenOnly, setRegenOnly] = useState(false)
   const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
   const [showEngineAttrs, setShowEngineAttrs] = useState(() => {
@@ -570,6 +577,8 @@ export function App() {
     setStaffAttrMinMatchAtLeast('')
     setRegenOnly(false)
     setEngineSniffer('off')
+    setPositionFilterRoles([])
+    setPositionFilterSides([])
   }, [])
 
   const persistShowEngineAttrs = useCallback((v: boolean) => {
@@ -770,6 +779,8 @@ export function App() {
       f.isRegenLikely = true
     }
     if (engineSniffer !== 'off') f.engineSniffer = engineSniffer
+    if (positionFilterRoles.length) f.positionRoles = positionFilterRoles
+    if (positionFilterSides.length) f.positionSides = positionFilterSides
     f.gridInclude = gridInclude
     const ROWS_IPC_PAGE = 12000
     try {
@@ -898,6 +909,8 @@ export function App() {
     browseTab,
     regenOnly,
     engineSniffer,
+    positionFilterRoles,
+    positionFilterSides,
   ])
 
   useEffect(() => {
@@ -1479,6 +1492,7 @@ export function App() {
             )}
             {(browseTab === 'players' || browseTab === 'regens') && (
             <>
+            <p className="filter-section-heading">General</p>
             <div className="grid grid-cols-2 gap-2">
               <label>
                 <span className="filter-field-label">Age min</span>
@@ -1498,6 +1512,10 @@ export function App() {
                   onChange={(e) => setAgeMax(e.target.value)}
                 />
               </label>
+            </div>
+
+            <p className="filter-section-heading pt-1">Ability</p>
+            <div className="grid grid-cols-2 gap-2">
               <label>
                 <span className="filter-field-label">CA min</span>
                 <input
@@ -1534,6 +1552,10 @@ export function App() {
                   onChange={(e) => setPaMax(e.target.value)}
                 />
               </label>
+            </div>
+
+            <p className="filter-section-heading pt-1">Scouting</p>
+            <div className="grid grid-cols-2 gap-2">
               <label>
                 <span className="filter-field-label">Scout % min</span>
                 <input
@@ -1582,6 +1604,19 @@ export function App() {
                   onChange={(e) => setEffMax(e.target.value)}
                 />
               </label>
+            </div>
+
+            <PlayerPositionFilterPanel
+              roles={positionFilterRoles}
+              sides={positionFilterSides}
+              onChange={({ roles, sides }: PlayerPositionFilterState) => {
+                setPositionFilterRoles(roles)
+                setPositionFilterSides(sides)
+              }}
+            />
+
+            <p className="filter-section-heading pt-1">Transfer &amp; contract</p>
+            <div className="grid grid-cols-2 gap-2">
               <label>
                 <span className="filter-field-label">Value min</span>
                 <input
@@ -1618,6 +1653,73 @@ export function App() {
                   onChange={(e) => setWageMax(e.target.value)}
                 />
               </label>
+            </div>
+            <label>
+              <span className="filter-field-label">Contract type</span>
+              <select
+                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+                value={contractTypeCategory}
+                onChange={(e) =>
+                  setContractTypeCategory((e.target.value || '') as '' | ContractTypeCategoryId)
+                }
+              >
+                {CONTRACT_TYPE_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.id || 'any'} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
+              <span className="text-xs font-medium text-zinc-400">Transfer / loan</span>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={tlClub} onChange={(e) => setTlClub(e.target.checked)} />
+                Listed by club
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={tlRequest} onChange={(e) => setTlRequest(e.target.checked)} />
+                Listed by request
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={loanListed} onChange={(e) => setLoanListed(e.target.checked)} />
+                Listed for loan
+              </label>
+            </div>
+            <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
+              <span className="text-xs font-medium text-zinc-400">Contract / passport</span>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={euOnly} onChange={(e) => setEuOnly(e.target.checked)} />
+                EU passport (1st or 2nd nation)
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input type="checkbox" checked={bosmanOnly} onChange={(e) => setBosmanOnly(e.target.checked)} />
+                Leaving on Bosman / free
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={minReleaseClause}
+                  onChange={(e) => setMinReleaseClause(e.target.checked)}
+                />
+                Minimum fee release clause
+              </label>
+              <label className="block">
+                <span className="filter-field-label-sm">
+                  Contract expires within (months, ≥1, empty = any)
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={expiresWithinMonths}
+                  onChange={(e) => setExpiresWithinMonths(e.target.value)}
+                  placeholder="e.g. 6"
+                />
+              </label>
+            </div>
+
+            <p className="filter-section-heading pt-1">Light stats</p>
+            <div className="grid grid-cols-2 gap-2">
               <label>
                 <span className="filter-field-label">SH career goals min</span>
                 <input
@@ -1679,7 +1781,7 @@ export function App() {
                 />
               </label>
             </div>
-            <p className="mb-2 text-[11px] font-medium text-sky-200/80">
+            <p className="mb-2 pt-1 text-[11px] font-medium text-zinc-400">
               CM save season (Senior club — from player stats in this save)
             </p>
             <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1756,7 +1858,7 @@ export function App() {
             </div>
             {loadInfo && loadInfo.competitions.length > 0 && (
               <>
-                <p className="mb-2 text-[11px] font-medium text-sky-200/80">
+                <p className="mb-2 text-[11px] font-medium text-zinc-400">
                   CM save — by competition (pick a comp, then set min/max goals or assists)
                 </p>
                 <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1833,69 +1935,6 @@ export function App() {
                 </div>
               </>
             )}
-            <label>
-              <span className="filter-field-label">Contract type</span>
-              <select
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
-                value={contractTypeCategory}
-                onChange={(e) =>
-                  setContractTypeCategory((e.target.value || '') as '' | ContractTypeCategoryId)
-                }
-              >
-                {CONTRACT_TYPE_FILTER_OPTIONS.map((opt) => (
-                  <option key={opt.id || 'any'} value={opt.id}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
-              <span className="text-xs font-medium text-zinc-400">Transfer / loan</span>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                <input type="checkbox" checked={tlClub} onChange={(e) => setTlClub(e.target.checked)} />
-                Listed by club
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                <input type="checkbox" checked={tlRequest} onChange={(e) => setTlRequest(e.target.checked)} />
-                Listed by request
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                <input type="checkbox" checked={loanListed} onChange={(e) => setLoanListed(e.target.checked)} />
-                Listed for loan
-              </label>
-            </div>
-            <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
-              <span className="text-xs font-medium text-zinc-400">Contract / passport</span>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                <input type="checkbox" checked={euOnly} onChange={(e) => setEuOnly(e.target.checked)} />
-                EU passport (1st or 2nd nation)
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                <input type="checkbox" checked={bosmanOnly} onChange={(e) => setBosmanOnly(e.target.checked)} />
-                Leaving on Bosman / free
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                <input
-                  type="checkbox"
-                  checked={minReleaseClause}
-                  onChange={(e) => setMinReleaseClause(e.target.checked)}
-                />
-                Minimum fee release clause
-              </label>
-              <label className="block">
-                <span className="filter-field-label-sm">
-                  Contract expires within (months, ≥1, empty = any)
-                </span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
-                  value={expiresWithinMonths}
-                  onChange={(e) => setExpiresWithinMonths(e.target.value)}
-                  placeholder="e.g. 6"
-                />
-              </label>
-            </div>
             <details className="rounded-md border border-zinc-800 bg-zinc-900/40">
               <summary
                 className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400"
@@ -2099,7 +2138,7 @@ export function App() {
 
         <div className="flex min-h-0 min-w-0 flex-1">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ flex: '1 1 0%', minWidth: '12rem' }}>
-          <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-zinc-800/80 bg-zinc-950/40 px-3 pt-3 pb-2.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-2 border-b border-zinc-800/80 bg-zinc-950/40 px-3 pt-3.5 pb-3">
             <BrowseTabBar active={browseTab} onChange={setBrowseTab} />
             {browseTab === 'regens' && loadInfo && (
               <span className="text-[10px] text-zinc-500">
@@ -2710,7 +2749,7 @@ export function App() {
                 </div>
               </div>
 
-              <div className="mt-2 rounded-lg border border-sky-900/40 bg-sky-950/20 p-3 text-xs">
+              <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
                 <HoverTip
                   tip={
                     <p className="text-zinc-300">
@@ -2719,7 +2758,7 @@ export function App() {
                     </p>
                   }
                 >
-                  <h3 className="mb-1.5 flex cursor-default items-center font-semibold text-sky-200/95">
+                  <h3 className="mb-1.5 flex cursor-default items-center font-semibold text-zinc-300">
                     Scouting DNA &amp; Player Instructions
                     <InfoDot />
                   </h3>
@@ -2731,7 +2770,7 @@ export function App() {
                       {profile.engineMetaProfiles.map((m) => (
                         <span
                           key={m.id}
-                          className="rounded border border-sky-600/35 bg-sky-950/40 px-1.5 py-0.5 font-mono text-[10px] text-sky-100/95"
+                          className="rounded border border-zinc-700/80 bg-zinc-950/60 px-1.5 py-0.5 font-mono text-[10px] text-zinc-200"
                           title={m.id}
                         >
                           {m.label}

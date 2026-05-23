@@ -24,9 +24,7 @@ type Props = {
 
 export function BrowseTabBar({ active, onChange }: Props) {
   return (
-    <>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Browse</span>
-      <div className="flex min-w-0 flex-1 flex-wrap gap-1" role="tablist" aria-label="Browse">
+    <div className="flex min-w-0 flex-1 flex-wrap gap-1" role="tablist" aria-label="Browse pages">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -39,8 +37,7 @@ export function BrowseTabBar({ active, onChange }: Props) {
             {t.label}
           </button>
         ))}
-      </div>
-    </>
+    </div>
   )
 }
 

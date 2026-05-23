@@ -46,7 +46,7 @@ export function DatabaseLoadOverlay({ progress }: Props) {
                 decoding="sync"
                 loading="eager"
                 draggable={false}
-                className="cm-load-mascot-img block h-32 w-32 object-contain object-center"
+                className="cm-load-mascot-img block h-48 w-48 object-contain object-center"
               />
             </div>
           </div>

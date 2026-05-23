@@ -12,6 +12,13 @@ import {
   contractTypeMatchesCategory,
   type ContractTypeCategoryId,
 } from '../shared/contractTypes'
+import {
+  parsePositionRoleFilterIds,
+  parsePositionSideFilterIds,
+  passesPlayerPositionFilter,
+  type PositionRoleFilterId,
+  type PositionSideFilterId,
+} from '../shared/playerPositionFilter'
 
 /** Subset of the IPC payload from `get-rows` used for filtering (main process). */
 export type GetRowsFilter = {
@@ -76,6 +83,10 @@ export type GetRowsFilter = {
   /** Effectiveness % (`effPercent`; null / Unsure excluded when a bound is set). */
   effMin?: number
   effMax?: number
+  /** Natural role lines (&gt;14) — player must match every selected role. */
+  positionRoles?: PositionRoleFilterId[]
+  /** Natural sides (&gt;14) — player must match every selected side. */
+  positionSides?: PositionSideFilterId[]
 }
 
 function hasActiveAttrMins(mins?: (number | null)[] | undefined): boolean {
@@ -182,6 +193,21 @@ function rowMatches(r: UiPlayerRow, f: GetRowsFilter, ctx: { gameDateIso: string
   }
   if (f.effMax != null) {
     if (r.effPercent == null || r.effPercent > f.effMax) return false
+  }
+
+  if (
+    (f.positionRoles?.length ?? 0) > 0 ||
+    (f.positionSides?.length ?? 0) > 0
+  ) {
+    if (
+      !passesPlayerPositionFilter(
+        r.player,
+        f.positionRoles ?? [],
+        f.positionSides ?? [],
+      )
+    ) {
+      return false
+    }
   }
 
   if (f.contractTypeCategory) {

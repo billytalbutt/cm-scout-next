@@ -23,6 +23,10 @@
   .pill-tab-inactive {
     @apply text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300;
   }
+
+  .filter-section-heading {
+    @apply text-[10px] font-semibold uppercase tracking-wider text-zinc-500;
+  }
 }
 
 :root {
@@ -66,8 +70,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 10rem;
-  height: 10rem;
+  width: 12rem;
+  height: 12rem;
 }
 
 .cm-load-mascot-img {

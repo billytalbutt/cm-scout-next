@@ -462,8 +462,12 @@ ipcMain.handle('get-rows', async (_e, payload: unknown) => {
     }
   }
 
+  const filter = raw as GetRowsFilter
+  filter.positionRoles = parsePositionRoleFilterIds(raw.positionRoles)
+  filter.positionSides = parsePositionSideFilterIds(raw.positionSides)
+
   const gameDateIso = loaded?.db.gameDateIso ?? null
-  const rows = filterUiPlayerRows(allRowsForGrid(), raw as GetRowsFilter, { gameDateIso })
+  const rows = filterUiPlayerRows(allRowsForGrid(), filter, { gameDateIso })
   const total = rows.length
   const page = limit === undefined ? rows : rows.slice(offset, offset + limit)
   const mapped = page.map((r) => mapUiRowToGridPayload(r, gridInclude))
