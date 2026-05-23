@@ -36,6 +36,10 @@ import { applyRegenPipeline } from './regenDetection'
 import type { GridIncludeFlags } from '../shared/gridTypes'
 import { ENGINE_SNIFFER_IDS, type EngineSnifferId } from './engineSniffer'
 import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
+import {
+  parsePositionRoleFilterIds,
+  parsePositionSideFilterIds,
+} from '../shared/playerPositionFilter'
 import { filterStaffGridRows } from './staffBrowse'
 import {
   buildClubDetailPayload,
