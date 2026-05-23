@@ -131,8 +131,6 @@ function isPlausibleNonPlayerRow(np: NonPlayerRecord): boolean {
     np.youngsters,
   ]
   if (!coachingBytes.some((v) => v > 0)) return false
-  // Negative non-sentinel bytes break tactical scaling (elite ca÷35 path misfires).
-  if (coachingBytes.some((v) => v < 0)) return false
   return true
 }
 
@@ -181,5 +179,28 @@ export function nonPlayerForStaffLink(
   if (indexOk) return byIndex
   if (idOk) return byId
 
+  // Prefer a weak profile over none — saves often have -1..-5 on some bytes while still valid.
+  if (byIndex != null && !isSentinelNonPlayerRow(byIndex)) return byIndex
+  if (byId != null && byId !== byIndex && !isSentinelNonPlayerRow(byId)) return byId
+
   return undefined
+}
+
+/** True only for empty / garbage rows (0xB0-style), not mild negatives on one field. */
+function isSentinelNonPlayerRow(np: NonPlayerRecord): boolean {
+  const ca = np.currentAbility
+  if (!Number.isFinite(ca) || ca < 1 || ca > 250 || ca === 65_535) return true
+  if (np.coaching <= -70 || np.tactics <= -70 || np.judgement <= -70) return true
+  const coachingBytes = [
+    np.coaching,
+    np.coachingGks,
+    np.judgement,
+    np.judgingPotential,
+    np.manHandling,
+    np.motivating,
+    np.tactics,
+    np.physiotherapy,
+    np.youngsters,
+  ]
+  return !coachingBytes.some((v) => v > 0)
 }

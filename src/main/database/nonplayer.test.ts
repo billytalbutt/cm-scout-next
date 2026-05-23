@@ -66,6 +66,19 @@ describe('nonPlayerForStaffLink', () => {
     expect(np?.id).toBe(1)
   })
 
+  it('still links when some coaching bytes are mildly negative (common on real saves)', () => {
+    const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 2)
+    writeNpRow(buf, 1, { id: 10, coaching: 7, judgement: 11 })
+    const rows = parseNonPlayerData(buf)
+    rows[1]!.tactics = -4
+    rows[1]!.manHandling = -1
+    rows[1]!.coachingGks = 1
+
+    const np = nonPlayerForStaffLink(1, rows)
+    expect(np?.coaching).toBe(7)
+    expect(np?.tactics).toBe(-4)
+  })
+
   it('prefers higher-quality row when index and id both resolve', () => {
     const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 3)
     writeNpRow(buf, 0, { id: 100, coaching: 2, judgement: 3 })
