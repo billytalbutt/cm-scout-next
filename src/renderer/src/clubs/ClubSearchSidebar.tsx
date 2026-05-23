@@ -71,7 +71,7 @@ export function ClubSearchSidebar({
         Search by club name, then pick a row. Use Squad or Staff tabs; click a row to open their profile on the right.
       </p>
       <label className="block">
-        <span className="mb-1 block text-xs text-zinc-500">Search club</span>
+        <span className="filter-field-label">Search club</span>
         <div className="relative">
           <input
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 pr-8 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-600"

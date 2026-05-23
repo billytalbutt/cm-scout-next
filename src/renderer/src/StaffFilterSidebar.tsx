@@ -27,7 +27,7 @@ function StaffAttrMinGrid({
         if (i < 0) return null
         return (
           <label key={spec.key} className="contents">
-            <span className="truncate text-zinc-500" title={spec.label}>
+            <span className="filter-attr-label" title={spec.label}>
               {spec.label}
               {spec.source === 'np' ? (
                 <span className="ml-1 text-[9px] text-zinc-600">(coaching)</span>
@@ -139,7 +139,7 @@ export function StaffFilterSidebar({
   return (
     <>
       <label>
-        <span className="mb-1 block text-xs text-zinc-500">Job role</span>
+        <span className="filter-field-label">Job role</span>
         <select
           className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
           value={staffJobForClub}
@@ -163,7 +163,7 @@ export function StaffFilterSidebar({
       </label>
       <div className="grid grid-cols-2 gap-2">
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Age min</span>
+          <span className="filter-field-label">Age min</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -172,7 +172,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Age max</span>
+          <span className="filter-field-label">Age max</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -181,7 +181,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Staff CA min</span>
+          <span className="filter-field-label">Staff CA min</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -190,7 +190,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Staff CA max</span>
+          <span className="filter-field-label">Staff CA max</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -199,7 +199,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Staff PA min</span>
+          <span className="filter-field-label">Staff PA min</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -209,7 +209,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Staff PA max</span>
+          <span className="filter-field-label">Staff PA max</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -219,7 +219,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Reputation min</span>
+          <span className="filter-field-label">Reputation min</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -229,7 +229,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Reputation max</span>
+          <span className="filter-field-label">Reputation max</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -239,7 +239,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Wage min</span>
+          <span className="filter-field-label">Wage min</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -248,7 +248,7 @@ export function StaffFilterSidebar({
           />
         </label>
         <label>
-          <span className="mb-1 block text-xs text-zinc-500">Wage max</span>
+          <span className="filter-field-label">Wage max</span>
           <input
             type="number"
             className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -258,7 +258,7 @@ export function StaffFilterSidebar({
         </label>
       </div>
       <label>
-        <span className="mb-1 block text-xs text-zinc-500">Contract type</span>
+        <span className="filter-field-label">Contract type</span>
         <select
           className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
           value={contractTypeCategory}
@@ -282,7 +282,7 @@ export function StaffFilterSidebar({
           Leaving on Bosman / free
         </label>
         <label className="block">
-          <span className="mb-1 block text-[11px] text-zinc-500">
+          <span className="filter-field-label-sm">
             Contract expires within (months, ≥1, empty = any)
           </span>
           <input

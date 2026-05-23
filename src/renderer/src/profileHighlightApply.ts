@@ -1,3 +1,4 @@
+import { footMoraleHighlightTier, positionRoleFromCmScoutIndex } from '../../main/positionHighlights'
 import type { ProfileAttrCell, ProfilePayload } from './vite-env.d'
 
 export type ProfileHighlightPack = {
@@ -45,11 +46,9 @@ function mapCell(c: ProfileAttrCell, pack: ProfileHighlightPack): ProfileAttrCel
 
 function footTier(
   key: 'left_foot' | 'right_foot' | 'morale',
-  pack: ProfileHighlightPack,
+  roleCmScoutIndex: number,
 ): 'primary' | 'secondary' | undefined {
-  if (key === 'morale') return 'secondary'
-  if (pack.roleLabel === 'GK') return undefined
-  return 'secondary'
+  return footMoraleHighlightTier(key, [positionRoleFromCmScoutIndex(roleCmScoutIndex)])
 }
 
 /** Clone profile with attribute/hidden highlights for one CM Scout role column. */
@@ -72,9 +71,9 @@ export function applyProfileHighlightPack(
   ]
 
   const feetMorale = {
-    left: { ...profile.feetMorale.left, highlightTier: footTier('left_foot', pack) },
-    right: { ...profile.feetMorale.right, highlightTier: footTier('right_foot', pack) },
-    morale: { ...profile.feetMorale.morale, highlightTier: footTier('morale', pack) },
+    left: { ...profile.feetMorale.left, highlightTier: footTier('left_foot', pack.roleCmScoutIndex) },
+    right: { ...profile.feetMorale.right, highlightTier: footTier('right_foot', pack.roleCmScoutIndex) },
+    morale: { ...profile.feetMorale.morale, highlightTier: footTier('morale', pack.roleCmScoutIndex) },
   }
 
   return {

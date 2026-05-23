@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ProfilePayload, StaffProfilePayload } from '../vite-env.d'
+import { defaultProfileHighlightRoleIdx } from '../../../shared/profileHighlightRole'
 import type { ProfileWindowRoute } from './profileWindowRoute'
 import { PlayerProfileHeader, PlayerProfileTabViews } from './PlayerProfileTabViews'
 import { StaffProfileTabViews } from './StaffProfileTabViews'
@@ -37,9 +38,7 @@ export function ProfileWindowApp({ route }: { route: ProfileWindowRoute }) {
         }
         setPlayer(p)
         setStaff(null)
-        if (p.defaultHighlightRoleCmScoutIndex != null) {
-          setProfileHighlightRoleIdx(p.defaultHighlightRoleCmScoutIndex)
-        }
+        setProfileHighlightRoleIdx(defaultProfileHighlightRoleIdx(p))
         document.title = `${p.name} — CM Merlin`
       } else {
         const s = await window.cmapi?.getStaffProfile(route.staffIndex)

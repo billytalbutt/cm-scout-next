@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import {
   sanitizeStaffAbility,
   staffReputationDisplay,
@@ -43,7 +43,16 @@ function fmtMoney(n: number) {
   return `${sign}£${abs.toLocaleString()}`
 }
 
-export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayload; showEngineAttrs?: boolean }) {
+export function StaffProfilePane({
+  p,
+  showEngineAttrs,
+  actions,
+}: {
+  p: StaffProfilePayload
+  showEngineAttrs?: boolean
+  /** Pop out / shortlist — same slot as player profile (below CA·PA, above attributes). */
+  actions?: ReactNode
+}) {
   const [showInactiveHidden, setShowInactiveHidden] = useState(loadShowInactiveHidden)
   const persistShowInactiveHidden = useCallback((v: boolean) => {
     setShowInactiveHidden(v)
@@ -109,6 +118,8 @@ export function StaffProfilePane({ p, showEngineAttrs }: { p: StaffProfilePayloa
           )
         })()}
       </div>
+
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
 
       {p.coachPreferences && (
         <div>

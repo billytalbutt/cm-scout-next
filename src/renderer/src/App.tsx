@@ -25,6 +25,8 @@ import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../share
 import { DebouncedTextFilters } from './DebouncedTextFilters'
 import { StaffBrowsePanel } from './StaffBrowsePanel'
 import { StaffFilterSidebar } from './StaffFilterSidebar'
+import { BrowseTabBar } from './BrowseTabBar'
+import { RegenProfileHint } from './profile/RegenProfileHint'
 import { StaffProfilePane } from './StaffProfilePane'
 import { BrandHeaderStickers } from './BrandHeaderStickers'
 import { isProfilePopoutWindow } from './profile/profileWindowRoute'
@@ -49,6 +51,8 @@ import { AttributeEditorPanel } from './AttributeEditorPanel'
 import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { applyProfileHighlightPack } from './profileHighlightApply'
+import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
+import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
 import {
   getCopiedPlayerAttributes,
   setCopiedPlayerAttributes,
@@ -965,14 +969,17 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    if (profile?.defaultHighlightRoleCmScoutIndex != null) {
-      setProfileHighlightRoleIdx(profile.defaultHighlightRoleCmScoutIndex)
-    }
-  }, [profile])
+    if (sel == null || !profile) return
+    setProfileHighlightRoleIdx(defaultProfileHighlightRoleIdx(profile))
+  }, [sel, profile?.defaultHighlightRoleCmScoutIndex, profile?.effByArchetype])
 
   const displayProfile = useMemo(() => {
     if (!profile?.highlightPacksByCmScoutIndex?.length) return profile
-    const pack = profile.highlightPacksByCmScoutIndex[profileHighlightRoleIdx]
+    const idx = Math.min(
+      Math.max(0, profileHighlightRoleIdx),
+      profile.highlightPacksByCmScoutIndex.length - 1,
+    )
+    const pack = profile.highlightPacksByCmScoutIndex[idx]
     if (!pack) return profile
     return applyProfileHighlightPack(profile, pack)
   }, [profile, profileHighlightRoleIdx])
@@ -1475,7 +1482,7 @@ export function App() {
             <>
             <div className="grid grid-cols-2 gap-2">
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Age min</span>
+                <span className="filter-field-label">Age min</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1484,7 +1491,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Age max</span>
+                <span className="filter-field-label">Age max</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1493,7 +1500,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">CA min</span>
+                <span className="filter-field-label">CA min</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1502,7 +1509,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">CA max</span>
+                <span className="filter-field-label">CA max</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1511,7 +1518,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">PA min</span>
+                <span className="filter-field-label">PA min</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1520,7 +1527,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">PA max</span>
+                <span className="filter-field-label">PA max</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1529,7 +1536,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Scout % min</span>
+                <span className="filter-field-label">Scout % min</span>
                 <input
                   type="number"
                   min={0}
@@ -1541,7 +1548,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Scout % max</span>
+                <span className="filter-field-label">Scout % max</span>
                 <input
                   type="number"
                   min={0}
@@ -1553,7 +1560,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Eff % min</span>
+                <span className="filter-field-label">Eff % min</span>
                 <input
                   type="number"
                   min={0}
@@ -1565,7 +1572,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Eff % max</span>
+                <span className="filter-field-label">Eff % max</span>
                 <input
                   type="number"
                   min={0}
@@ -1577,7 +1584,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Value min</span>
+                <span className="filter-field-label">Value min</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1586,7 +1593,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Value max</span>
+                <span className="filter-field-label">Value max</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1595,7 +1602,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Wage min</span>
+                <span className="filter-field-label">Wage min</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1604,7 +1611,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">Wage max</span>
+                <span className="filter-field-label">Wage max</span>
                 <input
                   type="number"
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
@@ -1613,7 +1620,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">SH career goals min</span>
+                <span className="filter-field-label">SH career goals min</span>
                 <input
                   type="number"
                   min={0}
@@ -1623,7 +1630,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">SH career goals max</span>
+                <span className="filter-field-label">SH career goals max</span>
                 <input
                   type="number"
                   min={0}
@@ -1633,7 +1640,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">SH season goals min</span>
+                <span className="filter-field-label">SH season goals min</span>
                 <input
                   type="number"
                   min={0}
@@ -1643,7 +1650,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">SH season goals max</span>
+                <span className="filter-field-label">SH season goals max</span>
                 <input
                   type="number"
                   min={0}
@@ -1653,7 +1660,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">SH career apps min</span>
+                <span className="filter-field-label">SH career apps min</span>
                 <input
                   type="number"
                   min={0}
@@ -1663,7 +1670,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">SH season apps min</span>
+                <span className="filter-field-label">SH season apps min</span>
                 <input
                   type="number"
                   min={0}
@@ -1678,7 +1685,7 @@ export function App() {
             </p>
             <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">CS Senior goals min</span>
+                <span className="filter-field-label">CS Senior goals min</span>
                 <input
                   type="number"
                   min={0}
@@ -1688,7 +1695,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">CS Senior goals max</span>
+                <span className="filter-field-label">CS Senior goals max</span>
                 <input
                   type="number"
                   min={0}
@@ -1698,7 +1705,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">CS Senior assists min</span>
+                <span className="filter-field-label">CS Senior assists min</span>
                 <input
                   type="number"
                   min={0}
@@ -1708,7 +1715,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">CS Senior assists max</span>
+                <span className="filter-field-label">CS Senior assists max</span>
                 <input
                   type="number"
                   min={0}
@@ -1718,7 +1725,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">CS Senior apps min</span>
+                <span className="filter-field-label">CS Senior apps min</span>
                 <input
                   type="number"
                   min={0}
@@ -1728,7 +1735,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">CS League goals min</span>
+                <span className="filter-field-label">CS League goals min</span>
                 <input
                   type="number"
                   min={0}
@@ -1738,7 +1745,7 @@ export function App() {
                 />
               </label>
               <label>
-                <span className="mb-1 block text-xs text-zinc-500">CS League assists min</span>
+                <span className="filter-field-label">CS League assists min</span>
                 <input
                   type="number"
                   min={0}
@@ -1755,7 +1762,7 @@ export function App() {
                 </p>
                 <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <label className="col-span-2 sm:col-span-3">
-                    <span className="mb-1 block text-xs text-zinc-500">Competition</span>
+                    <span className="filter-field-label">Competition</span>
                     <select
                       className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
                       value={csCompetitionId}
@@ -1770,7 +1777,7 @@ export function App() {
                     </select>
                   </label>
                   <label>
-                    <span className="mb-1 block text-xs text-zinc-500">Goals min</span>
+                    <span className="filter-field-label">Goals min</span>
                     <input
                       type="number"
                       min={0}
@@ -1781,7 +1788,7 @@ export function App() {
                     />
                   </label>
                   <label>
-                    <span className="mb-1 block text-xs text-zinc-500">Goals max</span>
+                    <span className="filter-field-label">Goals max</span>
                     <input
                       type="number"
                       min={0}
@@ -1792,7 +1799,7 @@ export function App() {
                     />
                   </label>
                   <label>
-                    <span className="mb-1 block text-xs text-zinc-500">Assists min</span>
+                    <span className="filter-field-label">Assists min</span>
                     <input
                       type="number"
                       min={0}
@@ -1803,7 +1810,7 @@ export function App() {
                     />
                   </label>
                   <label>
-                    <span className="mb-1 block text-xs text-zinc-500">Assists max</span>
+                    <span className="filter-field-label">Assists max</span>
                     <input
                       type="number"
                       min={0}
@@ -1814,7 +1821,7 @@ export function App() {
                     />
                   </label>
                   <label>
-                    <span className="mb-1 block text-xs text-zinc-500">Apps min</span>
+                    <span className="filter-field-label">Apps min</span>
                     <input
                       type="number"
                       min={0}
@@ -1828,7 +1835,7 @@ export function App() {
               </>
             )}
             <label>
-              <span className="mb-1 block text-xs text-zinc-500">Contract type</span>
+              <span className="filter-field-label">Contract type</span>
               <select
                 className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
                 value={contractTypeCategory}
@@ -1877,7 +1884,7 @@ export function App() {
                 Minimum fee release clause
               </label>
               <label className="block">
-                <span className="mb-1 block text-[11px] text-zinc-500">
+                <span className="filter-field-label-sm">
                   Contract expires within (months, ≥1, empty = any)
                 </span>
                 <input
@@ -1979,7 +1986,7 @@ export function App() {
                 <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-1 text-[11px]">
                   {CM_SCOUT_ATTR_LABELS.map((label, i) => (
                     <label key={label} className="contents">
-                      <span className="truncate text-zinc-500">{label}</span>
+                      <span className="filter-attr-label">{label}</span>
                       <input
                         type="number"
                         min={1}
@@ -2094,84 +2101,7 @@ export function App() {
         <div className="flex min-h-0 min-w-0 flex-1">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ flex: '1 1 0%', minWidth: '12rem' }}>
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Browse</span>
-            <button
-              type="button"
-              onClick={() => setBrowseTab('players')}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                browseTab === 'players'
-                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
-                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
-              }`}
-            >
-              All players
-            </button>
-            <button
-              type="button"
-              onClick={() => setBrowseTab('regens')}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                browseTab === 'regens'
-                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
-                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
-              }`}
-            >
-              Regens
-            </button>
-            <button
-              type="button"
-              onClick={() => setBrowseTab('staff')}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                browseTab === 'staff'
-                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
-                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
-              }`}
-            >
-              Staff
-            </button>
-            <button
-              type="button"
-              onClick={() => setBrowseTab('shortlists')}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                browseTab === 'shortlists'
-                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
-                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
-              }`}
-            >
-              Shortlists
-            </button>
-            <button
-              type="button"
-              onClick={() => setBrowseTab('clubs')}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                browseTab === 'clubs'
-                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
-                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
-              }`}
-            >
-              Clubs
-            </button>
-            <button
-              type="button"
-              onClick={() => setBrowseTab('tactics')}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                browseTab === 'tactics'
-                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
-                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
-              }`}
-            >
-              Tactics
-            </button>
-            <button
-              type="button"
-              onClick={() => setBrowseTab('editor')}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-                browseTab === 'editor'
-                  ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100'
-                  : 'border-transparent text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200'
-              }`}
-            >
-              Editor
-            </button>
+            <BrowseTabBar active={browseTab} onChange={setBrowseTab} />
             {browseTab === 'regens' && loadInfo && (
               <span className="text-[10px] text-zinc-500">
                 Heuristic list only — grid columns can still show Is regen / Regen of.
@@ -2540,33 +2470,36 @@ export function App() {
             </p>
           )}
           {(browseTab === 'staff' || browseTab === 'clubs') && staffProfile && (
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  title="Open staff profile in a separate window"
-                  onClick={() =>
-                    void window.cmapi?.openProfileWindow({
+            <StaffProfilePane
+              p={staffProfile}
+              showEngineAttrs={showEngineAttrs}
+              actions={
+                <>
+                  <button
+                    type="button"
+                    title="Open staff profile in a separate window"
+                    onClick={() =>
+                      void window.cmapi?.openProfileWindow({
+                        staffIndex: staffProfile.staffIndex,
+                        kind: 'staff',
+                      })
+                    }
+                    className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60"
+                  >
+                    Pop out
+                  </button>
+                  <AddToShortlistButton
+                    kind="staff"
+                    target={{
                       staffIndex: staffProfile.staffIndex,
-                      kind: 'staff',
-                    })
-                  }
-                  className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60"
-                >
-                  Pop out
-                </button>
-                <AddToShortlistButton
-                  kind="staff"
-                  target={{
-                    staffIndex: staffProfile.staffIndex,
-                    staffId: staffProfile.staffId,
-                    name: staffProfile.name,
-                  }}
-                  shortlists={shortlists}
-                />
-              </div>
-              <StaffProfilePane p={staffProfile} showEngineAttrs={showEngineAttrs} />
-            </div>
+                      staffId: staffProfile.staffId,
+                      name: staffProfile.name,
+                    }}
+                    shortlists={shortlists}
+                  />
+                </>
+              }
+            />
           )}
           {profile && !profileLoading && (
             <div className="space-y-4">
@@ -2678,30 +2611,12 @@ export function App() {
               </div>
 
               {profile.regen?.isLikely && (
-                <div className="rounded-lg border border-violet-800/45 bg-violet-950/20 px-3 py-2 text-[11px] text-zinc-300">
-                  Likely regen
-                  {profile.regen.ofName ? (
-                    <>
-                      {' '}
-                      of <span className="font-medium text-violet-100">{profile.regen.ofName}</span>
-                    </>
-                  ) : null}
-                  {profile.regen.source === 'snapshot' ? ' (snapshot)' : ' (heuristic)'}
-                  {profile.regen.ofStaffIndex != null && (
-                    <button
-                      type="button"
-                      className="ml-2 text-violet-200/90 underline hover:text-violet-100"
-                      onClick={() =>
-                        void window.cmapi?.openProfileWindow({
-                          staffIndex: profile.regen!.ofStaffIndex!,
-                          kind: 'player',
-                        })
-                      }
-                    >
-                      Open predecessor
-                    </button>
-                  )}
-                </div>
+                <RegenProfileHint
+                  regen={profile.regen}
+                  onOpenPredecessor={(staffIndex) =>
+                    void window.cmapi?.openProfileWindow({ staffIndex, kind: 'player' })
+                  }
+                />
               )}
 
               <div>
@@ -2710,12 +2625,12 @@ export function App() {
                     <div className="space-y-2">
                       <p>
                         In-game CM0102 three-column order (12 / 12 / 7, then feet and morale). Row tint and amber
-                        rings follow the selected role in <span className="text-zinc-300">CM Scout % by role</span>{' '}
-                        (default: best % among suitable roles):{' '}
+                        rings follow the natural role selected under CM Scout % / Eff % by recipe (default: best
+                        recipe %):{' '}
                         <span className="font-mono text-zinc-200">
                           {displayProfile?.highlightRolesLabel ?? profile.highlightRolesLabel}
                         </span>
-                        . Click another role column to switch highlights.
+                        .
                       </p>
                       <p>
                         Hover a value for intrinsic and in-match numbers. Engine brackets: use the strip under the
@@ -2750,7 +2665,10 @@ export function App() {
                     <InfoDot />
                   </h3>
                 </HoverTip>
-                <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+                <div
+                  key={`attr-${profileHighlightRoleIdx}`}
+                  className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2"
+                >
                   <ProfileAttrColumn cells={(displayProfile ?? profile).attrColumns[0]} showEngineAttrs={showEngineAttrs} />
                   <ProfileAttrColumn cells={(displayProfile ?? profile).attrColumns[1]} showEngineAttrs={showEngineAttrs} />
                   <div className="min-w-0">
@@ -2782,7 +2700,10 @@ export function App() {
                     <InfoDot />
                   </h3>
                 </HoverTip>
-                <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+                <div
+                  key={`hidden-${profileHighlightRoleIdx}`}
+                  className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2"
+                >
                   <ProfileAttrColumn cells={(displayProfile ?? profile).hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
                   <ProfileAttrColumn cells={(displayProfile ?? profile).hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />
                   <ProfileAttrColumn cells={(displayProfile ?? profile).hiddenColumns[2]} showEngineAttrs={showEngineAttrs} />
@@ -2964,30 +2885,11 @@ export function App() {
                     )}
                     {profile.effByArchetype && profile.effByArchetype.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
-                          Eff % by recipe (natural roles)
-                        </p>
-                        <div className="mt-1 grid grid-cols-4 gap-1 text-center">
-                          {profile.effByArchetype.map((row) => (
-                            <div
-                              key={row.archetypeId}
-                              className={`rounded px-1 py-1 ${
-                                row.isWinner
-                                  ? 'bg-emerald-950/40 ring-1 ring-emerald-500/45'
-                                  : 'bg-zinc-900/50'
-                              }`}
-                            >
-                              <p className="text-[8px] uppercase tracking-wide text-zinc-500">{row.archetypeLabel}</p>
-                              <p
-                                className={`font-mono text-[11px] ${
-                                  row.isWinner ? 'text-emerald-200' : 'text-zinc-300'
-                                }`}
-                              >
-                                {row.percent.toFixed(1)}%
-                              </p>
-                            </div>
-                          ))}
-                        </div>
+                        <NaturalRoleHighlightPicker
+                          profile={profile}
+                          activeRoleIdx={profileHighlightRoleIdx}
+                          onSelectRole={setProfileHighlightRoleIdx}
+                        />
                       </div>
                     )}
                     {profile.effArchetype && profile.effWinnerDetail && (
@@ -3066,7 +2968,6 @@ export function App() {
                           const pct = percents[roleIdx]!
                           const suit = profile.cmScoutRoleSuitable?.[roleIdx]
                           const tier = tierByRole.get(roleIdx)
-                          const highlightActive = profileHighlightRoleIdx === roleIdx
                           const pctTierRing =
                             tier === 0
                               ? 'ring-1 ring-emerald-500/50'
@@ -3084,26 +2985,19 @@ export function App() {
                                   ? 'text-amber-500'
                                   : 'text-zinc-200'
                           return (
-                            <button
+                            <div
                               key={lab + roleIdx}
-                              type="button"
-                              title={`Show key attributes for ${lab}`}
-                              onClick={() => setProfileHighlightRoleIdx(roleIdx)}
-                              className={`min-w-0 cursor-pointer rounded border px-0.5 py-1 text-center transition hover:bg-zinc-800/60 ${
+                              className={`min-w-0 rounded border px-0.5 py-1 ${
                                 suit
                                   ? 'border-emerald-500/35 bg-emerald-500/[0.06]'
                                   : 'border-zinc-800/80 bg-zinc-950/40'
-                              } ${pctTierRing} ${
-                                highlightActive
-                                  ? 'ring-2 ring-sky-400/70 ring-offset-1 ring-offset-zinc-900'
-                                  : ''
-                              }`}
+                              } ${pctTierRing}`}
                             >
                               <div className="truncate text-[8px] font-medium uppercase tracking-tight text-zinc-500">
                                 {lab}
                               </div>
                               <div className={`font-mono text-[10px] tabular-nums ${pctClass}`}>{pct}%</div>
-                            </button>
+                            </div>
                           )
                         })
                       })()}

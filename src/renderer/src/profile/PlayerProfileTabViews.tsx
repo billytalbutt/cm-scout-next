@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { CM_SCOUT_ROLE_PROFILE_UI_ORDER, CM_SCOUT_ROLE_SHORT } from '../../../shared/cmScoutRoles'
 import { EliteEngineStar } from '../grid/EliteEngineStar'
 import type { ProfilePayload } from '../vite-env.d'
 import { applyProfileHighlightPack } from '../profileHighlightApply'
+import { NaturalRoleHighlightPicker } from './NaturalRoleHighlightPicker'
+import { RegenProfileHint } from './RegenProfileHint'
 import {
-  cmScoutRoleValueTierByRole,
   FeetMoraleBlock,
   fmtContractMoney,
   fmtMoney,
@@ -33,22 +33,37 @@ export function PlayerProfileTabViews({
   onOpenPredecessor,
 }: Props) {
   const displayProfile = useMemo(() => {
-    const pack = profile.highlightPacksByCmScoutIndex?.[profileHighlightRoleIdx]
+    if (!profile.highlightPacksByCmScoutIndex?.length) return profile
+    const idx = Math.min(
+      Math.max(0, profileHighlightRoleIdx),
+      profile.highlightPacksByCmScoutIndex.length - 1,
+    )
+    const pack = profile.highlightPacksByCmScoutIndex[idx]
     if (!pack) return profile
     return applyProfileHighlightPack(profile, pack)
   }, [profile, profileHighlightRoleIdx])
 
   const p = displayProfile
 
+  const naturalRolePicker =
+    profile.effByArchetype && profile.effByArchetype.length > 0 ? (
+      <NaturalRoleHighlightPicker
+        profile={profile}
+        activeRoleIdx={profileHighlightRoleIdx}
+        onSelectRole={onHighlightRoleIdx}
+      />
+    ) : null
+
   if (activeTab === 'attributes') {
     return (
       <div className="space-y-3">
+        {naturalRolePicker}
         <HoverTip
           tip={
             <p>
-              Row tint and amber rings follow the selected role in CM Scout % by role (
-              <span className="font-mono text-zinc-200">{p.highlightRolesLabel}</span>). Click a role on the Scouting
-              tab to switch.
+              Row tint and amber rings follow the natural role selected (
+              <span className="font-mono text-zinc-200">{p.highlightRolesLabel}</span>). Use Eff % by recipe below
+              scouting on the main window, or the tiles above in this pop-out.
             </p>
           }
         >
@@ -57,7 +72,10 @@ export function PlayerProfileTabViews({
             <InfoDot />
           </h3>
         </HoverTip>
-        <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+        <div
+          key={`attr-${profileHighlightRoleIdx}`}
+          className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2"
+        >
           <ProfileAttrColumn cells={p.attrColumns[0]} showEngineAttrs={showEngineAttrs} />
           <ProfileAttrColumn cells={p.attrColumns[1]} showEngineAttrs={showEngineAttrs} />
           <div className="min-w-0">
@@ -72,8 +90,12 @@ export function PlayerProfileTabViews({
   if (activeTab === 'hidden') {
     return (
       <div className="space-y-3">
+        {naturalRolePicker}
         <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hidden</h3>
-        <div className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2">
+        <div
+          key={`hidden-${profileHighlightRoleIdx}`}
+          className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2"
+        >
           <ProfileAttrColumn cells={p.hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
           <ProfileAttrColumn cells={p.hiddenColumns[1]} showEngineAttrs={showEngineAttrs} />
           <ProfileAttrColumn cells={p.hiddenColumns[2]} showEngineAttrs={showEngineAttrs} />
@@ -141,71 +163,18 @@ export function PlayerProfileTabViews({
   return (
     <div className="space-y-4">
       {profile.regen?.isLikely && (
-        <div className="rounded-lg border border-violet-800/50 bg-violet-950/25 p-3 text-xs">
-          <h3 className="font-semibold text-violet-200/95">Regen lineage</h3>
-          {profile.regen.ofName ? (
-            <p className="mt-1.5 text-zinc-300">
-              Likely regen of{' '}
-              <span className="font-medium text-violet-100">{profile.regen.ofName}</span>
-              {profile.regen.source === 'snapshot' ? (
-                <span className="text-zinc-500"> (snapshot — GPF2-style)</span>
-              ) : (
-                <span className="text-zinc-500"> (heuristic)</span>
-              )}
-            </p>
-          ) : (
-            <p className="mt-1.5 text-zinc-400">Flagged as likely regen; predecessor unknown.</p>
-          )}
-          {profile.regen.ofStaffIndex != null && onOpenPredecessor && (
-            <button
-              type="button"
-              className="mt-2 rounded-md border border-violet-600/40 bg-violet-900/30 px-2 py-1 text-[11px] text-violet-100 hover:bg-violet-900/50"
-              onClick={() => onOpenPredecessor(profile.regen!.ofStaffIndex!)}
-            >
-              Open predecessor profile
-            </button>
-          )}
-        </div>
+        <RegenProfileHint
+          regen={profile.regen}
+          variant="section"
+          onOpenPredecessor={onOpenPredecessor}
+        />
       )}
 
-      {profile.cmScoutRolePercents && profile.cmScoutRolePercents.length === 7 && (
-        <div className="rounded-lg border border-zinc-800/90 bg-zinc-900/40 p-2.5">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">CM Scout % by role</h3>
-          {profile.cmScoutRatingBp != null && (
-            <p className="mt-1 font-mono text-[11px] text-emerald-300/95">
-              BP (grid) <span className="text-emerald-200">{profile.cmScoutRatingBp}%</span>
-            </p>
-          )}
-          <div className="mt-2 grid grid-cols-7 gap-1 text-center">
-            {(() => {
-              const percents = profile.cmScoutRolePercents!
-              const tierByRole = cmScoutRoleValueTierByRole(percents)
-              return CM_SCOUT_ROLE_PROFILE_UI_ORDER.map((roleIdx) => {
-                const lab = CM_SCOUT_ROLE_SHORT[roleIdx]!
-                const pct = percents[roleIdx]!
-                const suit = profile.cmScoutRoleSuitable?.[roleIdx]
-                const tier = tierByRole.get(roleIdx)
-                const highlightActive = profileHighlightRoleIdx === roleIdx
-                return (
-                  <button
-                    key={lab + roleIdx}
-                    type="button"
-                    title={`Highlight key attributes for ${lab}`}
-                    onClick={() => onHighlightRoleIdx(roleIdx)}
-                    className={`min-w-0 cursor-pointer rounded border px-0.5 py-1 transition hover:bg-zinc-800/60 ${
-                      suit ? 'border-emerald-500/35 bg-emerald-500/[0.06]' : 'border-zinc-800/80 bg-zinc-950/40'
-                    } ${highlightActive ? 'ring-2 ring-sky-400/70 ring-offset-1 ring-offset-zinc-900' : ''} ${
-                      tier === 0 ? 'ring-1 ring-emerald-500/50' : ''
-                    }`}
-                  >
-                    <div className="truncate text-[8px] font-medium uppercase text-zinc-500">{lab}</div>
-                    <div className="font-mono text-[10px] tabular-nums text-zinc-200">{pct}%</div>
-                  </button>
-                )
-              })
-            })()}
-          </div>
-        </div>
+      {naturalRolePicker}
+      {profile.cmScoutRatingBp != null && (
+        <p className="font-mono text-[11px] text-emerald-300/95">
+          Grid BP (best suitable role): <span className="text-emerald-200">{profile.cmScoutRatingBp}%</span>
+        </p>
       )}
 
       <div className="rounded-lg border border-sky-900/40 bg-sky-950/20 p-3 text-xs">

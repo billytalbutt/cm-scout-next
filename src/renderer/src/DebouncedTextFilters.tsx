@@ -50,7 +50,7 @@ export function DebouncedTextFilters({
   return (
     <>
       <label className="block">
-        <span className="mb-1 block text-xs text-zinc-500">Search name</span>
+        <span className="filter-field-label">Search name</span>
         <input
           className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-600"
           value={q}
@@ -62,7 +62,7 @@ export function DebouncedTextFilters({
         />
       </label>
       <label className="block">
-        <span className="mb-1 block text-xs text-zinc-500">Nation (1st or 2nd)</span>
+        <span className="filter-field-label">Nation (1st or 2nd)</span>
         <ListFilterCombo
           items={nationList}
           value={nation}
@@ -72,7 +72,7 @@ export function DebouncedTextFilters({
         />
       </label>
       <label className="block">
-        <span className="mb-1 block text-xs text-zinc-500">Club</span>
+        <span className="filter-field-label">Club</span>
         <ClubFilterCombo clubs={clubList} value={club} onChange={setClub} />
       </label>
     </>
