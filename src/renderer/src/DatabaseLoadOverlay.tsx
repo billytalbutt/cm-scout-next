@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
 import { BUILD_STAMP } from '../../shared/buildStamp'
-/** Favicon cutout — visible on dark UI when placed on a light pad (unlike transparent wizard on zinc). */
+/** Same favicon as the app window — transparent cutout on the zinc panel. */
 import merlinFavicon from './assets/merlin-favicon.png'
 
 const mascotPreload = new Image()
@@ -37,18 +37,16 @@ export function DatabaseLoadOverlay({ progress }: Props) {
       <div className="mx-4 w-full max-w-md rounded-2xl border border-zinc-700/80 bg-zinc-900 shadow-2xl shadow-black/50">
         <div className="px-6 pb-6 pt-8">
           <div className="mb-5 flex min-h-[11rem] items-center justify-center">
-            <div className="rounded-2xl bg-zinc-100/95 p-4 shadow-inner shadow-black/10">
-              <img
-                src={merlinFavicon}
-                alt=""
-                width={160}
-                height={160}
-                decoding="sync"
-                loading="eager"
-                draggable={false}
-                className="block h-28 w-28 object-contain object-center"
-              />
-            </div>
+            <img
+              src={merlinFavicon}
+              alt=""
+              width={160}
+              height={160}
+              decoding="sync"
+              loading="eager"
+              draggable={false}
+              className="block h-32 w-32 object-contain object-center"
+            />
           </div>
 
           <h2 className="text-center text-lg font-semibold text-zinc-100">Loading save</h2>
