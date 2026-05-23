@@ -27,7 +27,7 @@ function StarIcon({ filled }: { filled: boolean }) {
   return (
     <svg
       aria-hidden
-      className={`h-3.5 w-3.5 shrink-0 ${filled ? 'text-amber-300' : 'text-zinc-600'}`}
+      className={`h-3.5 w-3.5 shrink-0 ${filled ? 'text-zinc-300' : 'text-zinc-600'}`}
       viewBox="0 0 20 20"
       fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
@@ -91,18 +91,16 @@ export function ClubSearchSidebar({
         </div>
       </label>
 
-      {showFavorites && selectedClub && (
+      {showFavorites && selectedClub && !favActive && (
         <button
           type="button"
           onClick={() => onToggleFavorite(selectedClub)}
-          className={`flex w-full items-center justify-center gap-2 rounded-md border px-2.5 py-2 text-xs font-medium transition ${
-            favActive
-              ? 'border-amber-500/40 bg-amber-950/35 text-amber-100 hover:bg-amber-900/40'
-              : 'border-zinc-700 bg-zinc-900/60 text-zinc-300 hover:border-amber-600/40 hover:bg-zinc-800/80 hover:text-amber-100'
-          }`}
+          className="flex w-full items-center gap-2 rounded-md border border-zinc-700/90 bg-zinc-900/50 px-2.5 py-2 text-left text-xs text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-800/60 hover:text-zinc-200"
         >
-          <StarIcon filled={favActive} />
-          {favActive ? `Favourite — ${selectedClub.name}` : `Add ${selectedClub.name} to favourites`}
+          <StarIcon filled={false} />
+          <span>
+            Add <span className="font-medium text-zinc-200">{selectedClub.name}</span> to favourites
+          </span>
         </button>
       )}
 
@@ -116,7 +114,7 @@ export function ClubSearchSidebar({
         </div>
         {favorites.length === 0 ? (
           <p className="px-2.5 py-3 text-[11px] leading-snug text-zinc-600">
-            Select a club from search, then use the button above to save it here for quick access.
+            Search for a club, then add it here for quick access.
           </p>
         ) : (
           <ul className="max-h-48 overflow-y-auto py-1 cm-scroll" role="list">
@@ -127,15 +125,15 @@ export function ClubSearchSidebar({
                   <button
                     type="button"
                     onClick={() => onPickClub(c)}
-                    className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-left transition ${
+                    className={`min-w-0 flex-1 rounded-sm border-l-2 px-2 py-1.5 text-left transition ${
                       active
-                        ? 'bg-emerald-950/35 text-emerald-100'
-                        : 'text-zinc-300 hover:bg-zinc-800/70'
+                        ? 'border-zinc-400 bg-zinc-800/90 text-zinc-100'
+                        : 'border-transparent text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800/50'
                     }`}
                   >
                     <span className="flex items-center gap-1.5">
                       <StarIcon filled />
-                      <span className="truncate font-medium text-zinc-100">{c.name}</span>
+                      <span className="truncate font-medium">{c.name}</span>
                     </span>
                     <span className="mt-0.5 block truncate text-[10px] text-zinc-500">
                       {c.nation} · {c.division}

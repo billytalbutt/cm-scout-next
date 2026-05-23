@@ -1,6 +1,16 @@
+import { useEffect, useMemo, useState } from 'react'
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
-/** Identical file to `public/favicon.png` (copied by `npm run icons:build`). */
-import merlinFavicon from './assets/merlin-favicon.png'
+/** Header mascot — fallback if `public/favicon.png` fails to load in Electron. */
+import soccerWizardMascot from './assets/soccer-wizard-mascot.png'
+
+/** Resolve `favicon.png` next to `index.html` (works for `file://` and Vite dev server). */
+function overlayFaviconUrl(): string {
+  try {
+    return new URL('favicon.png', window.location.href).href
+  } catch {
+    return './favicon.png'
+  }
+}
 
 type Props = {
   progress: DatabaseLoadProgress
@@ -21,6 +31,12 @@ const PHASE_HINTS: Record<string, string> = {
 export function DatabaseLoadOverlay({ progress }: Props) {
   const pct = Math.min(100, Math.max(0, Math.round(progress.progress * 100)))
   const hint = PHASE_HINTS[progress.phase] ?? progress.message
+  const faviconSrc = useMemo(() => overlayFaviconUrl(), [])
+  const [imgSrc, setImgSrc] = useState(faviconSrc)
+
+  useEffect(() => {
+    setImgSrc(faviconSrc)
+  }, [faviconSrc])
 
   return (
     <div
@@ -30,24 +46,18 @@ export function DatabaseLoadOverlay({ progress }: Props) {
       aria-busy="true"
     >
       <div className="mx-4 w-full max-w-md overflow-hidden rounded-2xl border border-zinc-700/80 bg-zinc-900/95 shadow-2xl shadow-black/50">
-        <div className="relative px-6 pb-6 pt-8">
-          <div
-            className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-emerald-500/20 blur-3xl"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute -bottom-6 -left-6 h-28 w-28 rounded-full bg-sky-500/15 blur-3xl"
-            aria-hidden
-          />
-
-          <div className="relative mb-6 flex justify-center">
+        <div className="px-6 pb-6 pt-8">
+          <div className="mb-6 flex justify-center">
             <img
-              src={merlinFavicon}
+              src={imgSrc}
               alt=""
               width={112}
               height={112}
-              className="h-28 w-28 object-contain drop-shadow-lg"
+              className="h-28 w-28 object-contain"
               aria-hidden
+              onError={() => {
+                if (imgSrc !== soccerWizardMascot) setImgSrc(soccerWizardMascot)
+              }}
             />
           </div>
 
