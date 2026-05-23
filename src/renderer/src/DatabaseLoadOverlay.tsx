@@ -1,16 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
-/** Header mascot — fallback if `public/favicon.png` fails to load in Electron. */
+/**
+ * Same bundled asset as the app header (`App.tsx`). Vite resolves this in dev and production;
+ * do not use `public/favicon.png` here — it is easy to miss on dark UI and `file://` paths vary.
+ */
 import soccerWizardMascot from './assets/soccer-wizard-mascot.png'
-
-/** Resolve `favicon.png` next to `index.html` (works for `file://` and Vite dev server). */
-function overlayFaviconUrl(): string {
-  try {
-    return new URL('favicon.png', window.location.href).href
-  } catch {
-    return './favicon.png'
-  }
-}
 
 type Props = {
   progress: DatabaseLoadProgress
@@ -31,45 +25,34 @@ const PHASE_HINTS: Record<string, string> = {
 export function DatabaseLoadOverlay({ progress }: Props) {
   const pct = Math.min(100, Math.max(0, Math.round(progress.progress * 100)))
   const hint = PHASE_HINTS[progress.phase] ?? progress.message
-  const faviconSrc = useMemo(() => overlayFaviconUrl(), [])
-  const [imgSrc, setImgSrc] = useState(faviconSrc)
 
-  useEffect(() => {
-    setImgSrc(faviconSrc)
-  }, [faviconSrc])
-
-  return (
+  const overlay = (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-zinc-950/85 backdrop-blur-md"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-zinc-950/92"
       role="status"
       aria-live="polite"
       aria-busy="true"
     >
-      <div className="mx-4 w-full max-w-md overflow-hidden rounded-2xl border border-zinc-700/80 bg-zinc-900/95 shadow-2xl shadow-black/50">
+      <div className="mx-4 w-full max-w-md rounded-2xl border border-zinc-700/80 bg-zinc-900 shadow-2xl shadow-black/50">
         <div className="px-6 pb-6 pt-8">
-          <div className="mb-6 flex justify-center">
+          <div className="mb-5 flex min-h-[11rem] items-center justify-center">
             <img
-              src={imgSrc}
+              src={soccerWizardMascot}
               alt=""
-              width={112}
-              height={112}
-              className="h-28 w-28 object-contain"
-              aria-hidden
-              onError={() => {
-                if (imgSrc !== soccerWizardMascot) setImgSrc(soccerWizardMascot)
-              }}
+              width={280}
+              height={280}
+              decoding="sync"
+              loading="eager"
+              draggable={false}
+              className="block h-44 w-auto max-h-44 max-w-full object-contain object-center"
             />
           </div>
 
-          <h2 className="relative text-center text-lg font-semibold text-zinc-100">
-            Loading save
-          </h2>
-          <p className="relative mt-2 text-center text-sm leading-relaxed text-zinc-400">
-            {progress.message}
-          </p>
-          <p className="relative mt-1 text-center text-xs text-zinc-500">{hint}</p>
+          <h2 className="text-center text-lg font-semibold text-zinc-100">Loading save</h2>
+          <p className="mt-2 text-center text-sm leading-relaxed text-zinc-400">{progress.message}</p>
+          <p className="mt-1 text-center text-xs text-zinc-500">{hint}</p>
 
-          <div className="relative mt-6">
+          <div className="mt-6">
             <div className="mb-2 flex justify-between text-[11px] font-medium tabular-nums text-zinc-500">
               <span>{progress.phase.replace(/_/g, ' ')}</span>
               <span>{pct}%</span>
@@ -82,7 +65,7 @@ export function DatabaseLoadOverlay({ progress }: Props) {
             </div>
           </div>
 
-          <p className="relative mt-5 text-center text-[11px] text-zinc-600">
+          <p className="mt-5 text-center text-[11px] text-zinc-600">
             If this step sits still for more than a minute, pull the latest build — a fix removed a
             per-player full-file scan that could take ten minutes.
           </p>
@@ -90,4 +73,6 @@ export function DatabaseLoadOverlay({ progress }: Props) {
       </div>
     </div>
   )
+
+  return createPortal(overlay, document.body)
 }
