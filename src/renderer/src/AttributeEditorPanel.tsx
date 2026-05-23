@@ -324,31 +324,23 @@ export function AttributeEditorPanel({
   ] as const
 
   return (
-    <div className="editor-section-intro mx-auto max-w-6xl space-y-6 pb-8">
-      <EditorPlayerPicker
-        loadInfo={loadInfo}
-        selectedStaffIndex={effectiveStaffIndex}
-        onPick={(idx) => setSearchedStaffIndex(idx)}
-        compact
-      />
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-800 pb-4">
-        <div>
-          <h2 className="text-lg font-semibold text-zinc-100">Player attribute editor</h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            <span className="font-medium text-emerald-200/90">{snap.name}</span>
+    <div className="editor-section-intro mx-auto max-w-6xl space-y-4 pb-8">
+      <div className="space-y-3 border-b border-zinc-800 pb-4">
+        <h2 className="text-lg font-semibold text-zinc-100">Player attribute editor</h2>
+        <p className="text-xs text-zinc-500">
+          <span className="font-medium text-emerald-200/90">{snap.name}</span>
+          <span className="text-zinc-600"> · </span>
+          staff row <span className="font-mono text-zinc-400">{snap.staffIndex}</span>
+          <span className="text-zinc-600"> · </span>
+          player.dat row <span className="font-mono text-zinc-400">{snap.playerRow}</span>
+        </p>
+        {copiedAttrs && (
+          <p className="text-[11px] text-sky-300/90">
+            Clipboard: <span className="font-medium text-sky-100">{copiedAttrs.name}</span>
             <span className="text-zinc-600"> · </span>
-            staff row <span className="font-mono text-zinc-400">{snap.staffIndex}</span>
-            <span className="text-zinc-600"> · </span>
-            player.dat row <span className="font-mono text-zinc-400">{snap.playerRow}</span>
+            use Paste to overwrite this player&apos;s bytes
           </p>
-          {copiedAttrs && (
-            <p className="mt-1.5 text-[11px] text-sky-300/90">
-              Clipboard: <span className="font-medium text-sky-100">{copiedAttrs.name}</span>
-              <span className="text-zinc-600"> · </span>
-              use Paste to overwrite this player&apos;s bytes
-            </p>
-          )}
-        </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           {err && <span className="text-xs text-rose-300/90">{err}</span>}
           {saveMsg && !err && <span className="max-w-md truncate text-xs text-emerald-300/90">{saveMsg}</span>}
@@ -378,6 +370,13 @@ export function AttributeEditorPanel({
           </button>
         </div>
       </div>
+
+      <EditorPlayerPicker
+        loadInfo={loadInfo}
+        selectedStaffIndex={effectiveStaffIndex}
+        onPick={(idx) => setSearchedStaffIndex(idx)}
+        compact
+      />
 
       <p className="rounded-md border border-zinc-800/80 bg-zinc-900/30 px-3 py-2 text-[11px] leading-relaxed text-zinc-400">
         The <span className="font-mono text-zinc-300">number in the box</span> is the{' '}
