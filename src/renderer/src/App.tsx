@@ -2140,11 +2140,6 @@ export function App() {
         <main className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ flex: '1 1 0%', minWidth: '12rem' }}>
           <div className="flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-2 border-b border-zinc-800/80 bg-zinc-950/40 px-3 pt-3.5 pb-3">
             <BrowseTabBar active={browseTab} onChange={setBrowseTab} />
-            {browseTab === 'regens' && loadInfo && (
-              <span className="text-[10px] text-zinc-500">
-                Heuristic list only — grid columns can still show Is regen / Regen of.
-              </span>
-            )}
           </div>
           <div ref={scrollParentRef} className="cm-scroll relative min-h-0 flex-1 overflow-auto px-3 pb-3 pt-0">
             {(textFiltersPending || gridRefreshing) &&
@@ -2307,7 +2302,7 @@ export function App() {
                   <button
                     type="button"
                     onClick={() => void saveRegenBaseline()}
-                    className="rounded-md border border-emerald-700/50 bg-emerald-950/30 px-2.5 py-1 text-[11px] font-medium text-emerald-200 hover:bg-emerald-900/40"
+                    className="rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-emerald-500"
                   >
                     Save snapshot
                   </button>
