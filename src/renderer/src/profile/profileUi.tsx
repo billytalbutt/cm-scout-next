@@ -126,28 +126,41 @@ export function FeetMoraleBlock({
   )
 }
 
-export type ProfileTabId = 'attributes' | 'hidden' | 'other'
+export type ProfileTabId = 'attributes' | 'hidden' | 'contract' | 'transfer' | 'scout'
+
+const PLAYER_TABS: { id: ProfileTabId; label: string }[] = [
+  { id: 'attributes', label: 'Attributes' },
+  { id: 'hidden', label: 'Hidden' },
+  { id: 'contract', label: 'Contract' },
+  { id: 'transfer', label: 'Transfer' },
+  { id: 'scout', label: 'Scouting' },
+]
+
+const STAFF_TABS: { id: ProfileTabId; label: string }[] = [
+  { id: 'attributes', label: 'Attributes' },
+  { id: 'hidden', label: 'Hidden' },
+  { id: 'contract', label: 'Contract' },
+  { id: 'scout', label: 'Details' },
+]
 
 export function ProfileTabBar({
   active,
   onChange,
+  variant = 'player',
 }: {
   active: ProfileTabId
   onChange: (t: ProfileTabId) => void
+  variant?: 'player' | 'staff'
 }) {
-  const tabs: { id: ProfileTabId; label: string }[] = [
-    { id: 'attributes', label: 'Attributes' },
-    { id: 'hidden', label: 'Hidden' },
-    { id: 'other', label: 'Other' },
-  ]
+  const tabs = variant === 'staff' ? STAFF_TABS : PLAYER_TABS
   return (
-    <div className="flex gap-0.5 rounded-lg border border-zinc-800/90 bg-zinc-950/60 p-0.5">
+    <div className="flex flex-wrap gap-0.5 rounded-lg border border-zinc-800/90 bg-zinc-950/60 p-0.5">
       {tabs.map((t) => (
         <button
           key={t.id}
           type="button"
           onClick={() => onChange(t.id)}
-          className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
+          className={`min-w-[4.5rem] flex-1 rounded-md px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition ${
             active === t.id
               ? 'bg-zinc-700/90 text-zinc-100 shadow-sm'
               : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'

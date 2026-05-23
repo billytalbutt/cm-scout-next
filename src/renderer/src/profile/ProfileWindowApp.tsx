@@ -99,7 +99,7 @@ export function ProfileWindowApp({ route }: { route: ProfileWindowRoute }) {
         {player && (
           <>
             <PlayerProfileHeader profile={player} />
-            <ProfileTabBar active={tab} onChange={setTab} />
+            <ProfileTabBar active={tab} onChange={setTab} variant="player" />
             <PlayerProfileTabViews
               profile={player}
               showEngineAttrs={showEngineAttrs}

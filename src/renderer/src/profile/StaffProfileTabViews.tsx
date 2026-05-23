@@ -57,7 +57,7 @@ export function StaffProfileTabViews({ p, showEngineAttrs }: { p: StaffProfilePa
         <p className="text-xs text-zinc-500">{p.club}</p>
       </div>
 
-      <ProfileTabBar active={tab} onChange={setTab} />
+      <ProfileTabBar active={tab} onChange={setTab} variant="staff" />
 
       {tab === 'attributes' && (
         <div className="grid grid-cols-2 gap-x-3 border-t border-zinc-800/60 pt-2">
@@ -89,7 +89,29 @@ export function StaffProfileTabViews({ p, showEngineAttrs }: { p: StaffProfilePa
         </div>
       )}
 
-      {tab === 'other' && (
+      {tab === 'contract' && (
+        <div className="border-t border-zinc-800/60 pt-2 text-xs">
+          {p.contract ? (
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+              <h3 className="mb-2 font-semibold text-zinc-300">Contract</h3>
+              <dl className="grid grid-cols-2 gap-1 text-zinc-400">
+                <dt>Wage / week</dt>
+                <dd className="text-right text-zinc-200">{fmtMoney(p.contract.wage)}</dd>
+                <dt>Started</dt>
+                <dd className="text-right font-mono text-zinc-200">{p.contract.dateStarted ?? '—'}</dd>
+                <dt>Expires</dt>
+                <dd className="text-right font-mono text-zinc-200">{p.contract.contractExpires ?? '—'}</dd>
+                <dt>Type</dt>
+                <dd className="text-right text-zinc-200">{p.contract.typeLabel ?? String(p.contract.type)}</dd>
+              </dl>
+            </div>
+          ) : (
+            <p className="text-zinc-500">No contract on file.</p>
+          )}
+        </div>
+      )}
+
+      {tab === 'scout' && (
         <div className="space-y-4 border-t border-zinc-800/60 pt-2 text-xs">
           {p.coachPreferences && (
             <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
@@ -103,21 +125,6 @@ export function StaffProfileTabViews({ p, showEngineAttrs }: { p: StaffProfilePa
                 {p.coachPreferences.playsOffsideTrap && <li>Offside trap</li>}
                 {p.coachPreferences.usesManMarking && <li>Man marking</li>}
               </ul>
-            </div>
-          )}
-          {p.contract && (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
-              <h3 className="mb-2 font-semibold text-zinc-300">Contract</h3>
-              <dl className="grid grid-cols-2 gap-1 text-zinc-400">
-                <dt>Wage</dt>
-                <dd className="text-right text-zinc-200">{fmtMoney(p.contract.wage)}</dd>
-                <dt>Started</dt>
-                <dd className="text-right font-mono text-zinc-200">{p.contract.dateStarted ?? '—'}</dd>
-                <dt>Expires</dt>
-                <dd className="text-right font-mono text-zinc-200">{p.contract.contractExpires ?? '—'}</dd>
-                <dt>Type</dt>
-                <dd className="text-right text-zinc-200">{p.contract.typeLabel ?? String(p.contract.type)}</dd>
-              </dl>
             </div>
           )}
           <p className="text-zinc-500">

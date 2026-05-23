@@ -2,7 +2,25 @@ import { createHash } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { app } from 'electron'
-import type { UiPlayerRow } from './database/types'
+import type { PlayerRecord, UiPlayerRow } from './database/types'
+
+/** Natural-position vector — same key as `regenDetection` heuristic buckets. */
+export function playerPosSig(p: PlayerRecord): string {
+  return [
+    p.goalkeeper,
+    p.sweeper,
+    p.defender,
+    p.defensive_midfielder,
+    p.midfielder,
+    p.attacking_midfielder,
+    p.attacker,
+    p.wing_back,
+    p.right_side,
+    p.left_side,
+    p.centre_side,
+    p.free_role,
+  ].join(',')
+}
 
 export type RegenBaselineEntry = {
   /** Resolved display name at snapshot time */
@@ -15,6 +33,12 @@ export type RegenBaselineEntry = {
   /** Current ability at snapshot — useful when regen CA grows later. */
   ca: number
   staffIndex: number
+  /** GPF2-style fingerprint fields (v2 snapshots). */
+  firstNationId: number
+  secondNationId: number
+  posSig: string
+  dobIso: string | null
+  jobForClub: number
 }
 
 /** Sidecar-style snapshot (same idea as GPF2’s `.gpf2` next to a save). */
@@ -63,6 +87,11 @@ export function buildBaselineFromRows(
       pa: r.pa,
       ca: r.ca,
       staffIndex: r.staffIndex,
+      firstNationId: s.first_nation_id,
+      secondNationId: s.second_nation_id,
+      posSig: playerPosSig(r.player),
+      dobIso: s.dob_iso,
+      jobForClub: s.job_for_club,
     }
   }
   return {

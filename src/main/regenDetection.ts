@@ -82,6 +82,60 @@ export function applyBaselineRegenFromSnapshot(
   return n
 }
 
+/**
+ * Match young regens to snapshot fingerprints (PA + nation + positions + DOB month/day).
+ * Covers new `staff.dat` ids when the community fingerprint still matches a snapshot legend.
+ */
+export function applyBaselineFingerprintRegen(
+  rows: UiPlayerRow[],
+  baseline: RegenBaselineFile,
+  pathKey: string,
+): number {
+  if (baseline.pathKey !== pathKey) return 0
+  const claimed = new Set<string>()
+  let n = 0
+  for (const r of rows) {
+    if (r.staffIndex < 0 || r.isRegenLikely) continue
+    const pa = r.player.potential_ability
+    if (pa < 1) continue
+    if ((r.age ?? 99) > YOUNG_MAX_AGE || r.ca + MIN_PA_CA_GAP > r.pa) continue
+
+    for (const [staffId, b] of Object.entries(baseline.entries)) {
+      if (claimed.has(staffId) || !b.posSig) continue
+      if (normName(r.name) === normName(b.name)) continue
+      if (pa !== b.pa) continue
+      if (r.staff.first_nation_id !== b.firstNationId) continue
+      const sec =
+        r.staff.second_nation_id > 0 && r.staff.second_nation_id !== r.staff.first_nation_id
+          ? r.staff.second_nation_id
+          : 0
+      const bSec =
+        b.secondNationId > 0 && b.secondNationId !== b.firstNationId ? b.secondNationId : 0
+      if (sec !== bSec) continue
+      const sig = posSig(r.player)
+      if (sig !== b.posSig) continue
+      if (!dobMonthDayMatch(r.staff.dob_iso, b.dobIso ?? null)) continue
+
+      const slotRow = rows.find((x) => x.staffIndex >= 0 && String(x.staff.id) === staffId)
+      const slotReused =
+        slotRow != null && normName(slotRow.name) !== normName(b.name)
+      const predecessorStillInSave =
+        findStaffIndexByPlayerId(rows, b.playerId, b.name) != null || b.jobForClub === RETIRED_JOB_FOR_CLUB
+      if (!slotReused && !predecessorStillInSave) continue
+
+      r.isRegenLikely = true
+      r.regenOfName = b.name
+      r.regenDetectionSource = 'snapshot'
+      r.regenOfStaffIndex =
+        findStaffIndexByPlayerId(rows, b.playerId, b.name) ?? b.staffIndex
+      claimed.add(staffId)
+      n++
+      break
+    }
+  }
+  return n
+}
+
 export function applyRegenPipeline(
   rows: UiPlayerRow[],
   baseline: RegenBaselineFile | null,
@@ -90,6 +144,7 @@ export function applyRegenPipeline(
   clearRegenMarkers(rows)
   if (baseline && baseline.pathKey === pathKey) {
     applyBaselineRegenFromSnapshot(rows, baseline, pathKey)
+    applyBaselineFingerprintRegen(rows, baseline, pathKey)
   }
   applyHeuristicRegenHints(rows)
 }

@@ -2322,17 +2322,27 @@ export function App() {
                     tip={
                       <div className="space-y-2 text-zinc-300">
                         <p>
-                          <span className="font-medium text-white">GPF2-style</span> (Generated Player Finder 2): save a
-                          snapshot right after you load a game — later, when you open the{' '}
-                          <strong>same file path</strong> again, we compare each staff{' '}
-                          <code className="text-zinc-400">id</code> to that snapshot. If the name-id triple changed but the
-                          id is the same, we treat it like the community tool: same slot, new face = likely regen;{' '}
-                          <strong>Regen of</strong> shows the old snapshot name.
+                          <span className="font-medium text-white">GPF2 / Tapani workflow</span> (Generated Player Finder
+                          2): take one snapshot as early as you can while legends are still in the database — ideally
+                          right after starting a new save. It is stored <strong>locally</strong> on your PC (not inside the
+                          .sav). Each time you load that <strong>same save path</strong> in Merlin, we compare against that
+                          snapshot — you do <strong>not</strong> need a new snapshot every time you play CM, unless you
+                          want to reset the baseline.
+                        </p>
+                        <p>
+                          We flag regens two ways (like the community tool): (1) same staff{' '}
+                          <code className="text-zinc-400">id</code>, name changed in that slot; (2) new face with the same
+                          PA + nation + positions + birth month/day as someone in the snapshot (e.g. Bergkamp → van der
+                          Woerd).
                         </p>
                         <p className="text-zinc-400">
-                          Use an <strong>uncompressed</strong> save (Game Settings → Save Compressed = No), as with GPF2.
-                          If no snapshot exists, we fall back to the same-save PA + nation + positions + DOB heuristic
-                          (weaker).
+                          <strong>Limit:</strong> players who had already retired before your first snapshot cannot be
+                          linked (GPF2 says the same). Use uncompressed saves (Save Compressed = No). Re-saving a snapshot{' '}
+                          <strong>overwrites</strong> the old one — only changes after that date are detected.
+                        </p>
+                        <p className="text-zinc-400">
+                          Without a snapshot we use a weaker same-save heuristic (retired players preferred in each PA
+                          bucket).
                         </p>
                       </div>
                     }
@@ -2370,8 +2380,9 @@ export function App() {
                   )}
                 </div>
                 <p className="mt-2 text-[10px] leading-snug text-zinc-500">
-                  This snapshot only affects regen detection on the Regens tab and Is regen / Regen of columns — not
-                  tactics or other tabs.
+                  Tip: before Nesta (or any legend) retires, you should already have a snapshot from earlier in the career.
+                  When his Italian centre-back regen appears, reload this save in Merlin — no new snapshot required. Saving
+                  again now only helps for <em>future</em> retirements after today.
                 </p>
               </div>
             )}

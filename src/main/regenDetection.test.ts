@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
 import {
+  applyBaselineFingerprintRegen,
   applyHeuristicRegenHints,
   applyRegenPipeline,
   findStaffIndexByPlayerId,
 } from './regenDetection'
+import { playerPosSig } from './regenBaseline'
 import type { RegenBaselineFile } from './regenBaseline'
 
 function minimalRow(
@@ -108,6 +110,53 @@ describe('regenDetection', () => {
       }),
     ]
     expect(findStaffIndexByPlayerId(rows, 999, 'Dennis Bergkamp')).toBe(5)
+  })
+
+  it('snapshot fingerprint links new staff id to baseline legend', () => {
+    const bergkamp = minimalRow({
+      name: 'Dennis Bergkamp',
+      staffIndex: 10,
+      staffId: 500,
+      age: 35,
+      staff: { id: 500, player_id: 777, dob_iso: '1969-08-10', job_for_club: 16 },
+      player: { potential_ability: 190, current_ability: 50 },
+    })
+    const arno = minimalRow({
+      name: 'Arno van der Woerd',
+      staffIndex: 99,
+      staffId: 999,
+      age: 19,
+      staff: { id: 999, dob_iso: '1969-08-10', player_id: 888 },
+      player: { potential_ability: 190, current_ability: 140 },
+    })
+    const baseline: RegenBaselineFile = {
+      version: 1,
+      indexPath: '/x.sav',
+      pathKey: 'fp',
+      gameDateIso: null,
+      createdIso: new Date().toISOString(),
+      entries: {
+        '500': {
+          name: 'Dennis Bergkamp',
+          firstNameId: 1,
+          secondNameId: 2,
+          commonNameId: 0,
+          playerId: 777,
+          pa: 190,
+          ca: 180,
+          staffIndex: 10,
+          firstNationId: 12,
+          secondNationId: 0,
+          posSig: playerPosSig(bergkamp.player),
+          dobIso: '1969-08-10',
+          jobForClub: 11,
+        },
+      },
+    }
+    applyBaselineFingerprintRegen([bergkamp, arno], baseline, 'fp')
+    expect(arno.isRegenLikely).toBe(true)
+    expect(arno.regenOfName).toBe('Dennis Bergkamp')
+    expect(arno.regenDetectionSource).toBe('snapshot')
   })
 
   it('snapshot links regenOfStaffIndex when predecessor still in save', () => {

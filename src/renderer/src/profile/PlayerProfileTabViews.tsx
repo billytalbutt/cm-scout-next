@@ -8,7 +8,6 @@ import {
   FeetMoraleBlock,
   fmtContractMoney,
   fmtMoney,
-  formatProfileStatCell,
   HoverTip,
   InfoDot,
   playerInstructionAdvice,
@@ -48,8 +47,8 @@ export function PlayerProfileTabViews({
           tip={
             <p>
               Row tint and amber rings follow the selected role in CM Scout % by role (
-              <span className="font-mono text-zinc-200">{p.highlightRolesLabel}</span>). Click a role in the Other tab
-              to switch.
+              <span className="font-mono text-zinc-200">{p.highlightRolesLabel}</span>). Click a role on the Scouting
+              tab to switch.
             </p>
           }
         >
@@ -83,6 +82,62 @@ export function PlayerProfileTabViews({
     )
   }
 
+  if (activeTab === 'contract') {
+    return profile.contract ? (
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
+        <h3 className="mb-2 font-semibold text-zinc-300">Contract</h3>
+        <div className="grid grid-cols-2 gap-1 text-zinc-400">
+          <span>Wage</span>
+          <span className="text-right text-zinc-200">{fmtMoney(profile.contract.wage)}</span>
+          <span>Goal bonus</span>
+          <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.goalBonus)}</span>
+          <span>Assist bonus</span>
+          <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.assistBonus)}</span>
+          <span>Release fee</span>
+          <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.releaseFee)}</span>
+          <span>Contract type</span>
+          <span className="text-right text-zinc-200">{profile.contract.typeLabel}</span>
+          <span>Started</span>
+          <span className="text-right font-mono text-zinc-200">{profile.contract.dateStarted ?? '—'}</span>
+          <span>Expires</span>
+          <span className="text-right font-mono text-zinc-200">{profile.contract.contractExpires ?? '—'}</span>
+          <span>Bosman / free</span>
+          <span className="text-right text-zinc-200">{profile.contract.leavingOnBosman ? 'Yes' : 'No'}</span>
+          <span>Min-fee release</span>
+          <span className="text-right text-zinc-200">{profile.contract.minimumReleaseClause ? 'Yes' : 'No'}</span>
+        </div>
+      </div>
+    ) : (
+      <p className="text-xs text-zinc-500">No contract data for this player.</p>
+    )
+  }
+
+  if (activeTab === 'transfer') {
+    return (
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
+        <h3 className="mb-2 font-semibold text-zinc-300">Transfer</h3>
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-zinc-400">
+          <span>Value</span>
+          <span className="text-right font-mono text-zinc-200">{fmtMoney(profile.transfer.value)}</span>
+          <span>Listed by club</span>
+          <span className={`text-right ${profile.transfer.listedByClub ? 'text-emerald-300' : 'text-zinc-500'}`}>
+            {profile.transfer.listedByClub ? 'Yes' : 'No'}
+          </span>
+          <span>Listed by request</span>
+          <span className={`text-right ${profile.transfer.listedByRequest ? 'text-emerald-300' : 'text-zinc-500'}`}>
+            {profile.transfer.listedByRequest ? 'Yes' : 'No'}
+          </span>
+          <span>Listed for loan</span>
+          <span className={`text-right ${profile.transfer.listedForLoan ? 'text-emerald-300' : 'text-zinc-500'}`}>
+            {profile.transfer.listedForLoan ? 'Yes' : 'No'}
+          </span>
+          <span>Future transfer</span>
+          <span className="text-right text-zinc-200">{profile.transfer.futureTransferToClubName ?? '—'}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {profile.regen?.isLikely && (
@@ -93,9 +148,9 @@ export function PlayerProfileTabViews({
               Likely regen of{' '}
               <span className="font-medium text-violet-100">{profile.regen.ofName}</span>
               {profile.regen.source === 'snapshot' ? (
-                <span className="text-zinc-500"> (GPF2-style snapshot — same staff id, name changed)</span>
+                <span className="text-zinc-500"> (snapshot — GPF2-style)</span>
               ) : (
-                <span className="text-zinc-500"> (heuristic — PA, nation, positions, DOB)</span>
+                <span className="text-zinc-500"> (heuristic)</span>
               )}
             </p>
           ) : (
@@ -110,26 +165,8 @@ export function PlayerProfileTabViews({
               Open predecessor profile
             </button>
           )}
-          {profile.regen.source === 'heuristic' && (
-            <p className="mt-2 text-[10px] leading-snug text-zinc-500">
-              For accurate links, save a regen snapshot on the Regens tab before retirements, then reload this save.
-              Heuristic prefers retired players in the same PA + nation + position bucket.
-            </p>
-          )}
         </div>
       )}
-
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-        <h3 className="mb-2 font-semibold text-zinc-300">Transfer</h3>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-zinc-400">
-          <span>Value</span>
-          <span className="text-right font-mono text-zinc-200">{fmtMoney(profile.transfer.value)}</span>
-          <span>Listed by club</span>
-          <span className={`text-right ${profile.transfer.listedByClub ? 'text-emerald-300' : 'text-zinc-500'}`}>
-            {profile.transfer.listedByClub ? 'Yes' : 'No'}
-          </span>
-        </div>
-      </div>
 
       {profile.cmScoutRolePercents && profile.cmScoutRolePercents.length === 7 && (
         <div className="rounded-lg border border-zinc-800/90 bg-zinc-900/40 p-2.5">
@@ -171,20 +208,6 @@ export function PlayerProfileTabViews({
         </div>
       )}
 
-      {profile.contract && (
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-          <h3 className="mb-2 font-semibold text-zinc-300">Contract</h3>
-          <div className="grid grid-cols-2 gap-1 text-zinc-400">
-            <span>Wage</span>
-            <span className="text-right text-zinc-200">{fmtMoney(profile.contract.wage)}</span>
-            <span>Expires</span>
-            <span className="text-right font-mono text-zinc-200">{profile.contract.contractExpires ?? '—'}</span>
-            <span>Type</span>
-            <span className="text-right text-zinc-200">{profile.contract.typeLabel}</span>
-          </div>
-        </div>
-      )}
-
       <div className="rounded-lg border border-sky-900/40 bg-sky-950/20 p-3 text-xs">
         <h3 className="mb-1.5 font-semibold text-sky-200/95">Scouting DNA &amp; instructions</h3>
         {profile.engineMetaProfiles.length > 0 && (
@@ -199,7 +222,8 @@ export function PlayerProfileTabViews({
             ))}
           </div>
         )}
-        <ul className="mt-1 space-y-1">
+        <p className="text-[11px] text-zinc-400">{profile.freeRoleHint.headline}</p>
+        <ul className="mt-2 space-y-1">
           {profile.tacticalInstructionHints.slice(0, 8).map((h) => (
             <li key={h.id} className="text-[10px] text-zinc-400">
               <span className="text-zinc-300">{h.label}</span> {playerInstructionAdvice(h.tier)}
