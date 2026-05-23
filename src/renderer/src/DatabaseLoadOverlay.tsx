@@ -1,10 +1,11 @@
 import { createPortal } from 'react-dom'
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
-/**
- * Same bundled asset as the app header (`App.tsx`). Vite resolves this in dev and production;
- * do not use `public/favicon.png` here — it is easy to miss on dark UI and `file://` paths vary.
- */
-import soccerWizardMascot from './assets/soccer-wizard-mascot.png'
+import { BUILD_STAMP } from '../../shared/buildStamp'
+/** Favicon cutout — visible on dark UI when placed on a light pad (unlike transparent wizard on zinc). */
+import merlinFavicon from './assets/merlin-favicon.png'
+
+const mascotPreload = new Image()
+mascotPreload.src = merlinFavicon
 
 type Props = {
   progress: DatabaseLoadProgress
@@ -36,16 +37,18 @@ export function DatabaseLoadOverlay({ progress }: Props) {
       <div className="mx-4 w-full max-w-md rounded-2xl border border-zinc-700/80 bg-zinc-900 shadow-2xl shadow-black/50">
         <div className="px-6 pb-6 pt-8">
           <div className="mb-5 flex min-h-[11rem] items-center justify-center">
-            <img
-              src={soccerWizardMascot}
-              alt=""
-              width={280}
-              height={280}
-              decoding="sync"
-              loading="eager"
-              draggable={false}
-              className="block h-44 w-auto max-h-44 max-w-full object-contain object-center"
-            />
+            <div className="rounded-2xl bg-zinc-100/95 p-4 shadow-inner shadow-black/10">
+              <img
+                src={merlinFavicon}
+                alt=""
+                width={160}
+                height={160}
+                decoding="sync"
+                loading="eager"
+                draggable={false}
+                className="block h-28 w-28 object-contain object-center"
+              />
+            </div>
           </div>
 
           <h2 className="text-center text-lg font-semibold text-zinc-100">Loading save</h2>
@@ -59,7 +62,7 @@ export function DatabaseLoadOverlay({ progress }: Props) {
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-zinc-800">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-emerald-400 to-sky-400 transition-[width] duration-300 ease-out"
+                className="h-full rounded-full bg-zinc-400 transition-[width] duration-300 ease-out"
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -68,6 +71,9 @@ export function DatabaseLoadOverlay({ progress }: Props) {
           <p className="mt-5 text-center text-[11px] text-zinc-600">
             If this step sits still for more than a minute, pull the latest build — a fix removed a
             per-player full-file scan that could take ten minutes.
+          </p>
+          <p className="mt-2 text-center font-mono text-[10px] text-zinc-600" title="Build stamp — if this line is missing or old, run git pull then npm start">
+            {BUILD_STAMP}
           </p>
         </div>
       </div>

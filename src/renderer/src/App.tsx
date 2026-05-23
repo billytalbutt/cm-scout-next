@@ -984,7 +984,13 @@ export function App() {
       )
       return
     }
+    const loadStartedAt = Date.now()
     setOpening(true)
+    setLoadProgress({
+      phase: 'read',
+      message: 'Choose your save file…',
+      progress: 0.02,
+    })
     try {
       const r = await window.cmapi.openDatabase()
       if (!r || typeof r !== 'object' || !('ok' in r)) {
@@ -1022,7 +1028,9 @@ export function App() {
       setRows([])
     } finally {
       setOpening(false)
-      setLoadProgress(null)
+      const minOverlayMs = 450
+      const wait = Math.max(0, minOverlayMs - (Date.now() - loadStartedAt))
+      window.setTimeout(() => setLoadProgress(null), wait)
     }
   }, [])
 
@@ -1352,7 +1360,7 @@ export function App() {
                   type="button"
                   title="Clear club search"
                   onClick={clubBrowse.clearClubSearch}
-                  className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-400 hover:border-amber-700/50 hover:bg-zinc-800 hover:text-amber-100"
+                  className="shrink-0 rounded-md border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-400 hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
                 >
                   Clear
                 </button>
