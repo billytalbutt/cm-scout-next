@@ -10,9 +10,21 @@ type Props = {
   shortlists: ShortlistsApi
   disabled?: boolean
   className?: string
+  /** Match profile toolbar buttons (Pop out, Copy attributes). */
+  variant?: 'toolbar' | 'accent'
 }
 
-export function AddToShortlistButton({ kind, target, shortlists, disabled, className }: Props) {
+const TOOLBAR_BTN =
+  'rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60 disabled:cursor-not-allowed disabled:opacity-40'
+
+export function AddToShortlistButton({
+  kind,
+  target,
+  shortlists,
+  disabled,
+  className,
+  variant = 'accent',
+}: Props) {
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
@@ -44,7 +56,11 @@ export function AddToShortlistButton({ kind, target, shortlists, disabled, class
       <button
         type="button"
         disabled={disabled}
-        className="rounded-md border border-emerald-700/45 bg-emerald-950/35 px-2.5 py-1 text-[11px] font-medium text-emerald-100 transition hover:bg-emerald-900/45 disabled:opacity-40"
+        className={
+          variant === 'toolbar'
+            ? TOOLBAR_BTN
+            : 'rounded-md border border-emerald-700/45 bg-emerald-950/35 px-2.5 py-1 text-[11px] font-medium text-emerald-100 transition hover:bg-emerald-900/45 disabled:opacity-40'
+        }
         onClick={() => setOpen((v) => !v)}
       >
         Add to shortlist

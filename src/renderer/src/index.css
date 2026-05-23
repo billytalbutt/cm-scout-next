@@ -13,6 +13,16 @@
   .filter-attr-label {
     @apply truncate font-medium text-zinc-400;
   }
+
+  .pill-tab {
+    @apply rounded-full px-3 py-1.5 text-xs font-medium transition;
+  }
+  .pill-tab-active {
+    @apply bg-zinc-700/90 text-zinc-100 shadow-sm;
+  }
+  .pill-tab-inactive {
+    @apply text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300;
+  }
 }
 
 :root {
@@ -60,44 +70,19 @@
   height: 10rem;
 }
 
-.cm-load-mascot-glow {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 7.5rem;
-  height: 7.5rem;
-  margin-left: -3.75rem;
-  margin-top: -3.75rem;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgb(244 244 245 / 0.45) 0%,
-    rgb(228 228 231 / 0.2) 38%,
-    rgb(228 228 231 / 0.06) 58%,
-    transparent 70%
-  );
-  box-shadow:
-    0 0 28px rgb(244 244 245 / 0.35),
-    0 0 56px rgb(228 228 231 / 0.15);
-  animation: cm-load-mascot-glow-pulse 2.4s ease-in-out infinite;
-  pointer-events: none;
-}
-
 .cm-load-mascot-img {
   position: relative;
   z-index: 1;
-  filter: drop-shadow(0 0 12px rgb(255 255 255 / 0.12));
+  animation: cm-load-mascot-glow-pulse 2.4s ease-in-out infinite;
 }
 
 @keyframes cm-load-mascot-glow-pulse {
   0%,
   100% {
-    opacity: 0.5;
-    transform: scale(0.88);
+    filter: drop-shadow(0 0 10px rgb(244 244 245 / 0.14)) drop-shadow(0 0 20px rgb(228 228 231 / 0.08));
   }
   50% {
-    opacity: 1;
-    transform: scale(1.12);
+    filter: drop-shadow(0 0 16px rgb(244 244 245 / 0.28)) drop-shadow(0 0 32px rgb(228 228 231 / 0.14));
   }
 }
 

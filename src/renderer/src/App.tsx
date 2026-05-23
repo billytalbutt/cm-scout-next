@@ -199,7 +199,7 @@ function ProfileEngineAttrsControl({
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
       />
-      <span className="min-w-0 font-medium">Show engine value when different</span>
+      <span className="min-w-0 font-medium">Show Uncapped Attributes</span>
     </label>
   )
 }
@@ -1260,7 +1260,7 @@ export function App() {
           type="button"
           disabled={opening}
           onClick={() => void loadDatabase()}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-xs font-medium text-white shadow-md shadow-emerald-900/25 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {opening ? 'Opening…' : 'Load Database'}
         </button>
@@ -1301,8 +1301,7 @@ export function App() {
               tip={
                 <>
                   Affects the <span className="text-zinc-300">profile</span> attribute lists only: when on, bracketed
-                  values appear if the uncapped engine-style number differs from the in-game display (mostly CA18
-                  conversions).
+                  uncapped values appear when they differ from the in-game display (mostly CA18 conversions).
                 </>
               }
             >
@@ -2100,7 +2099,7 @@ export function App() {
 
         <div className="flex min-h-0 min-w-0 flex-1">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ flex: '1 1 0%', minWidth: '12rem' }}>
-          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-zinc-800/80 bg-zinc-950/40 px-3 pt-3 pb-2.5">
             <BrowseTabBar active={browseTab} onChange={setBrowseTab} />
             {browseTab === 'regens' && loadInfo && (
               <span className="text-[10px] text-zinc-500">
@@ -2587,6 +2586,7 @@ export function App() {
                 {sel != null && loadInfo && (
                   <AddToShortlistButton
                     kind="players"
+                    variant="toolbar"
                     target={{
                       staffIndex: sel,
                       staffId: rows.find((r) => r.staffIndex === sel)?.staffId ?? 0,

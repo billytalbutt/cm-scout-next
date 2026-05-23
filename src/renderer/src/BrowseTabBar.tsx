@@ -24,13 +24,9 @@ type Props = {
 
 export function BrowseTabBar({ active, onChange }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
       <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Browse</span>
-      <div
-        className="flex flex-wrap gap-0.5 rounded-full border border-zinc-800/90 bg-zinc-950/60 p-0.5"
-        role="tablist"
-        aria-label="Browse"
-      >
+      <div className="flex min-w-0 flex-1 flex-wrap gap-1" role="tablist" aria-label="Browse">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -38,17 +34,13 @@ export function BrowseTabBar({ active, onChange }: Props) {
             role="tab"
             aria-selected={active === t.id}
             onClick={() => onChange(t.id)}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-              active === t.id
-                ? 'bg-zinc-700/90 text-zinc-100 shadow-sm'
-                : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'
-            }`}
+            className={`pill-tab ${active === t.id ? 'pill-tab-active' : 'pill-tab-inactive'}`}
           >
             {t.label}
           </button>
         ))}
       </div>
-    </div>
+    </>
   )
 }
 

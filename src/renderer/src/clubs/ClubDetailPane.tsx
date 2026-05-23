@@ -103,11 +103,7 @@ function RosterTabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
-        active
-          ? 'bg-emerald-600/25 text-emerald-100 ring-1 ring-emerald-500/40'
-          : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'
-      }`}
+      className={`pill-tab ${active ? 'pill-tab-active' : 'pill-tab-inactive'}`}
     >
       {label} <span className="font-mono tabular-nums text-[10px] opacity-90">({count})</span>
     </button>

@@ -23,11 +23,12 @@ type Props = {
   onPickClub: (c: ClubListRow) => void
 }
 
-function StarIcon({ filled }: { filled: boolean }) {
+function StarIcon({ filled, gold }: { filled: boolean; gold?: boolean }) {
+  const color = gold && filled ? 'text-amber-400' : filled ? 'text-zinc-300' : 'text-zinc-600'
   return (
     <svg
       aria-hidden
-      className={`h-3.5 w-3.5 shrink-0 ${filled ? 'text-zinc-300' : 'text-zinc-600'}`}
+      className={`h-3.5 w-3.5 shrink-0 ${color}`}
       viewBox="0 0 20 20"
       fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
@@ -132,7 +133,7 @@ export function ClubSearchSidebar({
                     }`}
                   >
                     <span className="flex items-center gap-1.5">
-                      <StarIcon filled />
+                      <StarIcon filled gold />
                       <span className="truncate font-medium">{c.name}</span>
                     </span>
                     <span className="mt-0.5 block truncate text-[10px] text-zinc-500">

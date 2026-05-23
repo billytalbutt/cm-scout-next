@@ -38,7 +38,6 @@ export function DatabaseLoadOverlay({ progress }: Props) {
         <div className="px-6 pb-6 pt-8">
           <div className="mb-5 flex min-h-[11rem] items-center justify-center">
             <div className="cm-load-mascot-wrap">
-              <div className="cm-load-mascot-glow" aria-hidden />
               <img
                 src={merlinFavicon}
                 alt=""
