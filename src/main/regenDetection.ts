@@ -7,8 +7,32 @@
  * **2. Same-save heuristic (fallback)**
  * PA + nationalities + natural positions + DOB; prefers retired job (16), then CA/reputation proxy.
  */
-import type { RegenBaselineFile } from './regenBaseline'
+import type { RegenBaselineEntry, RegenBaselineFile } from './regenBaseline'
 import type { PlayerRecord, UiPlayerRow } from './database/types'
+
+/** Indexes for O(1) staff / player lookups during regen passes. */
+export type RegenRowLookup = {
+  byPlayerId: Map<number, UiPlayerRow[]>
+  byStaffId: Map<string, UiPlayerRow>
+}
+
+export function buildRegenRowLookup(rows: UiPlayerRow[]): RegenRowLookup {
+  const byPlayerId = new Map<number, UiPlayerRow[]>()
+  const byStaffId = new Map<string, UiPlayerRow>()
+  for (const r of rows) {
+    if (r.staffIndex < 0) continue
+    byStaffId.set(String(r.staff.id), r)
+    const pid = r.staff.player_id
+    if (pid <= 0) continue
+    let arr = byPlayerId.get(pid)
+    if (!arr) {
+      arr = []
+      byPlayerId.set(pid, arr)
+    }
+    arr.push(r)
+  }
+  return { byPlayerId, byStaffId }
+}
 
 const YOUNG_MAX_AGE = 23
 const OLD_MIN_AGE = 30
@@ -34,15 +58,14 @@ function normName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-/** Find predecessor still in the save (e.g. retired legend) by `player_id` from snapshot. */
-export function findStaffIndexByPlayerId(
-  rows: UiPlayerRow[],
+export function findStaffIndexByPlayerIdFromLookup(
+  lookup: RegenRowLookup,
   playerId: number,
   snapshotName?: string,
 ): number | undefined {
   if (playerId <= 0) return undefined
-  const matches = rows.filter((r) => r.staffIndex >= 0 && r.staff.player_id === playerId)
-  if (matches.length === 0) return undefined
+  const matches = lookup.byPlayerId.get(playerId)
+  if (!matches?.length) return undefined
   if (matches.length === 1) return matches[0]!.staffIndex
   if (snapshotName) {
     const want = normName(snapshotName)
@@ -51,15 +74,26 @@ export function findStaffIndexByPlayerId(
   }
   const retired = matches.filter((r) => r.staff.job_for_club === RETIRED_JOB_FOR_CLUB)
   if (retired.length === 1) return retired[0]!.staffIndex
-  return matches.sort((a, b) => (b.age ?? 0) - (a.age ?? 0))[0]!.staffIndex
+  return [...matches].sort((a, b) => (b.age ?? 0) - (a.age ?? 0))[0]!.staffIndex
+}
+
+/** Find predecessor still in the save (e.g. retired legend) by `player_id` from snapshot. */
+export function findStaffIndexByPlayerId(
+  rows: UiPlayerRow[],
+  playerId: number,
+  snapshotName?: string,
+): number | undefined {
+  return findStaffIndexByPlayerIdFromLookup(buildRegenRowLookup(rows), playerId, snapshotName)
 }
 
 export function applyBaselineRegenFromSnapshot(
   rows: UiPlayerRow[],
   baseline: RegenBaselineFile,
   pathKey: string,
+  lookup?: RegenRowLookup,
 ): number {
   if (baseline.pathKey !== pathKey) return 0
+  const lu = lookup ?? buildRegenRowLookup(rows)
   let n = 0
   for (const r of rows) {
     if (r.staffIndex < 0) continue
@@ -75,11 +109,48 @@ export function applyBaselineRegenFromSnapshot(
     r.regenOfName = b.name
     r.regenDetectionSource = 'snapshot'
     r.regenOfStaffIndex =
-      findStaffIndexByPlayerId(rows, b.playerId, b.name) ??
+      findStaffIndexByPlayerIdFromLookup(lu, b.playerId, b.name) ??
       (Number.isFinite(b.staffIndex) && b.staffIndex >= 0 ? b.staffIndex : undefined)
     n++
   }
   return n
+}
+
+type BaselineFingerprintHit = { staffId: string; b: RegenBaselineEntry }
+
+function nationSecForStaff(firstNationId: number, secondNationId: number): number {
+  return secondNationId > 0 && secondNationId !== firstNationId ? secondNationId : 0
+}
+
+function baselineFingerprintKey(b: RegenBaselineEntry): string | null {
+  if (!b.posSig || !validDob(b.dobIso)) return null
+  const sec = nationSecForStaff(b.firstNationId, b.secondNationId)
+  return `${b.pa}|${b.firstNationId}|${sec}|${b.posSig}|${b.dobIso!.slice(5, 10)}`
+}
+
+function rowFingerprintKey(r: UiPlayerRow): string | null {
+  if (!validDob(r.staff.dob_iso)) return null
+  const pa = r.player.potential_ability
+  if (pa < 1) return null
+  const sec = nationSecForStaff(r.staff.first_nation_id, r.staff.second_nation_id)
+  return `${pa}|${r.staff.first_nation_id}|${sec}|${posSig(r.player)}|${r.staff.dob_iso.slice(5, 10)}`
+}
+
+function buildBaselineFingerprintIndex(
+  baseline: RegenBaselineFile,
+): Map<string, BaselineFingerprintHit[]> {
+  const index = new Map<string, BaselineFingerprintHit[]>()
+  for (const [staffId, b] of Object.entries(baseline.entries)) {
+    const key = baselineFingerprintKey(b)
+    if (!key) continue
+    let list = index.get(key)
+    if (!list) {
+      list = []
+      index.set(key, list)
+    }
+    list.push({ staffId, b })
+  }
+  return index
 }
 
 /**
@@ -90,8 +161,11 @@ export function applyBaselineFingerprintRegen(
   rows: UiPlayerRow[],
   baseline: RegenBaselineFile,
   pathKey: string,
+  lookup?: RegenRowLookup,
 ): number {
   if (baseline.pathKey !== pathKey) return 0
+  const lu = lookup ?? buildRegenRowLookup(rows)
+  const index = buildBaselineFingerprintIndex(baseline)
   const claimed = new Set<string>()
   let n = 0
   for (const r of rows) {
@@ -100,34 +174,27 @@ export function applyBaselineFingerprintRegen(
     if (pa < 1) continue
     if ((r.age ?? 99) > YOUNG_MAX_AGE || r.ca + MIN_PA_CA_GAP > r.pa) continue
 
-    for (const [staffId, b] of Object.entries(baseline.entries)) {
-      if (claimed.has(staffId) || !b.posSig) continue
-      if (normName(r.name) === normName(b.name)) continue
-      if (pa !== b.pa) continue
-      if (r.staff.first_nation_id !== b.firstNationId) continue
-      const sec =
-        r.staff.second_nation_id > 0 && r.staff.second_nation_id !== r.staff.first_nation_id
-          ? r.staff.second_nation_id
-          : 0
-      const bSec =
-        b.secondNationId > 0 && b.secondNationId !== b.firstNationId ? b.secondNationId : 0
-      if (sec !== bSec) continue
-      const sig = posSig(r.player)
-      if (sig !== b.posSig) continue
-      if (!dobMonthDayMatch(r.staff.dob_iso, b.dobIso ?? null)) continue
+    const key = rowFingerprintKey(r)
+    if (!key) continue
+    const candidates = index.get(key)
+    if (!candidates?.length) continue
 
-      const slotRow = rows.find((x) => x.staffIndex >= 0 && String(x.staff.id) === staffId)
-      const slotReused =
-        slotRow != null && normName(slotRow.name) !== normName(b.name)
+    for (const { staffId, b } of candidates) {
+      if (claimed.has(staffId)) continue
+      if (normName(r.name) === normName(b.name)) continue
+
+      const slotRow = lu.byStaffId.get(staffId)
+      const slotReused = slotRow != null && normName(slotRow.name) !== normName(b.name)
       const predecessorStillInSave =
-        findStaffIndexByPlayerId(rows, b.playerId, b.name) != null || b.jobForClub === RETIRED_JOB_FOR_CLUB
+        findStaffIndexByPlayerIdFromLookup(lu, b.playerId, b.name) != null ||
+        b.jobForClub === RETIRED_JOB_FOR_CLUB
       if (!slotReused && !predecessorStillInSave) continue
 
       r.isRegenLikely = true
       r.regenOfName = b.name
       r.regenDetectionSource = 'snapshot'
       r.regenOfStaffIndex =
-        findStaffIndexByPlayerId(rows, b.playerId, b.name) ?? b.staffIndex
+        findStaffIndexByPlayerIdFromLookup(lu, b.playerId, b.name) ?? b.staffIndex
       claimed.add(staffId)
       n++
       break
@@ -142,9 +209,10 @@ export function applyRegenPipeline(
   pathKey: string,
 ): void {
   clearRegenMarkers(rows)
+  const lookup = buildRegenRowLookup(rows)
   if (baseline && baseline.pathKey === pathKey) {
-    applyBaselineRegenFromSnapshot(rows, baseline, pathKey)
-    applyBaselineFingerprintRegen(rows, baseline, pathKey)
+    applyBaselineRegenFromSnapshot(rows, baseline, pathKey, lookup)
+    applyBaselineFingerprintRegen(rows, baseline, pathKey, lookup)
   }
   applyHeuristicRegenHints(rows)
 }

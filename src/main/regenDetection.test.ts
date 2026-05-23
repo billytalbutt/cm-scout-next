@@ -159,6 +159,56 @@ describe('regenDetection', () => {
     expect(arno.regenDetectionSource).toBe('snapshot')
   })
 
+  it('fingerprint regen completes quickly on large snapshot (indexed lookup)', () => {
+    const baseline: RegenBaselineFile = {
+      version: 1,
+      indexPath: '/big.sav',
+      pathKey: 'perf',
+      gameDateIso: null,
+      createdIso: new Date().toISOString(),
+      entries: {},
+    }
+    const rows: UiPlayerRow[] = []
+    for (let i = 0; i < 3000; i++) {
+      const legend = minimalRow({
+        name: `Legend ${i}`,
+        staffIndex: i * 2,
+        staffId: 10_000 + i,
+        age: 35,
+        staff: { id: 10_000 + i, player_id: 20_000 + i, dob_iso: '1975-03-15', job_for_club: 16 },
+        player: { potential_ability: 160 + (i % 20) },
+      })
+      const regen = minimalRow({
+        name: `Young ${i}`,
+        staffIndex: i * 2 + 1,
+        staffId: 50_000 + i,
+        age: 19,
+        staff: { id: 50_000 + i, dob_iso: '1975-03-15', player_id: 60_000 + i },
+        player: { potential_ability: 160 + (i % 20), current_ability: 120 },
+      })
+      rows.push(legend, regen)
+      baseline.entries[String(10_000 + i)] = {
+        name: legend.name,
+        firstNameId: 1,
+        secondNameId: 2,
+        commonNameId: 0,
+        playerId: 20_000 + i,
+        pa: legend.pa,
+        ca: legend.ca,
+        staffIndex: legend.staffIndex,
+        firstNationId: 12,
+        secondNationId: 0,
+        posSig: playerPosSig(legend.player),
+        dobIso: '1975-03-15',
+        jobForClub: 16,
+      }
+    }
+    const t0 = performance.now()
+    applyBaselineFingerprintRegen(rows, baseline, 'perf')
+    expect(performance.now() - t0).toBeLessThan(2000)
+    expect(rows.some((r) => r.name.startsWith('Young') && r.isRegenLikely)).toBe(true)
+  })
+
   it('snapshot links regenOfStaffIndex when predecessor still in save', () => {
     const predecessor = minimalRow({
       name: 'Dennis Bergkamp',

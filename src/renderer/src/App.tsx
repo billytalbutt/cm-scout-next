@@ -517,6 +517,7 @@ export function App() {
   >({})
   const [positionFilterRoles, setPositionFilterRoles] = useState<PositionRoleFilterId[]>([])
   const [positionFilterSides, setPositionFilterSides] = useState<PositionSideFilterId[]>([])
+  const [regenBaselineSaving, setRegenBaselineSaving] = useState(false)
   const [regenOnly, setRegenOnly] = useState(false)
   const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
   const [showEngineAttrs, setShowEngineAttrs] = useState(() => {
@@ -923,30 +924,37 @@ export function App() {
   }, [profile])
 
   const saveRegenBaseline = useCallback(async () => {
-    if (typeof window.cmapi?.saveRegenBaseline !== 'function') return
-    const out = await window.cmapi.saveRegenBaseline()
-    if (!out || typeof out !== 'object' || !('ok' in out) || !out.ok) {
-      const err =
-        out && typeof out === 'object' && 'error' in out ? String((out as { error: string }).error) : 'Save failed'
-      setErr(err)
-      return
+    if (typeof window.cmapi?.saveRegenBaseline !== 'function' || regenBaselineSaving) return
+    setRegenBaselineSaving(true)
+    try {
+      const out = await window.cmapi.saveRegenBaseline()
+      if (!out || typeof out !== 'object' || !('ok' in out) || !out.ok) {
+        const err =
+          out && typeof out === 'object' && 'error' in out
+            ? String((out as { error: string }).error)
+            : 'Save failed'
+        setErr(err)
+        return
+      }
+      setErr(null)
+      setLoadInfo((li) =>
+        li
+          ? {
+              ...li,
+              regenBaseline: {
+                active: out.active,
+                savedAt: out.savedAt,
+                entryCount: out.entryCount,
+                indexPath: out.indexPath,
+              },
+            }
+          : li,
+      )
+      void refresh()
+    } finally {
+      setRegenBaselineSaving(false)
     }
-    setErr(null)
-    setLoadInfo((li) =>
-      li
-        ? {
-            ...li,
-            regenBaseline: {
-              active: out.active,
-              savedAt: out.savedAt,
-              entryCount: out.entryCount,
-              indexPath: out.indexPath,
-            },
-          }
-        : li,
-    )
-    void refresh()
-  }, [refresh])
+  }, [refresh, regenBaselineSaving])
 
   const clearRegenBaseline = useCallback(async () => {
     if (typeof window.cmapi?.clearRegenBaseline !== 'function') return
@@ -2301,10 +2309,11 @@ export function App() {
                   )}
                   <button
                     type="button"
+                    disabled={regenBaselineSaving}
                     onClick={() => void saveRegenBaseline()}
-                    className="rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-emerald-500"
+                    className="rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Save snapshot
+                    {regenBaselineSaving ? 'Saving snapshot…' : 'Save snapshot'}
                   </button>
                   {loadInfo.regenBaseline.active && (
                     <button
