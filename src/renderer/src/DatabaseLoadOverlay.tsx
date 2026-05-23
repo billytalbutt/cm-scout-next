@@ -1,6 +1,6 @@
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
-/** Bundled URL — works in Vite dev (`ELECTRON_RENDERER_URL`) and packaged `loadFile`. */
-import loadScreenMascot from './assets/load-screen-mascot.png'
+/** Identical file to `public/favicon.png` (copied by `npm run icons:build`). */
+import merlinFavicon from './assets/merlin-favicon.png'
 
 type Props = {
   progress: DatabaseLoadProgress
@@ -42,9 +42,11 @@ export function DatabaseLoadOverlay({ progress }: Props) {
 
           <div className="relative mb-6 flex justify-center">
             <img
-              src={loadScreenMascot}
+              src={merlinFavicon}
               alt=""
-              className="h-44 w-auto max-w-[min(100%,20rem)] object-contain drop-shadow-lg"
+              width={112}
+              height={112}
+              className="h-28 w-28 object-contain drop-shadow-lg"
               aria-hidden
             />
           </div>

@@ -81,11 +81,16 @@ try {
   Save-CoverPng $srcFile $faviconPath 256 256 $zoom
   Copy-Item $faviconPath (Join-Path $publicDir 'favicon-256.png') -Force
 
+  $assetsDir = Join-Path $root 'src\renderer\src\assets'
+  $loadFaviconAsset = Join-Path $assetsDir 'merlin-favicon.png'
+  Copy-Item $faviconPath $loadFaviconAsset -Force
+
   $installerIcon = Join-Path $buildDir 'icon.png'
   Save-CoverPng $srcFile $installerIcon 1024 1024 1.05
-  Save-HeightPng $srcFile (Join-Path $root 'src\renderer\src\assets\load-screen-mascot.png') 360
+  Save-HeightPng $srcFile (Join-Path $assetsDir 'load-screen-mascot.png') 360
 
   Write-Host "Wrote favicon.png + favicon-{32,48,64,128,256}.png (cover fill)"
+  Write-Host "Wrote merlin-favicon.png (same as favicon — load overlay)"
   Write-Host "Wrote load-screen-mascot.png (360px tall, transparent)"
   Write-Host "Wrote $installerIcon"
 } finally {

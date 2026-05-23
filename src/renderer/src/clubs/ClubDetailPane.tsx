@@ -1,7 +1,84 @@
-import { useEffect, useState } from 'react'
-import type { ClubDetailPayload } from '../ClubBrowsePanel'
+import { useEffect, useMemo, useState } from 'react'
+import type { ClubDetailPayload, ClubDetailSquadRow, ClubDetailStaffRow } from '../ClubBrowsePanel'
 
 type RosterTab = 'squad' | 'staff'
+type SquadSortKey = 'name' | 'ca' | 'pa'
+type StaffSortKey = 'name' | 'job' | 'score' | 'staffCa'
+
+type SortState<K extends string> = { key: K; desc: boolean }
+
+function toggleSort<K extends string>(prev: SortState<K>, key: K): SortState<K> {
+  if (prev.key === key) return { key, desc: !prev.desc }
+  return { key, desc: key === 'name' ? false : true }
+}
+
+function SortableTh<K extends string>({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className = '',
+}: {
+  label: string
+  sortKey: K
+  sort: SortState<K>
+  onSort: (key: K) => void
+  className?: string
+}) {
+  const active = sort.key === sortKey
+  return (
+    <th className={`px-3 py-2 ${className}`}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 font-normal transition hover:text-zinc-200 ${
+          active ? 'text-emerald-200/90' : 'text-zinc-500'
+        }`}
+      >
+        {label}
+        <span className="font-mono text-[10px] text-zinc-600" aria-hidden>
+          {active ? (sort.desc ? '▼' : '▲') : '↕'}
+        </span>
+      </button>
+    </th>
+  )
+}
+
+function compareSquad(a: ClubDetailSquadRow, b: ClubDetailSquadRow, sort: SortState<SquadSortKey>): number {
+  const mul = sort.desc ? -1 : 1
+  switch (sort.key) {
+    case 'name':
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) * mul
+    case 'ca':
+      return (a.ca - b.ca) * mul || a.name.localeCompare(b.name)
+    case 'pa':
+      return (a.pa - b.pa) * mul || a.name.localeCompare(b.name)
+    default:
+      return 0
+  }
+}
+
+function compareStaff(a: ClubDetailStaffRow, b: ClubDetailStaffRow, sort: SortState<StaffSortKey>): number {
+  const mul = sort.desc ? -1 : 1
+  const num = (va: number | null, vb: number | null) => {
+    if (va == null && vb == null) return 0
+    if (va == null) return 1
+    if (vb == null) return -1
+    return (va - vb) * mul
+  }
+  switch (sort.key) {
+    case 'name':
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) * mul
+    case 'job':
+      return a.jobLabel.localeCompare(b.jobLabel, undefined, { sensitivity: 'base' }) * mul || a.name.localeCompare(b.name)
+    case 'score':
+      return num(a.score, b.score) || a.name.localeCompare(b.name)
+    case 'staffCa':
+      return num(a.staffCa, b.staffCa) || a.name.localeCompare(b.name)
+    default:
+      return 0
+  }
+}
 
 type Props = {
   loadInfo: boolean
@@ -45,10 +122,25 @@ export function ClubDetailPane({
   onOpenStaffProfile,
 }: Props) {
   const [rosterTab, setRosterTab] = useState<RosterTab>('squad')
+  const [squadSort, setSquadSort] = useState<SortState<SquadSortKey>>({ key: 'ca', desc: true })
+  const [staffSort, setStaffSort] = useState<SortState<StaffSortKey>>({ key: 'score', desc: true })
 
   useEffect(() => {
     setRosterTab('squad')
+    setSquadSort({ key: 'ca', desc: true })
+    setStaffSort({ key: 'score', desc: true })
   }, [detail?.id])
+
+  const staffList = detail?.staff ?? []
+
+  const sortedSquad = useMemo(() => {
+    if (!detail) return []
+    return [...detail.squad].sort((a, b) => compareSquad(a, b, squadSort))
+  }, [detail, squadSort])
+
+  const sortedStaff = useMemo(() => {
+    return [...staffList].sort((a, b) => compareStaff(a, b, staffSort))
+  }, [staffList, staffSort])
 
   if (!loadInfo) {
     return <p className="text-sm text-zinc-500">Load a database to browse clubs.</p>
@@ -61,8 +153,6 @@ export function ClubDetailPane({
       </p>
     )
   }
-
-  const staffList = detail.staff ?? []
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -138,13 +228,28 @@ export function ClubDetailPane({
             <table className="w-full border-collapse text-left text-xs">
               <thead className="sticky top-0 z-10 bg-zinc-900/95 text-zinc-500">
                 <tr>
-                  <th className="px-3 py-2">Player</th>
-                  <th className="px-3 py-2">CA</th>
-                  <th className="px-3 py-2">PA</th>
+                  <SortableTh
+                    label="Player"
+                    sortKey="name"
+                    sort={squadSort}
+                    onSort={(key) => setSquadSort((s) => toggleSort(s, key))}
+                  />
+                  <SortableTh
+                    label="CA"
+                    sortKey="ca"
+                    sort={squadSort}
+                    onSort={(key) => setSquadSort((s) => toggleSort(s, key))}
+                  />
+                  <SortableTh
+                    label="PA"
+                    sortKey="pa"
+                    sort={squadSort}
+                    onSort={(key) => setSquadSort((s) => toggleSort(s, key))}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {detail.squad.map((p) => (
+                {sortedSquad.map((p) => (
                   <tr
                     key={p.staffIndex}
                     role="button"
@@ -171,21 +276,41 @@ export function ClubDetailPane({
             <table className="w-full border-collapse text-left text-xs">
               <thead className="sticky top-0 z-10 bg-zinc-900/95 text-zinc-500">
                 <tr>
-                  <th className="px-3 py-2">Name</th>
-                  <th className="px-3 py-2">Job</th>
-                  <th className="px-3 py-2">Score</th>
-                  <th className="px-3 py-2">CA</th>
+                  <SortableTh
+                    label="Name"
+                    sortKey="name"
+                    sort={staffSort}
+                    onSort={(key) => setStaffSort((s) => toggleSort(s, key))}
+                  />
+                  <SortableTh
+                    label="Job"
+                    sortKey="job"
+                    sort={staffSort}
+                    onSort={(key) => setStaffSort((s) => toggleSort(s, key))}
+                  />
+                  <SortableTh
+                    label="Score"
+                    sortKey="score"
+                    sort={staffSort}
+                    onSort={(key) => setStaffSort((s) => toggleSort(s, key))}
+                  />
+                  <SortableTh
+                    label="CA"
+                    sortKey="staffCa"
+                    sort={staffSort}
+                    onSort={(key) => setStaffSort((s) => toggleSort(s, key))}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {staffList.length === 0 ? (
+                {sortedStaff.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-3 py-4 text-zinc-500">
                       No backroom staff linked to this club in the save.
                     </td>
                   </tr>
                 ) : (
-                  staffList.map((s) => (
+                  sortedStaff.map((s) => (
                     <tr
                       key={s.staffIndex}
                       role="button"
@@ -216,8 +341,8 @@ export function ClubDetailPane({
         </div>
         <p className="mt-2 text-[10px] text-zinc-600">
           {rosterTab === 'squad'
-            ? 'Click a player to open their profile on the right.'
-            : 'Click a staff member to open their backroom profile on the right.'}
+            ? 'Click a column header to sort. Click a player to open their profile on the right.'
+            : 'Click a column header to sort. Click a staff member to open their backroom profile on the right.'}
         </p>
       </div>
     </div>
