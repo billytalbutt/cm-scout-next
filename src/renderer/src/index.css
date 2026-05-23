@@ -6,37 +6,81 @@
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Header brand — two stickers side by side (wizard + title PNG) */
+/* Header brand — sticker row (wizard + title + extras) */
 .cm-header-sticker-row {
   display: flex;
   align-items: flex-end;
-  gap: 0;
+  gap: 0.55rem;
   line-height: 0;
 }
 
 .cm-header-sticker {
   display: block;
+  height: 4.75rem;
+  max-height: 4.75rem;
   width: auto;
   object-fit: contain;
-  object-position: bottom left;
+  object-position: bottom center;
   filter: drop-shadow(0 3px 10px rgb(0 0 0 / 0.55));
   user-select: none;
 }
 
 .cm-header-sticker-wizard {
-  height: 4.75rem;
-  max-height: 4.75rem;
   transform: rotate(-1.5deg);
   transform-origin: bottom right;
 }
 
 .cm-header-sticker-title {
-  height: 4.35rem;
-  max-height: 4.35rem;
-  margin-left: -0.65rem;
-  margin-bottom: 0.12rem;
+  height: 5.1rem;
+  max-height: 5.1rem;
   transform: rotate(0.75deg);
   transform-origin: bottom left;
+}
+
+.cm-header-sticker-extra {
+  transform: rotate(-0.5deg);
+  transform-origin: bottom center;
+}
+
+/* Load overlay — subtle pulse glow behind favicon */
+.cm-load-mascot-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 9rem;
+  height: 9rem;
+}
+
+.cm-load-mascot-glow {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgb(228 228 231 / 0.22) 0%,
+    rgb(228 228 231 / 0.08) 45%,
+    transparent 72%
+  );
+  animation: cm-load-mascot-glow-pulse 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.cm-load-mascot-img {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes cm-load-mascot-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
 }
 
 /* Player/staff grid — opaque sticky header (no bleed-through while scrolling) */

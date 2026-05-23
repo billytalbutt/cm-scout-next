@@ -37,16 +37,19 @@ export function DatabaseLoadOverlay({ progress }: Props) {
       <div className="mx-4 w-full max-w-md rounded-2xl border border-zinc-700/80 bg-zinc-900 shadow-2xl shadow-black/50">
         <div className="px-6 pb-6 pt-8">
           <div className="mb-5 flex min-h-[11rem] items-center justify-center">
-            <img
-              src={merlinFavicon}
-              alt=""
-              width={160}
-              height={160}
-              decoding="sync"
-              loading="eager"
-              draggable={false}
-              className="block h-32 w-32 object-contain object-center"
-            />
+            <div className="cm-load-mascot-wrap">
+              <div className="cm-load-mascot-glow" aria-hidden />
+              <img
+                src={merlinFavicon}
+                alt=""
+                width={160}
+                height={160}
+                decoding="sync"
+                loading="eager"
+                draggable={false}
+                className="cm-load-mascot-img block h-32 w-32 object-contain object-center"
+              />
+            </div>
           </div>
 
           <h2 className="text-center text-lg font-semibold text-zinc-100">Loading save</h2>
