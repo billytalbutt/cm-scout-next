@@ -26,7 +26,7 @@ import { DebouncedTextFilters } from './DebouncedTextFilters'
 import { StaffBrowsePanel } from './StaffBrowsePanel'
 import { StaffFilterSidebar } from './StaffFilterSidebar'
 import { StaffProfilePane } from './StaffProfilePane'
-import soccerWizardMascot from './assets/soccer-wizard-mascot.png'
+import { BrandHeaderStickers } from './BrandHeaderStickers'
 import { ClubDetailPane } from './clubs/ClubDetailPane'
 import { ClubSearchSidebar } from './clubs/ClubSearchSidebar'
 import { useClubBrowse } from './clubs/useClubBrowse'
@@ -1246,22 +1246,7 @@ export function App() {
   return (
     <div className="flex h-screen flex-col bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950">
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-800/80 px-4 py-2 backdrop-blur">
-        <div className="flex min-w-0 items-center gap-3">
-          <img
-            src={soccerWizardMascot}
-            alt=""
-            className="h-[4.75rem] w-auto max-h-[4.75rem] shrink-0 object-contain object-left"
-            title="CM Merlin"
-          />
-          <div className="min-w-0">
-            <h1 className="cm-brand-title text-[1.65rem] leading-none text-white">CM Merlin</h1>
-            <p className="mt-0.5 text-xs leading-snug text-zinc-500">
-              Championship Manager 01/02
-              <br />
-              Scouting and Editor
-            </p>
-          </div>
-        </div>
+        <BrandHeaderStickers />
         <button
           type="button"
           disabled={opening}

@@ -6,14 +6,37 @@
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
-/* App title — 90s sticker / comic album feel */
-.cm-brand-title {
-  font-family: 'Bangers', 'Arial Black', 'Impact', sans-serif;
-  font-weight: 400;
-  letter-spacing: 0.06em;
-  text-shadow:
-    2px 2px 0 rgb(9 9 11),
-    0 0 12px rgb(16 185 129 / 0.25);
+/* Header brand — two stickers side by side (wizard + title PNG) */
+.cm-header-sticker-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  line-height: 0;
+}
+
+.cm-header-sticker {
+  display: block;
+  width: auto;
+  object-fit: contain;
+  object-position: bottom left;
+  filter: drop-shadow(0 3px 10px rgb(0 0 0 / 0.55));
+  user-select: none;
+}
+
+.cm-header-sticker-wizard {
+  height: 4.75rem;
+  max-height: 4.75rem;
+  transform: rotate(-1.5deg);
+  transform-origin: bottom right;
+}
+
+.cm-header-sticker-title {
+  height: 4.35rem;
+  max-height: 4.35rem;
+  margin-left: -0.65rem;
+  margin-bottom: 0.12rem;
+  transform: rotate(0.75deg);
+  transform-origin: bottom left;
 }
 
 /* Player/staff grid — opaque sticky header (no bleed-through while scrolling) */
