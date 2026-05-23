@@ -4,6 +4,7 @@ import { STADIUM_ROW_BYTES } from './stadiumRecords'
 import { cm2LongDisplayToDisk, readCashDisplay } from '../../shared/cm2LongFormat'
 import {
   CLUB_CASH_OFF,
+  CLUB_TRAINING_OFF,
   rowIndexForId,
   resolveClubAndStadiumBases,
   writeClubEditorField,
@@ -52,5 +53,37 @@ describe('clubStadiumDiskLayout', () => {
     expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(100_000_000)
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'stadium_capacity', 55_000)
     expect(archive.readInt32LE(stadiumBase + 60)).toBe(55_000)
+  })
+
+  it('writes training facilities as full u8 (not bool 0/1)', () => {
+    const clubId = 5
+    const stadiumId = 2
+    const archive = Buffer.alloc(2000)
+    const clubBlockPos = 50
+    const stadiumBlockPos = 900
+    const clubBase = clubBlockPos + CLUB_ROW_BYTES
+    const stadiumBase = stadiumBlockPos
+
+    archive.writeInt32LE(clubId, clubBase)
+    archive.writeUInt8(8, clubBase + CLUB_TRAINING_OFF)
+    archive.writeInt32LE(stadiumId, clubBase + 105)
+    archive.writeInt32LE(stadiumId, stadiumBase)
+
+    const blocks: BlockInfo[] = [
+      { name: 'club.dat', position: clubBlockPos, size: CLUB_ROW_BYTES * 3, compressed: false },
+      { name: 'stadium.dat', position: stadiumBlockPos, size: STADIUM_ROW_BYTES * 2, compressed: false },
+    ]
+
+    const resolved = resolveClubAndStadiumBases(archive, blocks, clubId, stadiumId)
+    expect('clubBase' in resolved).toBe(true)
+    if (!('clubBase' in resolved)) return
+
+    writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'training', 20)
+    expect(archive.readUInt8(clubBase + CLUB_TRAINING_OFF)).toBe(20)
+
+    writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'stadium_under_soil_heating', 1)
+    expect(archive.readUInt8(stadiumBase + 77)).toBe(1)
+    writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'stadium_under_soil_heating', 0)
+    expect(archive.readUInt8(stadiumBase + 77)).toBe(0)
   })
 })

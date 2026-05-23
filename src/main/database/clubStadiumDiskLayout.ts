@@ -1,7 +1,7 @@
 /**
  * Byte offsets for editable `club.dat` / `stadium.dat` fields (CM0102Patcher TClub / TStadiums).
  */
-import { readCashDisplay, writeCm0102CashToDisk } from '../../shared/cm2LongFormat'
+import { readCashDisplay, writeCashDisplay } from '../../shared/cm2LongFormat'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import { STADIUM_ROW_BYTES } from './stadiumRecords'
 import type { BlockInfo } from './types'
@@ -62,11 +62,13 @@ export function writeClubEditorDisplayAt(
 ): void {
   const abs = base + meta.offset
   if (meta.kind === 'cm2long') {
-    buf.writeInt32LE(writeCm0102CashToDisk(displayValue), abs)
+    const priorRaw = buf.readInt32LE(abs)
+    buf.writeInt32LE(writeCashDisplay(displayValue, priorRaw), abs)
     return
   }
   if (meta.kind === 'u8') {
-    buf.writeUInt8(displayValue ? 1 : 0, abs)
+    const v = Math.max(0, Math.min(255, Math.trunc(displayValue)))
+    buf.writeUInt8(v, abs)
     return
   }
   writeScalarAt(buf, abs, meta.kind, displayValue)
