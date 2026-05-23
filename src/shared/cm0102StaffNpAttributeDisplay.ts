@@ -124,27 +124,33 @@ function staffTacticsLowIntrinsic(raw: number): boolean {
   return Number.isFinite(raw) && raw >= 0 && raw <= 3
 }
 
-/** Quadratic base before CM’s typical +5 tactical-knowledge display offset. */
+/** Map mild negative tactics sentinels on elite rows to “unset” (0) for ca÷35 scaling. */
+function staffTacticsDiskByte(intrinsic: number, currentAbility: number): number {
+  const disk = Number.isFinite(intrinsic) ? intrinsic : 0
+  const ca = Number.isFinite(currentAbility) ? currentAbility : 0
+  if (disk < 0 && ca >= STAFF_TACTICS_CA35_ELITE_CA_MIN && disk >= -10) return 0
+  return disk
+}
+
 function staffTacticsBase(currentAbility: number, intrinsic: number): number {
   const raw = Number.isFinite(intrinsic) ? intrinsic : 0
   const ca = Number.isFinite(currentAbility) ? currentAbility : 0
   if (staffTacticsLowIntrinsic(raw) && ca >= STAFF_TACTICS_CA35_ELITE_CA_MIN) {
     return staffNpQuadraticConvert(ca, raw, 35, false)
   }
-  if (staffTacticsLowIntrinsic(raw)) {
-    return staffNpQuadraticConvert(ca, raw, 20, true)
+  if (ca >= STAFF_TACTICS_CA35_ELITE_CA_MIN) {
+    return staffNpQuadraticConvert(ca, raw, 25, true)
   }
-  return staffNpQuadraticConvert(ca, raw, 25, true)
+  return staffNpHighRounded(ca, raw, true)
 }
 
 /**
  * Tactical knowledge on the staff profile.
- * Pomaski (CA 182, raw 1 → 13) uses elite ca÷35; Malkin (CA 186, raw 5 → 17) uses ca÷25 rounded.
- * Negative tactics bytes on disk are not used in-game — treat as unset (0) if they slip through linking.
+ * Elite CA (≥175) with raw 0–3: ca÷35 trunc (Pomaski 13). Higher raw at elite CA: ca÷25 round (Malkin 17).
+ * Lower CA coaches: highConvert rounded minus one (Brian Kidd CA 154 → 16).
  */
 export function staffTacticsInGame(currentAbility: number, intrinsic: number): number {
-  const disk = Number.isFinite(intrinsic) ? intrinsic : 0
-  const raw = disk < 0 ? 0 : disk
+  const raw = staffTacticsDiskByte(intrinsic, currentAbility)
   return staffTacticsBase(currentAbility, raw)
 }
 

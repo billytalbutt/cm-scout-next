@@ -295,8 +295,7 @@ ipcMain.handle('open-database', async (event) => {
     defaultPath: suggested,
     buttonLabel: 'Load',
     properties: ['openFile'] as const,
-    /** One filter with both extensions so macOS NSSavePanel does not grey out .sav when .dat is first. */
-    filters: [{ name: 'CM0102 saves', extensions: ['sav', 'dat'] }],
+    filters: [{ name: 'CM0102 save games', extensions: ['sav'] }],
   }
   const r = parent ? await dialog.showOpenDialog(parent, opts) : await dialog.showOpenDialog(opts)
   if (r.canceled || !r.filePaths[0]) return { ok: false as const, error: 'cancelled' }

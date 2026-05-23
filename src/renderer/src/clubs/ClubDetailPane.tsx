@@ -1,13 +1,55 @@
+import { useEffect, useState } from 'react'
 import type { ClubDetailPayload } from '../ClubBrowsePanel'
+
+type RosterTab = 'squad' | 'staff'
 
 type Props = {
   loadInfo: boolean
   detail: ClubDetailPayload | null
   selectedStaffIndex: number | null
   onOpenPlayerProfile: (staffIndex: number) => void
+  onOpenStaffProfile: (staffIndex: number) => void
 }
 
-export function ClubDetailPane({ loadInfo, detail, selectedStaffIndex, onOpenPlayerProfile }: Props) {
+function RosterTabButton({
+  active,
+  label,
+  count,
+  onClick,
+}: {
+  active: boolean
+  label: string
+  count: number
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
+        active
+          ? 'bg-emerald-600/25 text-emerald-100 ring-1 ring-emerald-500/40'
+          : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'
+      }`}
+    >
+      {label} <span className="font-mono tabular-nums text-[10px] opacity-90">({count})</span>
+    </button>
+  )
+}
+
+export function ClubDetailPane({
+  loadInfo,
+  detail,
+  selectedStaffIndex,
+  onOpenPlayerProfile,
+  onOpenStaffProfile,
+}: Props) {
+  const [rosterTab, setRosterTab] = useState<RosterTab>('squad')
+
+  useEffect(() => {
+    setRosterTab('squad')
+  }, [detail?.id])
+
   if (!loadInfo) {
     return <p className="text-sm text-zinc-500">Load a database to browse clubs.</p>
   }
@@ -15,10 +57,12 @@ export function ClubDetailPane({ loadInfo, detail, selectedStaffIndex, onOpenPla
   if (!detail) {
     return (
       <p className="text-sm text-zinc-500">
-        Pick a club from the search list on the left to view squad, stadium, and club info here.
+        Pick a club from the search list on the left to view squad, staff, stadium, and club info here.
       </p>
     )
   }
+
+  const staffList = detail.staff ?? []
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -74,44 +118,107 @@ export function ClubDetailPane({ loadInfo, detail, selectedStaffIndex, onOpenPla
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-          Squad ({detail.squad.length})
-        </h3>
-        <div className="cm-scroll min-h-0 flex-1 overflow-y-auto rounded-lg border border-zinc-800">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-zinc-900/95 text-zinc-500">
-              <tr>
-                <th className="px-3 py-2">Player</th>
-                <th className="px-3 py-2">CA</th>
-                <th className="px-3 py-2">PA</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.squad.map((p) => (
-                <tr
-                  key={p.staffIndex}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onOpenPlayerProfile(p.staffIndex)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      onOpenPlayerProfile(p.staffIndex)
-                    }
-                  }}
-                  className={`cursor-pointer border-b border-zinc-800/50 transition hover:bg-zinc-800/40 ${
-                    selectedStaffIndex === p.staffIndex ? 'bg-emerald-950/30' : ''
-                  }`}
-                >
-                  <td className="px-3 py-1.5 font-medium text-zinc-200">{p.name}</td>
-                  <td className="px-3 py-1.5 font-mono text-zinc-300">{p.ca}</td>
-                  <td className="px-3 py-1.5 font-mono text-zinc-300">{p.pa}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <RosterTabButton
+            active={rosterTab === 'squad'}
+            label="Squad"
+            count={detail.squad.length}
+            onClick={() => setRosterTab('squad')}
+          />
+          <RosterTabButton
+            active={rosterTab === 'staff'}
+            label="Staff"
+            count={staffList.length}
+            onClick={() => setRosterTab('staff')}
+          />
         </div>
-        <p className="mt-2 text-[10px] text-zinc-600">Click a player to open their profile on the right.</p>
+
+        <div className="cm-scroll min-h-0 flex-1 overflow-y-auto rounded-lg border border-zinc-800">
+          {rosterTab === 'squad' ? (
+            <table className="w-full border-collapse text-left text-xs">
+              <thead className="sticky top-0 z-10 bg-zinc-900/95 text-zinc-500">
+                <tr>
+                  <th className="px-3 py-2">Player</th>
+                  <th className="px-3 py-2">CA</th>
+                  <th className="px-3 py-2">PA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.squad.map((p) => (
+                  <tr
+                    key={p.staffIndex}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onOpenPlayerProfile(p.staffIndex)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onOpenPlayerProfile(p.staffIndex)
+                      }
+                    }}
+                    className={`cursor-pointer border-b border-zinc-800/50 transition hover:bg-zinc-800/40 ${
+                      selectedStaffIndex === p.staffIndex ? 'bg-emerald-950/30' : ''
+                    }`}
+                  >
+                    <td className="px-3 py-1.5 font-medium text-zinc-200">{p.name}</td>
+                    <td className="px-3 py-1.5 font-mono text-zinc-300">{p.ca}</td>
+                    <td className="px-3 py-1.5 font-mono text-zinc-300">{p.pa}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full border-collapse text-left text-xs">
+              <thead className="sticky top-0 z-10 bg-zinc-900/95 text-zinc-500">
+                <tr>
+                  <th className="px-3 py-2">Name</th>
+                  <th className="px-3 py-2">Job</th>
+                  <th className="px-3 py-2">Score</th>
+                  <th className="px-3 py-2">CA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staffList.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-4 text-zinc-500">
+                      No backroom staff linked to this club in the save.
+                    </td>
+                  </tr>
+                ) : (
+                  staffList.map((s) => (
+                    <tr
+                      key={s.staffIndex}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onOpenStaffProfile(s.staffIndex)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onOpenStaffProfile(s.staffIndex)
+                        }
+                      }}
+                      className={`cursor-pointer border-b border-zinc-800/50 transition hover:bg-zinc-800/40 ${
+                        selectedStaffIndex === s.staffIndex ? 'bg-emerald-950/30' : ''
+                      }`}
+                    >
+                      <td className="px-3 py-1.5 font-medium text-zinc-200">{s.name}</td>
+                      <td className="px-3 py-1.5 text-zinc-400">{s.jobLabel}</td>
+                      <td className="px-3 py-1.5 font-mono text-emerald-200/90" title={s.scoreDetail}>
+                        {s.score}
+                      </td>
+                      <td className="px-3 py-1.5 font-mono text-zinc-300">{s.staffCa ?? '—'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <p className="mt-2 text-[10px] text-zinc-600">
+          {rosterTab === 'squad'
+            ? 'Click a player to open their profile on the right.'
+            : 'Click a staff member to open their backroom profile on the right.'}
+        </p>
       </div>
     </div>
   )

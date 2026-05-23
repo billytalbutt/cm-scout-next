@@ -2250,6 +2250,11 @@ export function App() {
                 detail={clubBrowse.detail}
                 selectedStaffIndex={sel}
                 onOpenPlayerProfile={(si) => void pick(si)}
+                onOpenStaffProfile={(si) => {
+                  setSel(si)
+                  setStaffTableSel(si)
+                  void loadStaffProfile(si)
+                }}
               />
             </div>
             {browseTab === 'tactics' && (
@@ -2514,18 +2519,18 @@ export function App() {
               <p className="text-sm text-zinc-400">Loading player profile…</p>
             </div>
           )}
-          {!profileLoading && !profile && !(browseTab === 'staff' && staffProfile) && (
+          {!profileLoading && !profile && !((browseTab === 'staff' || browseTab === 'clubs') && staffProfile) && (
             <p className="pt-4 text-sm text-zinc-500">
               {browseTab === 'staff'
                 ? 'Select a staff member from the table.'
                 : browseTab === 'clubs'
-                  ? 'Click a squad player to open their profile here.'
+                  ? 'Click a squad player or staff member to open their profile here.'
                   : sel != null
                     ? 'Double-click a row or press Enter to open profile.'
                     : 'Select a player for profile & attributes.'}
             </p>
           )}
-          {browseTab === 'staff' && staffProfile && (
+          {(browseTab === 'staff' || browseTab === 'clubs') && staffProfile && (
             <div className="space-y-3">
               <AddToShortlistButton
                 kind="staff"

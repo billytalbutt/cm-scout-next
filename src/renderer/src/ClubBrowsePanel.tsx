@@ -18,6 +18,15 @@ export type ClubDetailSquadRow = {
   club: string
 }
 
+export type ClubDetailStaffRow = {
+  staffIndex: number
+  name: string
+  jobLabel: string
+  score: number
+  scoreDetail: string
+  staffCa: number | null
+}
+
 export type ClubDetailPayload = {
   id: number
   name: string
@@ -29,6 +38,7 @@ export type ClubDetailPayload = {
   attendance: number
   training: number
   squad: ClubDetailSquadRow[]
+  staff: ClubDetailStaffRow[]
   stadium?: {
     name: string
     cityId: number

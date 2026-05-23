@@ -1,9 +1,12 @@
 import { applyCmScoutRatings } from './cmScoutRating'
-import { buildUiPlayerRowAtIndex, staffDisplayName } from './database/parser'
+import { buildUiPlayerRowAtIndex, isValidPlayerRow, staffDisplayName } from './database/parser'
+import { nonPlayerForStaffLink } from './database/nonplayer'
 import { tryExperimentalPitchFromTacticRow } from './database/tacticsDat'
 import type { ParsedDatabase, UiPlayerRow } from './database/types'
 import { mapUiRowToGridPayload } from './gridRowPayload'
 import type { GridPlayerRow } from '../shared/gridTypes'
+import { staffJobForClubLabel } from '../shared/staffJobCatalog'
+import { staffHeuristicDetail, staffRoleHeuristicScore } from './staffHeuristic'
 
 export interface ClubListRow {
   id: number
@@ -45,6 +48,15 @@ export interface ClubSquadPlayerRow {
   ca: number
   pa: number
   club: string
+}
+
+export interface ClubStaffRow {
+  staffIndex: number
+  name: string
+  jobLabel: string
+  score: number
+  scoreDetail: string
+  staffCa: number | null
 }
 
 /** `staff.club_job_id` and `contract.club_id` can disagree on some saves (see profilePayload). */
@@ -107,6 +119,48 @@ export function buildClubSquadPlayerRows(db: ParsedDatabase, clubId: number): Cl
   return out
 }
 
+/** Player-linked `job_for_club` roles (11–16) — listed under Squad, not Staff. */
+export function isPlayerStaffJobRole(jobForClub: number): boolean {
+  return jobForClub >= 11 && jobForClub <= 16
+}
+
+/**
+ * Backroom staff employed at the club (coaches, scouts, manager, etc.).
+ * Excludes squad players and player/manager hybrid job bytes.
+ */
+export function buildClubStaffRows(db: ParsedDatabase, clubId: number): ClubStaffRow[] {
+  const club = db.clubsById?.get(clubId)
+  if (!club) return []
+  const { staff, firstNames, secondNames, commonNames, nonPlayersByRowIndex } = db
+  const nPlayers = db.players.length
+  const out: ClubStaffRow[] = []
+
+  for (let staffIndex = 0; staffIndex < staff.length; staffIndex++) {
+    const s = staff[staffIndex]
+    if (!s) continue
+    if (!staffEmployedAtClub(db, staffIndex, clubId)) continue
+    if (isPlayerStaffJobRole(s.job_for_club)) continue
+    if (isValidPlayerRow(s, firstNames, secondNames, commonNames, nPlayers)) continue
+
+    const name = staffDisplayName(s, firstNames, secondNames, commonNames)
+    if (!name || name.startsWith('#')) continue
+
+    const np = nonPlayerForStaffLink(s.non_player_id, nonPlayersByRowIndex)
+    const score = staffRoleHeuristicScore(s.job_for_club, np) + Math.min(10, Math.max(0, s.determination - 10))
+    out.push({
+      staffIndex,
+      name,
+      jobLabel: staffJobForClubLabel(s.job_for_club),
+      score: Math.min(100, score),
+      scoreDetail: staffHeuristicDetail(s.job_for_club, np),
+      staffCa: np?.currentAbility ?? null,
+    })
+  }
+
+  out.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+  return out
+}
+
 /** Squad as grid rows (role7 + positions for tactics lineup). */
 export function buildClubSquadGridRows(db: ParsedDatabase, clubId: number): GridPlayerRow[] {
   const squad = buildClubSquadPlayerRows(db, clubId)
@@ -132,6 +186,7 @@ export function buildClubDetailPayload(db: ParsedDatabase, clubId: number): Reco
   const nation = db.nationNames.get(club.nationId) ?? ''
   const comp = db.clubCompsById?.get(club.divisionCompId)
   const squad = buildClubSquadPlayerRows(db, clubId)
+  const staffRows = buildClubStaffRows(db, clubId)
   const stadiumRec = db.stadiumsById?.get(club.stadiumId)
   const stadium = stadiumRec
     ? {
@@ -176,6 +231,7 @@ export function buildClubDetailPayload(db: ParsedDatabase, clubId: number): Reco
     attendance: club.attendance,
     training: club.training,
     squad,
+    staff: staffRows,
     stadium,
     tacticSelectedId: club.tacticSelectedId,
     tacticTrainingIds: club.tacticTrainingIds,

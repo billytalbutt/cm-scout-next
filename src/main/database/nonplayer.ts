@@ -3,6 +3,10 @@
  * `staff.dat` `non_player_id` (int at byte 0x69) is the **row index** into this file (see CM0102Patcher
  * `hl.nonPlayers[staff.NonPlayer]`), not necessarily the `id` field stored in that row.
  */
+import {
+  staffNpAttrInGame,
+  staffTacticsInGame,
+} from '../../shared/cm0102StaffNpAttributeDisplay'
 import type { NonPlayerRecord } from './types'
 
 export const NONPLAYER_ROW_BYTES = 68
@@ -160,6 +164,30 @@ function nonPlayerRowQualityScore(np: NonPlayerRecord): number {
   return score
 }
 
+/** Prefer rows whose scaled tactics sit near other elite coaching attrs (fixes index/id mix-ups). */
+function nonPlayerCoherenceScore(np: NonPlayerRecord): number {
+  let score = nonPlayerRowQualityScore(np)
+  const ca = np.currentAbility
+  const tacDisplay = staffTacticsInGame(ca, np.tactics)
+  const peerMax = Math.max(
+    staffNpAttrInGame('coaching', np.coaching, ca),
+    staffNpAttrInGame('judgement', np.judgement, ca),
+    staffNpAttrInGame('motivating', np.motivating, ca),
+    np.directness >= 0 && np.directness <= 20 ? np.directness : 0,
+  )
+  const gap = Math.abs(tacDisplay - peerMax)
+  score += Math.max(0, 150 - gap * 35)
+  if (
+    np.tactics >= 0 &&
+    np.tactics <= 3 &&
+    peerMax >= 18 &&
+    tacDisplay <= 14
+  ) {
+    score -= 250
+  }
+  return score
+}
+
 /**
  * Resolve `staff.dat` `non_player_id` (offset 0x69) to a `nonplayer.dat` row.
  * CM0102 uses this as a **row index** (`hl.nonPlayers[staff.NonPlayer]` in CM0102Patcher).
@@ -178,7 +206,7 @@ export function nonPlayerForStaffLink(
   const idOk = byId != null && isPlausibleNonPlayerRow(byId) && byId !== byIndex
 
   if (indexOk && idOk) {
-    return nonPlayerRowQualityScore(byId) > nonPlayerRowQualityScore(byIndex) ? byId : byIndex
+    return nonPlayerCoherenceScore(byId) > nonPlayerCoherenceScore(byIndex) ? byId : byIndex
   }
   if (indexOk) return byIndex
   if (idOk) return byId

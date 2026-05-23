@@ -1,4 +1,5 @@
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
+/** Bundled URL — works in Vite dev (`ELECTRON_RENDERER_URL`) and packaged `loadFile`. */
 import loadScreenMascot from './assets/load-screen-mascot.png'
 
 type Props = {
@@ -43,7 +44,7 @@ export function DatabaseLoadOverlay({ progress }: Props) {
             <img
               src={loadScreenMascot}
               alt=""
-              className="h-44 w-auto max-w-[min(100%,20rem)] object-contain"
+              className="h-44 w-auto max-w-[min(100%,20rem)] object-contain drop-shadow-lg"
               aria-hidden
             />
           </div>

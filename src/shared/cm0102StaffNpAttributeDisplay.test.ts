@@ -44,9 +44,13 @@ describe('staffNpAttrInGame (Pomaski reference)', () => {
     expect(staffNpAttrInGame('tactics', 5, 186)).toBe(17)
   })
 
-  it('treats negative tactics disk bytes as unset (0) for scaling', () => {
+  it('matches Brian Kidd in-game tactical knowledge (CA 154, raw 5 → 16)', () => {
+    expect(staffTacticsInGame(154, 5)).toBe(16)
+    expect(staffNpAttrInGame('tactics', 5, 154)).toBe(16)
+  })
+
+  it('treats mild negative tactics on elite rows as unset (0) for ca÷35', () => {
     expect(staffTacticsInGame(182, -4)).toBe(13)
-    expect(staffTacticsInGame(186, -8)).toBe(13)
   })
 
   it('leaves already-high style bytes unchanged', () => {

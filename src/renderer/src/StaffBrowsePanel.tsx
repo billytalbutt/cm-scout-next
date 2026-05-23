@@ -219,7 +219,13 @@ export function StaffBrowsePanel({
             </th>
           </tr>
           <tr className="border-b border-zinc-800 text-zinc-500">
-            <SortableTh label="Score" sortKey="score" sort={sort} onSort={onSort} />
+            <SortableTh
+              label="Score"
+              sortKey="score"
+              sort={sort}
+              onSort={onSort}
+              title="Heuristic role-fit 0–100 (not CM Scout %). Weighted in-game coaching attrs for this job + up to +10 from determination."
+            />
             <SortableTh label="Name" sortKey="name" sort={sort} onSort={onSort} />
             <SortableTh label="Job" sortKey="job" sort={sort} onSort={onSort} />
             <SortableTh label="Club" sortKey="club" sort={sort} onSort={onSort} />
@@ -267,7 +273,9 @@ export function StaffBrowsePanel({
                 selectedStaffIndex === r.staffIndex ? 'bg-emerald-950/25' : ''
               }`}
             >
-              <td className="px-2 py-1.5 font-mono text-emerald-200/90">{r.score}</td>
+              <td className="px-2 py-1.5 font-mono text-emerald-200/90" title={r.scoreDetail}>
+                {r.score}
+              </td>
               <td className="px-2 py-1.5 font-medium text-zinc-200">{r.name}</td>
               <td className="px-2 py-1.5 text-zinc-400">{r.jobLabel}</td>
               <td className="max-w-[14rem] truncate px-2 py-1.5 text-zinc-400" title={r.club}>

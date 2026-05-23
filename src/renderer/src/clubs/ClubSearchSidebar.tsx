@@ -68,7 +68,7 @@ export function ClubSearchSidebar({
   return (
     <div className="space-y-4">
       <p className="text-[11px] leading-snug text-zinc-500">
-        Search by club name, then pick a row. Squad players open in the profile pane on the right.
+        Search by club name, then pick a row. Use Squad or Staff tabs; click a row to open their profile on the right.
       </p>
       <label className="block">
         <span className="mb-1 block text-xs text-zinc-500">Search club</span>

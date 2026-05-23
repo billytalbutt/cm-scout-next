@@ -93,6 +93,21 @@ describe('nonPlayerForStaffLink', () => {
     expect(np?.tactics).toBe(5)
   })
 
+  it('prefers id row when index has elite-low tactics but coaching peers are high', () => {
+    const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 3)
+    writeNpRow(buf, 1, { id: 999, coaching: 7, judgement: 7, motivating: 7 })
+    buf.writeUInt16LE(186, 1 * NONPLAYER_ROW_BYTES + 4)
+    buf.writeInt8(1, 1 * NONPLAYER_ROW_BYTES + 0x21)
+    writeNpRow(buf, 2, { id: 1, coaching: 7, judgement: 7, motivating: 7 })
+    buf.writeUInt16LE(186, 2 * NONPLAYER_ROW_BYTES + 4)
+    buf.writeInt8(5, 2 * NONPLAYER_ROW_BYTES + 0x21)
+
+    const rows = parseNonPlayerData(buf)
+    const np = nonPlayerForStaffLink(1, rows)
+    expect(np?.tactics).toBe(5)
+    expect(np?.currentAbility).toBe(186)
+  })
+
   it('prefers higher-quality row when index and id both resolve', () => {
     const buf = Buffer.alloc(NONPLAYER_ROW_BYTES * 3)
     writeNpRow(buf, 0, { id: 100, coaching: 2, judgement: 3 })
