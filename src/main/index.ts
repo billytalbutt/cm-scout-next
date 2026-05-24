@@ -51,6 +51,7 @@ import {
 } from './clubBrowse'
 import type { ContractTypeCategoryId } from '../shared/contractTypes'
 import { buildStaffProfilePayload } from './staffProfilePayload'
+import { verifyClubCashOnArchive } from './database/clubCashPatch'
 import { buildClubEditorSnapshot, buildPatchedArchiveForClubEdits } from './clubEditorSave'
 import {
   buildEditorValueMap,
@@ -814,8 +815,21 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
     try {
       const applied = applyClubEditsToLoadedArchive(clubId, values)
       if (!applied.ok) return { ok: false as const, error: applied.error }
-      writeFileSync(loaded.indexPath, applied.buffer)
-      return { ok: true as const, path: loaded.indexPath, inPlace: true as const }
+      const savePath = loaded.indexPath
+      writeFileSync(savePath, applied.buffer)
+      const fromDisk = readFileSync(savePath)
+      if (values.cash !== undefined && Number.isFinite(values.cash)) {
+        const verified = verifyClubCashOnArchive(fromDisk, loaded.db.blocks, clubId, values.cash)
+        if (!verified.ok) {
+          return {
+            ok: false as const,
+            error: `${verified.error} File: ${savePath}`,
+          }
+        }
+      }
+      loaded.archiveBuf = fromDisk
+      loaded.db = refreshLoadedDbFromArchive(savePath, fromDisk)
+      return { ok: true as const, path: savePath, inPlace: true as const }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       return { ok: false as const, error: msg }

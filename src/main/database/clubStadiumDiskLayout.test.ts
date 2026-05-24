@@ -53,7 +53,7 @@ describe('clubStadiumDiskLayout', () => {
     expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(100_000_000)
   })
 
-  it('writes packed £2bn when prior cash on disk was plain int32 (e.g. £11m)', () => {
+  it('writes plain £2bn when prior cash on disk was plain int32 (e.g. £11m)', () => {
     const clubId = 42
     const stadiumId = 7
     const archive = Buffer.alloc(2000)
@@ -78,7 +78,7 @@ describe('clubStadiumDiskLayout', () => {
     expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(11_000_000)
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'cash', 2_000_000_000)
     const raw = archive.readInt32LE(clubBase + CLUB_CASH_OFF)
-    expect(raw).not.toBe(2_000_000_000)
+    expect(raw).toBe(2_000_000_000)
     expect(readCashDisplay(raw)).toBe(2_000_000_000)
 
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'stadium_capacity', 55_000)

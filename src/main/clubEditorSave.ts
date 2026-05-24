@@ -1,5 +1,6 @@
 import { clampClubEditorValue } from '../shared/clubEditorLimits'
 import type { BlockInfo, ParsedDatabase } from './database/types'
+import { patchClubCashOnArchive } from './database/clubCashPatch'
 import {
   CLUB_EDITOR_DISK_FIELDS,
   readClubEditorDisplayAt,
@@ -26,6 +27,18 @@ export type ClubEditorSnapshot = {
   division: string
   stadiumName: string
   values: Record<string, number>
+  /** Human player-manager's `club_job_id` when found (for bank balance warnings). */
+  humanManagedClubId: number | null
+}
+
+/** Club id of the playable manager (player linked + manager job), if any. */
+export function findHumanManagedClubId(db: ParsedDatabase): number | null {
+  for (const s of db.staff) {
+    if (s.player_id < 0) continue
+    if (s.job_for_club !== 5 && s.job_for_club !== 12) continue
+    if (s.club_job_id > 0) return s.club_job_id
+  }
+  return null
 }
 
 export function buildClubEditorSnapshot(
@@ -61,6 +74,7 @@ export function buildClubEditorSnapshot(
     division,
     stadiumName: stadium.name,
     values: readEditorValuesAt(archiveBuffer, bases.clubBase, bases.stadiumBase),
+    humanManagedClubId: findHumanManagedClubId(db),
   }
 }
 
@@ -87,10 +101,20 @@ export function buildPatchedArchiveForClubEdits(
   if ('error' in bases) return { ok: false, error: bases.error }
 
   const out = Buffer.from(archiveBuffer)
-  for (const [key, rawVal] of Object.entries(values)) {
+  const cashPounds = values.cash
+  const fieldValues = { ...values }
+  delete fieldValues.cash
+
+  for (const [key, rawVal] of Object.entries(fieldValues)) {
     if (!Number.isFinite(rawVal)) continue
     if (!CLUB_EDITOR_DISK_FIELDS[key]) continue
     writeClubEditorField(out, bases.clubBase, bases.stadiumBase, key, clampClubEditorValue(key, Number(rawVal)))
   }
+
+  if (cashPounds !== undefined && Number.isFinite(cashPounds)) {
+    const cashPatch = patchClubCashOnArchive(out, blocks, clubId, clampClubEditorValue('cash', Number(cashPounds)))
+    if (!cashPatch.ok) return { ok: false, error: cashPatch.error }
+  }
+
   return { ok: true, buffer: out }
 }

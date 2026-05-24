@@ -42,16 +42,26 @@ export function isPackedCm2LongOnDisk(raw: number): boolean {
   return cm2LongFromNormal(cm2LongToNormal(r)) === r
 }
 
-/** True when cash is stored as plain int32 pounds (some third-party tools), not CM2 packed. */
+/**
+ * True when cash is stored as plain int32 pounds (common in progressed saves / some editors).
+ * Vanilla packed CM2 cash uses a compact encoded int32; decoding yields £ in a different magnitude.
+ */
 export function cashLooksPlainOnDisk(raw: number): boolean {
   const r = Math.trunc(raw)
   if (r < 0 || r > MAX_CASH_POUNDS) return false
-  return !isPackedCm2LongOnDisk(r)
+  if (!isPackedCm2LongOnDisk(r)) return true
+  const normal = cm2LongToNormal(r)
+  const decodedPounds = normal * CASH_DISPLAY_SCALE
+  if (r >= 100_000 && Math.abs(decodedPounds - r) / r < 0.05) return false
+  if (r >= 1_000_000 && decodedPounds > r * 1.1) return true
+  if (r < 10_000_000) return false
+  return false
 }
 
 /** Bank balance in pounds for UI / club browse. */
 export function readCashDisplay(raw: number): number {
   const r = Math.trunc(raw)
+  if (cashLooksPlainOnDisk(r)) return r
   if (isPackedCm2LongOnDisk(r)) {
     return cm2LongDiskToDisplay(r, CASH_DISPLAY_SCALE)
   }
@@ -62,11 +72,15 @@ export function readCashDisplay(raw: number): number {
 }
 
 /**
- * Write pounds to disk. CM0102 always expects packed CM2 long in club.dat (same as
- * CM0102Patcher / Graeme Kelly save editor — Cash is ConvertLongToCM2Format(pounds/1000)).
+ * Write pounds to club.dat `TClub.Cash`. Preserves on-disk encoding (plain int32 pounds vs
+ * packed CM2 long) so CM Finances matches after reload — same behaviour as Graeme Kelly editor.
  */
-export function writeCashDisplay(pounds: number, _priorRaw?: number): number {
-  return writeCm0102CashToDisk(pounds)
+export function writeCashDisplay(pounds: number, priorRaw?: number): number {
+  const clamped = Math.min(MAX_CASH_POUNDS, Math.max(0, Math.trunc(pounds)))
+  if (priorRaw !== undefined && cashLooksPlainOnDisk(priorRaw)) {
+    return clamped
+  }
+  return writeCm0102CashToDisk(clamped)
 }
 
 /** CM0102 vanilla saves always store bank balance as packed CM2 long — use when writing from the editor. */

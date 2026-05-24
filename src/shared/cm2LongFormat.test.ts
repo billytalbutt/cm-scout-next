@@ -51,15 +51,18 @@ describe('cm2LongFormat', () => {
     expect(readCashDisplay(plainPrior)).toBe(21_000_000)
   })
 
-  it('always writes packed CM2 so CM Finances matches (fixes plain-prior bug)', () => {
+  it('writes plain pounds when save already stores plain int32 (e.g. £11m)', () => {
     const plain11m = 11_000_000
     expect(cashLooksPlainOnDisk(plain11m)).toBe(true)
     const written = writeCashDisplay(2_000_000_000, plain11m)
-    expect(written).not.toBe(2_000_000_000)
-    expect(isPackedCm2LongOnDisk(written)).toBe(true)
+    expect(written).toBe(2_000_000_000)
+    expect(cashLooksPlainOnDisk(written)).toBe(true)
     expect(readCashDisplay(written)).toBe(2_000_000_000)
-    const packed11m = writeCashDisplay(11_000_000)
-    expect(readCashDisplay(packed11m)).toBe(11_000_000)
+  })
+
+  it('reads progressed-save plain cash that false-positive as packed round-trip (e.g. £52m)', () => {
+    expect(cashLooksPlainOnDisk(52_000_000)).toBe(true)
+    expect(readCashDisplay(52_000_000)).toBe(52_000_000)
   })
 
   it('does not treat vanilla packed cash as plain', () => {

@@ -20,6 +20,7 @@ export type ClubEditorSnapshot = {
   division: string
   stadiumName: string
   values: Record<string, number>
+  humanManagedClubId?: number | null
 }
 
 function FieldGrid({
@@ -41,7 +42,7 @@ function FieldGrid({
         f.kind === 'bool' ? (
           <label
             key={f.key}
-            className="flex items-center gap-2 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-2"
+            className="flex items-center gap-2 py-1"
           >
             <input
               type="checkbox"
@@ -244,7 +245,7 @@ export function ClubEditorPanel({
     if (!values) return
     if (
       !window.confirm(
-        `Overwrite the loaded save file?\n\n${databasePath ?? 'Current save'}\n\nCM must Continue this exact file to see bank balance and stadium changes.`,
+        `Overwrite the loaded save file?\n\n${databasePath ?? 'Current save'}\n\nQuit CM completely before saving, then load/Continue this exact file to see bank balance and stadium changes.`,
       )
     ) {
       return
@@ -258,7 +259,7 @@ export function ClubEditorPanel({
         const savedPath = String(out.path)
         await refreshAfterSave(snap.clubId, values, savedPath)
         setSaveMsg(
-          `Updated ${savedPath}. In CM: Continue that same file, then check Finances → Bank balance.`,
+          `Updated ${savedPath}. Quit CM if it was running, then load/Continue this file and check Finances → Bank balance.`,
         )
       } else if (out && typeof out === 'object' && 'error' in out) {
         const er = (out as { error?: string }).error
@@ -330,7 +331,9 @@ export function ClubEditorPanel({
               {databasePath}
             </p>
             <ul className="mt-2 list-inside list-disc space-y-1 text-zinc-500">
-              <li>Continue this exact file in CM after you use Update loaded save.</li>
+              <li>Select the club you manage in CM (name must match Finances).</li>
+              <li>Fully quit CM before Update loaded save, then Load this exact path in CM (not an old Continue).</li>
+              <li>If bank balance still fails, disable Nick&apos;s &quot;Restrict players tactics + scouters&quot; patch.</li>
               <li>Save a copy keeps a backup; reload here after CM creates a new in-game save.</li>
             </ul>
           </div>
@@ -362,6 +365,14 @@ export function ClubEditorPanel({
         <>
           <div className="rounded-lg border border-zinc-800/80 bg-zinc-950/40 px-3 py-2 text-xs text-zinc-400">
             <p className="font-medium text-zinc-200">{snap.name}</p>
+            {snap.humanManagedClubId != null &&
+              snap.humanManagedClubId > 0 &&
+              snap.clubId !== snap.humanManagedClubId && (
+                <p className="mt-1 text-amber-200/95">
+                  This is not your managed club in this save. Bank balance in CM only changes for the club you manage —
+                  search and select that club before saving.
+                </p>
+              )}
             <p>
               {snap.nation} · {snap.division}
             </p>
