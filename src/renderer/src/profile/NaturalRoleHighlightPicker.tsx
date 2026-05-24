@@ -25,13 +25,12 @@ export function NaturalRoleHighlightPicker({ profile, activeRoleIdx, onSelectRol
   const colClass =
     rows.length >= 7 ? 'grid-cols-7' : rows.length >= 5 ? 'grid-cols-5' : 'grid-cols-4'
 
+  const multipleRoles = rows.length > 1
+
   return (
     <div>
       <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
         Eff % by recipe (natural roles)
-      </p>
-      <p className="mt-0.5 text-[9px] leading-snug text-zinc-600">
-        Green = best %. Click a role to update attribute highlights above.
       </p>
       <div className={`mt-1 grid ${colClass} gap-1 text-center`}>
         {rows.map((row, rowIndex) => {
@@ -45,6 +44,7 @@ export function NaturalRoleHighlightPicker({ profile, activeRoleIdx, onSelectRol
               percent={`${row.percent.toFixed(1)}%`}
               tier={tier}
               selected={activeRoleIdx === roleIdx}
+              showSelectedOutline={multipleRoles}
               title={`Highlight key attributes for ${row.archetypeLabel}`}
               onClick={() => onSelectRole(roleIdx)}
             />

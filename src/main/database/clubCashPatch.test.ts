@@ -2,7 +2,12 @@ import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { cashLooksPlainOnDisk, readCashDisplay, writeCm0102CashToDisk } from '../../shared/cm2LongFormat'
+import {
+  cashLooksPlainOnDisk,
+  cashMatchesTargetPounds,
+  readCashDisplay,
+  writeCm0102CashToDisk,
+} from '../../shared/cm2LongFormat'
 import { CLUB_CASH_OFF } from './clubStadiumDiskLayout'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import {
@@ -51,6 +56,18 @@ describe('clubCashPatch', () => {
     expect(cashLooksPlainOnDisk(raw)).toBe(false)
     expect(readCashDisplay(raw)).toBe(99_000_000)
     expect(raw).not.toBe(99_000_000)
+  })
+
+  it('accepts packed CM2 rounding for near-max bank balance', () => {
+    const target = 1_999_999_999
+    const packed = writeCm0102CashToDisk(target)
+    expect(readCashDisplay(packed)).toBe(1_999_999_000)
+    expect(cashMatchesTargetPounds(target, packed)).toBe(true)
+    const clubId = 9
+    const { buf, blocks } = miniArchive(clubId, writeCm0102CashToDisk(50_000_000))
+    const patched = patchClubCashOnArchive(buf, blocks, clubId, target)
+    expect(patched.ok).toBe(true)
+    expect(verifyClubCashOnArchive(buf, blocks, clubId, target).ok).toBe(true)
   })
 
   it('survives writeFileSync + readFileSync round-trip', () => {

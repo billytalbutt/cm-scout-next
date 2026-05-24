@@ -1,7 +1,9 @@
+import { cashLooksPlainOnDisk, readCashDisplay } from '../shared/cm2LongFormat'
 import { clampClubEditorValue } from '../shared/clubEditorLimits'
 import type { BlockInfo, ParsedDatabase } from './database/types'
-import { patchClubCashOnArchive } from './database/clubCashPatch'
+import { patchClubCashAtClubBase } from './database/clubCashPatch'
 import {
+  CLUB_CASH_OFF,
   CLUB_EDITOR_DISK_FIELDS,
   readClubEditorDisplayAt,
   resolveClubAndStadiumBases,
@@ -29,6 +31,8 @@ export type ClubEditorSnapshot = {
   values: Record<string, number>
   /** Human player-manager's `club_job_id` when found (for bank balance warnings). */
   humanManagedClubId: number | null
+  /** Raw `TClub.Cash` on disk for this club (debug / mismatch checks). */
+  cashOnDisk?: { raw: number; display: number; encoding: 'plain' | 'packed' }
 }
 
 /** Club id of the playable manager (player linked + manager job), if any. */
@@ -66,6 +70,7 @@ export function buildClubEditorSnapshot(
   const comp = db.clubCompsById?.get(club.divisionCompId)
   const division = comp?.name ?? (club.divisionCompId ? `#${club.divisionCompId}` : '—')
 
+  const cashRaw = archiveBuffer.readInt32LE(bases.clubBase + CLUB_CASH_OFF)
   return {
     clubId: club.id,
     stadiumId: club.stadiumId,
@@ -75,6 +80,11 @@ export function buildClubEditorSnapshot(
     stadiumName: stadium.name,
     values: readEditorValuesAt(archiveBuffer, bases.clubBase, bases.stadiumBase),
     humanManagedClubId: findHumanManagedClubId(db),
+    cashOnDisk: {
+      raw: cashRaw,
+      display: readCashDisplay(cashRaw),
+      encoding: cashLooksPlainOnDisk(cashRaw) ? 'plain' : 'packed',
+    },
   }
 }
 
@@ -112,7 +122,11 @@ export function buildPatchedArchiveForClubEdits(
   }
 
   if (cashPounds !== undefined && Number.isFinite(cashPounds)) {
-    const cashPatch = patchClubCashOnArchive(out, blocks, clubId, clampClubEditorValue('cash', Number(cashPounds)))
+    const cashPatch = patchClubCashAtClubBase(
+      out,
+      bases.clubBase,
+      clampClubEditorValue('cash', Number(cashPounds)),
+    )
     if (!cashPatch.ok) return { ok: false, error: cashPatch.error }
   }
 

@@ -15,6 +15,8 @@ type OpenResult =
   | {
       ok: true
       path: string
+      archiveReadPath?: string
+      archiveSiblingWarning?: string
       compressed: boolean
       gameDate: string | null
       playerCount: number

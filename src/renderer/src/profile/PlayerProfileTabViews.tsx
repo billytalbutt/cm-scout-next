@@ -172,11 +172,6 @@ export function PlayerProfileTabViews({
       )}
 
       {naturalRolePicker}
-      {profile.cmScoutRatingBp != null && (
-        <p className="font-mono text-[11px] text-zinc-400">
-          Grid BP (best suitable role): <span className="font-medium text-zinc-100">{profile.cmScoutRatingBp}%</span>
-        </p>
-      )}
 
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
         <h3 className="mb-1.5 font-semibold text-zinc-300">Player Instructions</h3>

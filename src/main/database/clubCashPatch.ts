@@ -3,11 +3,13 @@
  */
 import {
   cashLooksPlainOnDisk,
+  cashMatchesTargetPounds,
   readCashDisplay,
   writeCashDisplay,
   writeCm0102CashToDisk,
 } from '../../shared/cm2LongFormat'
-import { CLUB_CASH_OFF, rowIndexForId } from './clubStadiumDiskLayout'
+import { CLUB_CASH_OFF } from './clubStadiumDiskLayout'
+import { rowIndexForId } from './clubStadiumDiskLayout'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import type { BlockInfo } from './types'
 import { findBlock } from './playerStaffDiskLayout'
@@ -33,16 +35,17 @@ export function clubCashAbsoluteOffset(
   return clubBase + CLUB_CASH_OFF
 }
 
-/** Write bank balance pounds to `club.dat`, preserving on-disk encoding when possible. */
-export function patchClubCashOnArchive(
+/** Write bank balance at an already-resolved `club.dat` row base (same path as stadium fields). */
+export function patchClubCashAtClubBase(
   archiveBuffer: Buffer,
-  blocks: BlockInfo[],
-  clubId: number,
+  clubBase: number,
   pounds: number,
 ): ClubCashPatchResult {
   const target = Math.min(MAX_CASH_POUNDS, Math.max(0, Math.trunc(pounds)))
-  const off = clubCashAbsoluteOffset(archiveBuffer, blocks, clubId)
-  if (typeof off !== 'number') return { ok: false, error: off.error }
+  const off = clubBase + CLUB_CASH_OFF
+  if (off + 4 > archiveBuffer.length) {
+    return { ok: false, error: 'Club cash offset is outside the archive buffer.' }
+  }
 
   const priorRaw = archiveBuffer.readInt32LE(off)
   const priorWasPlain = cashLooksPlainOnDisk(priorRaw)
@@ -50,21 +53,33 @@ export function patchClubCashOnArchive(
   let newRaw = priorWasPlain ? target : writeCashDisplay(target, priorRaw)
   archiveBuffer.writeInt32LE(newRaw, off)
 
-  // Never fall back to plain int32 on a packed row — CM Finances reads packed CM2 there.
-  if (!priorWasPlain && readCashDisplay(archiveBuffer.readInt32LE(off)) !== target) {
+  if (!priorWasPlain && !cashMatchesTargetPounds(target, archiveBuffer.readInt32LE(off))) {
     newRaw = writeCm0102CashToDisk(target)
     archiveBuffer.writeInt32LE(newRaw, off)
   }
 
-  const after = readCashDisplay(archiveBuffer.readInt32LE(off))
-  if (after !== target) {
+  const afterRaw = archiveBuffer.readInt32LE(off)
+  if (!cashMatchesTargetPounds(target, afterRaw)) {
+    const after = readCashDisplay(afterRaw)
     return {
       ok: false,
       error: `Cash patch did not stick (wanted £${target.toLocaleString()}, row reads £${after.toLocaleString()}).`,
     }
   }
 
-  return { ok: true, clubBase: off - CLUB_CASH_OFF, priorRaw, newRaw }
+  return { ok: true, clubBase, priorRaw, newRaw }
+}
+
+/** Write bank balance pounds to `club.dat`, preserving on-disk encoding when possible. */
+export function patchClubCashOnArchive(
+  archiveBuffer: Buffer,
+  blocks: BlockInfo[],
+  clubId: number,
+  pounds: number,
+): ClubCashPatchResult {
+  const off = clubCashAbsoluteOffset(archiveBuffer, blocks, clubId)
+  if (typeof off !== 'number') return { ok: false, error: off.error }
+  return patchClubCashAtClubBase(archiveBuffer, off - CLUB_CASH_OFF, pounds)
 }
 
 export function verifyClubCashOnArchive(
@@ -76,9 +91,9 @@ export function verifyClubCashOnArchive(
   const off = clubCashAbsoluteOffset(archiveBuffer, blocks, clubId)
   if (typeof off !== 'number') return { ok: false, error: off.error }
   const raw = archiveBuffer.readInt32LE(off)
-  const display = readCashDisplay(raw)
   const target = Math.min(MAX_CASH_POUNDS, Math.max(0, Math.trunc(expectedPounds)))
-  if (display !== target) {
+  if (!cashMatchesTargetPounds(target, raw)) {
+    const display = readCashDisplay(raw)
     return {
       ok: false,
       error: `Bank balance on disk is £${display.toLocaleString()} (raw 0x${(raw >>> 0).toString(16)}), expected £${target.toLocaleString()}.`,

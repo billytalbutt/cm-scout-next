@@ -256,6 +256,8 @@ function FeetMoraleBlock({
 export function App() {
   const [loadInfo, setLoadInfo] = useState<{
     path: string
+    archiveReadPath?: string
+    archiveSiblingWarning?: string
     compressed: boolean
     gameDate: string | null
     playerCount: number
@@ -1029,6 +1031,8 @@ export function App() {
       }
       setLoadInfo({
         path: r.path,
+        archiveReadPath: r.archiveReadPath,
+        archiveSiblingWarning: r.archiveSiblingWarning,
         compressed: r.compressed,
         gameDate: r.gameDate,
         playerCount: r.playerCount,
@@ -1332,7 +1336,17 @@ export function App() {
               staff.dat {loadInfo.staffDatRows.toLocaleString()} rows · player.dat{' '}
               {loadInfo.playerBlobRows.toLocaleString()} rows
             </span>
+            {loadInfo.archiveReadPath && (
+              <span className="text-amber-200/90" title={loadInfo.archiveReadPath}>
+                Loaded bytes from {loadInfo.archiveReadPath.split(/[/\\]/).pop()}
+              </span>
+            )}
           </div>
+          {loadInfo.archiveSiblingWarning && (
+            <div className="border-b border-amber-900/40 bg-amber-950/30 px-5 py-2 text-xs text-amber-100/95">
+              {loadInfo.archiveSiblingWarning}
+            </div>
+          )}
           <div className="flex shrink-0 flex-col gap-2 border-b border-zinc-800/60 bg-zinc-900/30 px-5 py-2 sm:flex-row sm:items-center sm:justify-between">
             <HoverTip
               tip={
@@ -2892,12 +2906,6 @@ export function App() {
                         <InfoDot />
                       </h3>
                     </HoverTip>
-                    {profile.cmScoutRatingBp != null && (
-                      <p className="mt-1 font-mono text-[11px] text-zinc-400">
-                        BP (grid){' '}
-                        <span className="font-medium text-zinc-100">{profile.cmScoutRatingBp}%</span>
-                      </p>
-                    )}
                     {profile.effByArchetype && profile.effByArchetype.length > 0 && (
                       <div className="mt-2">
                         <NaturalRoleHighlightPicker
@@ -2978,6 +2986,7 @@ export function App() {
                       {(() => {
                         const percents = profile.cmScoutRolePercents!
                         const tierByRole = cmScoutRoleValueTierByRole(percents)
+                        const multipleNaturalRoles = (profile.effByArchetype?.length ?? 0) > 1
                         return CM_SCOUT_ROLE_PROFILE_UI_ORDER.map((roleIdx) => {
                           const lab = CM_SCOUT_ROLE_SHORT[roleIdx]!
                           const pct = percents[roleIdx]!
@@ -2989,6 +2998,7 @@ export function App() {
                               percent={`${pct}%`}
                               tier={tier}
                               selected={profileHighlightRoleIdx === roleIdx}
+                              showSelectedOutline={multipleNaturalRoles}
                               title={`Highlight attributes for ${lab}`}
                               onClick={() => setProfileHighlightRoleIdx(roleIdx)}
                             />

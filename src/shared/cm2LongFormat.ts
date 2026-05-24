@@ -90,3 +90,14 @@ export function writeCm0102CashToDisk(pounds: number): number {
     CASH_DISPLAY_SCALE,
   )
 }
+
+/** True when on-disk cash decodes to the target pounds (packed CM2 rounds to nearest £1000). */
+export function cashMatchesTargetPounds(targetPounds: number, rawOnDisk: number): boolean {
+  const target = Math.min(MAX_CASH_POUNDS, Math.max(0, Math.trunc(targetPounds)))
+  const display = readCashDisplay(rawOnDisk)
+  if (display === target) return true
+  if (!isPackedCm2LongOnDisk(rawOnDisk)) return false
+  const packed = writeCm0102CashToDisk(target)
+  if (rawOnDisk === packed) return true
+  return Math.abs(display - target) <= CASH_DISPLAY_SCALE
+}

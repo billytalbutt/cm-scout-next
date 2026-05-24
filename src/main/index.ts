@@ -52,6 +52,12 @@ import {
 import type { ContractTypeCategoryId } from '../shared/contractTypes'
 import { buildStaffProfilePayload } from './staffProfilePayload'
 import { verifyClubCashOnArchive } from './database/clubCashPatch'
+import {
+  archiveSiblingsLookOutOfSync,
+  pickNewestArchivePath,
+  readArchiveFromDisk,
+  writeArchiveToDiskSiblings,
+} from './archiveSync'
 import { buildClubEditorSnapshot, buildPatchedArchiveForClubEdits } from './clubEditorSave'
 import {
   buildEditorValueMap,
@@ -127,27 +133,28 @@ function refreshLoadedDbFromArchive(indexPath: string, archiveBuf: Buffer): Pars
 function loadArchiveForPath(
   selectedPath: string,
   opts?: { skipCurrentSeasonIndex?: boolean },
-): { db: ParsedDatabase; archiveBuf: Buffer } {
-  let archiveBuf = readFileSync(selectedPath)
+): { db: ParsedDatabase; archiveBuf: Buffer; archiveReadPath: string } {
+  const { buffer: archiveBuf, readPath: archiveReadPath } = readArchiveFromDisk(selectedPath)
   const historyDirs = collectStaffHistorySearchDirs(selectedPath)
   const parseOpts = {
     staffHistorySearchDirs: historyDirs,
     skipCurrentSeasonIndex: opts?.skipCurrentSeasonIndex,
   }
   try {
-    return { db: parseIndexDat(archiveBuf, parseOpts), archiveBuf }
+    return { db: parseIndexDat(archiveBuf, parseOpts), archiveBuf, archiveReadPath }
   } catch (e) {
     const lower = basename(selectedPath).toLowerCase()
     if (lower.endsWith('.sav')) {
       const alt = join(dirname(selectedPath), 'index.dat')
       if (existsSync(alt)) {
-        archiveBuf = readFileSync(alt)
+        const altBuf = readFileSync(alt)
         return {
-          db: parseIndexDat(archiveBuf, {
+          db: parseIndexDat(altBuf, {
             staffHistorySearchDirs: collectStaffHistorySearchDirs(alt),
             skipCurrentSeasonIndex: opts?.skipCurrentSeasonIndex,
           }),
-          archiveBuf,
+          archiveBuf: altBuf,
+          archiveReadPath: alt,
         }
       }
     }
@@ -355,7 +362,8 @@ ipcMain.handle('open-database', async (event) => {
       message: 'Reading save file from disk…',
       progress: 0.06,
     })
-    const { db, archiveBuf } = loadArchiveForPath(indexPath, { skipCurrentSeasonIndex: true })
+    const { db, archiveBuf, archiveReadPath } = loadArchiveForPath(indexPath, { skipCurrentSeasonIndex: true })
+    const archiveSiblingWarning = archiveSiblingsLookOutOfSync(indexPath)
     emitLoadProgress(sender, {
       phase: 'parse',
       message: 'Parsed players, clubs, contracts, and stats blocks…',
@@ -421,6 +429,10 @@ ipcMain.handle('open-database', async (event) => {
     return {
       ok: true as const,
       path: indexPath,
+      archiveReadPath: archiveReadPath !== indexPath ? archiveReadPath : undefined,
+      archiveSiblingWarning: archiveSiblingWarning
+        ? 'This folder has multiple save files (e.g. .sav and index.dat) that look out of sync. Merlin loaded the newest one; quit CM and avoid saving in-game until you finish editing here.'
+        : undefined,
       compressed: db.compressed,
       gameDate: db.gameDateIso,
       playerCount: rows.length,
@@ -815,21 +827,26 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
     try {
       const applied = applyClubEditsToLoadedArchive(clubId, values)
       if (!applied.ok) return { ok: false as const, error: applied.error }
-      const savePath = loaded.indexPath
-      writeFileSync(savePath, applied.buffer)
-      const fromDisk = readFileSync(savePath)
+      const writtenPaths = writeArchiveToDiskSiblings(loaded.indexPath, applied.buffer)
+      const verifyPath = pickNewestArchivePath(loaded.indexPath)
+      const fromDisk = readFileSync(verifyPath)
       if (values.cash !== undefined && Number.isFinite(values.cash)) {
         const verified = verifyClubCashOnArchive(fromDisk, loaded.db.blocks, clubId, values.cash)
         if (!verified.ok) {
           return {
             ok: false as const,
-            error: `${verified.error} File: ${savePath}`,
+            error: `${verified.error} File: ${verifyPath}`,
           }
         }
       }
       loaded.archiveBuf = fromDisk
-      loaded.db = refreshLoadedDbFromArchive(savePath, fromDisk)
-      return { ok: true as const, path: savePath, inPlace: true as const }
+      loaded.db = refreshLoadedDbFromArchive(verifyPath, fromDisk)
+      return {
+        ok: true as const,
+        path: savePath,
+        inPlace: true as const,
+        writtenPaths,
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       return { ok: false as const, error: msg }
