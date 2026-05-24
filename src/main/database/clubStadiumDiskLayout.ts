@@ -3,6 +3,7 @@
  */
 import { readCashDisplay, writeCashDisplay } from '../../shared/cm2LongFormat'
 import { CLUB_ROW_BYTES } from './clubRecords'
+import { readArchiveBlock } from './parser'
 import { STADIUM_ROW_BYTES } from './stadiumRecords'
 import type { BlockInfo } from './types'
 import { findBlock, writeScalarAt, type DiskFieldKind } from './playerStaffDiskLayout'
@@ -90,16 +91,21 @@ export function resolveClubAndStadiumBases(
 ): { clubBase: number; stadiumBase: number } | { error: string } {
   const clubBlock = findBlock(blocks, 'club.dat')
   if (!clubBlock) return { error: 'Archive is missing club.dat.' }
-  const clubSlice = archiveBuffer.subarray(clubBlock.position, clubBlock.position + clubBlock.size)
-  const clubRow = rowIndexForId(clubSlice, CLUB_ROW_BYTES, clubId)
+  const clubBlockOnly = clubBlock
+  const clubBuf =
+    readArchiveBlock(archiveBuffer, 'club.dat') ??
+    archiveBuffer.subarray(clubBlockOnly.position, clubBlockOnly.position + clubBlockOnly.size)
+  const clubRow = rowIndexForId(clubBuf, CLUB_ROW_BYTES, clubId)
   if (clubRow == null) return { error: `Club id ${clubId} not found in club.dat.` }
   const clubBase = clubBlock.position + clubRow * CLUB_ROW_BYTES
 
   if (stadiumId <= 0) return { error: 'Club has no linked stadium id.' }
   const stadiumBlock = findBlock(blocks, 'stadium.dat')
   if (!stadiumBlock) return { error: 'Archive is missing stadium.dat (stadium fields cannot be edited).' }
-  const stadiumSlice = archiveBuffer.subarray(stadiumBlock.position, stadiumBlock.position + stadiumBlock.size)
-  const stadiumRow = rowIndexForId(stadiumSlice, STADIUM_ROW_BYTES, stadiumId)
+  const stadiumBuf =
+    readArchiveBlock(archiveBuffer, 'stadium.dat') ??
+    archiveBuffer.subarray(stadiumBlock.position, stadiumBlock.position + stadiumBlock.size)
+  const stadiumRow = rowIndexForId(stadiumBuf, STADIUM_ROW_BYTES, stadiumId)
   if (stadiumRow == null) return { error: `Stadium id ${stadiumId} not found in stadium.dat.` }
   const stadiumBase = stadiumBlock.position + stadiumRow * STADIUM_ROW_BYTES
 

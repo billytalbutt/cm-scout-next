@@ -22,6 +22,7 @@ export type EditorSnapshot = {
   name: string
   playerRow: number
   values: Record<string, number>
+  injury?: { typeId: number; label: string; canClear: boolean }
 }
 
 function mergeEditorNumericMap(snap: EditorSnapshot, draft: Record<string, string>): Record<string, number> {
@@ -123,6 +124,7 @@ export function AttributeEditorPanel({
   const [saving, setSaving] = useState(false)
   const [copiedAttrs, setCopiedAttrs] = useState(getCopiedPlayerAttributes)
   const [searchedStaffIndex, setSearchedStaffIndex] = useState<number | null>(null)
+  const [clearInjury, setClearInjury] = useState(false)
   const baselineRef = useRef<Record<string, number> | null>(null)
   const effectiveStaffIndex = searchedStaffIndex ?? staffIndex
 
@@ -162,6 +164,7 @@ export function AttributeEditorPanel({
           d[key] = String(v)
         }
         setDraft(d)
+        setClearInjury(false)
         setErr(null)
       })
       .catch((e: unknown) => {
@@ -204,7 +207,7 @@ export function AttributeEditorPanel({
     [mergedForPreview],
   )
 
-  const hasChanges = useMemo(() => {
+  const hasAttrChanges = useMemo(() => {
     const base = baselineRef.current
     if (!base) return false
     for (const key of Object.keys(base)) {
@@ -216,6 +219,8 @@ export function AttributeEditorPanel({
     }
     return false
   }, [draft])
+
+  const hasChanges = hasAttrChanges || clearInjury
 
   const saveDisabled = compressed || !snap || saving || !hasChanges
 
@@ -235,7 +240,7 @@ export function AttributeEditorPanel({
       const t = Math.trunc(n)
       if (t !== base[key]) changes[key] = t
     }
-    if (Object.keys(changes).length === 0) {
+    if (Object.keys(changes).length === 0 && !clearInjury) {
       setSaveMsg('No changes to save.')
       return
     }
@@ -243,10 +248,19 @@ export function AttributeEditorPanel({
     setErr(null)
     setSaveMsg(null)
     try {
-      const out = await window.cmapi.saveAttributeEdits(snap.staffIndex, changes)
+      const out = await window.cmapi.saveAttributeEdits(snap.staffIndex, changes, {
+        clearInjury,
+      })
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
         setSaveMsg(`Saved to ${String((out as { path: string }).path)}`)
         baselineRef.current = { ...base, ...changes }
+        if (clearInjury) {
+          setClearInjury(false)
+          const refreshed = await window.cmapi.getEditorSnapshot(snap.staffIndex)
+          if (refreshed && typeof refreshed === 'object' && 'values' in refreshed) {
+            setSnap(refreshed as EditorSnapshot)
+          }
+        }
       } else if (out && typeof out === 'object' && 'error' in out) {
         const er = (out as { error?: string }).error
         if (er === 'cancelled') setSaveMsg('Save cancelled.')
@@ -257,7 +271,7 @@ export function AttributeEditorPanel({
     } finally {
       setSaving(false)
     }
-  }, [compressed, draft, snap])
+  }, [clearInjury, compressed, draft, snap])
 
   if (!loadInfo) {
     return <p className="text-sm text-zinc-500">Load a database first.</p>
@@ -357,6 +371,29 @@ export function AttributeEditorPanel({
         value in CM / CM-01/02 Merlin profile — it updates live as you type, using the same math as the profile (CA18
         curve for technicals, clamp for mentals, etc.).
       </p>
+
+      <section className="rounded-md border border-zinc-800/80 bg-zinc-950/40 px-3 py-2.5">
+        <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">Current injury</h3>
+        <p className="text-sm text-zinc-200">
+          {snap.injury?.label ?? 'None'}
+          {snap.injury && snap.injury.typeId > 0 && (
+            <span className="ml-2 font-mono text-[11px] text-zinc-500">(type {snap.injury.typeId})</span>
+          )}
+        </p>
+        {snap.injury?.canClear ? (
+          <label className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
+            <input
+              type="checkbox"
+              checked={clearInjury}
+              onChange={(e) => setClearInjury(e.target.checked)}
+              className="rounded border-zinc-600"
+            />
+            Remove injury on save (clears injury_history.tmp for this player)
+          </label>
+        ) : (
+          <p className="mt-1 text-[11px] text-zinc-500">No active injury recorded in this save.</p>
+        )}
+      </section>
 
       <section>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">CA / PA / squad / reputation</h3>

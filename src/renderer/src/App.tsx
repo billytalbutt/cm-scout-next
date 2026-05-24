@@ -2803,10 +2803,11 @@ export function App() {
                 </ul>
               </div>
 
-              <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-                <h3 className="mb-2 font-semibold text-zinc-300">Transfer</h3>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-zinc-400">
-                  <span>Value</span>
+              <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
+                  <h3 className="mb-2 font-semibold text-zinc-300">Transfer</h3>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-zinc-400">
+                    <span>Value</span>
                     <span className="text-right font-mono text-zinc-200">{fmtMoney(profile.transfer.value)}</span>
                     <span>Listed by club</span>
                     <span className={`text-right ${profile.transfer.listedByClub ? 'text-emerald-300' : 'text-zinc-500'}`}>
@@ -2828,8 +2829,43 @@ export function App() {
                     </span>
                   </div>
                 </div>
-                {profile.cmScoutRolePercents && profile.cmScoutRolePercents.length === 7 && (
-                  <div className="mt-3 rounded-lg border border-zinc-800/90 bg-zinc-900/40 p-2.5">
+                {profile.contract && (
+                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
+                    <h3 className="mb-2 font-semibold text-zinc-300">Contract</h3>
+                    <div className="grid grid-cols-2 gap-1 text-zinc-400">
+                      <span>Wage</span>
+                      <span className="text-right text-zinc-200">{fmtMoney(profile.contract.wage)}</span>
+                      <span>Goal bonus</span>
+                      <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.goalBonus)}</span>
+                      <span>Assist bonus</span>
+                      <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.assistBonus)}</span>
+                      <span>Release fee</span>
+                      <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.releaseFee)}</span>
+                      <span>Contract type</span>
+                      <span className="text-right text-zinc-200">{profile.contract.typeLabel}</span>
+                      <span>Started</span>
+                      <span className="text-right font-mono text-zinc-200">
+                        {profile.contract.dateStarted ? formatIsoDateUk(profile.contract.dateStarted) : '—'}
+                      </span>
+                      <span>Expires</span>
+                      <span className="text-right font-mono text-zinc-200">
+                        {profile.contract.contractExpires
+                          ? formatIsoDateUk(profile.contract.contractExpires)
+                          : '—'}
+                      </span>
+                      <span>Bosman / free</span>
+                      <span className="text-right text-zinc-200">{profile.contract.leavingOnBosman ? 'Yes' : 'No'}</span>
+                      <span>Min-fee release</span>
+                      <span className="text-right text-zinc-200">
+                        {profile.contract.minimumReleaseClause ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {profile.cmScoutRolePercents && profile.cmScoutRolePercents.length === 7 && (
+                  <div className="mt-2 rounded-lg border border-zinc-800/90 bg-zinc-900/40 p-2.5">
                     <HoverTip
                       tip={
                         <div className="space-y-2">
@@ -2870,28 +2906,9 @@ export function App() {
                                   <p className="mt-1 text-zinc-500">
                                     Winning recipe{' '}
                                     <span className="text-zinc-300">{profile.effWinnerDetail.archetypeLabel}</span>{' '}
-                                    — primary ×5, secondary ×1.5, engine rows on lighter weights; values use
-                                    uncapped engine display where the profile shows bracketed elites above 20. ↑ =
-                                    engine value above on-screen 20; ★ = 20 without overflow. Consistency multiplies
-                                    the score.
+                                    — primary ×5, secondary ×1.5. Attribute values above on-screen 20 are marked with{' '}
+                                    <span className="text-amber-300/90">↑</span> in the breakdown below.
                                   </p>
-                                  {profile.effWinnerDetail.brainMult ? (
-                                    <p className="mt-1 text-zinc-500">
-                                      Brain: base {profile.effWinnerDetail.basePercent.toFixed(1)}% × (
-                                      {profile.effWinnerDetail.brainMult.decisions}/20 ×{' '}
-                                      {profile.effWinnerDetail.brainMult.anticipation}/20)
-                                    </p>
-                                  ) : null}
-                                  {profile.effWinnerDetail.consistencyReliability && profile.effPercent != null && (
-                                    <p className="mt-1 text-zinc-500">
-                                      Consistency {profile.effWinnerDetail.consistencyReliability.consistency.toFixed(0)}
-                                      /20 → ×{profile.effWinnerDetail.consistencyReliability.factor.toFixed(3)} →{' '}
-                                      <span className="font-mono text-zinc-200">
-                                        {profile.effPercent.toFixed(1)}%
-                                      </span>{' '}
-                                      final
-                                    </p>
-                                  )}
                                   {profile.effRatingDisclaimer && (
                                     <p className="mt-2 text-[9px] text-zinc-500">{profile.effRatingDisclaimer}</p>
                                   )}
@@ -2907,84 +2924,51 @@ export function App() {
                         <InfoDot />
                       </h3>
                     </HoverTip>
-                    {profile.effByArchetype && profile.effByArchetype.length > 0 && (
-                      <div className="mt-2">
+                    <div className="mt-2 space-y-2">
+                      {profile.effByArchetype && profile.effByArchetype.length > 0 && (
                         <NaturalRoleHighlightPicker
                           profile={profile}
                           activeRoleIdx={profileHighlightRoleIdx}
                           onSelectRole={setProfileHighlightRoleIdx}
                         />
+                      )}
+                      <div className="grid grid-cols-7 gap-1 text-center">
+                        {(() => {
+                          const percents = profile.cmScoutRolePercents!
+                          const tierByRole = cmScoutRoleValueTierByRole(percents)
+                          const multipleNaturalRoles = (profile.effByArchetype?.length ?? 0) > 1
+                          return CM_SCOUT_ROLE_PROFILE_UI_ORDER.map((roleIdx) => {
+                            const lab = CM_SCOUT_ROLE_SHORT[roleIdx]!
+                            const pct = percents[roleIdx]!
+                            const tier = tierByRole.get(roleIdx)
+                            return (
+                              <RolePercentMiniCell
+                                key={lab + roleIdx}
+                                label={lab}
+                                percent={`${pct}%`}
+                                tier={tier}
+                                selected={profileHighlightRoleIdx === roleIdx}
+                                showSelectedOutline={multipleNaturalRoles}
+                                title={`Highlight attributes for ${lab}`}
+                                onClick={() => setProfileHighlightRoleIdx(roleIdx)}
+                              />
+                            )
+                          })
+                        })()}
                       </div>
-                    )}
+                    </div>
                     {profile.effArchetype && profile.effWinnerDetail && (
                       <div className="mt-2">
                         <EffectivenessRecipeBreakdown
                           detail={profile.effWinnerDetail}
                           runnerUp={profile.effRunnerUp}
                           effPercent={profile.effPercent}
+                          suppressHeaderSummary
                         />
                       </div>
                     )}
-                    <div className="mt-2 grid grid-cols-7 gap-1 text-center">
-                      {(() => {
-                        const percents = profile.cmScoutRolePercents!
-                        const tierByRole = cmScoutRoleValueTierByRole(percents)
-                        const multipleNaturalRoles = (profile.effByArchetype?.length ?? 0) > 1
-                        return CM_SCOUT_ROLE_PROFILE_UI_ORDER.map((roleIdx) => {
-                          const lab = CM_SCOUT_ROLE_SHORT[roleIdx]!
-                          const pct = percents[roleIdx]!
-                          const tier = tierByRole.get(roleIdx)
-                          return (
-                            <RolePercentMiniCell
-                              key={lab + roleIdx}
-                              label={lab}
-                              percent={`${pct}%`}
-                              tier={tier}
-                              selected={profileHighlightRoleIdx === roleIdx}
-                              showSelectedOutline={multipleNaturalRoles}
-                              title={`Highlight attributes for ${lab}`}
-                              onClick={() => setProfileHighlightRoleIdx(roleIdx)}
-                            />
-                          )
-                        })
-                      })()}
-                    </div>
                   </div>
                 )}
-
-              {profile.contract && (
-                <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-                  <h3 className="mb-2 font-semibold text-zinc-300">Contract</h3>
-                  <div className="grid grid-cols-2 gap-1 text-zinc-400">
-                    <span>Wage</span>
-                    <span className="text-right text-zinc-200">{fmtMoney(profile.contract.wage)}</span>
-                    <span>Goal bonus</span>
-                    <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.goalBonus)}</span>
-                    <span>Assist bonus</span>
-                    <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.assistBonus)}</span>
-                    <span>Release fee</span>
-                    <span className="text-right text-zinc-200">{fmtContractMoney(profile.contract.releaseFee)}</span>
-                    <span>Contract type</span>
-                    <span className="text-right text-zinc-200">{profile.contract.typeLabel}</span>
-                    <span>Started</span>
-                    <span className="text-right font-mono text-zinc-200">
-                      {profile.contract.dateStarted ? formatIsoDateUk(profile.contract.dateStarted) : '—'}
-                    </span>
-                    <span>Expires</span>
-                    <span className="text-right font-mono text-zinc-200">
-                      {profile.contract.contractExpires
-                        ? formatIsoDateUk(profile.contract.contractExpires)
-                        : '—'}
-                    </span>
-                    <span>Bosman / free</span>
-                    <span className="text-right text-zinc-200">{profile.contract.leavingOnBosman ? 'Yes' : 'No'}</span>
-                    <span>Min-fee release</span>
-                    <span className="text-right text-zinc-200">
-                      {profile.contract.minimumReleaseClause ? 'Yes' : 'No'}
-                    </span>
-                  </div>
-                </div>
-              )}
 
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
                 <HoverTip

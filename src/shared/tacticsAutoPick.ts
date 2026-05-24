@@ -25,10 +25,10 @@ export function orderedPitchSlotsForAutoPick(pitchSlots: PitchSlot[]): PitchSlot
 }
 
 /**
- * Greedy best-XI from a club squad: each slot gets the highest role-rated available
- * player eligible for that line (GK / defence / midfield / attack), without reusing anyone.
+ * Greedy best-XI: each slot gets the highest role-rated available player eligible for
+ * that line (GK / defence / midfield / attack), without reusing anyone.
  */
-export function autoPickClubSquadLineup(
+export function autoPickBestLineup(
   pitchSlots: PitchSlot[],
   squadRows: GridPlayerRow[],
 ): Partial<Record<string, TacticsPlayerAssignment>> {
@@ -47,3 +47,6 @@ export function autoPickClubSquadLineup(
 
   return out
 }
+
+/** Best XI from one club's squad (same algorithm as {@link autoPickBestLineup}). */
+export const autoPickClubSquadLineup = autoPickBestLineup

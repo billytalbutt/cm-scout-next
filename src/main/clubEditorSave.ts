@@ -3,11 +3,13 @@ import { clampClubEditorValue } from '../shared/clubEditorLimits'
 import type { BlockInfo, ParsedDatabase, StaffRecord } from './database/types'
 import { readArchiveBlock } from './database/parser'
 import { patchClubCashAtClubBase } from './database/clubCashPatch'
+import { CLUB_ROW_BYTES } from './database/clubRecords'
 import {
   CLUB_CASH_OFF,
   CLUB_EDITOR_DISK_FIELDS,
   readClubEditorDisplayAt,
   resolveClubAndStadiumBases,
+  rowIndexForId,
   writeClubEditorField,
 } from './database/clubStadiumDiskLayout'
 
@@ -112,7 +114,15 @@ export function buildClubEditorSnapshot(
   const comp = db.clubCompsById?.get(club.divisionCompId)
   const division = comp?.name ?? (club.divisionCompId ? `#${club.divisionCompId}` : '—')
 
-  const cashRaw = archiveBuffer.readInt32LE(bases.clubBase + CLUB_CASH_OFF)
+  const clubBuf = readArchiveBlock(archiveBuffer, 'club.dat')
+  const clubRowIdx = clubBuf != null ? rowIndexForId(clubBuf, CLUB_ROW_BYTES, clubId) : null
+  const cashRaw =
+    clubBuf != null && clubRowIdx != null
+      ? clubBuf.readInt32LE(clubRowIdx * CLUB_ROW_BYTES + CLUB_CASH_OFF)
+      : archiveBuffer.readInt32LE(bases.clubBase + CLUB_CASH_OFF)
+  const cashDisplay = readCashDisplay(cashRaw)
+  const values = readEditorValuesAt(archiveBuffer, bases.clubBase, bases.stadiumBase)
+  values.cash = cashDisplay
   return {
     clubId: club.id,
     stadiumId: club.stadiumId,
@@ -120,11 +130,11 @@ export function buildClubEditorSnapshot(
     nation,
     division,
     stadiumName: stadium.name,
-    values: readEditorValuesAt(archiveBuffer, bases.clubBase, bases.stadiumBase),
+    values,
     humanManagedClubId: findHumanManagedClubId(db, archiveBuffer),
     cashOnDisk: {
       raw: cashRaw,
-      display: readCashDisplay(cashRaw),
+      display: cashDisplay,
       encoding: cashLooksPlainOnDisk(cashRaw) ? 'plain' : 'packed',
     },
   }

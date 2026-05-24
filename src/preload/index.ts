@@ -54,6 +54,15 @@ contextBridge.exposeInMainWorld('cmapi', {
   getClubDetail: (clubId: number) => ipcRenderer.invoke('get-club-detail', clubId),
   getClubSquadGridRows: (clubId: number) =>
     ipcRenderer.invoke('get-club-squad-grid-rows', clubId) as Promise<Array<Record<string, unknown>>>,
+  pickWorldXi: (pitchSlots: Array<{ id: string; role: string; x: number; y: number; arrow: string }>) =>
+    ipcRenderer.invoke('pick-world-xi', pitchSlots) as Promise<
+      | {
+          ok: true
+          assignments: Record<string, { staffIndex: number; name: string; rolePercent: number | null }>
+          filled: number
+        }
+      | { ok: false; error: string }
+    >,
   getProfile: (staffIndex: number) => ipcRenderer.invoke('get-profile', staffIndex),
   getStaffProfile: (staffIndex: number) => ipcRenderer.invoke('get-staff-profile', staffIndex),
   openProfileWindow: (args: { staffIndex: number; kind: 'player' | 'staff' }) =>
@@ -70,8 +79,16 @@ contextBridge.exposeInMainWorld('cmapi', {
       name: string
       mins: string[]
     } | null>,
-  saveAttributeEdits: (staffIndex: number, changes: Record<string, number>) =>
-    ipcRenderer.invoke('save-attribute-edits', { staffIndex, changes }),
+  saveAttributeEdits: (
+    staffIndex: number,
+    changes: Record<string, number>,
+    options?: { clearInjury?: boolean },
+  ) =>
+    ipcRenderer.invoke('save-attribute-edits', {
+      staffIndex,
+      changes,
+      clearInjury: options?.clearInjury === true,
+    }),
   getClubEditorSnapshot: (clubId: number) => ipcRenderer.invoke('get-club-editor-snapshot', clubId),
   saveClubEdits: (clubId: number, values: Record<string, number>, options?: { inPlace?: boolean }) =>
     ipcRenderer.invoke('save-club-edits', { clubId, values, inPlace: options?.inPlace === true }) as Promise<

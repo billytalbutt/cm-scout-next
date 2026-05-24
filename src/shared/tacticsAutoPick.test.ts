@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GridPlayerRow } from './gridTypes'
-import { autoPickClubSquadLineup } from './tacticsAutoPick'
+import { autoPickBestLineup, autoPickClubSquadLineup } from './tacticsAutoPick'
 import type { PitchSlot } from './tacticsPitchSnap'
 
 function row(
@@ -57,5 +57,22 @@ describe('autoPickClubSquadLineup', () => {
     expect(picked.st?.name).toBe('Striker')
     const indices = Object.values(picked).map((a) => a!.staffIndex)
     expect(new Set(indices).size).toBe(indices.length)
+  })
+
+  it('autoPickBestLineup picks global best per slot across all clubs', () => {
+    const slots: PitchSlot[] = [
+      { id: 'gk', role: 'GK', x: 0.5, y: 0.06, arrow: 'none' },
+      { id: 'st', role: 'ST', x: 0.5, y: 0.84, arrow: 'none' },
+    ]
+    const world = [
+      row({ staffIndex: 1, name: 'Club A GK', club: 'A', posGk: 18, role7: [80, 10, 10, 10, 10, 10, 10] }),
+      row({ staffIndex: 2, name: 'World GK', club: 'B', posGk: 20, role7: [99, 10, 10, 10, 10, 10, 10] }),
+      row({ staffIndex: 3, name: 'Club A ST', club: 'A', posAtt: 19, role7: [5, 10, 10, 10, 10, 70, 10] }),
+      row({ staffIndex: 4, name: 'World ST', club: 'C', posAtt: 20, role7: [5, 10, 10, 10, 10, 95, 10] }),
+    ]
+    const picked = autoPickBestLineup(slots, world)
+    expect(picked.gk?.name).toBe('World GK')
+    expect(picked.st?.name).toBe('World ST')
+    expect(autoPickClubSquadLineup).toBe(autoPickBestLineup)
   })
 })

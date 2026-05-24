@@ -1,6 +1,10 @@
 import { staffDisplayName } from './database/parser'
 import type { BlockInfo, ParsedDatabase, PlayerRecord, StaffRecord } from './database/types'
 import {
+  clearInjuryAtAbsOffset,
+  resolveInjuryHistoryAbsOffset,
+} from './database/injuryHistory'
+import {
   findBlock,
   PLAYER_DISK_FIELDS,
   PLAYER_ROW_BYTES,
@@ -25,6 +29,7 @@ export function buildPatchedArchiveBuffer(
   db: ParsedDatabase,
   staffIndex: number,
   changes: Record<string, number>,
+  opts?: { clearInjury?: boolean },
 ): AttributeEditorSaveResult {
   if (compressed) {
     return {
@@ -72,6 +77,13 @@ export function buildPatchedArchiveBuffer(
     if (meta) {
       writeScalarAt(out, playerBase + meta.offset, meta.kind, v)
     }
+  }
+
+  if (opts?.clearInjury) {
+    const off = resolveInjuryHistoryAbsOffset(out, blocks, staff.id)
+    if (typeof off !== 'number') return { ok: false, error: off.error }
+    const cleared = clearInjuryAtAbsOffset(out, off)
+    if (!cleared.ok) return cleared
   }
 
   return { ok: true, buffer: out }

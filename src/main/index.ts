@@ -56,8 +56,13 @@ import {
   archiveSiblingsLookOutOfSync,
   pickNewestArchivePath,
   readArchiveFromDisk,
+  refreshArchiveBufferFromDisk,
   writeArchiveToDiskSiblings,
 } from './archiveSync'
+import {
+  injuryTypeLabel,
+  readPlayerInjuryFromArchive,
+} from './database/injuryHistory'
 import { buildClubEditorSnapshot, buildPatchedArchiveForClubEdits } from './clubEditorSave'
 import {
   buildEditorValueMap,
@@ -65,7 +70,9 @@ import {
   editorSubjectLabel,
 } from './attributeEditorSave'
 import { buildCmScoutPlsBuffer, PLS_MAX_PLAYERS, type PlsStaffEntry } from './cmScoutPls'
+import type { PitchSlot } from '../shared/tacticsPitchSnap'
 import type { GridPlayerRow } from '../shared/gridTypes'
+import { pickWorldXiLineup } from './worldXi'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -77,6 +84,17 @@ let loaded: {
   /** Bytes of the archive that was parsed (same buffer we patch for saves). */
   archiveBuf: Buffer
 } | null = null
+
+/** Re-read the newest .sav / index.dat sibling so club cash matches what CM last wrote. */
+function syncLoadedArchiveFromDisk(): void {
+  if (!loaded) return
+  try {
+    const fresh = refreshArchiveBufferFromDisk(loaded.indexPath)
+    loaded.archiveBuf = fresh.buffer
+  } catch {
+    /* keep in-memory buffer if disk read fails */
+  }
+}
 
 const profileWindows = new Map<string, BrowserWindow>()
 
@@ -574,8 +592,24 @@ ipcMain.handle('get-club-rows', async (_e, payload: unknown) => {
 
 ipcMain.handle('get-club-detail', async (_e, clubId: unknown) => {
   if (!loaded) return null
+  syncLoadedArchiveFromDisk()
   const id = Math.floor(Number(clubId))
-  return buildClubDetailPayload(loaded.db, id)
+  const payload = buildClubDetailPayload(loaded.db, id)
+  if (!payload || typeof payload !== 'object') return payload
+  const club = loaded.db.clubsById?.get(id)
+  if (club) {
+    const snap = buildClubEditorSnapshot(
+      loaded.archiveBuf,
+      loaded.db.blocks,
+      loaded.db.compressed,
+      loaded.db,
+      id,
+    )
+    if (!('error' in snap)) {
+      ;(payload as { cash: number }).cash = snap.values.cash ?? club.cash
+    }
+  }
+  return payload
 })
 
 ipcMain.handle('get-club-squad-grid-rows', async (_e, clubId: unknown) => {
@@ -583,6 +617,20 @@ ipcMain.handle('get-club-squad-grid-rows', async (_e, clubId: unknown) => {
   const id = Math.floor(Number(clubId))
   if (!Number.isFinite(id) || id <= 0) return []
   return buildClubSquadGridRows(loaded.db, id)
+})
+
+ipcMain.handle('pick-world-xi', async (_e, pitchSlots: unknown) => {
+  if (!loaded) return { ok: false as const, error: 'No database loaded.' }
+  if (!Array.isArray(pitchSlots) || pitchSlots.length === 0) {
+    return { ok: false as const, error: 'Load a tactic preset on the pitch first.' }
+  }
+  const slots = pitchSlots as PitchSlot[]
+  const assignments = pickWorldXiLineup(slots, allRowsForGrid())
+  const filled = Object.keys(assignments).length
+  if (filled === 0) {
+    return { ok: false as const, error: 'Could not fill any positions from the loaded save.' }
+  }
+  return { ok: true as const, assignments, filled }
 })
 
 ipcMain.handle('get-staff-profile', async (_e, staffIndex: unknown) => {
@@ -709,29 +757,42 @@ ipcMain.handle('get-attr-filter-mins', async (_e, staffIndex: unknown) => {
 
 ipcMain.handle('get-editor-snapshot', async (_e, staffIndex: unknown) => {
   if (!loaded) return null
+  syncLoadedArchiveFromDisk()
   const idx = Math.floor(Number(staffIndex))
   if (!Number.isFinite(idx) || idx < 0) return null
   const values = buildEditorValueMap(loaded.db, idx)
   if (!values) return null
   const s = loaded.db.staff[idx]!
+  const injuryState = readPlayerInjuryFromArchive(loaded.archiveBuf, s.id)
+  const injuryTypeId = injuryState?.injuryTypeId ?? 0
   return {
     staffIndex: idx,
     staffId: s.id,
     name: editorSubjectLabel(loaded.db, idx) ?? '',
     playerRow: s.player_id,
     values,
+    injury: {
+      typeId: injuryTypeId,
+      label: injuryTypeLabel(injuryTypeId),
+      canClear: injuryTypeId > 0,
+    },
   }
 })
 
 ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
   if (!loaded) return { ok: false as const, error: 'No database loaded.' }
-  const p = payload as { staffIndex?: unknown; changes?: unknown }
+  syncLoadedArchiveFromDisk()
+  const p = payload as { staffIndex?: unknown; changes?: unknown; clearInjury?: unknown }
   const staffIndex = Math.floor(Number(p.staffIndex))
   const ch = p.changes
   if (!Number.isFinite(staffIndex) || staffIndex < 0 || typeof ch !== 'object' || ch === null) {
     return { ok: false as const, error: 'Invalid save payload.' }
   }
   const changes = ch as Record<string, number>
+  const clearInjury = p.clearInjury === true
+  if (Object.keys(changes).length === 0 && !clearInjury) {
+    return { ok: false as const, error: 'No changes to save.' }
+  }
   const built = buildPatchedArchiveBuffer(
     loaded.archiveBuf,
     loaded.db.blocks,
@@ -777,6 +838,7 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
 
 ipcMain.handle('get-club-editor-snapshot', async (_e, clubId: unknown) => {
   if (!loaded) return null
+  syncLoadedArchiveFromDisk()
   const id = Math.floor(Number(clubId))
   if (!Number.isFinite(id) || id <= 0) return null
   const snap = buildClubEditorSnapshot(
@@ -812,6 +874,7 @@ function applyClubEditsToLoadedArchive(
 
 ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
   if (!loaded) return { ok: false as const, error: 'No database loaded.' }
+  syncLoadedArchiveFromDisk()
   const p = payload as { clubId?: unknown; values?: unknown; changes?: unknown; inPlace?: unknown }
   const clubId = Math.floor(Number(p.clubId))
   const ch = p.values ?? p.changes
@@ -843,7 +906,7 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
       loaded.db = refreshLoadedDbFromArchive(verifyPath, fromDisk)
       return {
         ok: true as const,
-        path: savePath,
+        path: verifyPath,
         inPlace: true as const,
         writtenPaths,
       }

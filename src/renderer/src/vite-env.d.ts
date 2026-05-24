@@ -64,6 +64,19 @@ declare global {
       }>
       getClubDetail: (clubId: number) => Promise<Record<string, unknown> | null>
       getClubSquadGridRows: (clubId: number) => Promise<GridPlayerRow[]>
+      pickWorldXi: (
+        pitchSlots: Array<{ id: string; role: string; x: number; y: number; arrow: string }>,
+      ) => Promise<
+        | {
+            ok: true
+            assignments: Record<
+              string,
+              { staffIndex: number; name: string; rolePercent: number | null; cmScoutBp?: number | null }
+            >
+            filled: number
+          }
+        | { ok: false; error: string }
+      >
       getProfile: (staffIndex: number) => Promise<ProfilePayload | null>
       getStaffProfile: (staffIndex: number) => Promise<StaffProfilePayload | null>
       openProfileWindow: (args: {
@@ -79,6 +92,7 @@ declare global {
         name: string
         playerRow: number
         values: Record<string, number>
+        injury?: { typeId: number; label: string; canClear: boolean }
       } | null>
       getAttrFilterMins: (staffIndex: number) => Promise<{
         staffIndex: number
@@ -88,6 +102,7 @@ declare global {
       saveAttributeEdits: (
         staffIndex: number,
         changes: Record<string, number>,
+        options?: { clearInjury?: boolean },
       ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
       getClubEditorSnapshot: (clubId: number) => Promise<
         | {

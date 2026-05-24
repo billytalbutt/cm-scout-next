@@ -215,6 +215,8 @@ export function TacticsAssignmentPane({
   const [clubSquadOnly, setClubSquadOnly] = useState(false)
   const [squadRows, setSquadRows] = useState<GridPlayerRow[]>([])
   const [squadLoading, setSquadLoading] = useState(false)
+  const [worldPickBusy, setWorldPickBusy] = useState(false)
+  const [worldPickMsg, setWorldPickMsg] = useState<string | null>(null)
 
   const teamRating = useMemo(
     () => teamRatingFromAssignments(pitchSlots, assignments),
@@ -246,6 +248,7 @@ export function TacticsAssignmentPane({
 
   const handleAutoPick = useCallback(() => {
     if (!clubOnlyReady || squadRows.length === 0) return
+    setWorldPickMsg(null)
     const picked = autoPickClubSquadLineup(pitchSlots, squadRows)
     const next: Partial<Record<string, TacticsPlayerAssignment | null>> = {}
     for (const slot of pitchSlots) {
@@ -255,12 +258,33 @@ export function TacticsAssignmentPane({
     onReplaceAssignments(next)
   }, [clubOnlyReady, squadRows, pitchSlots, onReplaceAssignments])
 
+  const handleWorld11 = useCallback(async () => {
+    if (!loadInfo || typeof window.cmapi?.pickWorldXi !== 'function') return
+    setWorldPickBusy(true)
+    setWorldPickMsg(null)
+    try {
+      const out = await window.cmapi.pickWorldXi(pitchSlots)
+      if (out && typeof out === 'object' && 'ok' in out && out.ok && 'assignments' in out) {
+        onReplaceAssignments(out.assignments as Partial<Record<string, TacticsPlayerAssignment | null>>)
+        setWorldPickMsg(`World 11 — ${out.filled} positions filled from the entire save.`)
+      } else if (out && typeof out === 'object' && 'error' in out) {
+        setWorldPickMsg(String((out as { error: string }).error))
+      }
+    } catch (e) {
+      setWorldPickMsg(e instanceof Error ? e.message : String(e))
+    } finally {
+      setWorldPickBusy(false)
+    }
+  }, [loadInfo, pitchSlots, onReplaceAssignments])
+
   return (
     <div className="space-y-3">
       <div>
         <h2 className="text-sm font-semibold text-zinc-200">Line-up</h2>
         <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
-          Assign players by position. Club squad dropdowns list only players natural in that line (GK, defence, midfield, attack).
+          Assign players by position. Club squad picks from your selected team;{' '}
+          <span className="text-zinc-400">World 11</span> fills the tactic with the best player in each slot from the
+          entire save.
         </p>
       </div>
       {!loadInfo && <p className="text-xs text-zinc-500">Load a database to search players.</p>}
@@ -285,27 +309,41 @@ export function TacticsAssignmentPane({
         <p className="text-[11px] text-amber-200/90">Select a club under Squad club on the tactics screen.</p>
       )}
       {loadInfo && (
-        <div className="flex gap-2">
-          {clubSquadOnly && seedClubId != null && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {clubSquadOnly && seedClubId != null && (
+              <button
+                type="button"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!clubOnlyReady || squadLoading || worldPickBusy}
+                onClick={handleAutoPick}
+              >
+                Auto pick best XI
+              </button>
+            )}
             <button
               type="button"
-              className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={!clubOnlyReady || squadLoading}
-              onClick={handleAutoPick}
+              title="Best CM Scout role % per slot across every club in the loaded save"
+              className={`min-w-0 rounded-lg border border-sky-800/60 bg-sky-950/40 px-3 py-2 text-xs font-medium text-sky-100/95 transition hover:bg-sky-900/50 disabled:cursor-not-allowed disabled:opacity-40 ${
+                clubSquadOnly && seedClubId != null ? 'flex-1' : 'w-full sm:flex-1'
+              }`}
+              disabled={worldPickBusy || pitchSlots.length === 0}
+              onClick={() => void handleWorld11()}
             >
-              Auto pick best XI
+              {worldPickBusy ? 'Building World 11…' : 'World 11'}
             </button>
+            <button
+              type="button"
+              className="shrink-0 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-40"
+              disabled={!loadInfo || worldPickBusy}
+              onClick={onClearAll}
+            >
+              Clear all
+            </button>
+          </div>
+          {worldPickMsg && (
+            <p className="text-[11px] leading-snug text-zinc-500">{worldPickMsg}</p>
           )}
-          <button
-            type="button"
-            className={`rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-40 ${
-              clubSquadOnly && seedClubId != null ? 'shrink-0' : 'w-full'
-            }`}
-            disabled={!loadInfo}
-            onClick={onClearAll}
-          >
-            Clear all
-          </button>
         </div>
       )}
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-2.5 py-2">

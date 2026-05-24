@@ -8,9 +8,9 @@ import {
   writeCashDisplay,
   writeCm0102CashToDisk,
 } from '../../shared/cm2LongFormat'
-import { CLUB_CASH_OFF } from './clubStadiumDiskLayout'
-import { rowIndexForId } from './clubStadiumDiskLayout'
 import { CLUB_ROW_BYTES } from './clubRecords'
+import { readArchiveBlock } from './parser'
+import { CLUB_CASH_OFF, rowIndexForId } from './clubStadiumDiskLayout'
 import type { BlockInfo } from './types'
 import { findBlock } from './playerStaffDiskLayout'
 
@@ -28,8 +28,10 @@ export function clubCashAbsoluteOffset(
 ): number | { error: string } {
   const clubBlock = findBlock(blocks, 'club.dat')
   if (!clubBlock) return { error: 'Archive is missing club.dat.' }
-  const clubSlice = archiveBuffer.subarray(clubBlock.position, clubBlock.position + clubBlock.size)
-  const clubRow = rowIndexForId(clubSlice, CLUB_ROW_BYTES, clubId)
+  const clubBuf =
+    readArchiveBlock(archiveBuffer, 'club.dat') ??
+    archiveBuffer.subarray(clubBlock.position, clubBlock.position + clubBlock.size)
+  const clubRow = rowIndexForId(clubBuf, CLUB_ROW_BYTES, clubId)
   if (clubRow == null) return { error: `Club id ${clubId} not found in club.dat.` }
   const clubBase = clubBlock.position + clubRow * CLUB_ROW_BYTES
   return clubBase + CLUB_CASH_OFF

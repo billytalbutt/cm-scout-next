@@ -78,3 +78,12 @@ export function writeArchiveToDiskSiblings(selectedPath: string, buffer: Buffer)
   }
   return written
 }
+
+/** Reload the newest on-disk sibling into memory (keeps editor cash in sync with CM). */
+export function refreshArchiveBufferFromDisk(selectedPath: string): {
+  buffer: Buffer
+  readPath: string
+  mtimeMs: number
+} {
+  return readArchiveFromDisk(selectedPath)
+}
