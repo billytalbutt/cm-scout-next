@@ -332,7 +332,7 @@ export function ClubEditorPanel({
             </p>
             <ul className="mt-2 list-inside list-disc space-y-1 text-zinc-500">
               <li>Use the same save file path CM loads (not an old copy elsewhere).</li>
-              <li>Select the club you manage in CM (name must match Finances).</li>
+              <li>You can edit any club — pick the one whose Finances you want to change in CM.</li>
               <li>Fully quit CM before Update loaded save, then Load that exact file in CM.</li>
             </ul>
           </div>
@@ -366,11 +366,8 @@ export function ClubEditorPanel({
             <p className="font-medium text-zinc-200">{snap.name}</p>
             {snap.humanManagedClubId != null &&
               snap.humanManagedClubId > 0 &&
-              snap.clubId !== snap.humanManagedClubId && (
-                <p className="mt-1 text-amber-200/95">
-                  This is not your managed club in this save. Bank balance in CM only changes for the club you manage —
-                  search and select that club before saving.
-                </p>
+              snap.clubId === snap.humanManagedClubId && (
+                <p className="mt-1 text-emerald-200/80">Your managed club in this save.</p>
               )}
             <p>
               {snap.nation} · {snap.division}

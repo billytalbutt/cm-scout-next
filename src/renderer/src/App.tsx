@@ -59,6 +59,7 @@ import { applyProfileHighlightPack, highlightPackForRole } from './profileHighli
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
 import { formatIsoDateUk } from '../../shared/dateDisplay'
 import { InstructionHintRow, ProfileNationBlock } from './profile/profileUi'
+import { EffectivenessRecipeBreakdown } from './profile/EffectivenessRecipeBreakdown'
 import { RolePercentMiniCell } from './profile/RolePercentMiniCell'
 import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
 import {
@@ -2916,70 +2917,12 @@ export function App() {
                       </div>
                     )}
                     {profile.effArchetype && profile.effWinnerDetail && (
-                      <div className="mt-2 rounded border border-zinc-800/90 bg-zinc-950/55 p-2 text-[10px] leading-snug text-zinc-400">
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                              <div>
-                                <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">Primary</p>
-                                <ul className="mt-0.5 space-y-0.5 font-mono text-zinc-300">
-                                  {profile.effWinnerDetail.lines
-                                    .filter((l) => l.slot === 'primary')
-                                    .map((l) => (
-                                      <li key={`pe-${l.key}`}>
-                                        {l.label} {l.raw}
-                                        {l.overflow ? (
-                                          <span className="text-amber-300/90"> ↑</span>
-                                        ) : l.godTier ? (
-                                          <span className="text-amber-300/90"> ★</span>
-                                        ) : null}
-                                      </li>
-                                    ))}
-                                </ul>
-                              </div>
-                              <div>
-                                <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">Secondary</p>
-                                <ul className="mt-0.5 space-y-0.5 font-mono text-zinc-300">
-                                  {profile.effWinnerDetail.lines
-                                    .filter((l) => l.slot === 'secondary')
-                                    .map((l) => (
-                                      <li key={`se-${l.key}`}>
-                                        {l.label} {l.raw}
-                                        {l.overflow ? (
-                                          <span className="text-amber-300/90"> ↑</span>
-                                        ) : l.godTier ? (
-                                          <span className="text-amber-300/90"> ★</span>
-                                        ) : null}
-                                      </li>
-                                    ))}
-                                </ul>
-                              </div>
-                            </div>
-                            {profile.effWinnerDetail.engineLines.length > 0 && (
-                              <div className="mt-2">
-                                <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-600">Engine</p>
-                                <ul className="mt-0.5 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-zinc-300">
-                                  {profile.effWinnerDetail.engineLines.map((l) => (
-                                    <li key={`eng-${l.key}`}>
-                                      {l.label} {l.raw}
-                                      {l.key === 'injury_proneness' ? (
-                                        <span className="text-zinc-600"> inv</span>
-                                      ) : null}
-                                      {l.overflow ? (
-                                        <span className="text-amber-300/90"> ↑</span>
-                                      ) : l.godTier ? (
-                                        <span className="text-amber-300/90"> ★</span>
-                                      ) : null}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                            {profile.effRunnerUp && (
-                              <p className="mt-2 border-t border-zinc-800/80 pt-2 text-zinc-500">
-                                Runner-up:{' '}
-                                <span className="text-zinc-300">{profile.effRunnerUp.archetypeLabel}</span> at{' '}
-                                <span className="font-mono text-zinc-200">{profile.effRunnerUp.score.toFixed(1)}%</span>
-                              </p>
-                            )}
+                      <div className="mt-2">
+                        <EffectivenessRecipeBreakdown
+                          detail={profile.effWinnerDetail}
+                          runnerUp={profile.effRunnerUp}
+                          effPercent={profile.effPercent}
+                        />
                       </div>
                     )}
                     <div className="mt-2 grid grid-cols-7 gap-1 text-center">

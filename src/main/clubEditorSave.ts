@@ -1,6 +1,7 @@
 import { cashLooksPlainOnDisk, readCashDisplay } from '../shared/cm2LongFormat'
 import { clampClubEditorValue } from '../shared/clubEditorLimits'
-import type { BlockInfo, ParsedDatabase } from './database/types'
+import type { BlockInfo, ParsedDatabase, StaffRecord } from './database/types'
+import { readArchiveBlock } from './database/parser'
 import { patchClubCashAtClubBase } from './database/clubCashPatch'
 import {
   CLUB_CASH_OFF,
@@ -29,19 +30,60 @@ export type ClubEditorSnapshot = {
   division: string
   stadiumName: string
   values: Record<string, number>
-  /** Human player-manager's `club_job_id` when found (for bank balance warnings). */
+  /** Playable human manager's `club_job_id` when detected (informational). */
   humanManagedClubId: number | null
   /** Raw `TClub.Cash` on disk for this club (debug / mismatch checks). */
   cashOnDisk?: { raw: number; display: number; encoding: 'plain' | 'packed' }
 }
 
-/** Club id of the playable manager (player linked + manager job), if any. */
-export function findHumanManagedClubId(db: ParsedDatabase): number | null {
-  for (const s of db.staff) {
-    if (s.player_id < 0) continue
-    if (s.job_for_club !== 5 && s.job_for_club !== 12) continue
-    if (s.club_job_id > 0) return s.club_job_id
+/** `TStaff` byte offset of `ClubJob` within a 110-byte staff row. */
+const STAFF_CLUB_JOB_ID_OFF = 53
+
+const CLUB_MANAGER_JOBS = new Set([5, 12])
+
+/** Read club id from decompressed `human_manager.dat` (first `TStaff` row). Exported for tests. */
+export function humanClubIdFromManagerDatBuffer(hm: Buffer, staff: StaffRecord[]): number | null {
+  if (hm.length < STAFF_CLUB_JOB_ID_OFF + 4) return null
+
+  const clubFromRow = hm.readInt32LE(STAFF_CLUB_JOB_ID_OFF)
+  const staffId = hm.readInt32LE(0)
+  if (staffId > 0) {
+    for (const s of staff) {
+      if (s.id === staffId && s.club_job_id > 0) return s.club_job_id
+    }
   }
+  if (clubFromRow > 0) return clubFromRow
+  return null
+}
+
+function clubIdFromHumanManagerDat(archiveBuffer: Buffer, staff: StaffRecord[]): number | null {
+  const hm = readArchiveBlock(archiveBuffer, 'human_manager.dat')
+  if (!hm) return null
+  return humanClubIdFromManagerDatBuffer(hm, staff)
+}
+
+/** Club id of the human player-manager in this save, if detectable. */
+export function findHumanManagedClubId(db: ParsedDatabase, archiveBuffer?: Buffer): number | null {
+  if (archiveBuffer?.length) {
+    const fromHm = clubIdFromHumanManagerDat(archiveBuffer, db.staff)
+    if (fromHm != null) return fromHm
+  }
+
+  for (let i = 0; i < db.staff.length; i++) {
+    const s = db.staff[i]!
+    if (!CLUB_MANAGER_JOBS.has(s.job_for_club) || s.club_job_id <= 0) continue
+    const contract = db.contractsByStaffIndex.get(i)
+    if (contract?.manager_job_rc) return s.club_job_id
+  }
+
+  for (const s of db.staff) {
+    if (s.job_for_club === 12 && s.player_id >= 0 && s.club_job_id > 0) return s.club_job_id
+  }
+
+  for (const s of db.staff) {
+    if (s.job_for_club === 5 && s.club_job_id > 0) return s.club_job_id
+  }
+
   return null
 }
 
@@ -79,7 +121,7 @@ export function buildClubEditorSnapshot(
     division,
     stadiumName: stadium.name,
     values: readEditorValuesAt(archiveBuffer, bases.clubBase, bases.stadiumBase),
-    humanManagedClubId: findHumanManagedClubId(db),
+    humanManagedClubId: findHumanManagedClubId(db, archiveBuffer),
     cashOnDisk: {
       raw: cashRaw,
       display: readCashDisplay(cashRaw),
