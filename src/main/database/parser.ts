@@ -56,7 +56,7 @@ import type {
  * and may touch other blocks — feature parity with that entire program is not claimed here.
  */
 
-function readBlocksDirectory(buf: Buffer): { compressed: boolean; blocks: BlockInfo[]; headerEnd: number } {
+export function readBlocksDirectory(buf: Buffer): { compressed: boolean; blocks: BlockInfo[]; headerEnd: number } {
   let o = 0
   const marker = buf.readUInt32LE(o)
   o += 4

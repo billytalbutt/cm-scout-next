@@ -2,6 +2,7 @@
  * Club bank balance (`TClub.Cash` @ byte 101) — write + verify on archive buffers.
  */
 import {
+  cashLooksPlainOnDisk,
   readCashDisplay,
   writeCashDisplay,
   writeCm0102CashToDisk,
@@ -44,15 +45,13 @@ export function patchClubCashOnArchive(
   if (typeof off !== 'number') return { ok: false, error: off.error }
 
   const priorRaw = archiveBuffer.readInt32LE(off)
-  let newRaw = writeCashDisplay(target, priorRaw)
+  const priorWasPlain = cashLooksPlainOnDisk(priorRaw)
+
+  let newRaw = priorWasPlain ? target : writeCashDisplay(target, priorRaw)
   archiveBuffer.writeInt32LE(newRaw, off)
 
-  if (readCashDisplay(archiveBuffer.readInt32LE(off)) !== target) {
-    newRaw = target
-    archiveBuffer.writeInt32LE(newRaw, off)
-  }
-
-  if (readCashDisplay(archiveBuffer.readInt32LE(off)) !== target) {
+  // Never fall back to plain int32 on a packed row — CM Finances reads packed CM2 there.
+  if (!priorWasPlain && readCashDisplay(archiveBuffer.readInt32LE(off)) !== target) {
     newRaw = writeCm0102CashToDisk(target)
     archiveBuffer.writeInt32LE(newRaw, off)
   }

@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { readCashDisplay } from '../../shared/cm2LongFormat'
+import { cashLooksPlainOnDisk, readCashDisplay, writeCm0102CashToDisk } from '../../shared/cm2LongFormat'
 import { CLUB_CASH_OFF } from './clubStadiumDiskLayout'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import {
@@ -36,6 +36,21 @@ describe('clubCashPatch', () => {
     if (typeof off !== 'number') return
     expect(buf.readInt32LE(off)).toBe(2_000_000_000)
     expect(verifyClubCashOnArchive(buf, blocks, clubId, 2_000_000_000).ok).toBe(true)
+  })
+
+  it('keeps packed CM2 encoding when prior cash was packed (Blackburn-style save)', () => {
+    const clubId = 3
+    const packedPrior = writeCm0102CashToDisk(120_000_000)
+    const { buf, blocks } = miniArchive(clubId, packedPrior)
+    expect(cashLooksPlainOnDisk(packedPrior)).toBe(false)
+    const patched = patchClubCashOnArchive(buf, blocks, clubId, 99_000_000)
+    expect(patched.ok).toBe(true)
+    const off = clubCashAbsoluteOffset(buf, blocks, clubId)
+    if (typeof off !== 'number') return
+    const raw = buf.readInt32LE(off)
+    expect(cashLooksPlainOnDisk(raw)).toBe(false)
+    expect(readCashDisplay(raw)).toBe(99_000_000)
+    expect(raw).not.toBe(99_000_000)
   })
 
   it('survives writeFileSync + readFileSync round-trip', () => {
