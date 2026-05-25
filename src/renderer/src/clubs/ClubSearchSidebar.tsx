@@ -66,7 +66,7 @@ export function ClubSearchSidebar({
     return <p className="text-sm text-zinc-500">Load a database to browse clubs.</p>
   }
 
-  const showSuggestPanel = menuOpen && debouncedQ.length > 0 && suggestions.length > 0
+  const showSuggestPanel = menuOpen && suggestions.length > 0
   const favActive = showFavorites && selectedClub != null && isFavorite(selectedClub.id)
 
   return (
@@ -203,8 +203,10 @@ export function ClubSearchSidebar({
           ))}
         </ul>
       )}
-      {!debouncedQ && showFavorites && !favorites.length && (
-        <p className="text-[11px] text-zinc-600">Start typing to see matching clubs from the loaded save.</p>
+      {!debouncedQ && showFavorites && !favorites.length && !showSuggestPanel && (
+        <p className="text-[11px] text-zinc-600">
+          Start typing to search, or focus the box to browse clubs from the loaded save.
+        </p>
       )}
     </div>
   )

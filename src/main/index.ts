@@ -86,6 +86,17 @@ let loaded: {
 } | null = null
 
 /** Re-read the loaded .sav path and refresh club bank balances from club.dat on disk. */
+/** Refresh club cash from the user-selected path without swapping the parsed archive buffer. */
+function syncClubCashFromUserPath(): void {
+  if (!loaded) return
+  try {
+    const fresh = refreshArchiveBufferFromDisk(loaded.indexPath)
+    refreshClubCashFromArchive(fresh.buffer, loaded.db.clubsById)
+  } catch {
+    /* keep in-memory cash if disk read fails */
+  }
+}
+
 function syncLoadedArchiveFromDisk(): void {
   if (!loaded) return
   try {
@@ -518,6 +529,9 @@ ipcMain.handle('get-rows', async (_e, payload: unknown) => {
   }
 
   const filter = raw as GetRowsFilter
+  if (raw.isRegenLikely === true || raw.isRegenLikely === 'true' || raw.isRegenLikely === 1) {
+    filter.isRegenLikely = true
+  }
   filter.positionRoles = parsePositionRoleFilterIds(raw.positionRoles)
   filter.positionSides = parsePositionSideFilterIds(raw.positionSides)
 
@@ -615,7 +629,7 @@ ipcMain.handle('get-club-rows', async (_e, payload: unknown) => {
 
 ipcMain.handle('get-club-detail', async (_e, clubId: unknown) => {
   if (!loaded) return null
-  syncLoadedArchiveFromDisk()
+  syncClubCashFromUserPath()
   const id = Math.floor(Number(clubId))
   const payload = buildClubDetailPayload(loaded.db, id)
   if (!payload || typeof payload !== 'object') return payload

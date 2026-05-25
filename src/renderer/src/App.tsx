@@ -1161,8 +1161,14 @@ export function App() {
 
   const columns = useMemo(() => buildGridColumns(gridColHelper, columnOrder), [columnOrder])
 
+  /** Regens tab must never show the full player list cached from Players / load. */
+  const gridRows = useMemo(
+    () => (browseTab === 'regens' ? rows.filter((r) => r.isRegenLikely === true) : rows),
+    [rows, browseTab],
+  )
+
   const table = useReactTable<GridPlayerRow>({
-    data: rows,
+    data: gridRows,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -1173,11 +1179,17 @@ export function App() {
 
   const scrollParentRef = useRef<HTMLDivElement>(null)
   const browseTabScrollRef = useRef<Partial<Record<BrowseTabId, number>>>({})
-  const changeBrowseTab = useCallback((next: BrowseTabId) => {
-    const el = scrollParentRef.current
-    if (el) browseTabScrollRef.current[browseTab] = el.scrollTop
-    setBrowseTab(next)
-  }, [browseTab])
+  const changeBrowseTab = useCallback(
+    (next: BrowseTabId) => {
+      const el = scrollParentRef.current
+      if (el) browseTabScrollRef.current[browseTab] = el.scrollTop
+      setBrowseTab(next)
+      if (loadInfo && (next === 'players' || next === 'regens')) {
+        window.setTimeout(() => void refresh(), 0)
+      }
+    },
+    [browseTab, loadInfo, refresh],
+  )
   const tableRows = table.getRowModel().rows
   const colCount = table.getAllLeafColumns().length
 
@@ -2446,7 +2458,7 @@ export function App() {
                 </p>
               </div>
             )}
-            {loadInfo && rows.length === 0 && (
+            {loadInfo && gridRows.length === 0 && (
               <p className="mb-3 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-300">
                 {loadInfo.playerCount === 0
                   ? 'No playable players were found in this save. Try the other file in the same folder (Game.sav vs index.dat), or quit CM and open the save you Continue with.'
@@ -2462,15 +2474,21 @@ export function App() {
             )}
             <table className="w-full border-collapse text-left text-sm">
               <thead className="cm-grid-sticky-head">
-                {loadInfo && gridMeta && rows.length > 0 && (
+                {loadInfo && gridMeta && gridRows.length > 0 && (
                   <tr className="border-b border-zinc-800/80">
                     <th
                       colSpan={colCount}
                       className="bg-zinc-950 px-2 py-1.5 text-left text-[11px] font-normal text-zinc-500"
                     >
-                      Showing <span className="font-mono text-zinc-300">{rows.length.toLocaleString()}</span> loaded
-                      rows · total matching{' '}
-                      <span className="font-mono text-zinc-300">{gridMeta.total.toLocaleString()}</span>
+                      Showing <span className="font-mono text-zinc-300">{gridRows.length.toLocaleString()}</span>{' '}
+                      {browseTab === 'regens' ? 'regens' : 'loaded rows'}
+                      {browseTab !== 'regens' && (
+                        <>
+                          {' '}
+                          · total matching{' '}
+                          <span className="font-mono text-zinc-300">{gridMeta.total.toLocaleString()}</span>
+                        </>
+                      )}
                     </th>
                   </tr>
                 )}

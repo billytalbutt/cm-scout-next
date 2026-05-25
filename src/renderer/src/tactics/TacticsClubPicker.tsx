@@ -44,7 +44,7 @@ export function TacticsClubPicker({
   }, [q])
 
   const loadSuggestions = useCallback(async () => {
-    if (!loadInfo || !debouncedQ || typeof window.cmapi?.getClubRows !== 'function') {
+    if (!loadInfo || typeof window.cmapi?.getClubRows !== 'function') {
       setSuggestions([])
       return
     }
@@ -138,7 +138,7 @@ export function TacticsClubPicker({
           Clearing here also clears the club selected on the Clubs tab.
         </p>
       )}
-      {menuOpen && debouncedQ && suggestions.length > 0 && (
+      {menuOpen && suggestions.length > 0 && (
         <ul className="mt-1.5 max-h-40 overflow-y-auto rounded border border-zinc-700 bg-zinc-950 py-0.5 cm-scroll">
           {suggestions.map((c) => (
             <li key={c.id}>

@@ -19,6 +19,8 @@ export function useClubBrowse(
   const [menuOpen, setMenuOpen] = useState(false)
   const seqRef = useRef(0)
   const blurCloseRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const tacticsCbRef = useRef(onClubSelectForTactics)
+  tacticsCbRef.current = onClubSelectForTactics
 
   /** New save path — drop club selection so editor/detail refetch from disk. */
   useEffect(() => {
@@ -30,8 +32,8 @@ export function useClubBrowse(
     setSuggestions([])
     setErr(null)
     setMenuOpen(false)
-    onClubSelectForTactics?.(null, null)
-  }, [savePath, onClubSelectForTactics])
+    tacticsCbRef.current?.(null, null)
+  }, [savePath])
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQ(q.trim()), 120)
@@ -67,6 +69,10 @@ export function useClubBrowse(
     void loadSuggestions()
   }, [loadSuggestions])
 
+  useEffect(() => {
+    if (menuOpen && loadInfo) void loadSuggestions()
+  }, [menuOpen, loadInfo, loadSuggestions])
+
   const loadDetail = useCallback(async (id: number) => {
     if (typeof window.cmapi?.getClubDetail !== 'function') return
     setErr(null)
@@ -92,7 +98,7 @@ export function useClubBrowse(
     if (lockedName != null && next !== lockedName) {
       setLockedName(null)
       setSelId(null)
-      onClubSelectForTactics?.(null, null)
+      tacticsCbRef.current?.(null, null)
     }
   }
 
@@ -101,7 +107,7 @@ export function useClubBrowse(
     setQ(c.name)
     setSelId(c.id)
     setMenuOpen(false)
-    onClubSelectForTactics?.(c.id, c.name)
+    tacticsCbRef.current?.(c.id, c.name)
   }
 
   const clearClubSearch = () => {
@@ -111,7 +117,7 @@ export function useClubBrowse(
     setDetail(null)
     setSuggestions([])
     setErr(null)
-    onClubSelectForTactics?.(null, null)
+    tacticsCbRef.current?.(null, null)
   }
 
   const onInputBlur = () => {
