@@ -55,7 +55,7 @@ import { verifyClubCashOnArchive } from './database/clubCashPatch'
 import { refreshClubCashFromArchive } from './database/clubRecords'
 import {
   archiveSiblingsLookOutOfSync,
-  pickNewestArchivePath,
+  readArchiveFromDisk,
   refreshArchiveBufferFromDisk,
   writeArchiveToDiskSiblings,
 } from './archiveSync'
@@ -149,13 +149,11 @@ function refreshLoadedDbFromArchive(indexPath: string, archiveBuf: Buffer): Pars
   })
 }
 
-/** Parse save bytes — prefer newest sibling so player data matches what CM last wrote. */
 function loadArchiveForPath(
   selectedPath: string,
   opts?: { skipCurrentSeasonIndex?: boolean },
 ): { db: ParsedDatabase; archiveBuf: Buffer; archiveReadPath: string } {
-  const archiveReadPath = pickNewestArchivePath(selectedPath)
-  const archiveBuf = readFileSync(archiveReadPath)
+  const { buffer: archiveBuf, readPath: archiveReadPath } = readArchiveFromDisk(selectedPath)
   const historyDirs = collectStaffHistorySearchDirs(selectedPath)
   const parseOpts = {
     staffHistorySearchDirs: historyDirs,

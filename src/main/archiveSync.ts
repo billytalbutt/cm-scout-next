@@ -60,11 +60,19 @@ export function archiveSiblingsLookOutOfSync(selectedPath: string): ArchiveSibli
   return null
 }
 
-/**
- * Read the archive file the user chose (not a newer sibling). CM often updates the `.sav`
- * while Merlin may have touched `index.dat` — using newest mtime caused stale bank balances.
- */
+/** Read the newest sibling — CM often updates `index.dat` while the picker still points at `.sav`. */
 export function readArchiveFromDisk(selectedPath: string): {
+  buffer: Buffer
+  readPath: string
+  mtimeMs: number
+} {
+  const readPath = pickNewestArchivePath(selectedPath)
+  const buffer = readFileSync(readPath)
+  return { buffer, readPath, mtimeMs: statSync(readPath).mtimeMs }
+}
+
+/** Read exactly the path the user chose (for bank refresh on `loaded.indexPath`). */
+export function readUserSelectedArchiveFromDisk(selectedPath: string): {
   buffer: Buffer
   readPath: string
   mtimeMs: number
@@ -85,11 +93,11 @@ export function writeArchiveToDiskSiblings(selectedPath: string, buffer: Buffer)
   return written
 }
 
-/** Reload the user-selected save path from disk (same path as load, not newest sibling). */
+/** Reload the user-selected save path from disk (exact path — club cash matches CM). */
 export function refreshArchiveBufferFromDisk(selectedPath: string): {
   buffer: Buffer
   readPath: string
   mtimeMs: number
 } {
-  return readArchiveFromDisk(selectedPath)
+  return readUserSelectedArchiveFromDisk(selectedPath)
 }

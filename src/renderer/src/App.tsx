@@ -692,6 +692,12 @@ export function App() {
   const refreshSeq = useRef(0)
 
   const refresh = useCallback(async () => {
+    if (!loadInfo) {
+      setRows([])
+      setGridMeta(null)
+      setGridRefreshing(false)
+      return
+    }
     if (
       browseTab === 'staff' ||
       browseTab === 'clubs' ||
@@ -810,18 +816,6 @@ export function App() {
     f.gridInclude = gridInclude
     const ROWS_IPC_PAGE = 12000
     try {
-      if (loadInfo && typeof window.cmapi?.getDatabaseStatus === 'function') {
-        const st = await window.cmapi.getDatabaseStatus()
-        if (refreshSeq.current !== seq) return
-        if (!st.loaded) {
-          setErr(
-            'Save data is not in memory. Open your save again (the app may have restarted while this window stayed open).',
-          )
-          setRows([])
-          setGridMeta(null)
-          return
-        }
-      }
       if (typeof window.cmapi?.getRows !== 'function') {
         if (refreshSeq.current !== seq) return
         setErr('Open this app via the Electron window from npm run dev (not a browser tab).')
@@ -831,6 +825,12 @@ export function App() {
       }
       const first = await window.cmapi.getRows({ ...f, offset: 0, limit: ROWS_IPC_PAGE } as Record<string, unknown>)
       if (refreshSeq.current !== seq) return
+      if (first && typeof first === 'object' && 'error' in first && (first as { error?: string }).error) {
+        setErr(String((first as { error: string }).error))
+        setRows([])
+        setGridMeta(null)
+        return
+      }
       let list: GridPlayerRow[] = []
       let total = 0
       if (Array.isArray(first)) {
@@ -888,36 +888,7 @@ export function App() {
       }
       setGridMeta({ total })
       setRows([])
-      if (loadInfo && loadInfo.playerCount > 0 && total === 0) {
-        const hasFilters =
-          regenOnly ||
-          browseTab === 'regens' ||
-          committedText.q.trim() !== '' ||
-          committedText.nation.trim() !== '' ||
-          committedText.club.trim() !== '' ||
-          caMin !== '' ||
-          caMax !== '' ||
-          paMin !== '' ||
-          paMax !== '' ||
-          cmScoutMin !== '' ||
-          cmScoutMax !== '' ||
-          effMin !== '' ||
-          effMax !== '' ||
-          engineSniffer !== 'off' ||
-          positionFilterRoles.length > 0 ||
-          positionFilterSides.length > 0 ||
-          attrMins.some((s) => s.trim() !== '') ||
-          attrMinMatchAtLeast.trim() !== ''
-        if (!hasFilters) {
-          setErr(
-            `Loaded ${loadInfo.playerCount.toLocaleString()} players but the grid returned none. Open the save again or restart the app.`,
-          )
-        } else {
-          setErr(null)
-        }
-      } else {
-        setErr(null)
-      }
+      setErr(null)
     } catch (e) {
       if (refreshSeq.current !== seq) return
       const msg = e instanceof Error ? e.message : String(e)
@@ -1093,6 +1064,51 @@ export function App() {
         if (r.error !== 'cancelled') setErr(r.error)
         return
       }
+      if (r.playerCount <= 0) {
+        setErr('No playable players were found in this save file.')
+        setLoadInfo({
+          path: r.path,
+          archiveReadPath: r.archiveReadPath,
+          archiveSiblingWarning: r.archiveSiblingWarning,
+          compressed: r.compressed,
+          gameDate: r.gameDate,
+          playerCount: 0,
+          staffDatRows: r.staffDatRows,
+          playerBlobRows: r.playerBlobRows,
+          regenBaseline: r.regenBaseline,
+          competitions: r.competitions ?? [],
+          playerStatsHistoryPresent: r.playerStatsHistoryPresent,
+        })
+        setRows([])
+        setGridMeta({ total: 0 })
+        return
+      }
+      const gridIncludeAfterLoad = gridFlagsForVisibleColumnIds(columnOrder)
+      const gridPkt = await window.cmapi.getRows({
+        offset: 0,
+        limit: 12000,
+        gridInclude: gridIncludeAfterLoad,
+      } as Record<string, unknown>)
+      if (
+        gridPkt &&
+        typeof gridPkt === 'object' &&
+        'error' in gridPkt &&
+        (gridPkt as { error?: string }).error
+      ) {
+        setErr(String((gridPkt as { error: string }).error))
+        return
+      }
+      const initialRows =
+        gridPkt &&
+        typeof gridPkt === 'object' &&
+        'rows' in gridPkt &&
+        Array.isArray((gridPkt as { rows: unknown }).rows)
+          ? ((gridPkt as { rows: GridPlayerRow[] }).rows ?? [])
+          : []
+      const initialTotal =
+        gridPkt && typeof gridPkt === 'object' && 'total' in gridPkt && typeof (gridPkt as { total: unknown }).total === 'number'
+          ? (gridPkt as { total: number }).total
+          : initialRows.length
       setLoadInfo({
         path: r.path,
         archiveReadPath: r.archiveReadPath,
@@ -1111,6 +1127,8 @@ export function App() {
       setNationList(r.nations ?? [])
       clearAllFilters()
       setBrowseTab('players')
+      setRows(initialRows)
+      setGridMeta({ total: initialTotal })
       setErr(null)
       setProfile(null)
       setStaffProfile(null)
@@ -1127,7 +1145,7 @@ export function App() {
       const wait = Math.max(0, minOverlayMs - (Date.now() - loadStartedAt))
       window.setTimeout(() => setLoadProgress(null), wait)
     }
-  }, [clearAllFilters])
+  }, [columnOrder, clearAllFilters])
 
   const autoOpenDatabaseDone = useRef(false)
   useEffect(() => {
@@ -2430,9 +2448,11 @@ export function App() {
             )}
             {loadInfo && rows.length === 0 && (
               <p className="mb-3 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-300">
-                {browseTab === 'regens'
-                  ? 'No heuristic regens match the current filters. Try All players, or relax filters — the regen list is a same-save guess, not exhaustive.'
-                  : 'No players match the current filters. Use Clear all in the filter panel, or relax individual filters.'}
+                {loadInfo.playerCount === 0
+                  ? 'No playable players were found in this save. Try the other file in the same folder (Game.sav vs index.dat), or quit CM and open the save you Continue with.'
+                  : browseTab === 'regens'
+                    ? 'No heuristic regens match the current filters. Try All players, or relax filters — the regen list is a same-save guess, not exhaustive.'
+                    : 'No players match the current filters. Use Clear all in the filter panel, or relax individual filters.'}
               </p>
             )}
             {!loadInfo && rows.length === 0 && (

@@ -6,6 +6,7 @@ import {
   archiveSiblingsLookOutOfSync,
   pickNewestArchivePath,
   readArchiveFromDisk,
+  readUserSelectedArchiveFromDisk,
   writeArchiveToDiskSiblings,
 } from './archiveSync'
 
@@ -46,7 +47,7 @@ describe('archiveSync', () => {
     }
   })
 
-  it('readArchiveFromDisk reads the path you pass even if a sibling is newer', () => {
+  it('readUserSelectedArchiveFromDisk reads the path you pass even if a sibling is newer', () => {
     const dir = mkdtempSync(join(tmpdir(), 'cm-archive-sync-'))
     try {
       const sav = join(dir, 'test.sav')
@@ -59,9 +60,13 @@ describe('archiveSync', () => {
       utimesSync(sav, past, past)
       utimesSync(idx, future, future)
 
-      const { buffer, readPath } = readArchiveFromDisk(sav)
+      const { buffer, readPath } = readUserSelectedArchiveFromDisk(sav)
       expect(readPath).toBe(sav)
       expect(buffer.toString()).toBe('from-sav')
+
+      const newest = readArchiveFromDisk(sav)
+      expect(newest.readPath).toBe(idx)
+      expect(newest.buffer.toString()).toBe('from-index')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
