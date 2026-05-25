@@ -1,6 +1,5 @@
 import { calendarDaysBetween } from './database/dates'
 import { compSeasonStat } from './database/playerStatsCurrentSeason'
-import type { InjurySummary } from './database/injuryHistory'
 import type { UiPlayerRow } from './database/types'
 import { matchesEngineSniffer, type EngineSnifferId } from './engineSniffer'
 import {
@@ -88,8 +87,6 @@ export type GetRowsFilter = {
   positionRoles?: PositionRoleFilterId[]
   /** Natural sides (&gt;14) — player must match every selected side. */
   positionSides?: PositionSideFilterId[]
-  /** Only players with an active injury in `injury_history.tmp`. */
-  injuredOnly?: boolean
 }
 
 function hasActiveAttrMins(mins?: (number | null)[] | undefined): boolean {
@@ -104,7 +101,7 @@ function hasActiveAttrMins(mins?: (number | null)[] | undefined): boolean {
 function rowMatches(
   r: UiPlayerRow,
   f: GetRowsFilter,
-  ctx: { gameDateIso: string | null; injuryByStaffId?: Map<number, InjurySummary> },
+  ctx: { gameDateIso: string | null },
 ): boolean {
   const q = (f.q ?? '').trim().toLowerCase()
   if (q && !r.name.toLowerCase().includes(q)) return false
@@ -260,11 +257,6 @@ function rowMatches(
 
   if (f.isRegenLikely === true && r.isRegenLikely !== true) return false
 
-  if (f.injuredOnly === true) {
-    const inj = ctx.injuryByStaffId?.get(r.staffId)
-    if (!inj || inj.typeId <= 0) return false
-  }
-
   // Engine sniffer and attribute bars use overlapping criteria. When any attribute min is active (including
   // sniffer-filled presets), rely on attribute filters only — otherwise nobody passes (AND was far stricter than N-of-M).
   if (f.engineSniffer != null && !hasActiveAttrMins(f.attrMins)) {
@@ -278,7 +270,7 @@ function rowMatches(
 export function filterUiPlayerRows(
   source: readonly UiPlayerRow[],
   f: GetRowsFilter,
-  ctx: { gameDateIso: string | null; injuryByStaffId?: Map<number, InjurySummary> },
+  ctx: { gameDateIso: string | null },
 ): UiPlayerRow[] {
   const out: UiPlayerRow[] = []
   for (const r of source) {

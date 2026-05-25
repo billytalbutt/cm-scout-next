@@ -16,7 +16,6 @@ import {
   type AttrDisplayBlock,
   type Ca18Key,
 } from './database/attributes'
-import type { InjurySummary } from './database/injuryHistory'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
 import { computeEffectivenessFull } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
@@ -213,7 +212,6 @@ export type ProfileDbContext = {
   savePerformanceByPlayerDatId?: Map<number, PlayerSavePerformanceStats>
   /** Pre-built at load — never scan `player stats history.tmp` when opening a profile. */
   currentSeasonByPlayerDatId?: Map<number, PlayerCurrentSeasonIndexed>
-  injuryByStaffId?: Map<number, InjurySummary>
 }
 
 /** `staff.club_job_id` and `contract.club_id` can differ on some saves. */
@@ -522,15 +520,12 @@ export function buildProfilePayload(
 
   const freeRoleHint = computeFreeRoleHint(p, s)
   const tacticalInstructionHints = computeTacticalInstructionHints(p, s)
-  const injury = dbContext.injuryByStaffId?.get(s.id) ?? { typeId: 0, label: 'None' }
-
   return {
     name: row.name,
     nation: row.nation,
     secondNation: row.secondNation ?? '',
     nationDisplay,
     club: row.club,
-    injury,
     age: row.age,
     dobIso: s.dob_iso,
     euPassport: row.euPassport,

@@ -55,17 +55,11 @@ import { verifyClubCashOnArchive } from './database/clubCashPatch'
 import { refreshClubCashFromArchive } from './database/clubRecords'
 import {
   archiveSiblingsLookOutOfSync,
-  listArchiveSiblingPaths,
-  readArchiveFromDisk,
+  pickNewestArchivePath,
   refreshArchiveBufferFromDisk,
   writeArchiveToDiskSiblings,
 } from './archiveSync'
-import {
-  buildInjuryByStaffIdMap,
-  injuryTypeLabel,
-  readPlayerInjuryFromArchive,
-  type InjurySummary,
-} from './database/injuryHistory'
+import { injuryTypeLabel, readPlayerInjuryFromArchive } from './database/injuryHistory'
 import { buildClubEditorSnapshot, buildPatchedArchiveForClubEdits } from './clubEditorSave'
 import {
   buildEditorValueMap,
@@ -150,101 +144,43 @@ function createProfileWindow(kind: 'player' | 'staff', staffIndex: number): Brow
  */
 /** Re-parse `club.dat` / `stadium.dat` (etc.) after patching the in-memory archive. */
 function refreshLoadedDbFromArchive(indexPath: string, archiveBuf: Buffer): ParsedDatabase {
-  const db = parseIndexDat(archiveBuf, {
-    staffHistorySearchDirs: collectStaffHistorySearchDirs(indexPath),
-  })
-  db.injuryByStaffId = undefined
-  return db
-}
-
-function parseArchiveBuffer(
-  archiveBuf: Buffer,
-  indexPath: string,
-  opts?: { skipCurrentSeasonIndex?: boolean },
-): ParsedDatabase {
   return parseIndexDat(archiveBuf, {
     staffHistorySearchDirs: collectStaffHistorySearchDirs(indexPath),
-    skipCurrentSeasonIndex: opts?.skipCurrentSeasonIndex,
   })
 }
 
-/** Lazy injury index — built on first use so load never blocks on injury_history.tmp. */
-function injuryByStaffIdForLoaded(): Map<number, InjurySummary> {
-  if (!loaded) return new Map()
-  if (loaded.db.injuryByStaffId) return loaded.db.injuryByStaffId
-  try {
-    loaded.db.injuryByStaffId = buildInjuryByStaffIdMap(loaded.archiveBuf)
-  } catch {
-    loaded.db.injuryByStaffId = new Map()
-  }
-  return loaded.db.injuryByStaffId
-}
-
-/**
- * Parse the file the user picked; if it yields zero playable rows, try sibling .sav / index.dat
- * (CM often updates one file but the user opens the other).
- */
+/** Parse save bytes — prefer newest sibling so player data matches what CM last wrote. */
 function loadArchiveForPath(
   selectedPath: string,
   opts?: { skipCurrentSeasonIndex?: boolean },
-): {
-  db: ParsedDatabase
-  archiveBuf: Buffer
-  archiveReadPath: string
-  rows: UiPlayerRow[]
-  siblingFallbackPath?: string
-} {
-  const tryCandidate = (path: string, buf: Buffer): { db: ParsedDatabase; rows: UiPlayerRow[] } | null => {
-    try {
-      const db = parseArchiveBuffer(buf, path, opts)
-      return { db, rows: buildUiRows(db) }
-    } catch {
-      return null
-    }
+): { db: ParsedDatabase; archiveBuf: Buffer; archiveReadPath: string } {
+  const archiveReadPath = pickNewestArchivePath(selectedPath)
+  const archiveBuf = readFileSync(archiveReadPath)
+  const historyDirs = collectStaffHistorySearchDirs(selectedPath)
+  const parseOpts = {
+    staffHistorySearchDirs: historyDirs,
+    skipCurrentSeasonIndex: opts?.skipCurrentSeasonIndex,
   }
-
-  const { buffer: primaryBuf, readPath: primaryPath } = readArchiveFromDisk(selectedPath)
-  let best = tryCandidate(primaryPath, primaryBuf)
-  let archiveBuf = primaryBuf
-  let archiveReadPath = primaryPath
-  let siblingFallbackPath: string | undefined
-
-  if (!best) {
+  try {
+    return { db: parseIndexDat(archiveBuf, parseOpts), archiveBuf, archiveReadPath }
+  } catch (e) {
     const lower = basename(selectedPath).toLowerCase()
     if (lower.endsWith('.sav')) {
       const alt = join(dirname(selectedPath), 'index.dat')
       if (existsSync(alt)) {
         const altBuf = readFileSync(alt)
-        const altTry = tryCandidate(alt, altBuf)
-        if (altTry) {
-          best = altTry
-          archiveBuf = altBuf
-          archiveReadPath = alt
-          siblingFallbackPath = alt
+        return {
+          db: parseIndexDat(altBuf, {
+            staffHistorySearchDirs: collectStaffHistorySearchDirs(alt),
+            skipCurrentSeasonIndex: opts?.skipCurrentSeasonIndex,
+          }),
+          archiveBuf: altBuf,
+          archiveReadPath: alt,
         }
       }
     }
-    if (!best) {
-      throw new Error(`Could not parse ${basename(selectedPath)} or a sibling index.dat.`)
-    }
+    throw e
   }
-
-  if (best.rows.length === 0) {
-    for (const altPath of listArchiveSiblingPaths(selectedPath)) {
-      if (altPath === archiveReadPath) continue
-      if (!existsSync(altPath)) continue
-      const altBuf = readFileSync(altPath)
-      const altTry = tryCandidate(altPath, altBuf)
-      if (altTry && altTry.rows.length > best.rows.length) {
-        best = altTry
-        archiveBuf = altBuf
-        archiveReadPath = altPath
-        siblingFallbackPath = altPath
-      }
-    }
-  }
-
-  return { db: best.db, archiveBuf, archiveReadPath, rows: best.rows, siblingFallbackPath }
 }
 
 function emitLoadProgress(sender: WebContents, p: DatabaseLoadProgress): void {
@@ -452,19 +388,19 @@ ipcMain.handle('open-database', async (event) => {
       message: 'Parsing save file…',
       progress: 0.2,
     })
-    const {
-      db,
-      archiveBuf,
-      archiveReadPath,
-      rows,
-      siblingFallbackPath,
-    } = loadArchiveForPath(indexPath, { skipCurrentSeasonIndex: true })
+    const { db, archiveBuf, archiveReadPath } = loadArchiveForPath(indexPath, { skipCurrentSeasonIndex: true })
     const archiveSiblingWarning = archiveSiblingsLookOutOfSync(indexPath)
     emitLoadProgress(sender, {
       phase: 'parse',
       message: 'Parsed players, clubs, contracts, and stats blocks…',
       progress: 0.38,
     })
+    emitLoadProgress(sender, {
+      phase: 'rows',
+      message: 'Building searchable player rows…',
+      progress: 0.48,
+    })
+    const rows = buildUiRows(db)
     emitLoadProgress(sender, {
       phase: 'ratings',
       message: 'Computing CM Scout % and effectiveness…',
@@ -516,24 +452,11 @@ ipcMain.handle('open-database', async (event) => {
     }
     emitLoadProgress(sender, { phase: 'done', message: 'Load complete.', progress: 1 })
     loaded = { db, rows, indexPath, pathKey, archiveBuf }
-    loaded.db.injuryByStaffId = undefined
-    const siblingLoadNote =
-      siblingFallbackPath && siblingFallbackPath !== indexPath
-        ? `Opened ${basename(indexPath)} had no playable players; loaded data from ${basename(siblingFallbackPath)} instead.`
-        : undefined
     return {
       ok: true as const,
       path: indexPath,
-      archiveReadPath:
-        archiveReadPath !== indexPath
-          ? archiveReadPath
-          : siblingFallbackPath && siblingFallbackPath !== indexPath
-            ? siblingFallbackPath
-            : undefined,
-      archiveSiblingWarning:
-        [siblingLoadNote, archiveSiblingWarning ? ARCHIVE_SIBLING_SYNC_WARNING : undefined]
-          .filter(Boolean)
-          .join(' ') || undefined,
+      archiveReadPath: archiveReadPath !== indexPath ? archiveReadPath : undefined,
+      archiveSiblingWarning: archiveSiblingWarning ? ARCHIVE_SIBLING_SYNC_WARNING : undefined,
       compressed: db.compressed,
       gameDate: db.gameDateIso,
       playerCount: rows.length,
@@ -601,11 +524,7 @@ ipcMain.handle('get-rows', async (_e, payload: unknown) => {
   filter.positionSides = parsePositionSideFilterIds(raw.positionSides)
 
   const gameDateIso = loaded.db.gameDateIso ?? null
-  const injuryMap = filter.injuredOnly === true ? injuryByStaffIdForLoaded() : loaded.db.injuryByStaffId
-  const rows = filterUiPlayerRows(allRowsForGrid(), filter, {
-    gameDateIso,
-    injuryByStaffId: injuryMap,
-  })
+  const rows = filterUiPlayerRows(allRowsForGrid(), filter, { gameDateIso })
   const total = rows.length
   const page = limit === undefined ? rows : rows.slice(offset, offset + limit)
   const mapped = page.map((r) => mapUiRowToGridPayload(r, gridInclude))
@@ -795,7 +714,6 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
         savePerformancePerCompByPlayerDatId: loaded.db.savePerformancePerCompByPlayerDatId,
         savePerformanceByPlayerDatId: loaded.db.savePerformanceByPlayerDatId,
         currentSeasonByPlayerDatId: loaded.db.currentSeasonByPlayerDatId,
-        injuryByStaffId: injuryByStaffIdForLoaded(),
       }),
       isDemo: false as const,
     }

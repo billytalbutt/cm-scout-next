@@ -20,19 +20,6 @@ export function fmtContractMoney(n: number) {
   return fmtMoney(n)
 }
 
-export function ProfileInjuryLine({ injury }: { injury: { typeId: number; label: string } }) {
-  const injured = injury.typeId > 0
-  return (
-    <p className={`mt-1 text-xs ${injured ? 'text-rose-300/95' : 'text-zinc-500'}`}>
-      Injury:{' '}
-      <span className={injured ? 'font-medium text-rose-200/95' : 'text-zinc-400'}>{injury.label}</span>
-      {injured ? (
-        <span className="ml-1.5 font-mono text-[10px] text-zinc-600">type {injury.typeId}</span>
-      ) : null}
-    </p>
-  )
-}
-
 export function playerInstructionAdvice(tier: 'strong' | 'ok' | 'avoid'): string {
   if (tier === 'strong') return 'Yes'
   if (tier === 'ok') return 'Yes (borderline)'

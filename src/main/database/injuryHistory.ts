@@ -87,33 +87,3 @@ export function readPlayerInjuryFromArchive(
   return readInjuryStateFromHistoryBuf(historyBuf, staffId)
 }
 
-export type InjurySummary = {
-  typeId: number
-  label: string
-}
-
-/**
- * Index staff injury slots in one O(n) pass (row index usually equals staff id).
- * Do not call `findInjuryRowOffset` per row — that was O(n²) and froze load on large saves.
- */
-export function buildInjuryByStaffIdMap(archiveBuffer: Buffer): Map<number, InjurySummary> {
-  const m = new Map<number, InjurySummary>()
-  const historyBuf = readArchiveBlock(archiveBuffer, 'injury_history.tmp')
-  if (!historyBuf) return m
-  const n = Math.floor(historyBuf.length / INJURY_HISTORY_ROW_BYTES)
-  for (let i = 0; i < n; i++) {
-    const o = i * INJURY_HISTORY_ROW_BYTES
-    const staffId = historyBuf.readInt32LE(o)
-    if (staffId <= 0) continue
-    const typeId = historyBuf.readInt32LE(o + INJURY_HISTORY_TYPE_OFF)
-    const direct = staffId * INJURY_HISTORY_ROW_BYTES
-    const isCanonical =
-      o === direct &&
-      direct + INJURY_HISTORY_ROW_BYTES <= historyBuf.length &&
-      historyBuf.readInt32LE(direct) === staffId
-    if (!m.has(staffId) || isCanonical) {
-      m.set(staffId, { typeId, label: injuryTypeLabel(typeId) })
-    }
-  }
-  return m
-}

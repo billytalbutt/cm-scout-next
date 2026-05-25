@@ -4,8 +4,6 @@ import type { CompetitionNamesById } from './competitionNames'
 import type { ClubCompRecord, StaffCompRecord } from './clubComp'
 import type { StaffCompHistoryRecord } from './staffCompHistory'
 import type { TacticsIndexMeta } from './tacticsDat'
-import type { InjurySummary } from './injuryHistory'
-
 export interface BlockInfo {
   position: number
   size: number
@@ -302,8 +300,6 @@ export interface ParsedDatabase {
   stadiumsById?: Map<number, StadiumRecord>
   /** Optional parsed `tactics.dat` index (row size inferred). */
   tacticsIndex?: TacticsIndexMeta
-  /** Active injury slot per `staff.dat` id from `injury_history.tmp`. */
-  injuryByStaffId?: Map<number, InjurySummary>
 }
 
 export interface UiPlayerRow {

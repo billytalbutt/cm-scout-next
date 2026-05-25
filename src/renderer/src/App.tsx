@@ -58,7 +58,7 @@ import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrCo
 import { applyProfileHighlightPack, highlightPackForRole } from './profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
 import { formatIsoDateUk } from '../../shared/dateDisplay'
-import { InstructionHintRow, ProfileInjuryLine, ProfileNationBlock } from './profile/profileUi'
+import { InstructionHintRow, ProfileNationBlock } from './profile/profileUi'
 import { EffectivenessRecipeBreakdown } from './profile/EffectivenessRecipeBreakdown'
 import { RolePercentMiniCell } from './profile/RolePercentMiniCell'
 import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
@@ -527,7 +527,6 @@ export function App() {
   const [positionFilterSides, setPositionFilterSides] = useState<PositionSideFilterId[]>([])
   const [regenBaselineSaving, setRegenBaselineSaving] = useState(false)
   const [regenOnly, setRegenOnly] = useState(false)
-  const [injuredOnly, setInjuredOnly] = useState(false)
   const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
   const [showEngineAttrs, setShowEngineAttrs] = useState(() => {
     try {
@@ -586,7 +585,6 @@ export function App() {
     setStaffAttrMins(Array.from({ length: STAFF_ATTR_FILTER_COUNT }, () => ''))
     setStaffAttrMinMatchAtLeast('')
     setRegenOnly(false)
-    setInjuredOnly(false)
     setCmScoutMin('')
     setCmScoutMax('')
     setEffMin('')
@@ -806,7 +804,6 @@ export function App() {
     } else if (regenOnly) {
       f.isRegenLikely = true
     }
-    if (injuredOnly) f.injuredOnly = true
     if (engineSniffer !== 'off') f.engineSniffer = engineSniffer
     if (positionFilterRoles.length) f.positionRoles = positionFilterRoles
     if (positionFilterSides.length) f.positionSides = positionFilterSides
@@ -893,7 +890,6 @@ export function App() {
       setRows([])
       if (loadInfo && loadInfo.playerCount > 0 && total === 0) {
         const hasFilters =
-          injuredOnly ||
           regenOnly ||
           browseTab === 'regens' ||
           committedText.q.trim() !== '' ||
@@ -980,7 +976,6 @@ export function App() {
     gridInclude,
     browseTab,
     regenOnly,
-    injuredOnly,
     engineSniffer,
     positionFilterRoles,
     positionFilterSides,
@@ -1778,24 +1773,6 @@ export function App() {
                 ))}
               </select>
             </label>
-            <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
-              <span className="text-xs font-medium text-zinc-400">Availability</span>
-              <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                <input
-                  type="checkbox"
-                  checked={injuredOnly}
-                  disabled={
-                    browseTab === 'staff' ||
-                    browseTab === 'clubs' ||
-                    browseTab === 'tactics' ||
-                    browseTab === 'editor' ||
-                    browseTab === 'shortlists'
-                  }
-                  onChange={(e) => setInjuredOnly(e.target.checked)}
-                />
-                Injured only
-              </label>
-            </div>
             <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
               <span className="text-xs font-medium text-zinc-400">Transfer / loan</span>
               <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
@@ -2677,7 +2654,6 @@ export function App() {
                 <p className="mt-1 text-sm font-medium text-emerald-200/90">{profile.positionLabel}</p>
                 <ProfileNationBlock nationDisplay={profile.nationDisplay} euPassport={profile.euPassport} />
                 <p className="mt-0.5 text-xs text-zinc-500">{profile.club}</p>
-                {profile.injury && <ProfileInjuryLine injury={profile.injury} />}
                 {(profile.age != null || profile.dobIso) && (
                   <p className="mt-1 text-xs text-zinc-500">
                     {profile.age != null && (

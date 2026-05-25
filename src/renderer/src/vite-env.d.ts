@@ -309,8 +309,6 @@ export interface ProfilePayload {
   secondNation: string
   nationDisplay: string
   club: string
-  /** Active injury from `injury_history.tmp` (type 0 = fit). */
-  injury: { typeId: number; label: string }
   /** Whole years on loaded game date when derivable (see `buildUiRows`). */
   age: number | null
   dobIso: string | null
