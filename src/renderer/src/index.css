@@ -27,6 +27,11 @@
   .filter-section-heading {
     @apply text-[10px] font-semibold uppercase tracking-wider text-zinc-500;
   }
+
+  /** Selected row in player / staff / regens browse tables — zinc slate, not green. */
+  .browse-list-row-selected {
+    @apply bg-zinc-700/55 shadow-[inset_3px_0_0_rgb(161_161_170)] hover:bg-zinc-600/50;
+  }
 }
 
 :root {

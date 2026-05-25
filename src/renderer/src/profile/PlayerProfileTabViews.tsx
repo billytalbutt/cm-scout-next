@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { formatIsoDateUk } from '../../../shared/dateDisplay'
-import { EliteEngineStar } from '../grid/EliteEngineStar'
 import type { ProfilePayload } from '../vite-env.d'
 import { applyProfileHighlightPack, highlightPackForRole } from '../profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './NaturalRoleHighlightPicker'
@@ -13,7 +12,7 @@ import {
   InfoDot,
   InstructionHintRow,
   ProfileAttrColumn,
-  ProfileNationBlock,
+  ProfilePlayerIdentity,
   type ProfileTabId,
 } from './profileUi'
 
@@ -208,15 +207,7 @@ export function PlayerProfileTabViews({
 export function PlayerProfileHeader({ profile }: { profile: ProfilePayload }) {
   return (
     <div className="border-b border-zinc-800/80 pb-3">
-      <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-white">
-        {profile.eliteEngineBadgeKind && profile.eliteEngineBadgeTitle && (
-          <EliteEngineStar title={profile.eliteEngineBadgeTitle} detail={profile.eliteEngineBadgeDetail ?? ''} />
-        )}
-        <span>{profile.name}</span>
-      </h2>
-      <p className="mt-1 text-sm text-emerald-200/90">{profile.positionLabel}</p>
-      <ProfileNationBlock nationDisplay={profile.nationDisplay} euPassport={profile.euPassport} />
-      <p className="text-xs text-zinc-500">{profile.club}</p>
+      <ProfilePlayerIdentity profile={profile} compact />
       <p className="mt-2 text-sm">
         <span className="text-zinc-500">CA</span>{' '}
         <span className="font-mono text-emerald-300">{profile.ca}</span>

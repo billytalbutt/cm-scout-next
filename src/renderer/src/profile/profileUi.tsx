@@ -7,6 +7,7 @@ import {
   profileAttrHighlightClass,
   ProfileAttrColumn,
 } from '../ProfileAttrBlocks'
+import { EliteEngineStar } from '../grid/EliteEngineStar'
 import type { ProfilePayload } from '../vite-env.d'
 
 export function fmtMoney(n: number) {
@@ -78,6 +79,50 @@ export function FlagEmoji({
     >
       {emoji}
     </span>
+  )
+}
+
+/** Name, club, position, nation, and EU passport — shared by main pane and pop-out profile. */
+export function ProfilePlayerIdentity({
+  profile,
+  compact = false,
+}: {
+  profile: ProfilePayload
+  /** Slightly smaller type in the profile pop-out window. */
+  compact?: boolean
+}) {
+  const club = profile.club?.trim()
+  return (
+    <>
+      <h2
+        className={`flex flex-wrap items-center gap-2 font-semibold tracking-tight text-white ${
+          compact ? 'text-lg' : 'text-xl'
+        }`}
+      >
+        {profile.eliteEngineBadgeKind && profile.eliteEngineBadgeTitle && (
+          <EliteEngineStar
+            title={profile.eliteEngineBadgeTitle}
+            detail={profile.eliteEngineBadgeDetail ?? ''}
+          />
+        )}
+        <span>{profile.name}</span>
+      </h2>
+      {club ? (
+        <p
+          className={`mt-1.5 font-semibold leading-snug text-zinc-50 ${
+            compact ? 'text-sm' : 'text-base'
+          }`}
+        >
+          {club}
+        </p>
+      ) : null}
+      <p
+        className={`text-sm font-medium text-emerald-200/90 ${club ? 'mt-1' : 'mt-1.5'}`}
+      >
+        {profile.positionLabel}
+      </p>
+      <ProfileNationBlock nationDisplay={profile.nationDisplay} euPassport={profile.euPassport} />
+    </>
   )
 }
 

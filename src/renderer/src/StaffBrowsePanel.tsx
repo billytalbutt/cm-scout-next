@@ -269,8 +269,10 @@ export function StaffBrowsePanel({
                   onSelectStaff(r.staffIndex)
                 }
               }}
-              className={`cursor-pointer border-b border-zinc-800/60 hover:bg-zinc-800/30 ${
-                selectedStaffIndex === r.staffIndex ? 'bg-emerald-950/25' : ''
+              className={`cursor-pointer border-b border-zinc-800/60 ${
+                selectedStaffIndex === r.staffIndex
+                  ? 'browse-list-row-selected'
+                  : 'hover:bg-zinc-800/30'
               }`}
             >
               <td className="px-2 py-1.5 font-mono text-emerald-200/90" title={r.scoreDetail}>

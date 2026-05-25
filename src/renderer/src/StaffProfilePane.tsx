@@ -118,9 +118,8 @@ export function StaffProfilePane({
             </p>
           )
         })()}
+        {actions ? <div className="mt-2.5 flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
-
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
 
       {p.coachPreferences && (
         <div>

@@ -13,7 +13,6 @@ import type { DatabaseLoadProgress } from '../../shared/loadProgress'
 import { DatabaseLoadOverlay } from './DatabaseLoadOverlay'
 import { gridFlagsForVisibleColumnIds, GRID_DEFAULT_COLUMN_ORDER, sanitizeGridColumnOrder } from '../../shared/gridColumnCatalog'
 import { buildGridColumns, createGridColumnHelper } from './grid/gridColumns'
-import { EliteEngineStar } from './grid/EliteEngineStar'
 import { GridColumnPickerModal } from './grid/GridColumnPickerModal'
 import { loadGridColumnOrder, saveGridColumnOrder } from './grid/gridPersistence'
 import { cm0102FootWord, cm0102MoraleWord } from '../../shared/cm0102Bands'
@@ -58,7 +57,7 @@ import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrCo
 import { applyProfileHighlightPack, highlightPackForRole } from './profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
 import { formatIsoDateUk } from '../../shared/dateDisplay'
-import { InstructionHintRow, ProfileNationBlock } from './profile/profileUi'
+import { InstructionHintRow, ProfilePlayerIdentity } from './profile/profileUi'
 import { EffectivenessRecipeBreakdown } from './profile/EffectivenessRecipeBreakdown'
 import { RolePercentMiniCell } from './profile/RolePercentMiniCell'
 import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
@@ -2547,8 +2546,10 @@ export function App() {
                           },
                         })
                       }}
-                      className={`cursor-pointer select-none border-b border-zinc-800/50 hover:bg-zinc-800/40 ${
-                        sel === row.original.staffIndex ? 'bg-emerald-950/35' : ''
+                      className={`cursor-pointer select-none border-b border-zinc-800/50 ${
+                        sel === row.original.staffIndex
+                          ? 'browse-list-row-selected'
+                          : 'hover:bg-zinc-800/40'
                       }`}
                     >
                       {row.getVisibleCells().map((cell) => (
@@ -2680,18 +2681,7 @@ export function App() {
           {profile && !profileLoading && (
             <div className="space-y-4">
               <div className="profile-pane-sticky">
-                <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-white">
-                  {profile.eliteEngineBadgeKind && profile.eliteEngineBadgeTitle && (
-                    <EliteEngineStar
-                      title={profile.eliteEngineBadgeTitle}
-                      detail={profile.eliteEngineBadgeDetail ?? ''}
-                    />
-                  )}
-                  <span>{profile.name}</span>
-                </h2>
-                <p className="mt-1 text-sm font-medium text-emerald-200/90">{profile.positionLabel}</p>
-                <ProfileNationBlock nationDisplay={profile.nationDisplay} euPassport={profile.euPassport} />
-                <p className="mt-0.5 text-xs text-zinc-500">{profile.club}</p>
+                <ProfilePlayerIdentity profile={profile} />
                 {(profile.age != null || profile.dobIso) && (
                   <p className="mt-1 text-xs text-zinc-500">
                     {profile.age != null && (
@@ -2740,44 +2730,43 @@ export function App() {
                   <span className="text-zinc-600">world</span>{' '}
                   <span className="font-mono text-zinc-200">{profile.reputation.world.toLocaleString()}</span>
                 </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {sel != null && (
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  {sel != null && (
+                    <button
+                      type="button"
+                      title="Open this profile in a separate window (Attributes / Hidden / Other tabs)"
+                      onClick={() => void window.cmapi?.openProfileWindow({ staffIndex: sel, kind: 'player' })}
+                      className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60"
+                    >
+                      Pop out
+                    </button>
+                  )}
+                  {sel != null && loadInfo && (
+                    <AddToShortlistButton
+                      kind="players"
+                      variant="toolbar"
+                      target={{
+                        staffIndex: sel,
+                        staffId: rows.find((r) => r.staffIndex === sel)?.staffId ?? 0,
+                        name: profile.name,
+                      }}
+                      shortlists={shortlists}
+                      disabled={!rows.find((r) => r.staffIndex === sel)?.staffId}
+                    />
+                  )}
                   <button
                     type="button"
-                    title="Open this profile in a separate window (Attributes / Hidden / Other tabs)"
-                    onClick={() => void window.cmapi?.openProfileWindow({ staffIndex: sel, kind: 'player' })}
-                    className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60"
+                    disabled={sel == null || !loadInfo || loadInfo.compressed}
+                    onClick={() => void copyPlayerAttributes()}
+                    className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Pop out
+                    Copy attributes
                   </button>
-                )}
-                {sel != null && loadInfo && (
-                  <AddToShortlistButton
-                    kind="players"
-                    variant="toolbar"
-                    target={{
-                      staffIndex: sel,
-                      staffId: rows.find((r) => r.staffIndex === sel)?.staffId ?? 0,
-                      name: profile.name,
-                    }}
-                    shortlists={shortlists}
-                    disabled={!rows.find((r) => r.staffIndex === sel)?.staffId}
-                  />
-                )}
-                <button
-                  type="button"
-                  disabled={sel == null || !loadInfo || loadInfo.compressed}
-                  onClick={() => void copyPlayerAttributes()}
-                  className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Copy attributes
-                </button>
-                {copyAttrsMsg && <span className="text-[11px] text-emerald-300/90">{copyAttrsMsg}</span>}
-                {loadInfo?.compressed && (
-                  <span className="text-[10px] text-zinc-500">Editor copy needs an uncompressed save.</span>
-                )}
+                  {copyAttrsMsg && <span className="text-[11px] text-emerald-300/90">{copyAttrsMsg}</span>}
+                  {loadInfo?.compressed && (
+                    <span className="text-[10px] text-zinc-500">Editor copy needs an uncompressed save.</span>
+                  )}
+                </div>
               </div>
 
               {profile.regen?.isLikely && (
