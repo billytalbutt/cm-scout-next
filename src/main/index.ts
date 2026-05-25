@@ -52,9 +52,9 @@ import {
 import type { ContractTypeCategoryId } from '../shared/contractTypes'
 import { buildStaffProfilePayload } from './staffProfilePayload'
 import { verifyClubCashOnArchive } from './database/clubCashPatch'
+import { refreshClubCashFromArchive } from './database/clubRecords'
 import {
   archiveSiblingsLookOutOfSync,
-  pickNewestArchivePath,
   readArchiveFromDisk,
   refreshArchiveBufferFromDisk,
   writeArchiveToDiskSiblings,
@@ -85,12 +85,13 @@ let loaded: {
   archiveBuf: Buffer
 } | null = null
 
-/** Re-read the newest .sav / index.dat sibling so club cash matches what CM last wrote. */
+/** Re-read the loaded .sav path and refresh club bank balances from club.dat on disk. */
 function syncLoadedArchiveFromDisk(): void {
   if (!loaded) return
   try {
     const fresh = refreshArchiveBufferFromDisk(loaded.indexPath)
     loaded.archiveBuf = fresh.buffer
+    refreshClubCashFromArchive(loaded.archiveBuf, loaded.db.clubsById)
   } catch {
     /* keep in-memory buffer if disk read fails */
   }
@@ -891,7 +892,7 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
       const applied = applyClubEditsToLoadedArchive(clubId, values)
       if (!applied.ok) return { ok: false as const, error: applied.error }
       const writtenPaths = writeArchiveToDiskSiblings(loaded.indexPath, applied.buffer)
-      const verifyPath = pickNewestArchivePath(loaded.indexPath)
+      const verifyPath = loaded.indexPath
       const fromDisk = readFileSync(verifyPath)
       if (values.cash !== undefined && Number.isFinite(values.cash)) {
         const verified = verifyClubCashOnArchive(fromDisk, loaded.db.blocks, clubId, values.cash)

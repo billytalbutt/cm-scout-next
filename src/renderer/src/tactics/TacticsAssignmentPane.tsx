@@ -258,7 +258,7 @@ export function TacticsAssignmentPane({
     onReplaceAssignments(next)
   }, [clubOnlyReady, squadRows, pitchSlots, onReplaceAssignments])
 
-  const handleWorld11 = useCallback(async () => {
+  const handleWorldXi = useCallback(async () => {
     if (!loadInfo || typeof window.cmapi?.pickWorldXi !== 'function') return
     setWorldPickBusy(true)
     setWorldPickMsg(null)
@@ -266,7 +266,7 @@ export function TacticsAssignmentPane({
       const out = await window.cmapi.pickWorldXi(pitchSlots)
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'assignments' in out) {
         onReplaceAssignments(out.assignments as Partial<Record<string, TacticsPlayerAssignment | null>>)
-        setWorldPickMsg(`World 11 — ${out.filled} positions filled from the entire save.`)
+        setWorldPickMsg(`World XI — ${out.filled} positions filled from the entire save.`)
       } else if (out && typeof out === 'object' && 'error' in out) {
         setWorldPickMsg(String((out as { error: string }).error))
       }
@@ -283,7 +283,7 @@ export function TacticsAssignmentPane({
         <h2 className="text-sm font-semibold text-zinc-200">Line-up</h2>
         <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
           Assign players by position. Club squad picks from your selected team;{' '}
-          <span className="text-zinc-400">World 11</span> fills the tactic with the best player in each slot from the
+          <span className="text-zinc-400">World XI</span> fills the tactic with the best player in each slot from the
           entire save.
         </p>
       </div>
@@ -324,13 +324,13 @@ export function TacticsAssignmentPane({
             <button
               type="button"
               title="Best CM Scout role % per slot across every club in the loaded save"
-              className={`min-w-0 rounded-lg border border-sky-800/60 bg-sky-950/40 px-3 py-2 text-xs font-medium text-sky-100/95 transition hover:bg-sky-900/50 disabled:cursor-not-allowed disabled:opacity-40 ${
+              className={`min-w-0 rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 ${
                 clubSquadOnly && seedClubId != null ? 'flex-1' : 'w-full sm:flex-1'
               }`}
               disabled={worldPickBusy || pitchSlots.length === 0}
-              onClick={() => void handleWorld11()}
+              onClick={() => void handleWorldXi()}
             >
-              {worldPickBusy ? 'Building World 11…' : 'World 11'}
+              {worldPickBusy ? 'Building World XI…' : 'World XI'}
             </button>
             <button
               type="button"

@@ -2936,7 +2936,6 @@ export function App() {
                         {(() => {
                           const percents = profile.cmScoutRolePercents!
                           const tierByRole = cmScoutRoleValueTierByRole(percents)
-                          const multipleNaturalRoles = (profile.effByArchetype?.length ?? 0) > 1
                           return CM_SCOUT_ROLE_PROFILE_UI_ORDER.map((roleIdx) => {
                             const lab = CM_SCOUT_ROLE_SHORT[roleIdx]!
                             const pct = percents[roleIdx]!
@@ -2948,7 +2947,6 @@ export function App() {
                                 percent={`${pct}%`}
                                 tier={tier}
                                 selected={profileHighlightRoleIdx === roleIdx}
-                                showSelectedOutline={multipleNaturalRoles}
                                 title={`Highlight attributes for ${lab}`}
                                 onClick={() => setProfileHighlightRoleIdx(roleIdx)}
                               />

@@ -27,7 +27,7 @@ describe('archiveSync', () => {
     }
   })
 
-  it('reads the newest sibling by mtime', () => {
+  it('pickNewestArchivePath chooses newest sibling by mtime', () => {
     const dir = mkdtempSync(join(tmpdir(), 'cm-archive-sync-'))
     try {
       const sav = join(dir, 'test.sav')
@@ -40,9 +40,28 @@ describe('archiveSync', () => {
       utimesSync(sav, past, past)
       utimesSync(idx, future, future)
 
-      const picked = pickNewestArchivePath(sav)
-      const { buffer } = readArchiveFromDisk(sav)
-      expect([picked, buffer.toString()]).toEqual([idx, 'newer'])
+      expect(pickNewestArchivePath(sav)).toBe(idx)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('readArchiveFromDisk reads the path you pass even if a sibling is newer', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cm-archive-sync-'))
+    try {
+      const sav = join(dir, 'test.sav')
+      const idx = join(dir, 'index.dat')
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(sav, Buffer.from('from-sav'))
+      writeFileSync(idx, Buffer.from('from-index'))
+      const past = new Date(Date.now() - 60_000)
+      const future = new Date(Date.now() + 60_000)
+      utimesSync(sav, past, past)
+      utimesSync(idx, future, future)
+
+      const { buffer, readPath } = readArchiveFromDisk(sav)
+      expect(readPath).toBe(sav)
+      expect(buffer.toString()).toBe('from-sav')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

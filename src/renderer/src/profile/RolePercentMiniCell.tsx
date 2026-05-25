@@ -5,8 +5,6 @@ type Props = {
   percent: string
   tier: 0 | 1 | 2 | undefined
   selected?: boolean
-  /** White outline when selected — only when the player has multiple natural roles to pick from. */
-  showSelectedOutline?: boolean
   onClick?: () => void
   title?: string
 }
@@ -17,18 +15,14 @@ export function RolePercentMiniCell({
   percent,
   tier,
   selected,
-  showSelectedOutline = false,
   onClick,
   title,
 }: Props) {
   const cellClass = cmScoutRoleTierCellClass(tier)
   const labelClass = cmScoutRoleTierLabelClass(tier)
-  const selectedClass =
-    selected && showSelectedOutline
-      ? 'ring-2 ring-white/90 ring-offset-1 ring-offset-zinc-950'
-      : selected
-        ? 'brightness-110'
-        : ''
+  const selectedClass = selected
+    ? 'ring-1 ring-white/80 ring-offset-1 ring-offset-zinc-950'
+    : ''
   const inner = (
     <>
       <div className={`truncate text-[8px] font-medium uppercase tracking-tight ${labelClass}`}>{label}</div>

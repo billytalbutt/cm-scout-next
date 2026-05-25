@@ -4,6 +4,7 @@
  */
 import { readCashDisplay } from '../../shared/cm2LongFormat'
 import { readLatin1String } from './cmBinaryReader'
+import { readArchiveBlock } from './parser'
 import type { ClubRecord } from './types'
 
 export const CLUB_ROW_BYTES = 581
@@ -70,4 +71,19 @@ export function parseClubRecords(data: Buffer): Map<number, ClubRecord> {
     })
   }
   return m
+}
+
+/** Re-read bank balance for every loaded club from the current in-memory archive buffer. */
+export function refreshClubCashFromArchive(
+  archiveBuffer: Buffer,
+  clubsById: Map<number, ClubRecord> | undefined,
+): void {
+  if (!clubsById?.size) return
+  const clubBuf = readArchiveBlock(archiveBuffer, 'club.dat')
+  if (!clubBuf) return
+  const parsed = parseClubRecords(clubBuf)
+  for (const [id, club] of clubsById) {
+    const fresh = parsed.get(id)
+    if (fresh != null) club.cash = fresh.cash
+  }
 }

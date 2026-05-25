@@ -60,14 +60,20 @@ export function archiveSiblingsLookOutOfSync(selectedPath: string): ArchiveSibli
   return null
 }
 
+/**
+ * Read the archive file the user chose (not a newer sibling). CM often updates the `.sav`
+ * while Merlin may have touched `index.dat` — using newest mtime caused stale bank balances.
+ */
 export function readArchiveFromDisk(selectedPath: string): {
   buffer: Buffer
   readPath: string
   mtimeMs: number
 } {
-  const readPath = pickNewestArchivePath(selectedPath)
-  const buffer = readFileSync(readPath)
-  return { buffer, readPath, mtimeMs: statSync(readPath).mtimeMs }
+  if (!existsSync(selectedPath)) {
+    throw new Error(`Save file not found: ${selectedPath}`)
+  }
+  const buffer = readFileSync(selectedPath)
+  return { buffer, readPath: selectedPath, mtimeMs: statSync(selectedPath).mtimeMs }
 }
 
 export function writeArchiveToDiskSiblings(selectedPath: string, buffer: Buffer): string[] {
@@ -79,7 +85,7 @@ export function writeArchiveToDiskSiblings(selectedPath: string, buffer: Buffer)
   return written
 }
 
-/** Reload the newest on-disk sibling into memory (keeps editor cash in sync with CM). */
+/** Reload the user-selected save path from disk (same path as load, not newest sibling). */
 export function refreshArchiveBufferFromDisk(selectedPath: string): {
   buffer: Buffer
   readPath: string

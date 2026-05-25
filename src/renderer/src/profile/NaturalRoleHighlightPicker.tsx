@@ -25,8 +25,6 @@ export function NaturalRoleHighlightPicker({ profile, activeRoleIdx, onSelectRol
   const colClass =
     rows.length >= 7 ? 'grid-cols-7' : rows.length >= 5 ? 'grid-cols-5' : 'grid-cols-4'
 
-  const multipleRoles = rows.length > 1
-
   return (
     <div>
       <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -44,7 +42,6 @@ export function NaturalRoleHighlightPicker({ profile, activeRoleIdx, onSelectRol
               percent={`${row.percent.toFixed(1)}%`}
               tier={tier}
               selected={activeRoleIdx === roleIdx}
-              showSelectedOutline={multipleRoles}
               title={`Highlight key attributes for ${row.archetypeLabel}`}
               onClick={() => onSelectRole(roleIdx)}
             />
