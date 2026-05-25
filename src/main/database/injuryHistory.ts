@@ -92,7 +92,10 @@ export type InjurySummary = {
   label: string
 }
 
-/** Index every staff row in `injury_history.tmp` (for grid filters and profiles). */
+/**
+ * Index staff injury slots in one O(n) pass (row index usually equals staff id).
+ * Do not call `findInjuryRowOffset` per row — that was O(n²) and froze load on large saves.
+ */
 export function buildInjuryByStaffIdMap(archiveBuffer: Buffer): Map<number, InjurySummary> {
   const m = new Map<number, InjurySummary>()
   const historyBuf = readArchiveBlock(archiveBuffer, 'injury_history.tmp')
@@ -101,10 +104,16 @@ export function buildInjuryByStaffIdMap(archiveBuffer: Buffer): Map<number, Inju
   for (let i = 0; i < n; i++) {
     const o = i * INJURY_HISTORY_ROW_BYTES
     const staffId = historyBuf.readInt32LE(o)
-    if (staffId <= 0 || m.has(staffId)) continue
-    if (findInjuryRowOffset(historyBuf, staffId) !== o) continue
+    if (staffId <= 0) continue
     const typeId = historyBuf.readInt32LE(o + INJURY_HISTORY_TYPE_OFF)
-    m.set(staffId, { typeId, label: injuryTypeLabel(typeId) })
+    const direct = staffId * INJURY_HISTORY_ROW_BYTES
+    const isCanonical =
+      o === direct &&
+      direct + INJURY_HISTORY_ROW_BYTES <= historyBuf.length &&
+      historyBuf.readInt32LE(direct) === staffId
+    if (!m.has(staffId) || isCanonical) {
+      m.set(staffId, { typeId, label: injuryTypeLabel(typeId) })
+    }
   }
   return m
 }

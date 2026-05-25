@@ -146,9 +146,15 @@ function createProfileWindow(kind: 'player' | 'staff', staffIndex: number): Brow
  */
 /** Re-parse `club.dat` / `stadium.dat` (etc.) after patching the in-memory archive. */
 function refreshLoadedDbFromArchive(indexPath: string, archiveBuf: Buffer): ParsedDatabase {
-  return parseIndexDat(archiveBuf, {
+  const db = parseIndexDat(archiveBuf, {
     staffHistorySearchDirs: collectStaffHistorySearchDirs(indexPath),
   })
+  try {
+    db.injuryByStaffId = buildInjuryByStaffIdMap(archiveBuf)
+  } catch {
+    db.injuryByStaffId = new Map()
+  }
+  return db
 }
 
 function loadArchiveForPath(
@@ -384,7 +390,6 @@ ipcMain.handle('open-database', async (event) => {
       progress: 0.06,
     })
     const { db, archiveBuf, archiveReadPath } = loadArchiveForPath(indexPath, { skipCurrentSeasonIndex: true })
-    db.injuryByStaffId = buildInjuryByStaffIdMap(archiveBuf)
     const archiveSiblingWarning = archiveSiblingsLookOutOfSync(indexPath)
     emitLoadProgress(sender, {
       phase: 'parse',
@@ -448,6 +453,16 @@ ipcMain.handle('open-database', async (event) => {
     }
     emitLoadProgress(sender, { phase: 'done', message: 'Load complete.', progress: 1 })
     loaded = { db, rows, indexPath, pathKey, archiveBuf }
+    loaded.db.injuryByStaffId = new Map()
+    const injuryBuf = archiveBuf
+    setImmediate(() => {
+      if (!loaded || loaded.archiveBuf !== injuryBuf) return
+      try {
+        loaded.db.injuryByStaffId = buildInjuryByStaffIdMap(injuryBuf)
+      } catch {
+        loaded.db.injuryByStaffId = new Map()
+      }
+    })
     return {
       ok: true as const,
       path: indexPath,
@@ -475,6 +490,9 @@ ipcMain.handle('open-database', async (event) => {
 })
 
 ipcMain.handle('get-rows', async (_e, payload: unknown) => {
+  if (!loaded) {
+    return { total: 0, rows: [], offset: 0, capped: false }
+  }
   const raw = { ...(payload as Record<string, unknown>) }
   const offset = Math.max(0, Math.floor(Number(raw.offset) || 0))
   const limitRaw = raw.limit
