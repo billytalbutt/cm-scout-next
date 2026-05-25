@@ -5,6 +5,7 @@ const SUGGEST_LIMIT = 40
 
 export function useClubBrowse(
   loadInfo: boolean,
+  savePath?: string | null,
   onClubSelectForTactics?: (clubId: number | null, clubName?: string | null) => void,
 ) {
   const [q, setQ] = useState('')
@@ -18,6 +19,19 @@ export function useClubBrowse(
   const [menuOpen, setMenuOpen] = useState(false)
   const seqRef = useRef(0)
   const blurCloseRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+
+  /** New save path — drop club selection so editor/detail refetch from disk. */
+  useEffect(() => {
+    setQ('')
+    setDebouncedQ('')
+    setLockedName(null)
+    setSelId(null)
+    setDetail(null)
+    setSuggestions([])
+    setErr(null)
+    setMenuOpen(false)
+    onClubSelectForTactics?.(null, null)
+  }, [savePath, onClubSelectForTactics])
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQ(q.trim()), 120)

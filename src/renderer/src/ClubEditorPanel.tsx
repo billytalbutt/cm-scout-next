@@ -100,7 +100,7 @@ export function ClubEditorPanel({
   databasePath?: string | null
   onSavedToPath?: (path: string) => void
 }) {
-  const clubBrowse = useClubBrowse(loadInfo)
+  const clubBrowse = useClubBrowse(loadInfo, databasePath)
   const clubId = clubBrowse.selId
 
   const [snap, setSnap] = useState<ClubEditorSnapshot | null>(null)
@@ -165,7 +165,7 @@ export function ClubEditorPanel({
     return () => {
       cancelled = true
     }
-  }, [loadInfo, compressed, clubId])
+  }, [loadInfo, compressed, clubId, databasePath])
 
   const onField = useCallback((key: string, v: string) => {
     setDraft((prev) => ({ ...prev, [key]: v }))

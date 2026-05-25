@@ -122,6 +122,14 @@ export function buildClubEditorSnapshot(
       : archiveBuffer.readInt32LE(bases.clubBase + CLUB_CASH_OFF)
   const cashDisplay = readCashDisplay(cashRaw)
   const values = readEditorValuesAt(archiveBuffer, bases.clubBase, bases.stadiumBase)
+  // Always trust decompressed club.dat for bank balance (never a stale in-archive slice).
+  if (clubBuf != null && clubRowIdx != null) {
+    const rowBase = clubRowIdx * CLUB_ROW_BYTES
+    for (const [key, meta] of Object.entries(CLUB_EDITOR_DISK_FIELDS)) {
+      if (meta.target !== 'club') continue
+      values[key] = readClubEditorDisplayAt(clubBuf, rowBase, meta)
+    }
+  }
   values.cash = cashDisplay
   return {
     clubId: club.id,

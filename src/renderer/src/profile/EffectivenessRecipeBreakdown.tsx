@@ -1,17 +1,28 @@
 import type { EffectivenessRunnerUp, EffectivenessWinnerDetail } from '../../../shared/effectivenessEngine'
+import { attrColor } from '../ProfileAttrBlocks'
 
-function StatValue({ raw, overflow }: { raw: number; overflow?: boolean }) {
+const INVERT_RECIPE_ATTRS = new Set(['injury_proneness', 'dirtiness'])
+
+type StatRow = {
+  key: string
+  label: string
+  raw: number
+  overflow?: boolean
+  invert?: boolean
+}
+
+function StatValue({ raw, overflow, invert }: { raw: number; overflow?: boolean; invert?: boolean }) {
   if (overflow) {
     return (
-      <span className="font-mono text-[11px] tabular-nums text-amber-300/95">
+      <span className={`font-mono text-[11px] tabular-nums font-bold text-amber-300/95`}>
         {raw}
-        <span className="ml-0.5 text-[10px] font-normal" aria-hidden>
+        <span className="ml-0.5 text-[10px] font-bold" aria-hidden>
           ↑
         </span>
       </span>
     )
   }
-  return <span className="font-mono text-[11px] tabular-nums text-zinc-100">{raw}</span>
+  return <span className={`font-mono text-[11px] tabular-nums ${attrColor(raw, invert)}`}>{raw}</span>
 }
 
 function StatTable({
@@ -21,7 +32,7 @@ function StatTable({
 }: {
   title: string
   weightHint: string
-  rows: { key: string; label: string; raw: number; overflow?: boolean }[]
+  rows: StatRow[]
 }) {
   if (rows.length === 0) return null
   return (
@@ -43,7 +54,7 @@ function StatTable({
               <tr key={l.key} className="border-b border-zinc-800/40 last:border-0 even:bg-zinc-900/25">
                 <td className="truncate px-2.5 py-1 text-zinc-300">{l.label}</td>
                 <td className="px-2 py-1 text-right">
-                  <StatValue raw={l.raw} overflow={l.overflow} />
+                  <StatValue raw={l.raw} overflow={l.overflow} invert={l.invert} />
                 </td>
               </tr>
             ))}
@@ -52,6 +63,21 @@ function StatTable({
       </div>
     </div>
   )
+}
+
+function mapStatLine(l: {
+  key: string
+  label: string
+  raw: number
+  overflow?: boolean
+}): StatRow {
+  return {
+    key: l.key,
+    label: l.label,
+    raw: l.raw,
+    overflow: l.overflow,
+    invert: INVERT_RECIPE_ATTRS.has(l.key),
+  }
 }
 
 /** Breakdown of the winning Eff % recipe (primary / secondary / engine). */
@@ -67,18 +93,9 @@ export function EffectivenessRecipeBreakdown({
   effPercent?: number | null
   suppressHeaderSummary?: boolean
 }) {
-  const primary = detail.lines
-    .filter((l) => l.slot === 'primary')
-    .map(({ key, label, raw, overflow }) => ({ key, label, raw, overflow }))
-  const secondary = detail.lines
-    .filter((l) => l.slot === 'secondary')
-    .map(({ key, label, raw, overflow }) => ({ key, label, raw, overflow }))
-  const engine = detail.engineLines.map(({ key, label, raw, overflow }) => ({
-    key,
-    label,
-    raw,
-    overflow,
-  }))
+  const primary = detail.lines.filter((l) => l.slot === 'primary').map(mapStatLine)
+  const secondary = detail.lines.filter((l) => l.slot === 'secondary').map(mapStatLine)
+  const engine = detail.engineLines.map(mapStatLine)
 
   return (
     <div className="space-y-3 rounded-lg border border-zinc-800/90 bg-zinc-950/55 p-3">

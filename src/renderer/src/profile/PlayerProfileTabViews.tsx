@@ -13,6 +13,7 @@ import {
   InfoDot,
   InstructionHintRow,
   ProfileAttrColumn,
+  ProfileInjuryLine,
   ProfileNationBlock,
   type ProfileTabId,
 } from './profileUi'
@@ -217,6 +218,7 @@ export function PlayerProfileHeader({ profile }: { profile: ProfilePayload }) {
       <p className="mt-1 text-sm text-emerald-200/90">{profile.positionLabel}</p>
       <ProfileNationBlock nationDisplay={profile.nationDisplay} euPassport={profile.euPassport} />
       <p className="text-xs text-zinc-500">{profile.club}</p>
+      {profile.injury && <ProfileInjuryLine injury={profile.injury} />}
       <p className="mt-2 text-sm">
         <span className="text-zinc-500">CA</span>{' '}
         <span className="font-mono text-emerald-300">{profile.ca}</span>

@@ -22,15 +22,12 @@ export function NaturalRoleHighlightPicker({ profile, activeRoleIdx, onSelectRol
     return cmScoutRoleValueTierByRole(percents)
   }, [rows])
 
-  const colClass =
-    rows.length >= 7 ? 'grid-cols-7' : rows.length >= 5 ? 'grid-cols-5' : 'grid-cols-4'
-
   return (
     <div>
       <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
         Eff % by recipe (natural roles)
       </p>
-      <div className={`mt-1 grid ${colClass} gap-1 text-center`}>
+      <div className="mt-1 grid grid-cols-7 gap-1 text-center">
         {rows.map((row, rowIndex) => {
           const roleIdx = cmScoutIndexFromEffectivenessArchetypeId(row.archetypeId)
           if (roleIdx == null) return null

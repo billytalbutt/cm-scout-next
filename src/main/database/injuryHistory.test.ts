@@ -5,6 +5,7 @@ import { readArchiveBlock } from './parser'
 import {
   INJURY_HISTORY_ROW_BYTES,
   INJURY_HISTORY_TYPE_OFF,
+  buildInjuryByStaffIdMap,
   readInjuryStateFromHistoryBuf,
   readPlayerInjuryFromArchive,
 } from './injuryHistory'
@@ -33,5 +34,9 @@ describe('injuryHistory', () => {
 
     const fromArchive = readPlayerInjuryFromArchive(file, 7)
     expect(fromArchive?.injuryTypeId).toBe(0)
+
+    const index = buildInjuryByStaffIdMap(file)
+    expect(index.get(1)?.typeId).toBe(staff1?.injuryTypeId)
+    expect(index.get(7)?.typeId).toBe(0)
   })
 })

@@ -86,3 +86,25 @@ export function readPlayerInjuryFromArchive(
   if (!historyBuf) return null
   return readInjuryStateFromHistoryBuf(historyBuf, staffId)
 }
+
+export type InjurySummary = {
+  typeId: number
+  label: string
+}
+
+/** Index every staff row in `injury_history.tmp` (for grid filters and profiles). */
+export function buildInjuryByStaffIdMap(archiveBuffer: Buffer): Map<number, InjurySummary> {
+  const m = new Map<number, InjurySummary>()
+  const historyBuf = readArchiveBlock(archiveBuffer, 'injury_history.tmp')
+  if (!historyBuf) return m
+  const n = Math.floor(historyBuf.length / INJURY_HISTORY_ROW_BYTES)
+  for (let i = 0; i < n; i++) {
+    const o = i * INJURY_HISTORY_ROW_BYTES
+    const staffId = historyBuf.readInt32LE(o)
+    if (staffId <= 0 || m.has(staffId)) continue
+    if (findInjuryRowOffset(historyBuf, staffId) !== o) continue
+    const typeId = historyBuf.readInt32LE(o + INJURY_HISTORY_TYPE_OFF)
+    m.set(staffId, { typeId, label: injuryTypeLabel(typeId) })
+  }
+  return m
+}

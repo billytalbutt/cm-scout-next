@@ -60,6 +60,7 @@ import {
   writeArchiveToDiskSiblings,
 } from './archiveSync'
 import {
+  buildInjuryByStaffIdMap,
   injuryTypeLabel,
   readPlayerInjuryFromArchive,
 } from './database/injuryHistory'
@@ -92,6 +93,7 @@ function syncLoadedArchiveFromDisk(): void {
     const fresh = refreshArchiveBufferFromDisk(loaded.indexPath)
     loaded.archiveBuf = fresh.buffer
     refreshClubCashFromArchive(loaded.archiveBuf, loaded.db.clubsById)
+    loaded.db.injuryByStaffId = buildInjuryByStaffIdMap(loaded.archiveBuf)
   } catch {
     /* keep in-memory buffer if disk read fails */
   }
@@ -382,6 +384,7 @@ ipcMain.handle('open-database', async (event) => {
       progress: 0.06,
     })
     const { db, archiveBuf, archiveReadPath } = loadArchiveForPath(indexPath, { skipCurrentSeasonIndex: true })
+    db.injuryByStaffId = buildInjuryByStaffIdMap(archiveBuf)
     const archiveSiblingWarning = archiveSiblingsLookOutOfSync(indexPath)
     emitLoadProgress(sender, {
       phase: 'parse',
@@ -450,7 +453,7 @@ ipcMain.handle('open-database', async (event) => {
       path: indexPath,
       archiveReadPath: archiveReadPath !== indexPath ? archiveReadPath : undefined,
       archiveSiblingWarning: archiveSiblingWarning
-        ? 'This folder has multiple save files (e.g. .sav and index.dat) that look out of sync. Merlin loaded the newest one; quit CM and avoid saving in-game until you finish editing here.'
+        ? 'This folder has multiple save files (e.g. Game.sav and index.dat) with different sizes or dates. Open the same file you Continue in CM; quit CM before saving here.'
         : undefined,
       compressed: db.compressed,
       gameDate: db.gameDateIso,
@@ -505,7 +508,10 @@ ipcMain.handle('get-rows', async (_e, payload: unknown) => {
   filter.positionSides = parsePositionSideFilterIds(raw.positionSides)
 
   const gameDateIso = loaded?.db.gameDateIso ?? null
-  const rows = filterUiPlayerRows(allRowsForGrid(), filter, { gameDateIso })
+  const rows = filterUiPlayerRows(allRowsForGrid(), filter, {
+    gameDateIso,
+    injuryByStaffId: loaded?.db.injuryByStaffId,
+  })
   const total = rows.length
   const page = limit === undefined ? rows : rows.slice(offset, offset + limit)
   const mapped = page.map((r) => mapUiRowToGridPayload(r, gridInclude))
@@ -690,6 +696,7 @@ ipcMain.handle('get-profile', async (_e, staffIndex: number) => {
         savePerformancePerCompByPlayerDatId: loaded.db.savePerformancePerCompByPlayerDatId,
         savePerformanceByPlayerDatId: loaded.db.savePerformanceByPlayerDatId,
         currentSeasonByPlayerDatId: loaded.db.currentSeasonByPlayerDatId,
+        injuryByStaffId: loaded.db.injuryByStaffId,
       }),
       isDemo: false as const,
     }
