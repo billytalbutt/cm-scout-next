@@ -43,6 +43,10 @@ declare global {
   interface Window {
     cmapi: {
       onDatabaseLoadProgress: (handler: (p: DatabaseLoadProgress) => void) => () => void
+      getDatabaseStatus: () => Promise<
+        | { loaded: false }
+        | { loaded: true; path: string; playableCount: number; staffDatRows: number }
+      >
       openDatabase: () => Promise<OpenResult>
       getRows: (filter: Record<string, unknown>) => Promise<{
         total: number

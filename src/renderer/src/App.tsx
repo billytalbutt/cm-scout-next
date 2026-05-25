@@ -586,6 +586,24 @@ export function App() {
     setStaffAttrMins(Array.from({ length: STAFF_ATTR_FILTER_COUNT }, () => ''))
     setStaffAttrMinMatchAtLeast('')
     setRegenOnly(false)
+    setInjuredOnly(false)
+    setCmScoutMin('')
+    setCmScoutMax('')
+    setEffMin('')
+    setEffMax('')
+    setCsGoalsMin('')
+    setCsGoalsMax('')
+    setCsAssistsMin('')
+    setCsAssistsMax('')
+    setCsAppsMin('')
+    setCsLeagueGoalsMin('')
+    setCsLeagueAssistsMin('')
+    setCsCompetitionId('')
+    setCsCompGoalsMin('')
+    setCsCompGoalsMax('')
+    setCsCompAssistsMin('')
+    setCsCompAssistsMax('')
+    setCsCompAppsMin('')
     setEngineSniffer('off')
     setPositionFilterRoles([])
     setPositionFilterSides([])
@@ -795,6 +813,18 @@ export function App() {
     f.gridInclude = gridInclude
     const ROWS_IPC_PAGE = 12000
     try {
+      if (loadInfo && typeof window.cmapi?.getDatabaseStatus === 'function') {
+        const st = await window.cmapi.getDatabaseStatus()
+        if (refreshSeq.current !== seq) return
+        if (!st.loaded) {
+          setErr(
+            'Save data is not in memory. Open your save again (the app may have restarted while this window stayed open).',
+          )
+          setRows([])
+          setGridMeta(null)
+          return
+        }
+      }
       if (typeof window.cmapi?.getRows !== 'function') {
         if (refreshSeq.current !== seq) return
         setErr('Open this app via the Electron window from npm run dev (not a browser tab).')
@@ -851,8 +881,8 @@ export function App() {
           if (chunk.length < ROWS_IPC_PAGE) break
         }
       }
-      setErr(null)
       if (list.length > 0) {
+        setErr(null)
         startTransition(() => {
           setRows(list)
           setGridMeta({ total })
@@ -861,6 +891,37 @@ export function App() {
       }
       setGridMeta({ total })
       setRows([])
+      if (loadInfo && loadInfo.playerCount > 0 && total === 0) {
+        const hasFilters =
+          injuredOnly ||
+          regenOnly ||
+          browseTab === 'regens' ||
+          committedText.q.trim() !== '' ||
+          committedText.nation.trim() !== '' ||
+          committedText.club.trim() !== '' ||
+          caMin !== '' ||
+          caMax !== '' ||
+          paMin !== '' ||
+          paMax !== '' ||
+          cmScoutMin !== '' ||
+          cmScoutMax !== '' ||
+          effMin !== '' ||
+          effMax !== '' ||
+          engineSniffer !== 'off' ||
+          positionFilterRoles.length > 0 ||
+          positionFilterSides.length > 0 ||
+          attrMins.some((s) => s.trim() !== '') ||
+          attrMinMatchAtLeast.trim() !== ''
+        if (!hasFilters) {
+          setErr(
+            `Loaded ${loadInfo.playerCount.toLocaleString()} players but the grid returned none. Open the save again or restart the app.`,
+          )
+        } else {
+          setErr(null)
+        }
+      } else {
+        setErr(null)
+      }
     } catch (e) {
       if (refreshSeq.current !== seq) return
       const msg = e instanceof Error ? e.message : String(e)
@@ -1053,7 +1114,8 @@ export function App() {
       setTacticsSeedClubId(null)
       setClubList(r.clubs)
       setNationList(r.nations ?? [])
-      setCommittedText({ q: '', nation: '', club: '' })
+      clearAllFilters()
+      setBrowseTab('players')
       setErr(null)
       setProfile(null)
       setStaffProfile(null)
@@ -1070,7 +1132,7 @@ export function App() {
       const wait = Math.max(0, minOverlayMs - (Date.now() - loadStartedAt))
       window.setTimeout(() => setLoadProgress(null), wait)
     }
-  }, [])
+  }, [clearAllFilters])
 
   const autoOpenDatabaseDone = useRef(false)
   useEffect(() => {

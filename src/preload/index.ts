@@ -9,6 +9,11 @@ contextBridge.exposeInMainWorld('cmapi', {
       ipcRenderer.removeListener('database-load-progress', listener)
     }
   },
+  getDatabaseStatus: () =>
+    ipcRenderer.invoke('get-database-status') as Promise<
+      | { loaded: false }
+      | { loaded: true; path: string; playableCount: number; staffDatRows: number }
+    >,
   openDatabase: () =>
     ipcRenderer.invoke('open-database') as Promise<
       | {
