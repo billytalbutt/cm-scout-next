@@ -1,5 +1,7 @@
 # `player stats.dat` — source-of-truth decoding spec
 
+See also **[cm_stats_extraction_spec.md](./cm_stats_extraction_spec.md)** for the handoff spec (grid offsets, history.tmp layout, award filtering).
+
 This document defines **what “correct” means**, how we get there from today’s **heuristic v1** decoder, and how **golden tests** lock behaviour so refactors do not silently regress.
 
 ## Current state (grid V0 + heuristic fallback)

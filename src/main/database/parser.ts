@@ -20,6 +20,7 @@ import {
 import {
   indexStaffCompHistoryFromPlayerStats,
   perCompRowsByPlayerDatId,
+  savePerformanceByPlayerDatIdFromStaffComp,
 } from './staffCompHistory'
 import { parseNonPlayerData } from './nonplayer'
 import { parseStadiumRecords } from './stadiumRecords'
@@ -520,8 +521,8 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     }
   }
   if (playerStatsBlock && playerStatsBlock.size > 0) {
-    // Default `summary`: Senior-club totals + single-pass per-competition grid index.
-    // `research` adds off-grid scans; `off` skips decode entirely.
+    // Default `summary`: grid V0 per-competition index + aggregated match-only totals.
+    // `legacy-summary` uses anchor scan (15-app cap); `research` adds off-grid scans; `off` skips decode.
     const statsEnv = process.env.CM_SCOUT_PLAYER_STATS_PARSE
     const statsParseMode =
       statsEnv === 'research'
@@ -530,13 +531,14 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
           ? 'heuristic'
           : statsEnv === 'off'
             ? 'off'
-            : 'summary'
+            : statsEnv === 'legacy-summary'
+              ? 'legacy-summary'
+              : 'summary'
     if (statsParseMode !== 'off') {
       try {
         const psbuf = blockData(file, compressed, playerStatsBlock)
         playerStatsDatBuf = psbuf
-        if (statsParseMode === 'summary') {
-          savePerformanceByPlayerDatId = parsePlayerStatsSummary(psbuf, players)
+        if (statsParseMode === 'summary' || statsParseMode === 'legacy-summary') {
           staffCompHistoryByStaffId = indexStaffCompHistoryFromPlayerStats(
             psbuf,
             players,
@@ -544,12 +546,23 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
             clubCompsById,
             staffCompsById,
           )
+          const compNames = competitionNamesById ?? new Map()
+          if (statsParseMode === 'legacy-summary') {
+            savePerformanceByPlayerDatId = parsePlayerStatsSummary(psbuf, players)
+          } else if (staffCompHistoryByStaffId.size > 0) {
+            savePerformanceByPlayerDatId = savePerformanceByPlayerDatIdFromStaffComp(
+              staffCompHistoryByStaffId,
+              staff,
+              players,
+              compNames,
+            )
+          }
           if (staffCompHistoryByStaffId.size > 0) {
             savePerformancePerCompByPlayerDatId = perCompRowsByPlayerDatId(
               staffCompHistoryByStaffId,
               staff,
               players,
-              competitionNamesById,
+              compNames,
             )
           }
         } else {

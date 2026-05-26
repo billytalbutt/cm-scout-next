@@ -190,15 +190,51 @@ export function PlayerProfileTabViews({
             </span>
           ) : null}
         </h3>
-        {profile.seasonStats.currentSeasonPerformance ? (
-          <p className="font-mono text-zinc-200">
-            {profile.seasonStats.currentSeasonPerformance.label}:{' '}
-            {profile.seasonStats.currentSeasonPerformance.apps} apps,{' '}
-            {profile.seasonStats.currentSeasonPerformance.goals} goals
-          </p>
-        ) : (
-          <p className="text-zinc-500">No current-season row resolved.</p>
-        )}
+        <div className="overflow-x-auto rounded border border-emerald-900/40 bg-emerald-950/20">
+          <table className="w-full min-w-[16rem] border-collapse text-left text-[11px]">
+            <thead>
+              <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
+                <th className="px-2 py-1.5 font-medium">Club</th>
+                <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
+                <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
+                <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
+                <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {profile.seasonStats.currentSeasonPerformance ? (
+                <tr className="border-b border-zinc-800/40">
+                  <td
+                    className="max-w-[14rem] truncate px-2 py-1.5 text-zinc-100"
+                    title={profile.seasonStats.currentSeasonPerformance.label}
+                  >
+                    {profile.seasonStats.currentSeasonPerformance.label}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-mono text-emerald-200">
+                    {profile.seasonStats.currentSeasonPerformance.apps}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-mono text-emerald-200">
+                    {profile.seasonStats.currentSeasonPerformance.goals}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-mono text-zinc-300">
+                    {profile.seasonStats.currentSeasonPerformance.assists ?? '—'}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-mono text-zinc-300">
+                    {profile.seasonStats.currentSeasonPerformance.averageRating != null
+                      ? profile.seasonStats.currentSeasonPerformance.averageRating.toFixed(2)
+                      : '—'}
+                  </td>
+                </tr>
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-2 py-2.5 text-center text-zinc-500">
+                    No current-season row resolved.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

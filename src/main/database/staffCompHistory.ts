@@ -6,6 +6,7 @@
 import {
   buildCompetitionNamesById,
   competitionNameFromMaps,
+  isAwardOrNominationCompetitionId,
   isKnownCompetitionId,
   type CompetitionNamesById,
 } from './competitionNames'
@@ -17,7 +18,12 @@ import {
 } from './playerStatsFields'
 import { buildPlayerDatIdToStaffId, iterPlayerStatsRowStarts, PLAYER_STATS_RESEARCH_GRID_V0 } from './playerStatsJoins'
 import type { StaffHistoryRecord } from './staffHistory'
-import type { PlayerRecord, PlayerStatsPerCompetitionRow, StaffRecord } from './types'
+import type {
+  PlayerRecord,
+  PlayerSavePerformanceStats,
+  PlayerStatsPerCompetitionRow,
+  StaffRecord,
+} from './types'
 
 /** One competition row for the active season (`player stats.dat` grid, keyed by `staff.dat` id). */
 export interface StaffCompHistoryRecord {
@@ -102,6 +108,7 @@ export function indexStaffCompHistoryFromPlayerStats(
     if (!decoded || decoded.playerDatId <= 0 || !playerIds.has(decoded.playerDatId)) continue
     if (!rowHasAnyStat(decoded) || !isPlausibleCompHistoryGridRow(decoded)) continue
     if (!isKnownCompetitionId(decoded.competitionId, competitionNames, decoded.playerDatId)) continue
+    if (isAwardOrNominationCompetitionId(decoded.competitionId, competitionNames)) continue
     const list = rowsByPlayer.get(decoded.playerDatId) ?? []
     list.push(decoded)
     rowsByPlayer.set(decoded.playerDatId, list)
@@ -195,6 +202,39 @@ export function computeCareerTotalsFromHistoryAndComp(
   careerApps += compTotals.apps
   careerGoals += compTotals.goals
   return { careerApps, careerGoals }
+}
+
+/** Senior-club totals from match-only grid rows (excludes award/nomination competitions). */
+export function savePerformanceByPlayerDatIdFromStaffComp(
+  byStaffId: Map<number, StaffCompHistoryRecord[]>,
+  staff: readonly StaffRecord[],
+  players: readonly PlayerRecord[],
+  competitionNames: CompetitionNamesById,
+): Map<number, PlayerSavePerformanceStats> {
+  const staffToPlayerDatId = new Map<number, number>()
+  for (const s of staff) {
+    if (s.player_id < 0 || s.player_id >= players.length) continue
+    staffToPlayerDatId.set(s.id, players[s.player_id]!.id)
+  }
+  const out = new Map<number, PlayerSavePerformanceStats>()
+  for (const [staffId, rows] of byStaffId) {
+    const playerDatId = staffToPlayerDatId.get(staffId)
+    if (playerDatId == null || !rows.length) continue
+    const matchRows = rows.filter(
+      (r) => !isAwardOrNominationCompetitionId(r.competitionId, competitionNames),
+    )
+    if (!matchRows.length) continue
+    const totals = aggregateStaffCompSeasonTotals(matchRows)
+    if (totals.apps === 0 && totals.goals === 0 && totals.assists === 0) continue
+    out.set(playerDatId, {
+      apps: totals.apps,
+      goals: totals.goals,
+      assists: totals.assists,
+      averageRating: totals.averageRating,
+      layout: 'gridV0',
+    })
+  }
+  return out
 }
 
 export function perCompRowsByPlayerDatId(

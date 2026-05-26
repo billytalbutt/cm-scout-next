@@ -45,3 +45,32 @@ export function isKnownCompetitionId(
   if (playerDatId != null && competitionId === playerDatId) return false
   return competitionNames.has(competitionId)
 }
+
+const AWARD_COMP_NAME_KEYWORDS = [
+  'award',
+  'player of the',
+  'manager of the',
+  'team of the',
+  'select',
+  'boot',
+  'shoe',
+  'ball',
+  'hall of fame',
+] as const
+
+/** True when a competition name is an award/nomination row, not match football. */
+export function isAwardOrNominationCompetition(name: string): boolean {
+  const lower = name.trim().toLowerCase()
+  if (!lower) return false
+  return AWARD_COMP_NAME_KEYWORDS.some((kw) => lower.includes(kw))
+}
+
+export function isAwardOrNominationCompetitionId(
+  competitionId: number | null | undefined,
+  competitionNames: CompetitionNamesById,
+): boolean {
+  if (competitionId == null || competitionId <= 0) return false
+  const name = competitionNames.get(competitionId)
+  if (!name) return false
+  return isAwardOrNominationCompetition(name)
+}

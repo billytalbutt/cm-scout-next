@@ -15,6 +15,7 @@
 
 import {
   competitionNameFromMaps,
+  isAwardOrNominationCompetition,
   isKnownCompetitionId,
   type CompetitionNamesById,
 } from './competitionNames'
@@ -53,6 +54,7 @@ export interface PlayerCompSeasonRow {
   apps: number
   goals: number
   assists: number
+  averageRating: number | null
 }
 
 /** CM profile “scope” ids in `player stats history.tmp` (verified Cole). */
@@ -591,6 +593,7 @@ export function compRowsForPlayer(
       apps: best.apps,
       goals: best.goals,
       assists: best.assists,
+      averageRating: null,
     })
   }
   return out.sort((a, b) => a.competitionName.localeCompare(b.competitionName))
@@ -613,6 +616,7 @@ export function mergeCompSeasonRows(
       apps: g.apps,
       goals: g.goals,
       assists: g.assists,
+      averageRating: g.averageRating,
     })
   }
   return [...byId.values()].sort((a, b) => a.competitionName.localeCompare(b.competitionName))
@@ -708,9 +712,32 @@ export function indexedFromDecoded(
   const cup = scopeStats(decoded, 'cup')
   const continental = scopeStats(decoded, 'continental')
   const international = scopeStats(decoded, 'international')
-  const seniorApps = senior?.apps ?? 0
-  const seniorGoals = senior?.goals ?? 0
-  const seniorAssists = senior?.assists ?? 0
+
+  let sumApps = 0
+  let sumGoals = 0
+  let sumAssists = 0
+  let ratingWeightSum = 0
+  let ratingApps = 0
+
+  for (const row of byCompetition) {
+    if (isAwardOrNominationCompetition(row.competitionName)) continue
+    sumApps += row.apps
+    sumGoals += row.goals
+    sumAssists += row.assists
+    if (row.averageRating != null && row.apps > 0) {
+      ratingWeightSum += row.averageRating * row.apps
+      ratingApps += row.apps
+    }
+  }
+
+  const hasCompStats = sumApps > 0
+  const seniorApps = hasCompStats ? sumApps : (senior?.apps ?? 0)
+  const seniorGoals = hasCompStats ? sumGoals : (senior?.goals ?? 0)
+  const seniorAssists = hasCompStats ? sumAssists : (senior?.assists ?? 0)
+  const seniorAvgRating = hasCompStats
+    ? (ratingApps > 0 ? Math.round((ratingWeightSum / ratingApps) * 100) / 100 : null)
+    : (senior?.averageRating ?? null)
+
   const anyScope =
     seniorApps > 0 ||
     seniorGoals > 0 ||
@@ -735,7 +762,7 @@ export function indexedFromDecoded(
     seniorApps,
     seniorGoals,
     seniorAssists,
-    seniorAvgRating: senior?.averageRating ?? null,
+    seniorAvgRating,
     leagueApps: league.apps,
     leagueGoals: league.goals,
     leagueAssists: league.assists,

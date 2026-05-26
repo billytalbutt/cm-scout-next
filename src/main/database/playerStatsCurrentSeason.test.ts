@@ -6,7 +6,9 @@ import {
   CM_STAT_SCOPE,
   decodePlayerCurrentSeasonStats,
   indexPlayerStatsHistory,
+  indexedFromDecoded,
   PLAYER_STATS_HISTORY_RECORD as R,
+  type PlayerCompSeasonRow,
 } from './playerStatsCurrentSeason'
 
 function writeHistoryRow(
@@ -111,6 +113,62 @@ describe.skipIf(!existsSync(goldenSav))('Joe Cole golden save', () => {
       expect(premier.goals).toBeGreaterThanOrEqual(0)
     }
   }, 180_000)
+})
+
+describe('indexedFromDecoded competition summation', () => {
+  const emptyDecoded = { scopes: [], seniorClub: null }
+
+  it('sums match competition rows with weighted average rating', () => {
+    const byCompetition: PlayerCompSeasonRow[] = [
+      {
+        competitionId: 1,
+        competitionName: 'League',
+        apps: 20,
+        goals: 5,
+        assists: 3,
+        averageRating: 7.0,
+      },
+      {
+        competitionId: 2,
+        competitionName: 'Cup',
+        apps: 5,
+        goals: 1,
+        assists: 0,
+        averageRating: 8.0,
+      },
+    ]
+    const idx = indexedFromDecoded(emptyDecoded, byCompetition)
+    expect(idx.seniorApps).toBe(25)
+    expect(idx.seniorGoals).toBe(6)
+    expect(idx.seniorAssists).toBe(3)
+    expect(idx.seniorAvgRating).toBe(7.2)
+  })
+
+  it('excludes award/nomination competitions from senior totals', () => {
+    const byCompetition: PlayerCompSeasonRow[] = [
+      {
+        competitionId: 1,
+        competitionName: 'Greek Super League',
+        apps: 29,
+        goals: 2,
+        assists: 4,
+        averageRating: 7.1,
+      },
+      {
+        competitionId: 2,
+        competitionName: 'European Footballer of the Year',
+        apps: 12,
+        goals: 3,
+        assists: 0,
+        averageRating: 5.6,
+      },
+    ]
+    const idx = indexedFromDecoded(emptyDecoded, byCompetition)
+    expect(idx.seniorApps).toBe(29)
+    expect(idx.seniorGoals).toBe(2)
+    expect(idx.seniorAssists).toBe(4)
+    expect(idx.seniorAvgRating).toBe(7.1)
+  })
 })
 
 describe('indexPlayerStatsHistory competition id', () => {
