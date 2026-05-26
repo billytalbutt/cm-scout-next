@@ -1,19 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Shortlist, ShortlistEntry, ShortlistKind, ShortlistStore } from '../../../shared/shortlistTypes'
 import {
   addToShortlist,
   createShortlist,
+  createShortlistAndAddEntry,
   deleteShortlist,
   loadShortlistStore,
   removeFromShortlist,
   renameShortlist,
   saveShortlistStore,
+  shortlistsContainingEntry,
 } from './shortlistStorage'
 
 const EMPTY_STORE: ShortlistStore = { version: 1, lists: [] }
 
 export function useShortlists(dbPath: string | null) {
   const [store, setStore] = useState<ShortlistStore>(EMPTY_STORE)
+  const storeRef = useRef(store)
+  storeRef.current = store
 
   useEffect(() => {
     if (!dbPath) {
@@ -31,6 +35,7 @@ export function useShortlists(dbPath: string | null) {
 
   const persist = useCallback(
     (next: ShortlistStore) => {
+      storeRef.current = next
       setStore(next)
       if (dbPath) void saveShortlistStore(dbPath, next)
     },
@@ -42,41 +47,56 @@ export function useShortlists(dbPath: string | null) {
     [store.lists],
   )
 
+  const listsContainingEntry = useCallback(
+    (kind: ShortlistKind, staffIndex: number) =>
+      shortlistsContainingEntry(storeRef.current, kind, staffIndex),
+    [store.lists],
+  )
+
   const createList = useCallback(
     (kind: ShortlistKind, name?: string) => {
-      const { store: next, list } = createShortlist(store, kind, name)
+      const { store: next, list } = createShortlist(storeRef.current, kind, name)
       persist(next)
       return list
     },
-    [store, persist],
+    [persist],
+  )
+
+  const createListAndAddEntry = useCallback(
+    (kind: ShortlistKind, name: string | undefined, entry: Omit<ShortlistEntry, 'addedAt'>) => {
+      const { store: next, list } = createShortlistAndAddEntry(storeRef.current, kind, name, entry)
+      persist(next)
+      return list
+    },
+    [persist],
   )
 
   const addEntry = useCallback(
     (listId: string, entry: Omit<ShortlistEntry, 'addedAt'>) => {
-      persist(addToShortlist(store, listId, entry))
+      persist(addToShortlist(storeRef.current, listId, entry))
     },
-    [store, persist],
+    [persist],
   )
 
   const removeEntry = useCallback(
     (listId: string, staffIndex: number) => {
-      persist(removeFromShortlist(store, listId, staffIndex))
+      persist(removeFromShortlist(storeRef.current, listId, staffIndex))
     },
-    [store, persist],
+    [persist],
   )
 
   const renameList = useCallback(
     (listId: string, name: string) => {
-      persist(renameShortlist(store, listId, name))
+      persist(renameShortlist(storeRef.current, listId, name))
     },
-    [store, persist],
+    [persist],
   )
 
   const removeList = useCallback(
     (listId: string) => {
-      persist(deleteShortlist(store, listId))
+      persist(deleteShortlist(storeRef.current, listId))
     },
-    [store, persist],
+    [persist],
   )
 
   const getList = useCallback((listId: string) => store.lists.find((l) => l.id === listId), [store.lists])
@@ -85,7 +105,9 @@ export function useShortlists(dbPath: string | null) {
     store,
     lists: store.lists,
     listsForKind,
+    listsContainingEntry,
     createList,
+    createListAndAddEntry,
     addEntry,
     removeEntry,
     renameList,

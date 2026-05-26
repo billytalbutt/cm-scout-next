@@ -1,4 +1,5 @@
 import { applyCmScoutRatings } from './cmScoutRating'
+import { applyEffectivenessRatings } from './effectivenessRating'
 import { buildUiPlayerRowAtIndex, isValidPlayerRow, staffDisplayName } from './database/parser'
 import { nonPlayerForStaffLink } from './database/nonplayer'
 import { tryExperimentalPitchFromTacticRow } from './database/tacticsDat'
@@ -48,6 +49,9 @@ export interface ClubSquadPlayerRow {
   ca: number
   pa: number
   club: string
+  cmScoutRatingBp?: number
+  effPercent?: number | null
+  effArchetype?: string
 }
 
 export interface ClubStaffRow {
@@ -79,24 +83,28 @@ function appendSquadPlayerRow(
   seen: Set<number>,
   staffIndex: number,
   clubId: number,
-  clubLabel: string,
 ): void {
   if (seen.has(staffIndex)) return
   const s = db.staff[staffIndex]
   if (!s) return
   if (s.player_id < 0 || s.player_id >= db.players.length) return
   if (!staffEmployedAtClub(db, staffIndex, clubId)) return
-  const p = db.players[s.player_id]
-  if (!p) return
-  const name = staffDisplayName(s, db.firstNames, db.secondNames, db.commonNames)
+  const built = buildUiPlayerRowAtIndex(db, staffIndex)
+  if (!built || !uiRowEmployedAtClub(built, clubId)) return
+  const name = built.name.trim()
   if (!name || name.startsWith('#')) return
+  applyCmScoutRatings([built])
+  applyEffectivenessRatings([built])
   seen.add(staffIndex)
   out.push({
     staffIndex,
     name,
-    ca: p.current_ability,
-    pa: p.potential_ability,
-    club: db.clubNames.get(clubId) ?? clubLabel,
+    ca: built.ca,
+    pa: built.pa,
+    club: built.club,
+    cmScoutRatingBp: built.cmScoutRatingBp,
+    effPercent: built.effPercent ?? null,
+    effArchetype: built.effArchetype,
   })
 }
 
@@ -107,12 +115,11 @@ function appendSquadPlayerRow(
 export function buildClubSquadPlayerRows(db: ParsedDatabase, clubId: number): ClubSquadPlayerRow[] {
   const club = db.clubsById?.get(clubId)
   if (!club) return []
-  const clubLabel = club.name
   const seen = new Set<number>()
   const out: ClubSquadPlayerRow[] = []
 
   for (let staffIndex = 0; staffIndex < db.staff.length; staffIndex++) {
-    appendSquadPlayerRow(db, out, seen, staffIndex, clubId, clubLabel)
+    appendSquadPlayerRow(db, out, seen, staffIndex, clubId)
   }
 
   out.sort((a, b) => b.ca - a.ca || a.name.localeCompare(b.name))
@@ -169,6 +176,7 @@ export function buildClubSquadGridRows(db: ParsedDatabase, clubId: number): Grid
     const built = buildUiPlayerRowAtIndex(db, s.staffIndex)
     if (!built || !uiRowEmployedAtClub(built, clubId)) continue
     applyCmScoutRatings([built])
+    applyEffectivenessRatings([built])
     out.push(mapUiRowToGridPayload(built, { role7: true, positions: true }))
   }
   return out

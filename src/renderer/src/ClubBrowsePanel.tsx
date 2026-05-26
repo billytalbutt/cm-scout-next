@@ -16,6 +16,9 @@ export type ClubDetailSquadRow = {
   ca: number
   pa: number
   club: string
+  cmScoutRatingBp?: number
+  effPercent?: number | null
+  effArchetype?: string
 }
 
 export type ClubDetailStaffRow = {

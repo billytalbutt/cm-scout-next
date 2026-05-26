@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ClubDetailPayload, ClubDetailSquadRow, ClubDetailStaffRow } from '../ClubBrowsePanel'
 
 type RosterTab = 'squad' | 'staff'
-type SquadSortKey = 'name' | 'ca' | 'pa'
+type SquadSortKey = 'name' | 'ca' | 'pa' | 'cmScout' | 'eff'
 type StaffSortKey = 'name' | 'job' | 'score' | 'staffCa'
 
 type SortState<K extends string> = { key: K; desc: boolean }
@@ -44,8 +44,29 @@ function SortableTh<K extends string>({
   )
 }
 
+function squadEffSortValue(p: ClubDetailSquadRow): number | null {
+  if (p.effArchetype === 'Unsure' || p.effPercent == null) return null
+  return p.effPercent
+}
+
+function formatSquadCmScout(p: ClubDetailSquadRow): string {
+  return p.cmScoutRatingBp == null ? '—' : `${p.cmScoutRatingBp.toFixed(1)}%`
+}
+
+function formatSquadEff(p: ClubDetailSquadRow): string {
+  if (!p.effArchetype) return '—'
+  if (p.effArchetype === 'Unsure' || p.effPercent == null) return 'Unsure'
+  return `${p.effPercent.toFixed(1)}% (${p.effArchetype})`
+}
+
 function compareSquad(a: ClubDetailSquadRow, b: ClubDetailSquadRow, sort: SortState<SquadSortKey>): number {
   const mul = sort.desc ? -1 : 1
+  const num = (va: number | null | undefined, vb: number | null | undefined) => {
+    if (va == null && vb == null) return 0
+    if (va == null) return 1
+    if (vb == null) return -1
+    return (va - vb) * mul
+  }
   switch (sort.key) {
     case 'name':
       return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) * mul
@@ -53,6 +74,10 @@ function compareSquad(a: ClubDetailSquadRow, b: ClubDetailSquadRow, sort: SortSt
       return (a.ca - b.ca) * mul || a.name.localeCompare(b.name)
     case 'pa':
       return (a.pa - b.pa) * mul || a.name.localeCompare(b.name)
+    case 'cmScout':
+      return num(a.cmScoutRatingBp, b.cmScoutRatingBp) || a.name.localeCompare(b.name)
+    case 'eff':
+      return num(squadEffSortValue(a), squadEffSortValue(b)) || a.name.localeCompare(b.name)
     default:
       return 0
   }
@@ -242,6 +267,18 @@ export function ClubDetailPane({
                     sort={squadSort}
                     onSort={(key) => setSquadSort((s) => toggleSort(s, key))}
                   />
+                  <SortableTh
+                    label="CM Scout %"
+                    sortKey="cmScout"
+                    sort={squadSort}
+                    onSort={(key) => setSquadSort((s) => toggleSort(s, key))}
+                  />
+                  <SortableTh
+                    label="Eff %"
+                    sortKey="eff"
+                    sort={squadSort}
+                    onSort={(key) => setSquadSort((s) => toggleSort(s, key))}
+                  />
                 </tr>
               </thead>
               <tbody>
@@ -257,13 +294,17 @@ export function ClubDetailPane({
                         onOpenPlayerProfile(p.staffIndex)
                       }
                     }}
-                    className={`cursor-pointer border-b border-zinc-800/50 transition hover:bg-zinc-800/40 ${
-                      selectedStaffIndex === p.staffIndex ? 'bg-emerald-950/30' : ''
+                    className={`cursor-pointer border-b border-zinc-800/50 transition ${
+                      selectedStaffIndex === p.staffIndex
+                        ? 'browse-list-row-selected'
+                        : 'hover:bg-zinc-800/40'
                     }`}
                   >
                     <td className="px-3 py-1.5 font-medium text-zinc-200">{p.name}</td>
                     <td className="px-3 py-1.5 font-mono text-zinc-300">{p.ca}</td>
                     <td className="px-3 py-1.5 font-mono text-zinc-300">{p.pa}</td>
+                    <td className="px-3 py-1.5 font-mono text-zinc-300">{formatSquadCmScout(p)}</td>
+                    <td className="px-3 py-1.5 font-mono text-zinc-300">{formatSquadEff(p)}</td>
                   </tr>
                 ))}
               </tbody>

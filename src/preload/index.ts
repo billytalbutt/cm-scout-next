@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('cmapi', {
             savedAt?: string
             entryCount?: number
             indexPath?: string
+            tracksDevelopment?: boolean
+            snapshotVersion?: 1 | 2
           }
         }
       | { ok: false; error: string }
@@ -77,6 +79,10 @@ contextBridge.exposeInMainWorld('cmapi', {
   getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),
   clearRegenBaseline: () => ipcRenderer.invoke('clear-regen-baseline'),
+  getDevelopmentRows: (filter: Record<string, unknown>) =>
+    ipcRenderer.invoke('get-development-rows', filter),
+  getPlayerDevelopmentDetail: (staffIndex: number) =>
+    ipcRenderer.invoke('get-player-development-detail', staffIndex),
   getEditorSnapshot: (staffIndex: number) => ipcRenderer.invoke('get-editor-snapshot', staffIndex),
   getAttrFilterMins: (staffIndex: number) =>
     ipcRenderer.invoke('get-attr-filter-mins', staffIndex) as Promise<{

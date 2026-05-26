@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   pitchSlotsFromPreset,
   snapAndRedistributePitch,
+  TACTICAL_ROWS,
   teamRatingFromAssignments,
   type PitchSlot,
   type TacticsPlayerAssignment,
 } from '../../shared/tacticsPitchSnap'
+import { clearSavedTacticsLayout, saveTacticsLayout } from './tactics/tacticsLayoutStorage'
 import {
   TACTIC_PRESETS,
   type TacticArrow,
@@ -56,6 +58,7 @@ function tacticBenchmarkScore(args: {
 
 export function TacticsLabPanel({
   loadInfo,
+  dbPath,
   tacticsSeedClubId,
   tacticsSeedClubName,
   onTacticsSeedClubChange,
@@ -67,6 +70,7 @@ export function TacticsLabPanel({
   assignments,
 }: {
   loadInfo: boolean
+  dbPath?: string | null
   tacticsSeedClubId: number | null
   tacticsSeedClubName: string | null
   onTacticsSeedClubChange: (clubId: number | null, clubName: string | null) => void
@@ -83,6 +87,7 @@ export function TacticsLabPanel({
   const [mentality, setMentality] = useState<Mentality>('attacking')
   const [offside, setOffside] = useState(false)
   const [tackling, setTackling] = useState<TacklingStyle>('normal')
+  const [layoutMsg, setLayoutMsg] = useState<string | null>(null)
   const p = useMemo(() => TACTIC_PRESETS.find((x) => x.id === preset)!, [preset])
   const forwardArrows = useMemo(() => pitchSlots.filter((z) => z.arrow === 'forward').length, [pitchSlots])
   const lineupRating = useMemo(
@@ -159,9 +164,10 @@ export function TacticsLabPanel({
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-[11px] leading-snug text-zinc-500">
-        <span className="font-medium text-zinc-300">Tactics Lab</span> — CM0102-style team instructions and a draggable
-        pitch (GK at the bottom, forwards at the top). Drag players — they snap invisibly to row/column bands (five
-        across, including centre). Right-click for forward / backward arrows.
+        <span className="font-medium text-zinc-300">Tactics Lab</span> — Drag icons between the seven tactical lines
+        (GK, sweeper, defence, DM, midfield, AM, forward). They snap to that line, space evenly (up to five per line, one
+        GK only), and the badge updates to the CM role for that row (e.g. AMC → MC on the midfield line). Right-click for
+        forward / backward arrows. Save your layout per save file.
       </div>
       {loadInfo && (
         <TacticsClubPicker
@@ -181,6 +187,14 @@ export function TacticsLabPanel({
             className="relative mx-auto aspect-[68/105] max-h-[min(52vh,520px)] w-full max-w-md touch-none rounded-lg border border-zinc-700/80 bg-zinc-950 shadow-inner shadow-black/40"
           >
             <div className="pointer-events-none absolute inset-2 rounded-md border border-zinc-800/60 opacity-40" />
+            {TACTICAL_ROWS.map((row) => (
+              <div
+                key={row.id}
+                className="pointer-events-none absolute left-[6%] right-[6%] border-t border-dashed border-zinc-700/50"
+                style={{ top: `${(1 - row.y) * 100}%` }}
+                title={row.label}
+              />
+            ))}
             {pitchSlots.map((slot) => {
               const a = assignments[slot.id]
               const shortName = a?.name?.split(' ').pop()
@@ -221,9 +235,40 @@ export function TacticsLabPanel({
             })}
           </div>
           <p className="mt-2 text-center text-[10px] text-zinc-500">
-            Drag to move (invisible snap). Five columns incl. centre; rows auto-space like CM. Lineup avg:{' '}
+            Release drag to snap to the nearest line. Lineup avg:{' '}
             <span className="font-mono text-emerald-300/90">{lineupRating ?? '—'}</span>
           </p>
+          <div className="mt-2 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              disabled={!dbPath}
+              className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[10px] font-medium text-zinc-200 hover:bg-zinc-700/60 disabled:opacity-40"
+              onClick={() => {
+                if (!dbPath) return
+                const snapped = snapAndRedistributePitch(pitchSlots)
+                onPitchSlotsChange(snapped)
+                saveTacticsLayout(dbPath, snapped)
+                setLayoutMsg('Layout saved for this database')
+                window.setTimeout(() => setLayoutMsg(null), 2500)
+              }}
+            >
+              Save layout
+            </button>
+            <button
+              type="button"
+              disabled={!dbPath}
+              className="rounded-md border border-zinc-700 px-2.5 py-1 text-[10px] text-zinc-400 hover:bg-zinc-800 disabled:opacity-40"
+              onClick={() => {
+                if (!dbPath) return
+                clearSavedTacticsLayout(dbPath)
+                setLayoutMsg('Saved layout cleared — pick a preset to reset')
+                window.setTimeout(() => setLayoutMsg(null), 2500)
+              }}
+            >
+              Clear saved
+            </button>
+            {layoutMsg && <span className="self-center text-[10px] text-zinc-500">{layoutMsg}</span>}
+          </div>
         </div>
         <div className="space-y-3">
           <label className="block">

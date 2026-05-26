@@ -1,6 +1,10 @@
 /// <reference types="vite/client" />
 
 import type { GridPlayerRow } from '../../shared/gridTypes'
+import type {
+  DevelopmentRowsResponse,
+  PlayerDevelopmentDetailResponse,
+} from '../../shared/playerDevelopmentTypes'
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
 import type {
   EffectivenessArchetypeRow,
@@ -31,12 +35,22 @@ type OpenResult =
         savedAt?: string
         entryCount?: number
         indexPath?: string
+        tracksDevelopment?: boolean
+        snapshotVersion?: 1 | 2
       }
     }
   | { ok: false; error: string }
 
 type RegenBaselineMutationResult =
-  | { ok: true; active: boolean; savedAt?: string; entryCount?: number; indexPath?: string }
+  | {
+      ok: true
+      active: boolean
+      savedAt?: string
+      entryCount?: number
+      indexPath?: string
+      tracksDevelopment?: boolean
+      snapshotVersion?: 1 | 2
+    }
   | { ok: false; error: string }
 
 declare global {
@@ -90,6 +104,8 @@ declare global {
       getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>
       saveRegenBaseline: () => Promise<RegenBaselineMutationResult>
       clearRegenBaseline: () => Promise<RegenBaselineMutationResult>
+      getDevelopmentRows: (filter: Record<string, unknown>) => Promise<DevelopmentRowsResponse>
+      getPlayerDevelopmentDetail: (staffIndex: number) => Promise<PlayerDevelopmentDetailResponse>
       getEditorSnapshot: (staffIndex: number) => Promise<{
         staffIndex: number
         staffId: number

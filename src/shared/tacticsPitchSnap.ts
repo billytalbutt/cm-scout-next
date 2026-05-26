@@ -16,45 +16,72 @@ export type TacticsPlayerAssignment = {
   cmScoutBp: number | null
 }
 
-/** Five horizontal snap columns (incl. dead centre). */
-export const SNAP_X = [0.1, 0.28, 0.5, 0.72, 0.9] as const
+/** CM0102-style horizontal lines (GK bottom → forwards top in the pitch widget). */
+export type TacticalRowId = 'gk' | 'sw' | 'def' | 'dm' | 'mc' | 'am' | 'fwd'
 
-export const SNAP_Y = [
-  0.06, 0.22, 0.28, 0.3, 0.32, 0.38, 0.4, 0.42, 0.44, 0.48, 0.52, 0.54, 0.56, 0.58, 0.6, 0.62, 0.68,
-  0.72, 0.8, 0.82, 0.84, 0.9,
+export const TACTICAL_ROWS = [
+  { id: 'gk' as const, label: 'Goalkeeper', y: 0.06, maxSlots: 1 },
+  { id: 'sw' as const, label: 'Sweeper', y: 0.16, maxSlots: 5 },
+  { id: 'def' as const, label: 'Defence', y: 0.28, maxSlots: 5 },
+  { id: 'dm' as const, label: 'Def. midfield', y: 0.4, maxSlots: 5 },
+  { id: 'mc' as const, label: 'Midfield', y: 0.52, maxSlots: 5 },
+  { id: 'am' as const, label: 'Att. midfield', y: 0.64, maxSlots: 5 },
+  { id: 'fwd' as const, label: 'Forward', y: 0.78, maxSlots: 5 },
 ] as const
 
-/** CM0102-style horizontal spans per row size (full-width four, inner three, etc.). */
-export const CM_ROW_X_BY_COUNT: Record<number, readonly number[]> = {
-  1: [0.5],
-  3: [0.28, 0.5, 0.72],
-  4: [0.14, 0.38, 0.62, 0.86],
-  5: [0.1, 0.28, 0.5, 0.72, 0.9],
-}
+export const TACTICAL_ROW_Y = TACTICAL_ROWS.map((r) => r.y)
 
-/** Narrow central pair — strikers sit inside the outer columns of a three-man row above. */
-export const CM_PAIR_NARROW = [0.38, 0.62] as const
-
-/** DM / tucked AM pairs (4231, tree). */
-export const CM_PAIR_DM = [0.35, 0.65] as const
-
-/** Two central mids on one line (352 mid pair). */
-export const CM_PAIR_MID = [0.32, 0.68] as const
-
-/** Wide midfield pair (442 ML/MR). */
-export const CM_PAIR_WIDE_MID = [0.22, 0.78] as const
-
-/** Touchline pair (full-backs, wing-backs on same row). */
-export const CM_PAIR_TOUCHLINE = [0.12, 0.88] as const
+/** @deprecated Drag still accepts legacy values; release snap uses {@link TACTICAL_ROW_Y} only. */
+export const SNAP_Y = TACTICAL_ROW_Y
 
 export const LINEUP_GROUPS = [
-  { id: 'gk' as const, label: 'Goalkeeper', yMin: 0, yMax: 0.12 },
-  { id: 'defence' as const, label: 'Defenders', yMin: 0.12, yMax: 0.38 },
-  { id: 'midfield' as const, label: 'Midfielders', yMin: 0.38, yMax: 0.68 },
-  { id: 'attack' as const, label: 'Attackers', yMin: 0.68, yMax: 1 },
+  { id: 'gk' as const, label: 'Goalkeeper', yMin: 0, yMax: 0.11 },
+  { id: 'defence' as const, label: 'Defenders', yMin: 0.11, yMax: 0.36 },
+  { id: 'midfield' as const, label: 'Midfielders', yMin: 0.36, yMax: 0.72 },
+  { id: 'attack' as const, label: 'Attackers', yMin: 0.72, yMax: 1 },
 ] as const
 
 export type LineupGroupId = (typeof LINEUP_GROUPS)[number]['id']
+
+const ROW_ROLES: Record<TacticalRowId, Record<number, readonly string[]>> = {
+  gk: { 1: ['GK'] },
+  sw: { 1: ['SW'], 2: ['SW', 'SW'], 3: ['SW', 'SW', 'SW'], 4: ['SW', 'SW', 'SW', 'SW'], 5: ['SW', 'SW', 'SW', 'SW', 'SW'] },
+  def: {
+    1: ['DC'],
+    2: ['DL', 'DR'],
+    3: ['DL', 'DC', 'DR'],
+    4: ['DL', 'DCL', 'DCR', 'DR'],
+    5: ['DL', 'DCL', 'DC', 'DCR', 'DR'],
+  },
+  dm: {
+    1: ['DMC'],
+    2: ['DMCL', 'DMCR'],
+    3: ['DMCL', 'DMC', 'DMCR'],
+    4: ['DMCL', 'DMC', 'DMC', 'DMCR'],
+    5: ['DMCL', 'DMC', 'DMC', 'DMC', 'DMCR'],
+  },
+  mc: {
+    1: ['MC'],
+    2: ['MCL', 'MCR'],
+    3: ['ML', 'MC', 'MR'],
+    4: ['ML', 'MCL', 'MCR', 'MR'],
+    5: ['ML', 'MCL', 'MC', 'MCR', 'MR'],
+  },
+  am: {
+    1: ['AMC'],
+    2: ['AML', 'AMR'],
+    3: ['AML', 'AMC', 'AMR'],
+    4: ['AML', 'AMCL', 'AMCR', 'AMR'],
+    5: ['AML', 'AMCL', 'AMC', 'AMCR', 'AMR'],
+  },
+  fwd: {
+    1: ['ST'],
+    2: ['STCL', 'STCR'],
+    3: ['STCL', 'ST', 'STCR'],
+    4: ['STCL', 'STC', 'STC', 'STCR'],
+    5: ['STCL', 'STC', 'ST', 'STCR', 'STCR'],
+  },
+}
 
 export function snapTo(n: number, arr: readonly number[]): number {
   let best = arr[0]!
@@ -69,154 +96,117 @@ export function snapTo(n: number, arr: readonly number[]): number {
   return best
 }
 
-function roleUpper(role: string): string {
-  return role.trim().toUpperCase()
+export function tacticalRowY(rowId: TacticalRowId): number {
+  return TACTICAL_ROWS.find((r) => r.id === rowId)!.y
 }
 
-/** Full-back / wing-back style roles on a two-man row. */
-export function isTouchlineRole(role: string): boolean {
-  const r = roleUpper(role)
-  return /^(DL|DR|WBL|WBR|LWB|RWB|LB|RB)$/.test(r) || /^WB[LR]?$/.test(r)
+export function tacticalRowForY(y: number): TacticalRowId {
+  const sy = snapTo(y, TACTICAL_ROW_Y)
+  return TACTICAL_ROWS.find((r) => r.y === sy)!.id
 }
 
-/** ML/MR-style wide midfield on a two-man row. */
-export function isHalfSpaceWideRole(role: string): boolean {
-  const r = roleUpper(role)
-  return /^(ML|MR|AML|AMR)$/.test(r) || /^(ML|MR|AML|AMR)/.test(r)
+/** Even spacing across the pitch width (fixes 5-man rows hugging the touchlines). */
+export function evenRowXPositions(count: number, min = 0.1, max = 0.9): number[] {
+  if (count <= 0) return []
+  if (count === 1) return [0.5]
+  const span = max - min
+  return Array.from({ length: count }, (_, i) => min + (span * i) / (count - 1))
 }
 
-export function isStrikerRole(role: string): boolean {
-  const r = roleUpper(role)
-  return r.startsWith('ST') || r === 'SC' || r.startsWith('FC') || r === 'A'
+export function rolesForTacticalRow(rowId: TacticalRowId, count: number): string[] {
+  const n = Math.min(Math.max(count, 1), 5)
+  const table = ROW_ROLES[rowId][n]
+  if (table) return [...table]
+  return Array.from({ length: n }, () => ROW_ROLES[rowId][1]![0]!)
 }
 
-export function isDmPairRole(role: string): boolean {
-  const r = roleUpper(role)
-  return r.startsWith('DM') && r !== 'DMC'
+/** @deprecated Use {@link evenRowXPositions} — kept for tests migrating off role-based spread. */
+export const CM_ROW_X_BY_COUNT: Record<number, readonly number[]> = {
+  1: evenRowXPositions(1),
+  2: evenRowXPositions(2),
+  3: evenRowXPositions(3),
+  4: evenRowXPositions(4),
+  5: evenRowXPositions(5),
 }
 
-export function isCentralMidPairRole(role: string): boolean {
-  const r = roleUpper(role)
-  if (r.startsWith('AM')) return false
-  return r.startsWith('MC') || r === 'MCL' || r === 'MCR' || (r.startsWith('M') && r.length <= 4)
-}
-
-function rowXSpread(slots: PitchSlot[]): number {
-  if (slots.length < 2) return 0
-  const xs = slots.map((s) => s.x)
-  return Math.max(...xs) - Math.min(...xs)
-}
-
-/**
- * CM0102 row spacing: count + role + drag spread decide horizontal slots.
- * Two strikers use a narrow pair so they do not line up with the outer men in a three-man row above.
- */
 export function snapXPositionsForRow(slots: PitchSlot[]): number[] {
-  const n = slots.length
-  if (n <= 0) return []
-  const fixed = CM_ROW_X_BY_COUNT[n]
-  if (fixed) return [...fixed]
-
-  if (n === 2) {
-    const roles = slots.map((s) => roleUpper(s.role))
-    if (roles.every(isTouchlineRole)) return [...CM_PAIR_TOUCHLINE]
-    if (roles.every(isHalfSpaceWideRole)) return [...CM_PAIR_WIDE_MID]
-    if (roles.every(isStrikerRole)) return [...CM_PAIR_NARROW]
-    if (roles.every(isDmPairRole)) return [...CM_PAIR_DM]
-    if (roles.every(isCentralMidPairRole)) return [...CM_PAIR_MID]
-    if (roles.every((r) => r.startsWith('AM') && !isHalfSpaceWideRole(r))) return [...CM_PAIR_DM]
-
-    const spread = rowXSpread(slots)
-    if (spread >= 0.62) return [...CM_PAIR_TOUCHLINE]
-    if (spread >= 0.48) return [...CM_PAIR_WIDE_MID]
-    if (spread >= 0.32) return [...CM_PAIR_MID]
-    return [...CM_PAIR_NARROW]
-  }
-
-  return [...SNAP_X].slice(0, n)
+  return evenRowXPositions(slots.length)
 }
 
-/** @deprecated Use snapXPositionsForRow — kept for simple count-only callers. */
 export function snapXPositionsForCount(n: number): number[] {
-  return snapXPositionsForRow(
-    Array.from({ length: n }, (_, i) => ({
-      id: String(i),
-      role: n === 2 ? 'ST' : 'MC',
-      x: 0.5,
-      y: 0.5,
-      arrow: 'none' as const,
-    })),
-  )
+  return evenRowXPositions(n)
 }
 
 export function isGoalkeeperRow(y: number): boolean {
-  return snapTo(y, SNAP_Y) <= 0.12
+  return tacticalRowForY(y) === 'gk'
 }
 
-/** Buckets snapped Y for tests / lineup helpers (coarse band). */
 export function pitchRowKey(y: number): number {
-  const sy = snapTo(y, SNAP_Y)
-  return Math.round(sy * 20) / 20
+  return tacticalRowY(tacticalRowForY(y))
 }
 
-/** Max vertical span for one tactical row after Y snap (352 CBs, slight preset offsets). */
-const ROW_Y_MAX_SPAN = 0.08
-
-function rowYSpan(row: PitchSlot[]): number {
-  const ys = row.map((s) => s.y)
-  return Math.max(...ys) - Math.min(...ys)
+function slotsOnRow(slots: PitchSlot[], rowId: TacticalRowId): PitchSlot[] {
+  const y = tacticalRowY(rowId)
+  return slots.filter((s) => tacticalRowForY(s.y) === rowId || Math.abs(s.y - y) < 0.001)
 }
 
-/** Merge slots into rows while the row’s Y span stays within ROW_Y_MAX_SPAN. */
-export function clusterPitchRows(slots: PitchSlot[]): PitchSlot[][] {
-  const sorted = [...slots].sort((a, b) => a.y - b.y || a.x - b.x)
-  const rows: PitchSlot[][] = []
-  for (const s of sorted) {
-    const last = rows[rows.length - 1]
-    if (last && rowYSpan([...last, s]) <= ROW_Y_MAX_SPAN) {
-      last.push(s)
-    } else {
-      rows.push([s])
+/** If more than one player snapped to GK, move extras to the defence line. */
+function enforceSingleGoalkeeper(slots: PitchSlot[]): PitchSlot[] {
+  const gkY = tacticalRowY('gk')
+  const defY = tacticalRowY('def')
+  const gkSlots = slots.filter((s) => tacticalRowForY(s.y) === 'gk')
+  if (gkSlots.length <= 1) return slots
+  const sorted = [...gkSlots].sort((a, b) => Math.abs(a.x - 0.5) - Math.abs(b.x - 0.5))
+  const keepId = sorted[0]!.id
+  return slots.map((s) => {
+    if (tacticalRowForY(s.y) === 'gk' && s.id !== keepId) {
+      return { ...s, y: defY }
     }
-  }
-  return rows
+    return s
+  })
 }
 
-/** After drag, snap Y then redistribute X within each row (GK always centre). */
-export function snapAndRedistributePitch(slots: PitchSlot[]): PitchSlot[] {
-  const withY = slots.map((s) => ({
+function redistributeRow(slots: PitchSlot[], rowId: TacticalRowId): PitchSlot[] {
+  const y = tacticalRowY(rowId)
+  const sorted = [...slots].sort((a, b) => a.x - b.x)
+  const roles = rolesForTacticalRow(rowId, sorted.length)
+  const xs = evenRowXPositions(sorted.length)
+  return sorted.map((s, i) => ({
     ...s,
-    y: snapTo(s.y, SNAP_Y),
+    y,
+    x: xs[i] ?? 0.5,
+    role: roles[i] ?? roles[0]!,
   }))
-
-  const out: PitchSlot[] = []
-  for (const rowSlots of clusterPitchRows(withY)) {
-    const sorted = [...rowSlots].sort((a, b) => a.x - b.x)
-    if (sorted.length === 1 && isGoalkeeperRow(sorted[0]!.y)) {
-      out.push({ ...sorted[0]!, x: 0.5 })
-      continue
-    }
-    const xs = snapXPositionsForRow(sorted)
-    sorted.forEach((s, i) => {
-      out.push({ ...s, x: xs[i] ?? 0.5 })
-    })
-  }
-  return out
 }
 
+/** Snap each slot to the nearest tactical row, space evenly on X, and set CM role from the row. */
+export function snapAndRedistributePitch(slots: PitchSlot[]): PitchSlot[] {
+  const snappedY = slots.map((s) => ({
+    ...s,
+    y: tacticalRowY(tacticalRowForY(s.y)),
+  }))
+  const withGk = enforceSingleGoalkeeper(snappedY)
+  const out: PitchSlot[] = []
+  for (const row of TACTICAL_ROWS) {
+    const rowSlots = withGk.filter((s) => tacticalRowForY(s.y) === row.id)
+    if (rowSlots.length === 0) continue
+    out.push(...redistributeRow(rowSlots, row.id))
+  }
+  return out.sort((a, b) => a.y - b.y || a.x - b.x)
+}
 
 export function lineupGroupForSlot(s: PitchSlot): LineupGroupId {
-  const y = snapTo(s.y, SNAP_Y)
-  for (const g of LINEUP_GROUPS) {
-    if (y >= g.yMin && y < g.yMax) return g.id
-  }
-  return 'attack'
+  const rowId = tacticalRowForY(s.y)
+  if (rowId === 'gk') return 'gk'
+  if (rowId === 'sw' || rowId === 'def') return 'defence'
+  if (rowId === 'fwd') return 'attack'
+  return 'midfield'
 }
 
 export function slotsInLineupGroup(slots: PitchSlot[], groupId: LineupGroupId): PitchSlot[] {
   return slots
     .filter((s) => lineupGroupForSlot(s) === groupId)
-    .sort((a, b) => a.x - b.x)
+    .sort((a, b) => a.y - b.y || a.x - b.x)
 }
 
 export function cmScoutRoleIndexForPosition(role: string): number {
@@ -262,4 +252,17 @@ export function teamRatingFromAssignments(
   }
   if (used.length === 0) return null
   return Math.round(used.reduce((a, b) => a + b, 0) / used.length)
+}
+
+/** Map a preset slot role onto the nearest tactical row before snap (wing-backs → def line, etc.). */
+export function inferTacticalRowFromRole(role: string): TacticalRowId {
+  const r = role.trim().toUpperCase()
+  if (r === 'GK') return 'gk'
+  if (r === 'SW') return 'sw'
+  if (r.startsWith('ST') || r === 'SC' || r === 'FC' || r === 'A') return 'fwd'
+  if (r.startsWith('AM')) return 'am'
+  if (r.startsWith('DM') || r === 'DM') return 'dm'
+  if (r.startsWith('M') && !r.startsWith('AM')) return 'mc'
+  if (r.startsWith('D') || r.includes('WB') || r === 'WBL' || r === 'WBR') return 'def'
+  return 'mc'
 }

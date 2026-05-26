@@ -34,6 +34,7 @@ function minimalDb(staff: StaffRecord[], players: PlayerRecord[] = []): ParsedDa
     commonNames: [''],
     clubNames: new Map([[100, 'Test FC']]),
     nationNames: new Map([[1, 'England']]),
+    nationEuEligible: new Map([[1, false]]),
     clubsById: new Map([
       [
         100,

@@ -76,6 +76,28 @@ export function createShortlist(
   return { store: { version: 1, lists: [...store.lists, list] }, list }
 }
 
+export function shortlistsContainingEntry(
+  store: ShortlistStore,
+  kind: ShortlistKind,
+  staffIndex: number,
+): Shortlist[] {
+  return store.lists.filter(
+    (l) => l.kind === kind && l.entries.some((e) => e.staffIndex === staffIndex),
+  )
+}
+
+export function createShortlistAndAddEntry(
+  store: ShortlistStore,
+  kind: ShortlistKind,
+  name: string | undefined,
+  entry: Omit<ShortlistEntry, 'addedAt'>,
+): { store: ShortlistStore; list: Shortlist } {
+  const { store: withList, list } = createShortlist(store, kind, name)
+  const next = addToShortlist(withList, list.id, entry)
+  const updated = next.lists.find((l) => l.id === list.id)!
+  return { store: next, list: updated }
+}
+
 export function addToShortlist(
   store: ShortlistStore,
   listId: string,

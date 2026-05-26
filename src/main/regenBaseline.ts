@@ -2,6 +2,7 @@ import { createHash } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { app } from 'electron'
+import { intrinsicRaw48 } from './cmScoutRating'
 import type { PlayerRecord, UiPlayerRow } from './database/types'
 
 /** Natural-position vector — same key as `regenDetection` heuristic buckets. */
@@ -39,11 +40,13 @@ export type RegenBaselineEntry = {
   posSig: string
   dobIso: string | null
   jobForClub: number
+  /** v2 snapshots: raw intrinsic attrs (48) for development tracking since snapshot. */
+  attr48?: number[]
 }
 
 /** Sidecar-style snapshot (same idea as GPF2’s `.gpf2` next to a save). */
 export type RegenBaselineFile = {
-  version: 1
+  version: 1 | 2
   /** Absolute path of the loaded index/save when the snapshot was taken (informational). */
   indexPath: string
   /** Hash key for the file on disk — must match current load to apply. */
@@ -92,10 +95,11 @@ export function buildBaselineFromRows(
       posSig: playerPosSig(r.player),
       dobIso: s.dob_iso,
       jobForClub: s.job_for_club,
+      attr48: intrinsicRaw48(r.player, s),
     }
   }
   return {
-    version: 1,
+    version: 2,
     indexPath,
     pathKey,
     gameDateIso,
@@ -113,7 +117,7 @@ export function loadBaselineFromDisk(pathKey: string): RegenBaselineFile | null 
   if (!existsSync(p)) return null
   try {
     const j = JSON.parse(readFileSync(p, 'utf8')) as RegenBaselineFile
-    if (j.version !== 1 || !j.entries || typeof j.pathKey !== 'string') return null
+    if ((j.version !== 1 && j.version !== 2) || !j.entries || typeof j.pathKey !== 'string') return null
     return j
   } catch {
     return null
@@ -130,13 +134,20 @@ export function baselineStatusForPath(pathKey: string): {
   savedAt?: string
   entryCount?: number
   indexPath?: string
+  tracksDevelopment?: boolean
+  snapshotVersion?: 1 | 2
 } {
   const b = loadBaselineFromDisk(pathKey)
-  if (!b) return { active: false }
+  if (!b) return { active: false, tracksDevelopment: false }
+  const tracksDevelopment =
+    b.version >= 2 ||
+    Object.values(b.entries).some((e) => e.attr48 != null && e.attr48.length === 48)
   return {
     active: true,
     savedAt: b.createdIso,
     entryCount: Object.keys(b.entries).length,
     indexPath: b.indexPath,
+    tracksDevelopment,
+    snapshotVersion: b.version,
   }
 }

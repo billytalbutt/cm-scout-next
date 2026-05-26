@@ -17,7 +17,12 @@ import { buildPlayerCurrentSeasonIndex } from './database/playerStatsCurrentSeas
 import type { DatabaseLoadProgress } from '../shared/loadProgress'
 import { collectStaffHistorySearchDirs } from './database/staffHistoryLoad'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
-import { applyCmScoutRatings, scoutFilterComparisonVector48, scoutDisplayVector48 } from './cmScoutRating'
+import {
+  applyCmScoutRatings,
+  intrinsicRaw48,
+  scoutFilterComparisonVector48,
+  scoutDisplayVector48,
+} from './cmScoutRating'
 import { attrMinStringsFromComparisonVectors } from '../shared/attrFilterMins'
 import { applyEffectivenessRatings } from './effectivenessRating'
 import { applyEngineMetaProfiles } from './engineMetaProfiles'
@@ -33,6 +38,13 @@ import {
   saveBaselineToDisk,
 } from './regenBaseline'
 import { applyRegenPipeline } from './regenDetection'
+import {
+  baselineTracksDevelopment,
+  buildAllDevelopmentSummaries,
+  buildPlayerDevelopmentSummary,
+  developmentTotals,
+  filterAndSortDevelopmentRows,
+} from './playerDevelopment'
 import { loadShortlistStoreFromDisk, saveShortlistStoreToDisk } from './shortlistStore'
 import type { ShortlistStore } from '../shared/shortlistTypes'
 import type { GridIncludeFlags } from '../shared/gridTypes'
@@ -764,6 +776,90 @@ ipcMain.handle('clear-regen-baseline', async () => {
   deleteBaselineFromDisk(loaded.pathKey)
   applyRegenPipeline(loaded.rows, null, loaded.pathKey)
   return { ok: true as const, ...baselineStatusForPath(loaded.pathKey) }
+})
+
+ipcMain.handle('get-development-rows', async (_e, payload: unknown) => {
+  if (!loaded) {
+    return {
+      ready: false,
+      reason: 'no_snapshot' as const,
+      totals: { inSnapshot: 0, withChanges: 0, attrsImproved: 0, attrsDeclined: 0 },
+      total: 0,
+      rows: [],
+      offset: 0,
+      capped: false,
+    }
+  }
+  const baseline = loadBaselineFromDisk(loaded.pathKey)
+  if (!baseline) {
+    return {
+      ready: false,
+      reason: 'no_snapshot' as const,
+      totals: { inSnapshot: 0, withChanges: 0, attrsImproved: 0, attrsDeclined: 0 },
+      total: 0,
+      rows: [],
+      offset: 0,
+      capped: false,
+    }
+  }
+  if (!baselineTracksDevelopment(baseline)) {
+    return {
+      ready: false,
+      reason: 'legacy_snapshot' as const,
+      snapshotAt: baseline.createdIso,
+      snapshotGameDate: baseline.gameDateIso,
+      totals: { inSnapshot: 0, withChanges: 0, attrsImproved: 0, attrsDeclined: 0 },
+      total: 0,
+      rows: [],
+      offset: 0,
+      capped: false,
+    }
+  }
+  const raw = { ...(payload as Record<string, unknown>) }
+  const offset = Math.max(0, Math.floor(Number(raw.offset) || 0))
+  const limitRaw = raw.limit
+  const hasLimit =
+    limitRaw !== undefined && limitRaw !== null && limitRaw !== '' && Number.isFinite(Number(limitRaw))
+  const limit = hasLimit ? Math.max(1, Math.floor(Number(limitRaw))) : undefined
+  const onlyChanged = raw.onlyChanged === true || raw.onlyChanged === 'true' || raw.onlyChanged === 1
+  const sortRaw = typeof raw.sortBy === 'string' ? raw.sortBy : 'net'
+  const sortBy =
+    sortRaw === 'name' || sortRaw === 'ca' || sortRaw === 'gains' ? sortRaw : ('net' as const)
+  const all = buildAllDevelopmentSummaries(loaded.rows, baseline)
+  const filtered = filterAndSortDevelopmentRows(all, {
+    q: typeof raw.q === 'string' ? raw.q : undefined,
+    club: typeof raw.club === 'string' ? raw.club : undefined,
+    onlyChanged,
+    sortBy,
+  })
+  const totals = developmentTotals(all)
+  const page = limit === undefined ? filtered : filtered.slice(offset, offset + limit)
+  return {
+    ready: true,
+    snapshotAt: baseline.createdIso,
+    snapshotGameDate: baseline.gameDateIso,
+    totals,
+    total: filtered.length,
+    rows: page,
+    offset,
+    capped: limit !== undefined && offset + page.length < filtered.length,
+  }
+})
+
+ipcMain.handle('get-player-development-detail', async (_e, staffIndex: unknown) => {
+  if (!loaded) return { ready: false, summary: null }
+  const idx = Math.floor(Number(staffIndex))
+  if (!Number.isFinite(idx) || idx < 0) return { ready: false, summary: null }
+  const baseline = loadBaselineFromDisk(loaded.pathKey)
+  if (!baseline || !baselineTracksDevelopment(baseline)) {
+    return { ready: false, summary: null }
+  }
+  const row = uiPlayerRowForStaff(idx)
+  if (!row) return { ready: false, summary: null }
+  const entry = baseline.entries[String(row.staff.id)]
+  if (!entry?.attr48) return { ready: false, summary: null }
+  const summary = buildPlayerDevelopmentSummary(row, entry, intrinsicRaw48(row.player, row.staff))
+  return { ready: true, summary }
 })
 
 function uiPlayerRowForStaff(staffIndex: number): UiPlayerRow | null {

@@ -48,10 +48,16 @@ import { useShortlists } from './shortlists/useShortlists'
 import type { ShortlistKind } from '../../shared/shortlistTypes'
 import {
   initialPitchSlots,
+  snapAndRedistributePitch,
   type PitchSlot,
   type TacticsPlayerAssignment,
 } from '../../shared/tacticsPitchSnap'
+import { loadSavedTacticsLayout } from './tactics/tacticsLayoutStorage'
 import { AttributeEditorPanel } from './AttributeEditorPanel'
+import { DevelopmentPanel } from './DevelopmentPanel'
+import { PlayerDevelopmentDetail } from './PlayerDevelopmentDetail'
+import { MerlinKnowledgeBasePanel } from './MerlinKnowledgeBasePanel'
+import type { PlayerDevelopmentSummary } from '../../shared/playerDevelopmentTypes'
 import { ClubEditorPanel } from './ClubEditorPanel'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { applyProfileHighlightPack, highlightPackForRole } from './profileHighlightApply'
@@ -270,6 +276,8 @@ export function App() {
       savedAt?: string
       entryCount?: number
       indexPath?: string
+      tracksDevelopment?: boolean
+      snapshotVersion?: 1 | 2
     }
   } | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -522,9 +530,18 @@ export function App() {
   const [tacticsAssignments, setTacticsAssignments] = useState<
     Partial<Record<string, TacticsPlayerAssignment | null>>
   >({})
+
+  useEffect(() => {
+    if (!loadInfo?.path) return
+    const saved = loadSavedTacticsLayout(loadInfo.path)
+    if (saved?.length) {
+      setTacticsPitchSlots(snapAndRedistributePitch(saved))
+    }
+  }, [loadInfo?.path])
   const [positionFilterRoles, setPositionFilterRoles] = useState<PositionRoleFilterId[]>([])
   const [positionFilterSides, setPositionFilterSides] = useState<PositionSideFilterId[]>([])
   const [regenBaselineSaving, setRegenBaselineSaving] = useState(false)
+  const [devDetail, setDevDetail] = useState<PlayerDevelopmentSummary | null>(null)
   const [regenOnly, setRegenOnly] = useState(false)
   const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
   const [showEngineAttrs, setShowEngineAttrs] = useState(() => {
@@ -702,7 +719,9 @@ export function App() {
       browseTab === 'clubs' ||
       browseTab === 'tactics' ||
       browseTab === 'editor' ||
-      browseTab === 'shortlists'
+      browseTab === 'shortlists' ||
+      browseTab === 'development' ||
+      browseTab === 'knowledge'
     ) {
       setGridRefreshing(false)
       return
@@ -983,6 +1002,8 @@ export function App() {
                 savedAt: out.savedAt,
                 entryCount: out.entryCount,
                 indexPath: out.indexPath,
+                tracksDevelopment: out.tracksDevelopment,
+                snapshotVersion: out.snapshotVersion,
               },
             }
           : li,
@@ -1012,6 +1033,8 @@ export function App() {
               savedAt: out.savedAt,
               entryCount: out.entryCount,
               indexPath: out.indexPath,
+              tracksDevelopment: out.tracksDevelopment,
+              snapshotVersion: out.snapshotVersion,
             },
           }
         : li,
@@ -1308,6 +1331,29 @@ export function App() {
     }
   }, [browseTab])
 
+  useEffect(() => {
+    if (browseTab !== 'development') {
+      setDevDetail(null)
+      return
+    }
+    if (sel == null || typeof window.cmapi?.getPlayerDevelopmentDetail !== 'function') {
+      setDevDetail(null)
+      return
+    }
+    let cancelled = false
+    void window.cmapi.getPlayerDevelopmentDetail(sel).then((res) => {
+      if (cancelled) return
+      if (res?.ready && res.summary) {
+        setDevDetail(res.summary)
+      } else {
+        setDevDetail(null)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [browseTab, sel])
+
   const activateProfile = useCallback(
     (staffIndex: number) => {
       void pick(staffIndex)
@@ -1477,7 +1523,7 @@ export function App() {
             </button>
           </div>
         ) : browseTab === 'clubs' ? (
-          <aside className="relative z-20 flex w-[22rem] shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/50">
+          <aside className="relative z-20 flex w-[24rem] shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/50">
             <div className="flex shrink-0 items-start justify-between gap-2 border-b border-zinc-800/60 px-3 py-2.5">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Clubs</h2>
               <div className="flex shrink-0 gap-1.5">
@@ -1523,7 +1569,7 @@ export function App() {
             </div>
           </aside>
         ) : (
-          <aside className="relative z-20 flex w-[22rem] shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/50">
+          <aside className="relative z-20 flex w-[24rem] shrink-0 flex-col border-r border-zinc-800/80 bg-zinc-950/50">
             <div className="flex shrink-0 items-start justify-between gap-2 border-b border-zinc-800/60 px-3 py-2.5">
               <HoverTip
                 tip={
@@ -1609,11 +1655,15 @@ export function App() {
                 adjustStaffMatchAtLeast={adjustStaffMatchAtLeast}
               />
             )}
-            {(browseTab === 'tactics' || browseTab === 'editor') && (
+            {(browseTab === 'tactics' ||
+              browseTab === 'editor' ||
+              browseTab === 'development' ||
+              browseTab === 'knowledge') && (
               <p className="text-[11px] leading-snug text-zinc-500">
                 Numeric and attribute filters apply on <span className="text-zinc-400">All players</span>,{' '}
-                <span className="text-zinc-400">Regens</span>, or <span className="text-zinc-400">Staff</span>. Use the
-                Clubs tab for club search.
+                <span className="text-zinc-400">Regens</span>, or <span className="text-zinc-400">Staff</span>. Use{' '}
+                <span className="text-zinc-400">Development</span> for snapshot attribute progress and{' '}
+                <span className="text-zinc-400">Knowledge base</span> for engine reference.
               </p>
             )}
             {browseTab === 'shortlists' && (
@@ -2184,7 +2234,9 @@ export function App() {
                   browseTab === 'clubs' ||
                   browseTab === 'tactics' ||
                   browseTab === 'editor' ||
-                  browseTab === 'shortlists'
+                  browseTab === 'shortlists' ||
+                  browseTab === 'development' ||
+                  browseTab === 'knowledge'
                     ? 'cursor-not-allowed text-zinc-500'
                     : 'cursor-pointer text-zinc-300'
                 }`}
@@ -2198,7 +2250,9 @@ export function App() {
                     browseTab === 'clubs' ||
                     browseTab === 'tactics' ||
                     browseTab === 'editor' ||
-                    browseTab === 'shortlists'
+                    browseTab === 'shortlists' ||
+                    browseTab === 'development' ||
+                    browseTab === 'knowledge'
                   }
                   onChange={(e) => setRegenOnly(e.target.checked)}
                 />
@@ -2350,9 +2404,28 @@ export function App() {
                 }}
               />
             </div>
+            {browseTab === 'development' && (
+              <DevelopmentPanel
+                loadInfo={!!loadInfo}
+                regenBaseline={loadInfo?.regenBaseline ?? null}
+                selectedStaffIndex={sel}
+                onSelectPlayer={(si) => {
+                  setSel(si)
+                  setDevDetail(null)
+                }}
+                onSaveSnapshot={() => void saveRegenBaseline()}
+                savingSnapshot={regenBaselineSaving}
+              />
+            )}
+            {browseTab === 'knowledge' && (
+              <div className="cm-scroll min-h-0 flex-1 overflow-y-auto px-4 pb-8">
+                <MerlinKnowledgeBasePanel />
+              </div>
+            )}
             {browseTab === 'tactics' && (
               <TacticsLabPanel
                 loadInfo={!!loadInfo}
+                dbPath={loadInfo?.path ?? null}
                 tacticsSeedClubId={tacticsSeedClubId}
                 tacticsSeedClubName={tacticsSeedClubName}
                 onTacticsSeedClubChange={onTacticsSeedClubChange}
@@ -2405,6 +2478,10 @@ export function App() {
                           PA + nation + positions + birth month/day as someone in the snapshot (e.g. Bergkamp → van der
                           Woerd).
                         </p>
+                        <p>
+                          Snapshots also store all player attributes for the <strong>Development</strong> tab — compare
+                          training progress and CA growth since the snapshot was taken.
+                        </p>
                         <p className="text-zinc-400">
                           <strong>Limit:</strong> players who had already retired before your first snapshot cannot be
                           linked (GPF2 says the same). Use uncompressed saves (Save Compressed = No). Re-saving a snapshot{' '}
@@ -2423,14 +2500,19 @@ export function App() {
                     </span>
                   </HoverTip>
                   {loadInfo.regenBaseline.active ? (
-                    <span className="text-emerald-400/90">
+                    <span className="text-zinc-400">
                       Snapshot on · {loadInfo.regenBaseline.entryCount?.toLocaleString() ?? '—'} players ·{' '}
-                      <span className="font-mono text-emerald-200/90">
+                      <span className="font-mono text-zinc-300">
                         {(loadInfo.regenBaseline.savedAt ?? '').slice(0, 19).replace('T', ' ')}
                       </span>
+                      {loadInfo.regenBaseline.tracksDevelopment === false && (
+                        <span className="text-zinc-600"> · re-save for development tracking</span>
+                      )}
                     </span>
                   ) : (
-                    <span className="text-zinc-500">No snapshot — save one after load for GPF2-style accuracy</span>
+                    <span className="text-zinc-500">
+                      No snapshot — save one after load for regens &amp; development tracking
+                    </span>
                   )}
                   <button
                     type="button"
@@ -2578,6 +2660,7 @@ export function App() {
           </div>
         </main>
 
+        {browseTab !== 'knowledge' && (
         <div
           role="separator"
           aria-orientation="vertical"
@@ -2589,7 +2672,9 @@ export function App() {
         >
           <span className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-px -translate-x-1/2 bg-zinc-700 group-hover:bg-emerald-500/70" />
         </div>
+        )}
 
+        {browseTab !== 'knowledge' && (
         <aside
           ref={profileAsideShellRef}
           style={{ width: profilePanePx, maxWidth: 'min(720px, 92vw)' }}
@@ -2624,6 +2709,21 @@ export function App() {
               onClearAll={clearTacticsWorkspace}
             />
             </div>
+          ) : browseTab === 'development' ? (
+            devDetail ? (
+              <PlayerDevelopmentDetail
+                summary={devDetail}
+                snapshotAt={loadInfo?.regenBaseline?.savedAt}
+                snapshotGameDate={loadInfo?.gameDate ?? null}
+                onOpenProfile={() => void pick(devDetail.staffIndex)}
+              />
+            ) : (
+              <p className="pt-4 text-sm text-zinc-500">
+                {sel != null
+                  ? 'Loading development detail…'
+                  : 'Select a player from the development list to compare attributes against your snapshot.'}
+              </p>
+            )
           ) : (
             <>
           {profileLoading && (
@@ -2635,7 +2735,10 @@ export function App() {
               <p className="text-sm text-zinc-400">Loading player profile…</p>
             </div>
           )}
-          {!profileLoading && !profile && !((browseTab === 'staff' || browseTab === 'clubs') && staffProfile) && (
+          {!profileLoading &&
+            !profile &&
+            browseTab !== 'development' &&
+            !((browseTab === 'staff' || browseTab === 'clubs') && staffProfile) && (
             <p className="pt-4 text-sm text-zinc-500">
               {browseTab === 'staff'
                 ? 'Select a staff member from the table.'
@@ -3142,6 +3245,7 @@ export function App() {
           )}
           </div>
         </aside>
+        )}
         </div>
       </div>
       {headerMenu && (
