@@ -38,7 +38,7 @@ export interface EffectivenessArchetype {
 }
 
 /** Primary ×5, secondary ×1.5, engine ×2 default; on-screen 20 = full recipe credit (1.25×); overflow uses
- *  diminishing returns; soft compression above ~86% keeps flat 100% rare. Brain mult on DC only. */
+ *  diminishing returns; lopsided defensive profiles penalised; soft compression only above ~97%. Brain mult on DC only. */
 export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
   {
     id: 'gk',
@@ -190,17 +190,15 @@ const W_SECONDARY = 1.5
 const GOD_MULT = 1.25
 /**
  * Extra credit for bracketed engine display above on-screen 20.
- * Diminishing returns — one uncapped primary should help, not double the slot.
+ * Diminishing returns on a single stat; multiple overflows still lift true engine elites.
  */
-const VAL_PART_OVERFLOW_CAP = 0.38
-/** sqrt(excess) scale — higher = gentler overflow curve. */
-const OVERFLOW_SQRT_SCALE = 28
-/** Normalization assumes elite profiles may carry modest overflow (denominator headroom). */
-const OVERFLOW_MAX_HEADROOM_RATIO = 0.55
-/** Compress raw scores above this so 100% is reserved for true multi-stat engine elites. */
-const EFF_SOFT_CAP_START = 86
-const EFF_SOFT_CAP_STRETCH = 0.42
-/** On-screen / engine “perfect” for recipe normalization — all-20s should land high-80s pre-compression. */
+const VAL_PART_OVERFLOW_CAP = 0.58
+/** sqrt(excess) scale — lower = steeper curve for god-tier overflow. */
+const OVERFLOW_SQRT_SCALE = 20
+/** Only compress displayed Eff % above this — keeps Vieira/Tsigalko-tier scores intact. */
+const EFF_SOFT_CAP_START = 97
+const EFF_SOFT_CAP_STRETCH = 0.35
+/** On-screen / engine “perfect” for recipe normalization — all-20s land high-80s to low-90s. */
 const RECIPE_PERFECT_DISPLAY = 20
 
 /**
@@ -244,14 +242,9 @@ function recipePerfectValPart(): number {
   return valPartBase(RECIPE_PERFECT_DISPLAY)
 }
 
-/** Per-slot normalization ceiling — includes partial overflow headroom. */
-function recipeSlotMaxValPart(): number {
-  return recipePerfectValPart() + VAL_PART_OVERFLOW_CAP * OVERFLOW_MAX_HEADROOM_RATIO
-}
-
 /**
- * Soft cap on displayed Eff % — raw recipe math can exceed 100 when overflow + synergy stack;
- * community expectation is almost nobody hits a flat 100 except multi-stat engine breakers.
+ * Soft cap on displayed Eff % — only shaves the very top (raw 100 → ~98).
+ * Most elite profiles stay uncompressed.
  */
 export function compressDisplayEff(raw: number): number {
   if (raw <= EFF_SOFT_CAP_START) return round1(Math.max(0, raw))
@@ -405,15 +398,19 @@ export function defenseBrainFactor(decisions: number, anticipation: number): num
 }
 
 /**
- * Defensive wide roles need tackling floor — uncapped positioning cannot carry the whole recipe.
+ * Penalise lopsided defensive profiles: one uncapped primary (e.g. positioning 35) cannot carry
+ * weak tackling. All-round elites (Vieira) pass because every primary is 15+ on-screen.
  */
-function rolePrimaryFloorFactor(archetypeId: string, get: (name: string) => number): number {
-  if (archetypeId === 'dmc' || archetypeId === 'dc' || archetypeId === 'wb') {
-    const tac = clamp20(get, 'tackling')
-    if (tac >= 15) return 1
-    return 0.78 + 0.22 * (tac / 15)
-  }
-  return 1
+function primaryImbalanceFactor(a: EffectivenessArchetype, get: (name: string) => number): number {
+  if (a.id !== 'dmc' && a.id !== 'dc' && a.id !== 'wb') return 1
+  const onScreen = a.primary.map((k) => clamp20(get, k))
+  const minOn = Math.min(...onScreen)
+  if (minOn >= 15) return 1
+  const hasOverflow = a.primary.some((k) => get(k) > RECIPE_PERFECT_DISPLAY)
+  if (!hasOverflow) return 1
+  if (minOn >= 14) return 0.93
+  if (minOn >= 13) return 0.82
+  return 0.72 + 0.02 * minOn
 }
 
 function accumulateArchetype(
@@ -429,7 +426,7 @@ function accumulateArchetype(
     const vp = valPartBase(raw) + valPartOverflow(raw)
     const c = W_PRIMARY * vp
     sum += c
-    max += W_PRIMARY * recipeSlotMaxValPart()
+    max += W_PRIMARY * recipePerfectValPart()
     lines.push({
       key: k,
       label: effAttrLabel(k),
@@ -446,7 +443,7 @@ function accumulateArchetype(
     const vp = valPartBase(raw) + valPartOverflow(raw)
     const c = W_SECONDARY * vp
     sum += c
-    max += W_SECONDARY * recipeSlotMaxValPart()
+    max += W_SECONDARY * recipePerfectValPart()
     lines.push({
       key: k,
       label: effAttrLabel(k),
@@ -469,7 +466,7 @@ function accumulateArchetype(
     const vp = valPartBase(effectiveRaw) + valPartOverflow(effectiveRaw)
     const c = w * vp
     sum += c
-    max += w * recipeSlotMaxValPart()
+    max += w * recipePerfectValPart()
     engineLines.push({
       key: ex.key,
       label: effAttrLabel(ex.key),
@@ -482,7 +479,7 @@ function accumulateArchetype(
     })
   }
   const basePct = max <= 0 ? 0 : (100 * sum) / max
-  const floorFactor = rolePrimaryFloorFactor(a.id, get)
+  const floorFactor = primaryImbalanceFactor(a, get)
   let brainMult: EffectivenessWinnerDetail['brainMult']
   let afterBrain = basePct * floorFactor
   if (

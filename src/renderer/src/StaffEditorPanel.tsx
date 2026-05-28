@@ -156,95 +156,88 @@ export function StaffEditorPanel({
   return (
     <div className="space-y-4 pb-8">
       <div>
-        <h2 className="text-lg font-semibold text-zinc-100">Staff / non-player editor</h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Use the left-hand filters to find staff (including board{' '}
-          <span className="text-zinc-400">Business</span>,{' '}
-          <span className="text-zinc-400">Interference</span>,{' '}
-          <span className="text-zinc-400">Patience</span>,{' '}
-          <span className="text-zinc-400">Resources (sugar daddy)</span>), then edit{' '}
-          <span className="font-mono text-zinc-400">nonplayer.dat</span> values below. Chairman = job 1, Managing
-          director = job 2.
-        </p>
+        <h2
+          className="text-lg font-semibold text-zinc-100"
+          title="Edits nonplayer.dat for the selected staff row. Chairman = job 1, Managing director = job 2."
+        >
+          Staff / non-player editor
+        </h2>
+        {!staffIndex && (
+          <p className="mt-1 text-xs text-zinc-500">
+            Select a staff member from the list to edit their non-player profile.
+          </p>
+        )}
+        {loading && staffIndex != null && <p className="mt-1 text-xs text-zinc-500">Loading…</p>}
+        {err && !snap && staffIndex != null && <p className="mt-1 text-xs text-rose-300/90">{err}</p>}
       </div>
 
-      <div className="flex min-h-[32rem] flex-col gap-4 xl:flex-row xl:items-start">
-        <div className="cm-scroll min-w-0 flex-1 overflow-auto rounded-lg border border-zinc-800/80 bg-zinc-950/30 p-2">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Staff list</p>
-          <StaffBrowsePanel
-            loadInfo={loadInfo}
-            filter={browseFilter}
-            selectedStaffIndex={staffIndex}
-            onSelectStaff={onSelectStaff}
-            onOpenPlayerProfile={() => {}}
-          />
-        </div>
-
-        <div className="cm-scroll min-w-0 flex-1 space-y-4 rounded-lg border border-zinc-800/80 bg-zinc-950/30 p-3 xl:max-w-md">
-          {!staffIndex && (
-            <p className="text-sm text-zinc-500">Select a staff member from the list to edit their non-player profile.</p>
-          )}
-          {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-          {err && !snap && staffIndex != null && <p className="text-sm text-rose-300/90">{err}</p>}
-          {snap && (
-            <>
-              <div>
-                <p className="text-base font-semibold text-emerald-200/95">{snap.name}</p>
-                <p className="text-xs text-zinc-500">
-                  {staffJobForClubLabel(snap.jobForClub)}
-                  <span className="text-zinc-600"> · </span>
-                  nonplayer row <span className="font-mono">{snap.nonPlayerRowIndex ?? '—'}</span>
-                </p>
-              </div>
-              {GROUPS.map((g) => (
-                <section key={g.title}>
-                  <h3
-                    className={`mb-2 text-xs font-semibold uppercase tracking-wide ${
-                      g.boardHighlight && isBoard ? 'text-amber-200/90' : 'text-zinc-500'
-                    }`}
-                  >
-                    {g.title}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {g.keys.map((k) =>
-                      k in snap.values ? (
-                        <label
-                          key={k}
-                          className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5"
-                        >
-                          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                            {labelForKey(k)}
-                          </span>
-                          <input
-                            type="number"
-                            min={0}
-                            max={255}
-                            className="w-full rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-xs text-zinc-100"
-                            value={draft[k] ?? ''}
-                            onChange={(e) => setDraft((prev) => ({ ...prev, [k]: e.target.value }))}
-                          />
-                        </label>
-                      ) : null,
-                    )}
-                  </div>
-                </section>
-              ))}
-              <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
-                <button
-                  type="button"
-                  disabled={!hasChanges || saving}
-                  onClick={() => void onSave()}
-                  className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-300 disabled:opacity-40"
-                >
-                  {saving ? 'Saving…' : 'Save copy…'}
-                </button>
-                {saveMsg && <span className="text-xs text-zinc-400">{saveMsg}</span>}
-                {err && snap && <span className="text-xs text-rose-300/90">{err}</span>}
-              </div>
-            </>
-          )}
-        </div>
+      <div className="cm-scroll min-h-[24rem] overflow-auto rounded-lg border border-zinc-800/80 bg-zinc-950/30 p-2">
+        <StaffBrowsePanel
+          loadInfo={loadInfo}
+          filter={browseFilter}
+          selectedStaffIndex={staffIndex}
+          onSelectStaff={onSelectStaff}
+          onOpenPlayerProfile={() => {}}
+        />
       </div>
+
+      {snap && (
+        <div className="cm-scroll space-y-4 rounded-lg border border-zinc-800/80 bg-zinc-950/30 p-3">
+          <div>
+            <p className="text-base font-semibold text-emerald-200/95">{snap.name}</p>
+            <p className="text-xs text-zinc-500">
+              {staffJobForClubLabel(snap.jobForClub)}
+              <span className="text-zinc-600"> · </span>
+              nonplayer row <span className="font-mono">{snap.nonPlayerRowIndex ?? '—'}</span>
+            </p>
+          </div>
+          {GROUPS.map((g) => (
+            <section key={g.title}>
+              <h3
+                className={`mb-2 text-xs font-semibold uppercase tracking-wide ${
+                  g.boardHighlight && isBoard ? 'text-amber-200/90' : 'text-zinc-500'
+                }`}
+              >
+                {g.title}
+              </h3>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {g.keys.map((k) =>
+                  k in snap.values ? (
+                    <label
+                      key={k}
+                      className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5"
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                        {labelForKey(k)}
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={255}
+                        className="w-full rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-xs text-zinc-100"
+                        value={draft[k] ?? ''}
+                        onChange={(e) => setDraft((prev) => ({ ...prev, [k]: e.target.value }))}
+                      />
+                    </label>
+                  ) : null,
+                )}
+              </div>
+            </section>
+          ))}
+          <div className="flex flex-wrap gap-2 border-t border-zinc-800 pt-4">
+            <button
+              type="button"
+              disabled={!hasChanges || saving}
+              onClick={() => void onSave()}
+              className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-300 disabled:opacity-40"
+            >
+              {saving ? 'Saving…' : 'Save copy…'}
+            </button>
+            {saveMsg && <span className="text-xs text-zinc-400">{saveMsg}</span>}
+            {err && <span className="text-xs text-rose-300/90">{err}</span>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

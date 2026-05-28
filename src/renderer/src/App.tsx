@@ -1699,12 +1699,6 @@ export function App() {
                 defaultHiddenOpen={staffEditorFilters}
               />
             )}
-            {staffEditorFilters && (
-              <p className="text-[11px] leading-snug text-zinc-500">
-                Name, nation, club, and staff filters apply to the staff list in the editor. Select someone from the
-                list to edit their <span className="font-mono text-zinc-400">nonplayer.dat</span> profile.
-              </p>
-            )}
             {browseTab === 'compare' && (
               <p className="text-[11px] leading-snug text-zinc-500">
                 Filters apply to the player grid below. Pick left/right slots, then click a row to assign a player for

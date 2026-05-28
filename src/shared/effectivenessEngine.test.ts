@@ -74,9 +74,9 @@ describe('valPart overflow', () => {
     expect(valPart(20)).toBeCloseTo(1.25, 5)
     expect(valPart(23)).toBeGreaterThan(valPart(20))
     expect(valPart(30)).toBeGreaterThan(valPart(23))
-    expect(valPart(30)).toBeLessThan(1.55)
+    expect(valPart(30)).toBeLessThan(1.75)
     expect(valPart(35)).toBeGreaterThan(valPart(30))
-    expect(valPart(35)).toBeLessThan(1.6)
+    expect(valPart(35)).toBeLessThan(1.85)
   })
 })
 
@@ -125,9 +125,9 @@ describe('poacher effectiveness', () => {
     expect(hi.effPercent).not.toBeNull()
     expect(lo.effPercent).not.toBeNull()
     expect(hi.effPercent!).toBeGreaterThan(lo.effPercent!)
-    expect(hi.effPercent! - lo.effPercent!).toBeGreaterThanOrEqual(4)
-    expect(hi.effPercent!).toBeGreaterThanOrEqual(84)
-    expect(hi.effPercent!).toBeLessThan(96)
+    expect(hi.effPercent! - lo.effPercent!).toBeGreaterThanOrEqual(5)
+    expect(hi.effPercent!).toBeGreaterThanOrEqual(90)
+    expect(hi.effPercent!).toBeLessThan(99)
     expect(hi.byArchetype).toHaveLength(1)
     expect(hi.byArchetype[0]!.percent).toBe(hi.effPercent)
     const finLine = hi.winnerDetail?.lines.find((l) => l.key === 'finishing')
@@ -157,10 +157,11 @@ describe('injury proneness does not affect Eff %', () => {
 })
 
 describe('compressDisplayEff', () => {
-  it('soft-caps scores above mid-80s so flat 100 is rare', () => {
+  it('only trims the very top of the scale', () => {
     expect(compressDisplayEff(85)).toBe(85)
-    expect(compressDisplayEff(100)).toBeLessThan(93)
-    expect(compressDisplayEff(100)).toBeGreaterThan(88)
+    expect(compressDisplayEff(96)).toBe(96)
+    expect(compressDisplayEff(100)).toBeLessThan(99)
+    expect(compressDisplayEff(100)).toBeGreaterThan(97)
   })
 })
 
@@ -231,15 +232,39 @@ describe('DMC effectiveness (no double brain penalty)', () => {
 
   const staffAnchor = { determination: 17, professionalism: 18, teamwork: 16 } as StaffRecord
 
-  it('strong DMC regen with solid mentals scores high-60s/low-70s, not ~40%', () => {
+  it('strong DMC regen with solid mentals scores high-70s to high-80s, not ~40%', () => {
     const p = anchorDmcPlayer()
     const get = effectivenessAttrGetter(p, staffAnchor)
     const full = computeEffectivenessFull(get, dmcOnly)
     expect(full.effPercent).not.toBeNull()
-    expect(full.effPercent!).toBeGreaterThan(65)
-    expect(full.effPercent!).toBeLessThan(88)
+    expect(full.effPercent!).toBeGreaterThan(75)
+    expect(full.effPercent!).toBeLessThan(94)
     expect(full.winnerDetail?.brainMult).toBeUndefined()
     expect(full.byArchetype[0]!.archetypeId).toBe('dmc')
+  })
+
+  it('all-round elite DMC (Vieira-shaped) scores high-80s+', () => {
+    const p = anchorDmcPlayer({
+      positioning: 20,
+      tackling: 19,
+      stamina: 19,
+      anticipation: 18,
+      decisions: 18,
+      strength: 18,
+      work_rate: 18,
+      aggression: 16,
+      teamwork: 17,
+      passing: 17,
+      technique: 17,
+      consistency: 18,
+      important_matches: 18,
+      injury_proneness: 4,
+    })
+    const get = effectivenessAttrGetter(p, staffAnchor)
+    const full = computeEffectivenessFull(get, dmcOnly)
+    expect(full.effPercent).not.toBeNull()
+    expect(full.effPercent!).toBeGreaterThanOrEqual(86)
+    expect(full.effPercent!).toBeLessThan(99)
   })
 
   it('uncapped positioning with weak tackling helps but stays below high-80s (Poulsen-shaped)', () => {
@@ -265,7 +290,7 @@ describe('DMC effectiveness (no double brain penalty)', () => {
     const full = computeEffectivenessFull(get, dmcOnly)
     expect(full.effPercent).not.toBeNull()
     expect(full.effPercent!).toBeGreaterThan(72)
-    expect(full.effPercent!).toBeLessThan(88)
+    expect(full.effPercent!).toBeLessThan(86)
   })
 })
 
