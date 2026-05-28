@@ -1,6 +1,15 @@
 import { staffDisplayName } from './database/parser'
 import type { BlockInfo, ContractRecord, ParsedDatabase } from './database/types'
 import {
+  contractTypeDisplay,
+  fmtContractBonus,
+  fmtReleaseFee,
+  fmtWage,
+  squadStatusLabel,
+  transferArrangedLabel,
+  yesNoLabel,
+} from '../shared/contractEditorDisplay'
+import {
   CONTRACT_DISK_FIELDS,
   CONTRACT_ROW_BYTES,
 } from './database/contractDiskLayout'
@@ -11,6 +20,7 @@ export type ContractEditorSnapshot = {
   name: string
   hasContract: boolean
   values: Record<string, number>
+  hints: Record<string, string>
 }
 
 const CONTRACT_RECORD_KEY: Record<string, keyof ContractRecord> = {
@@ -66,17 +76,29 @@ export function buildContractEditorSnapshot(db: ParsedDatabase, staffIndex: numb
   if (!staff) return null
   const c = db.contractsByStaffIndex.get(staffIndex)
   const values: Record<string, number> = {}
+  const hints: Record<string, string> = {}
   if (c) {
     for (const [diskKey, recordKey] of Object.entries(CONTRACT_RECORD_KEY)) {
       const v = c[recordKey]
       if (typeof v === 'number' && Number.isFinite(v)) values[diskKey] = v
     }
+    hints.wage = fmtWage(c.wage)
+    hints.goal_bonus = fmtContractBonus(c.goal_bonus)
+    hints.assist_bonus = fmtContractBonus(c.assist_bonus)
+    hints.release_fee = fmtReleaseFee(c.release_fee)
+    hints.contract_type = contractTypeDisplay(c.contract_type)
+    hints.squad_status = squadStatusLabel(c.squad_status)
+    const arrangedName = db.clubNames?.get(c.transfer_arranged_for)?.trim()
+    hints.transfer_arranged_for = transferArrangedLabel(c.transfer_arranged_for, arrangedName)
+    hints.leaving_on_bosman = yesNoLabel(c.leaving_on_bosman)
+    hints.minimum_fee_rc = yesNoLabel(c.minimum_fee_rc)
   }
   return {
     staffIndex,
     name: staffDisplayName(staff, db.firstNames, db.secondNames, db.commonNames),
     hasContract: !!c,
     values,
+    hints,
   }
 }
 

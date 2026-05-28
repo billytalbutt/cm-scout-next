@@ -1,0 +1,22 @@
+---
+description: CM Merlin UI conventions — no neon buttons, tooltips for extra detail
+alwaysApply: true
+---
+
+# CM Merlin UI conventions
+
+## Buttons and chrome
+
+- Use the app’s zinc/slate button styles (`border-zinc-600/700`, `bg-zinc-800/900`, `text-zinc-200/300`).
+- **Never** use neon / AI-slop accent buttons (bright emerald/sky/cyan/purple filled pills, glowing borders, gradient CTAs).
+
+## Copy and density
+
+- Keep labels short. Primary actions need one clear phrase, not a paragraph.
+- Technical detail (disk offsets, bit flags, formulas, sentinel values) belongs in **tooltips** or docs — not inline on the page.
+- Do not show raw byte labels like `(byte)`, `bit 0x08`, or debug values such as `transfer_status → 0` in user-facing UI.
+
+## Patterns
+
+- Reuse existing `HoverTip` / `title` tooltips for optional explanation.
+- Match contract/transfer display to profile and grid helpers (`contractTypeLabel`, `fmtContractMoney`, club names not raw IDs).

@@ -1228,7 +1228,7 @@ export function App() {
     (kind: 'player' | 'staff'): ProfileNavigationContext | undefined => {
       if (kind !== 'player') return undefined
       if (browseTab === 'players' || browseTab === 'regens' || browseTab === 'compare') {
-        const order = table.getRowModel().rows.map((r) => r.original.staffIndex)
+        const order = tableRows.map((r) => r.original.staffIndex)
         if (order.length < 2) return undefined
         return { orderedStaffIndices: order, source: 'grid' }
       }
@@ -1237,7 +1237,7 @@ export function App() {
       }
       return undefined
     },
-    [browseTab, table, shortlistNavOrder],
+    [browseTab, tableRows, shortlistNavOrder],
   )
 
   const openPopoutProfile = useCallback(

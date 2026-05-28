@@ -488,18 +488,17 @@ export function AttributeEditorPanel({
             />
           ))}
         </div>
-        <label className="mt-3 flex items-start gap-2 text-xs text-zinc-400">
+        <label
+          className="mt-3 flex items-center gap-2 text-xs text-zinc-300"
+          title="Sets morale to maximum and clears any transfer request on save."
+        >
           <input
             type="checkbox"
             checked={clearUnhappiness}
             onChange={(e) => setClearUnhappiness(e.target.checked)}
-            className="mt-0.5 rounded border-zinc-600"
+            className="rounded border-zinc-600"
           />
-          <span>
-            <strong className="text-zinc-300">Clear unhappiness</strong> on save — sets morale to 20 and clears
-            transfer-request flag on contract (<span className="font-mono">transfer_status &amp; ~8</span>). See{' '}
-            <span className="text-zinc-500">docs/EDITOR_FIELDS.md</span>.
-          </span>
+          Clear unhappiness on save
         </label>
       </section>
 

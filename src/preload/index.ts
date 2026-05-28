@@ -80,15 +80,15 @@ contextBridge.exposeInMainWorld('cmapi', {
     ipcRenderer.invoke('open-profile-window', args) as Promise<
       { ok: true } | { ok: false; error: string }
     >,
-  profileWindowNavState: () =>
-    ipcRenderer.invoke('profile-window-nav-state') as Promise<
+  profileWindowNavigate: (direction: 'next' | 'prev', staffIndex?: number) =>
+    ipcRenderer.invoke('profile-window-navigate', { direction, staffIndex }) as Promise<
+      { ok: true; staffIndex: number } | { ok: false; error: string }
+    >,
+  profileWindowNavState: (staffIndex?: number) =>
+    ipcRenderer.invoke('profile-window-nav-state', { staffIndex }) as Promise<
       | { ok: true; hasNav: false }
       | { ok: true; hasNav: true; index: number; total: number; source: string }
       | { ok: false; error: string }
-    >,
-  profileWindowNavigate: (direction: 'next' | 'prev') =>
-    ipcRenderer.invoke('profile-window-navigate', { direction }) as Promise<
-      { ok: true; staffIndex: number } | { ok: false; error: string }
     >,
   getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),

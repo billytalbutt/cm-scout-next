@@ -61,6 +61,9 @@ type Props = {
   showEngineAttrs: boolean
 }
 
+const PICK_BTN =
+  'rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800'
+
 export function ComparePanel({
   loadInfo,
   leftStaffIndex,
@@ -116,24 +119,16 @@ export function ComparePanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="rounded-md border border-emerald-700/50 bg-emerald-950/40 px-3 py-1.5 text-xs text-emerald-100 hover:bg-emerald-900/50"
-          onClick={onPickLeft}
-        >
+        <button type="button" className={PICK_BTN} onClick={onPickLeft}>
           {left ? `Left: ${left.name}` : 'Select left player'}
         </button>
-        <button
-          type="button"
-          className="rounded-md border border-sky-700/50 bg-sky-950/40 px-3 py-1.5 text-xs text-sky-100 hover:bg-sky-900/50"
-          onClick={onPickRight}
-        >
+        <button type="button" className={PICK_BTN} onClick={onPickRight}>
           {right ? `Right: ${right.name}` : 'Select right player'}
         </button>
         {(leftStaffIndex != null || rightStaffIndex != null) && (
           <button
             type="button"
-            className="rounded-md border border-zinc-600 px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800"
+            className="rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800"
             onClick={onClear}
           >
             Clear
@@ -146,10 +141,10 @@ export function ComparePanel({
       {left && right && (
         <>
           <div className="grid gap-3 lg:grid-cols-2">
-            <div className="rounded-lg border border-emerald-900/40 bg-zinc-900/40 p-3">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
               <CompareHeader p={left} />
             </div>
-            <div className="rounded-lg border border-sky-900/40 bg-zinc-900/40 p-3">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
               <CompareHeader p={right} />
             </div>
           </div>
@@ -164,8 +159,8 @@ export function ComparePanel({
                   return (
                     <p key={cat} className="text-zinc-400">
                       {CATEGORY_LABELS[cat]}:{' '}
-                      <span className="text-emerald-300/90">{c.left}</span> /{' '}
-                      <span className="text-sky-300/90">{c.right}</span>
+                      <span className="text-zinc-200">{c.left}</span> /{' '}
+                      <span className="text-zinc-300">{c.right}</span>
                       {c.tie > 0 && <span className="text-zinc-500"> ({c.tie} tied)</span>}
                     </p>
                   )
@@ -193,14 +188,14 @@ export function ComparePanel({
                       <td className="px-2 py-1 text-zinc-400">{label}</td>
                       <td
                         className={`px-2 py-1 text-right font-mono tabular-nums ${
-                          winner === 'left' ? 'bg-emerald-950/30 text-emerald-200' : 'text-zinc-300'
+                          winner === 'left' ? 'bg-zinc-800/60 font-semibold text-zinc-100' : 'text-zinc-300'
                         }`}
                       >
                         <span className={attrColor(lv, lc.invert)}>{lv}</span>
                       </td>
                       <td
                         className={`px-2 py-1 text-right font-mono tabular-nums ${
-                          winner === 'right' ? 'bg-sky-950/30 text-sky-200' : 'text-zinc-300'
+                          winner === 'right' ? 'bg-zinc-800/60 font-semibold text-zinc-100' : 'text-zinc-300'
                         }`}
                       >
                         <span className={attrColor(rv, rc.invert)}>{rv}</span>

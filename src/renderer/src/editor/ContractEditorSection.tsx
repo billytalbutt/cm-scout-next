@@ -1,4 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { contractTypeLabel } from '../../../shared/contractTypes'
+import {
+  fmtContractBonus,
+  fmtReleaseFee,
+  fmtWage,
+  squadStatusLabel,
+  transferArrangedLabel,
+  yesNoLabel,
+} from '../../../shared/contractEditorDisplay'
 import {
   applyTransferStatusBits,
   listedForLoan,
@@ -11,19 +20,35 @@ export type ContractEditorSnapshot = {
   name: string
   hasContract: boolean
   values: Record<string, number>
+  hints?: Record<string, string>
 }
 
-const SCALAR_FIELDS: { key: string; label: string }[] = [
-  { key: 'wage', label: 'Wage' },
-  { key: 'goal_bonus', label: 'Goal bonus' },
-  { key: 'assist_bonus', label: 'Assist bonus' },
-  { key: 'release_fee', label: 'Release fee' },
-  { key: 'contract_type', label: 'Contract type (byte)' },
-  { key: 'squad_status', label: 'Squad status (byte)' },
-  { key: 'transfer_arranged_for', label: 'Transfer arranged (club id)' },
-  { key: 'leaving_on_bosman', label: 'Leaving on Bosman (0/1)' },
-  { key: 'minimum_fee_rc', label: 'Min release clause (0/1)' },
+const BTN =
+  'rounded-md border border-zinc-700 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40'
+
+type FieldSpec = {
+  key: string
+  label: string
+  hintFor: (raw: number) => string
+}
+
+const FIELDS: FieldSpec[] = [
+  { key: 'wage', label: 'Wage', hintFor: fmtWage },
+  { key: 'goal_bonus', label: 'Goal bonus', hintFor: fmtContractBonus },
+  { key: 'assist_bonus', label: 'Assist bonus', hintFor: fmtContractBonus },
+  { key: 'release_fee', label: 'Release fee', hintFor: fmtReleaseFee },
+  { key: 'contract_type', label: 'Contract type', hintFor: contractTypeLabel },
+  { key: 'squad_status', label: 'Squad status', hintFor: squadStatusLabel },
+  { key: 'transfer_arranged_for', label: 'Transfer arranged', hintFor: (n) => transferArrangedLabel(n) },
 ]
+
+function hintForField(key: string, raw: number, snapHints?: Record<string, string>): string {
+  if (key === 'transfer_arranged_for' && snapHints?.transfer_arranged_for) {
+    return snapHints.transfer_arranged_for
+  }
+  const spec = FIELDS.find((f) => f.key === key)
+  return spec ? spec.hintFor(raw) : String(raw)
+}
 
 export function ContractEditorSection({
   loadInfo,
@@ -146,40 +171,70 @@ export function ContractEditorSection({
     <section className="space-y-3 border-t border-zinc-800 pt-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Contract &amp; transfer</h3>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {SCALAR_FIELDS.map((f) => (
-          <label key={f.key} className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-            <span className="text-[10px] uppercase text-zinc-500">{f.label}</span>
+        {FIELDS.map((f) => {
+          const raw = Number(draft[f.key])
+          const hint = Number.isFinite(raw)
+            ? hintForField(f.key, Math.trunc(raw), snap.hints)
+            : snap.hints?.[f.key] ?? ''
+          return (
+            <label
+              key={f.key}
+              className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5"
+            >
+              <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{f.label}</span>
+              <input
+                type="number"
+                className="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-xs text-zinc-100"
+                value={draft[f.key] ?? ''}
+                onChange={(e) => setDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
+              />
+              {hint && <span className="text-[10px] text-zinc-400">{hint}</span>}
+            </label>
+          )
+        })}
+        <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
+          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Leaving on Bosman</span>
+          <label className="mt-1 flex items-center gap-2 text-xs text-zinc-300">
             <input
-              type="number"
-              className="rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-xs"
-              value={draft[f.key] ?? ''}
-              onChange={(e) => setDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
+              type="checkbox"
+              checked={draft.leaving_on_bosman === '1'}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, leaving_on_bosman: e.target.checked ? '1' : '0' }))
+              }
             />
+            {yesNoLabel(Number(draft.leaving_on_bosman ?? 0))}
           </label>
-        ))}
+        </label>
+        <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
+          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Min release clause</span>
+          <label className="mt-1 flex items-center gap-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={draft.minimum_fee_rc === '1'}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, minimum_fee_rc: e.target.checked ? '1' : '0' }))
+              }
+            />
+            {yesNoLabel(Number(draft.minimum_fee_rc ?? 0))}
+          </label>
+        </label>
       </div>
-      <div className="space-y-1 rounded border border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
-        <p className="text-[10px] font-medium uppercase text-zinc-500">Transfer status flags</p>
+      <div className="space-y-1.5 rounded border border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
+        <p className="text-[10px] font-medium uppercase text-zinc-500">Transfer listing</p>
         <label className="flex items-center gap-2 text-xs text-zinc-300">
           <input type="checkbox" checked={listedByClub} onChange={(e) => setListedByClub(e.target.checked)} />
-          Listed by club (bit 0x01)
+          Listed by club
         </label>
         <label className="flex items-center gap-2 text-xs text-zinc-300">
           <input type="checkbox" checked={listedForLoanFlag} onChange={(e) => setListedForLoanFlag(e.target.checked)} />
-          Listed for loan (bit 0x02)
+          Listed for loan
         </label>
         <label className="flex items-center gap-2 text-xs text-zinc-300">
           <input type="checkbox" checked={listedByRequest} onChange={(e) => setListedByRequest(e.target.checked)} />
-          Transfer request / unsettled (bit 0x08)
+          Transfer requested
         </label>
-        <p className="font-mono text-[10px] text-zinc-600">transfer_status → {transferStatusDraft}</p>
       </div>
-      <button
-        type="button"
-        disabled={!hasChanges || saving}
-        onClick={() => void onSave()}
-        className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 disabled:opacity-40"
-      >
+      <button type="button" disabled={!hasChanges || saving} onClick={() => void onSave()} className={BTN}>
         {saving ? 'Saving contract…' : 'Save contract copy…'}
       </button>
       {saveMsg && <p className="text-xs text-zinc-400">{saveMsg}</p>}

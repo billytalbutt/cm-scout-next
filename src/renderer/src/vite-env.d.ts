@@ -102,12 +102,12 @@ declare global {
         kind: 'player' | 'staff'
         navigation?: import('../../shared/profileNavigation').ProfileNavigationContext
       }) => Promise<{ ok: true } | { ok: false; error: string }>
-      profileWindowNavState: () => Promise<
+      profileWindowNavState: (staffIndex?: number) => Promise<
         | { ok: true; hasNav: false }
         | { ok: true; hasNav: true; index: number; total: number; source: string }
         | { ok: false; error: string }
       >
-      profileWindowNavigate: (direction: 'next' | 'prev') => Promise<
+      profileWindowNavigate: (direction: 'next' | 'prev', staffIndex?: number) => Promise<
         { ok: true; staffIndex: number } | { ok: false; error: string }
       >
       getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>

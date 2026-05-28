@@ -27,6 +27,17 @@ export function ProfileWindowApp({ route: initialRoute }: { route: ProfileWindow
   const [profileHighlightRoleIdx, setProfileHighlightRoleIdx] = useState(0)
   const showEngineAttrs = loadShowEngineAttrs()
 
+  useEffect(() => {
+    setRoute(initialRoute)
+  }, [initialRoute.kind, initialRoute.staffIndex])
+
+  useEffect(() => {
+    const q = `profileKind=${encodeURIComponent(route.kind)}&staffIndex=${encodeURIComponent(String(route.staffIndex))}`
+    const url = new URL(window.location.href)
+    url.search = q
+    window.history.replaceState(null, '', url.toString())
+  }, [route.kind, route.staffIndex])
+
   const load = useCallback(async () => {
     setLoading(true)
     setErr(null)
@@ -68,29 +79,6 @@ export function ProfileWindowApp({ route: initialRoute }: { route: ProfileWindow
     void window.cmapi?.openProfileWindow({ staffIndex, kind: 'player' })
   }, [])
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-zinc-950 text-sm text-zinc-400">
-        Loading profile…
-      </div>
-    )
-  }
-
-  if (err) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-zinc-950 px-6 text-center">
-        <p className="text-sm text-rose-300">{err}</p>
-        <button
-          type="button"
-          className="rounded-md border border-zinc-600 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
-          onClick={() => void load()}
-        >
-          Retry
-        </button>
-      </div>
-    )
-  }
-
   return (
     <div className="cm-scroll flex h-screen min-h-0 flex-col overflow-y-auto bg-zinc-950 text-zinc-100">
       <ProfileWindowNavBar
@@ -98,26 +86,43 @@ export function ProfileWindowApp({ route: initialRoute }: { route: ProfileWindow
         staffIndex={route.staffIndex}
         onStaffIndexChange={(next) => setRoute({ kind: route.kind, staffIndex: next })}
       />
-      <div className="sticky top-0 z-10 border-b border-zinc-800/80 bg-zinc-950/95 px-4 py-2 backdrop-blur-sm">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">CM Merlin · Profile</p>
-      </div>
-      <div className="space-y-4 px-4 py-4">
-        {player && (
-          <>
-            <PlayerProfileHeader profile={player} />
-            <ProfileTabBar active={tab} onChange={setTab} variant="player" />
-            <PlayerProfileTabViews
-              profile={player}
-              showEngineAttrs={showEngineAttrs}
-              activeTab={tab}
-              profileHighlightRoleIdx={profileHighlightRoleIdx}
-              onHighlightRoleIdx={setProfileHighlightRoleIdx}
-              onOpenPredecessor={openPredecessor}
-            />
-          </>
-        )}
-        {staff && <StaffProfileTabViews p={staff} showEngineAttrs={showEngineAttrs} />}
-      </div>
+      {loading ? (
+        <div className="flex flex-1 items-center justify-center text-sm text-zinc-400">Loading profile…</div>
+      ) : err ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+          <p className="text-sm text-rose-300">{err}</p>
+          <button
+            type="button"
+            className="rounded-md border border-zinc-600 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+            onClick={() => void load()}
+          >
+            Retry
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="sticky top-10 z-10 border-b border-zinc-800/80 bg-zinc-950/95 px-4 py-2 backdrop-blur-sm">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">CM Merlin · Profile</p>
+          </div>
+          <div className="space-y-4 px-4 py-4">
+            {player && (
+              <>
+                <PlayerProfileHeader profile={player} />
+                <ProfileTabBar active={tab} onChange={setTab} variant="player" />
+                <PlayerProfileTabViews
+                  profile={player}
+                  showEngineAttrs={showEngineAttrs}
+                  activeTab={tab}
+                  profileHighlightRoleIdx={profileHighlightRoleIdx}
+                  onHighlightRoleIdx={setProfileHighlightRoleIdx}
+                  onOpenPredecessor={openPredecessor}
+                />
+              </>
+            )}
+            {staff && <StaffProfileTabViews p={staff} showEngineAttrs={showEngineAttrs} />}
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -135,8 +135,28 @@ const profileNavByWebContents = new Map<
   { kind: 'player' | 'staff'; nav: ProfileNavigationContext }
 >()
 
-function profileWindowKey(kind: string, staffIndex: number): string {
-  return `${kind}:${staffIndex}`
+function profileWindowKey(kind: 'player' | 'staff'): string {
+  return `profile:${kind}`
+}
+
+function parseStaffIndexFromProfileUrl(url: string): number | null {
+  try {
+    const q = url.includes('?') ? url.slice(url.indexOf('?') + 1) : ''
+    const staffIndex = Number(new URLSearchParams(q).get('staffIndex'))
+    return Number.isFinite(staffIndex) && staffIndex >= 0 ? staffIndex : null
+  } catch {
+    return null
+  }
+}
+
+function attachProfileNavigation(
+  win: BrowserWindow,
+  kind: 'player' | 'staff',
+  nav: ProfileNavigationContext | undefined,
+): void {
+  if (nav && nav.orderedStaffIndices.length >= 2) {
+    profileNavByWebContents.set(win.webContents.id, { kind, nav })
+  }
 }
 
 function profileWindowSearch(kind: 'player' | 'staff', staffIndex: number): string {
@@ -719,21 +739,17 @@ ipcMain.handle(
       return { ok: false as const, error: 'Invalid profile.' }
     }
     const nav = args?.navigation
-    const key = profileWindowKey(kind, staffIndex)
+    const key = profileWindowKey(kind)
     const existing = profileWindows.get(key)
     if (existing && !existing.isDestroyed()) {
       loadProfileWindow(existing, kind, staffIndex)
-      if (nav?.orderedStaffIndices?.length) {
-        profileNavByWebContents.set(existing.webContents.id, { kind, nav })
-      }
+      attachProfileNavigation(existing, kind, nav)
       existing.focus()
       return { ok: true as const }
     }
     const win = createProfileWindow(kind, staffIndex)
     profileWindows.set(key, win)
-    if (nav?.orderedStaffIndices?.length) {
-      profileNavByWebContents.set(win.webContents.id, { kind, nav })
-    }
+    attachProfileNavigation(win, kind, nav)
     win.on('closed', () => {
       profileWindows.delete(key)
       profileNavByWebContents.delete(win.webContents.id)
@@ -742,16 +758,18 @@ ipcMain.handle(
   },
 )
 
-ipcMain.handle('profile-window-nav-state', (e) => {
+ipcMain.handle('profile-window-nav-state', (e, payload?: unknown) => {
   const ctx = profileNavByWebContents.get(e.sender.id)
-  if (!ctx?.nav.orderedStaffIndices.length) {
+  if (!ctx?.nav.orderedStaffIndices.length || ctx.nav.orderedStaffIndices.length < 2) {
     return { ok: true as const, hasNav: false as const }
   }
   const ordered = ctx.nav.orderedStaffIndices
-  const staffIndex = Number(new URLSearchParams(
-    e.sender.getURL().split('?')[1] ?? '',
-  ).get('staffIndex'))
-  const idx = Number.isFinite(staffIndex) ? ordered.indexOf(staffIndex) : -1
+  const fromArg = (payload as { staffIndex?: unknown } | undefined)?.staffIndex
+  const staffIndex =
+    fromArg != null && Number.isFinite(Number(fromArg))
+      ? Math.floor(Number(fromArg))
+      : parseStaffIndexFromProfileUrl(e.sender.getURL())
+  const idx = staffIndex != null ? ordered.indexOf(staffIndex) : -1
   return {
     ok: true as const,
     hasNav: true as const,
@@ -763,18 +781,21 @@ ipcMain.handle('profile-window-nav-state', (e) => {
 
 ipcMain.handle(
   'profile-window-navigate',
-  async (e, args: { direction?: unknown }) => {
+  async (e, args: { direction?: unknown; staffIndex?: unknown }) => {
     const ctx = profileNavByWebContents.get(e.sender.id)
     if (!ctx) return { ok: false as const, error: 'No navigation list for this window.' }
+    const fromArg = args?.staffIndex
     const win = BrowserWindow.fromWebContents(e.sender)
-    if (!win) return { ok: false as const, error: 'Window not found.' }
-    const params = new URLSearchParams(win.webContents.getURL().split('?')[1] ?? '')
-    const current = Math.floor(Number(params.get('staffIndex')))
-    if (!Number.isFinite(current)) return { ok: false as const, error: 'Invalid profile.' }
+    const current =
+      fromArg != null && Number.isFinite(Number(fromArg))
+        ? Math.floor(Number(fromArg))
+        : win
+          ? parseStaffIndexFromProfileUrl(win.webContents.getURL())
+          : null
+    if (current == null) return { ok: false as const, error: 'Invalid profile.' }
     const direction = args?.direction === 'prev' ? 'prev' : 'next'
     const next = profileNavStep(ctx.nav.orderedStaffIndices, current, direction)
     if (next == null) return { ok: false as const, error: 'Could not navigate.' }
-    loadProfileWindow(win, ctx.kind, next)
     return { ok: true as const, staffIndex: next }
   },
 )
