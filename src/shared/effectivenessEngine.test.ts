@@ -3,6 +3,7 @@ import { inGameCa18, inGameCa18Uncapped } from './cm0102AttributeDisplay'
 import {
   computeEffectivenessFull,
   computePlayerRiskFlags,
+  compressDisplayEff,
   defenseBrainFactor,
   valPart,
 } from './effectivenessEngine'
@@ -69,11 +70,13 @@ function poacherPlayer(finishingIntrinsic: number, otbIntrinsic: number): Player
 const staffStub = { determination: 18, professionalism: 17 } as StaffRecord
 
 describe('valPart overflow', () => {
-  it('rewards display above 20 beyond flat GOD_MULT', () => {
+  it('rewards display above 20 with diminishing returns', () => {
     expect(valPart(20)).toBeCloseTo(1.25, 5)
     expect(valPart(23)).toBeGreaterThan(valPart(20))
     expect(valPart(30)).toBeGreaterThan(valPart(23))
-    expect(valPart(30)).toBeCloseTo(2.25, 5)
+    expect(valPart(30)).toBeLessThan(1.55)
+    expect(valPart(35)).toBeGreaterThan(valPart(30))
+    expect(valPart(35)).toBeLessThan(1.6)
   })
 })
 
@@ -122,8 +125,9 @@ describe('poacher effectiveness', () => {
     expect(hi.effPercent).not.toBeNull()
     expect(lo.effPercent).not.toBeNull()
     expect(hi.effPercent!).toBeGreaterThan(lo.effPercent!)
-    expect(hi.effPercent! - lo.effPercent!).toBeGreaterThanOrEqual(5)
-    expect(hi.effPercent!).toBeGreaterThanOrEqual(90)
+    expect(hi.effPercent! - lo.effPercent!).toBeGreaterThanOrEqual(4)
+    expect(hi.effPercent!).toBeGreaterThanOrEqual(84)
+    expect(hi.effPercent!).toBeLessThan(96)
     expect(hi.byArchetype).toHaveLength(1)
     expect(hi.byArchetype[0]!.percent).toBe(hi.effPercent)
     const finLine = hi.winnerDetail?.lines.find((l) => l.key === 'finishing')
@@ -149,6 +153,14 @@ describe('injury proneness does not affect Eff %', () => {
     expect(effLow.effPercent).toBe(effHigh.effPercent)
     expect(computePlayerRiskFlags(getLow).injuryRisk).toBe(false)
     expect(computePlayerRiskFlags(getHigh).injuryRisk).toBe(true)
+  })
+})
+
+describe('compressDisplayEff', () => {
+  it('soft-caps scores above mid-80s so flat 100 is rare', () => {
+    expect(compressDisplayEff(85)).toBe(85)
+    expect(compressDisplayEff(100)).toBeLessThan(93)
+    expect(compressDisplayEff(100)).toBeGreaterThan(88)
   })
 })
 
@@ -228,6 +240,32 @@ describe('DMC effectiveness (no double brain penalty)', () => {
     expect(full.effPercent!).toBeLessThan(88)
     expect(full.winnerDetail?.brainMult).toBeUndefined()
     expect(full.byArchetype[0]!.archetypeId).toBe('dmc')
+  })
+
+  it('uncapped positioning with weak tackling helps but stays below high-80s (Poulsen-shaped)', () => {
+    const p = anchorDmcPlayer({
+      tackling: 13,
+      stamina: 20,
+      decisions: 19,
+      anticipation: 15,
+      strength: 14,
+      teamwork: 17,
+      consistency: 20,
+      important_matches: 14,
+      injury_proneness: 10,
+      natural_fitness: 14,
+      professionalism: 16,
+      marking: 14,
+      passing: 14,
+      technique: 14,
+      work_rate: 13,
+    })
+    const baseGet = effectivenessAttrGetter(p, staffAnchor)
+    const get = (name: string) => (name === 'positioning' ? 35 : baseGet(name))
+    const full = computeEffectivenessFull(get, dmcOnly)
+    expect(full.effPercent).not.toBeNull()
+    expect(full.effPercent!).toBeGreaterThan(72)
+    expect(full.effPercent!).toBeLessThan(88)
   })
 })
 

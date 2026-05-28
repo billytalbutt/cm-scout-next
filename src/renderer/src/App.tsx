@@ -338,6 +338,8 @@ export function App() {
   const [attrMinMatchAtLeast, setAttrMinMatchAtLeast] = useState('')
   const activeAttrFilterCount = useMemo(() => countActiveAttrMinsStrings(attrMins), [attrMins])
   const [staffJobForClub, setStaffJobForClub] = useState('')
+  /** Editor → Staff/MD: restrict list to chairman (1) + managing director (2). */
+  const [staffBoardOnly, setStaffBoardOnly] = useState(false)
   const [staffIncludePlayers, setStaffIncludePlayers] = useState(false)
   const [staffCoachingCaMin, setStaffCoachingCaMin] = useState('')
   const [staffCoachingCaMax, setStaffCoachingCaMax] = useState('')
@@ -414,7 +416,7 @@ export function App() {
     })
     const matchN = num(staffAttrMinMatchAtLeast)
     const job =
-      staffJobForClub !== '' && Number.isFinite(Number(staffJobForClub))
+      !staffBoardOnly && staffJobForClub !== '' && Number.isFinite(Number(staffJobForClub))
         ? Math.floor(Number(staffJobForClub))
         : undefined
     const expM = num(expiresWithinMonths)
@@ -423,6 +425,7 @@ export function App() {
       nation: committedText.nation,
       club: committedText.club,
       jobForClub: job,
+      jobForClubIn: staffBoardOnly ? [1, 2] : undefined,
       includePlayers: staffIncludePlayers,
       ageMin: num(ageMin),
       ageMax: num(ageMax),
@@ -446,6 +449,7 @@ export function App() {
   }, [
     committedText,
     staffJobForClub,
+    staffBoardOnly,
     staffIncludePlayers,
     ageMin,
     ageMax,
@@ -781,7 +785,11 @@ export function App() {
 
   const showPlayerFilters =
     browseTab === 'players' || browseTab === 'regens' || (browseTab === 'shortlists' && shortlistKind === 'players')
-  const showStaffFilters = browseTab === 'staff' || (browseTab === 'shortlists' && shortlistKind === 'staff')
+  const showStaffFilters =
+    browseTab === 'staff' ||
+    (browseTab === 'shortlists' && shortlistKind === 'staff') ||
+    (browseTab === 'editor' && editorPane === 'staff')
+  const staffEditorFilters = browseTab === 'editor' && editorPane === 'staff'
 
   const profileAsideRef = useRef<HTMLDivElement>(null)
   const profileAsideShellRef = useRef<HTMLElement>(null)
@@ -1663,7 +1671,7 @@ export function App() {
                 setStaffCoachingPaMin={setStaffCoachingPaMin}
                 staffCoachingPaMax={staffCoachingPaMax}
                 setStaffCoachingPaMax={setStaffCoachingPaMax}
-                staffJobForClub={staffJobForClub}
+                staffJobForClub={staffBoardOnly ? '' : staffJobForClub}
                 setStaffJobForClub={setStaffJobForClub}
                 staffJobOptions={staffJobOptions}
                 staffIncludePlayers={staffIncludePlayers}
@@ -1682,7 +1690,20 @@ export function App() {
                 setStaffAttrMinMatchAtLeast={setStaffAttrMinMatchAtLeast}
                 activeStaffAttrFilterCount={activeStaffAttrFilterCount}
                 adjustStaffMatchAtLeast={adjustStaffMatchAtLeast}
+                showBoardOnlyPreset={staffEditorFilters}
+                boardOnly={staffBoardOnly}
+                setBoardOnly={(v) => {
+                  setStaffBoardOnly(v)
+                  if (v) setStaffJobForClub('')
+                }}
+                defaultHiddenOpen={staffEditorFilters}
               />
+            )}
+            {staffEditorFilters && (
+              <p className="text-[11px] leading-snug text-zinc-500">
+                Name, nation, club, and staff filters apply to the staff list in the editor. Select someone from the
+                list to edit their <span className="font-mono text-zinc-400">nonplayer.dat</span> profile.
+              </p>
             )}
             {browseTab === 'compare' && (
               <p className="text-[11px] leading-snug text-zinc-500">
@@ -2518,7 +2539,9 @@ export function App() {
                   <StaffEditorPanel
                     loadInfo={!!loadInfo}
                     compressed={!!loadInfo?.compressed}
+                    browseFilter={staffBrowseFilter}
                     staffIndex={staffTableSel}
+                    onSelectStaff={setStaffTableSel}
                   />
                 )}
               </div>

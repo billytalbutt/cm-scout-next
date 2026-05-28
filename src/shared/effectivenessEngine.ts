@@ -37,7 +37,8 @@ export interface EffectivenessArchetype {
   engineExtras?: readonly EffectivenessEngineExtra[]
 }
 
-/** Primary ×5, secondary ×1.5, engine ×2 default; on-screen 20 = full recipe credit (1.25×); bracketed display adds overflow bonus; brain mult on DC/DMC/AMC. */
+/** Primary ×5, secondary ×1.5, engine ×2 default; on-screen 20 = full recipe credit (1.25×); overflow uses
+ *  diminishing returns; soft compression above ~86% keeps flat 100% rare. Brain mult on DC only. */
 export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
   {
     id: 'gk',
@@ -187,10 +188,19 @@ export function computePlayerRiskFlags(getAttr: (name: string) => number): Playe
 const W_PRIMARY = 5
 const W_SECONDARY = 1.5
 const GOD_MULT = 1.25
-/** Extra credit for bracketed engine display above on-screen 20 (numerator only — does not raise the bar). */
-const VAL_PART_OVERFLOW_CAP = 1.25
-const OVERFLOW_DIVISOR = 10
-/** On-screen / engine “perfect” for recipe normalization — all-20s should land near 100% pre-consistency. */
+/**
+ * Extra credit for bracketed engine display above on-screen 20.
+ * Diminishing returns — one uncapped primary should help, not double the slot.
+ */
+const VAL_PART_OVERFLOW_CAP = 0.38
+/** sqrt(excess) scale — higher = gentler overflow curve. */
+const OVERFLOW_SQRT_SCALE = 28
+/** Normalization assumes elite profiles may carry modest overflow (denominator headroom). */
+const OVERFLOW_MAX_HEADROOM_RATIO = 0.55
+/** Compress raw scores above this so 100% is reserved for true multi-stat engine elites. */
+const EFF_SOFT_CAP_START = 86
+const EFF_SOFT_CAP_STRETCH = 0.42
+/** On-screen / engine “perfect” for recipe normalization — all-20s should land high-80s pre-compression. */
 const RECIPE_PERFECT_DISPLAY = 20
 
 /**
@@ -217,10 +227,12 @@ export function valPartBase(display: number): number {
   return v >= RECIPE_PERFECT_DISPLAY ? base * GOD_MULT : base
 }
 
-/** Bracketed elite bonus above 20 — added to numerator only so Eff % can exceed the all-20s baseline. */
+/** Bracketed elite bonus above 20 — diminishing; Tsigalko-tier still beats all-20s, one god stat does not. */
 export function valPartOverflow(display: number): number {
   if (!Number.isFinite(display) || display <= RECIPE_PERFECT_DISPLAY) return 0
-  return Math.min(VAL_PART_OVERFLOW_CAP, (display - RECIPE_PERFECT_DISPLAY) / OVERFLOW_DIVISOR)
+  const excess = display - RECIPE_PERFECT_DISPLAY
+  const raw = (Math.sqrt(excess) / Math.sqrt(OVERFLOW_SQRT_SCALE)) * VAL_PART_OVERFLOW_CAP
+  return Math.min(VAL_PART_OVERFLOW_CAP, raw)
 }
 
 /** Base + overflow (for tests and tooling). */
@@ -230,6 +242,20 @@ export function valPart(display: number): number {
 
 function recipePerfectValPart(): number {
   return valPartBase(RECIPE_PERFECT_DISPLAY)
+}
+
+/** Per-slot normalization ceiling — includes partial overflow headroom. */
+function recipeSlotMaxValPart(): number {
+  return recipePerfectValPart() + VAL_PART_OVERFLOW_CAP * OVERFLOW_MAX_HEADROOM_RATIO
+}
+
+/**
+ * Soft cap on displayed Eff % — raw recipe math can exceed 100 when overflow + synergy stack;
+ * community expectation is almost nobody hits a flat 100 except multi-stat engine breakers.
+ */
+export function compressDisplayEff(raw: number): number {
+  if (raw <= EFF_SOFT_CAP_START) return round1(Math.max(0, raw))
+  return round1(EFF_SOFT_CAP_START + (raw - EFF_SOFT_CAP_START) * EFF_SOFT_CAP_STRETCH)
 }
 
 export interface EffStatLine {
@@ -378,6 +404,18 @@ export function defenseBrainFactor(decisions: number, anticipation: number): num
   return 0.35 + 0.65 * avg
 }
 
+/**
+ * Defensive wide roles need tackling floor — uncapped positioning cannot carry the whole recipe.
+ */
+function rolePrimaryFloorFactor(archetypeId: string, get: (name: string) => number): number {
+  if (archetypeId === 'dmc' || archetypeId === 'dc' || archetypeId === 'wb') {
+    const tac = clamp20(get, 'tackling')
+    if (tac >= 15) return 1
+    return 0.78 + 0.22 * (tac / 15)
+  }
+  return 1
+}
+
 function accumulateArchetype(
   a: EffectivenessArchetype,
   get: (name: string) => number,
@@ -391,7 +429,7 @@ function accumulateArchetype(
     const vp = valPartBase(raw) + valPartOverflow(raw)
     const c = W_PRIMARY * vp
     sum += c
-    max += W_PRIMARY * recipePerfectValPart()
+    max += W_PRIMARY * recipeSlotMaxValPart()
     lines.push({
       key: k,
       label: effAttrLabel(k),
@@ -408,7 +446,7 @@ function accumulateArchetype(
     const vp = valPartBase(raw) + valPartOverflow(raw)
     const c = W_SECONDARY * vp
     sum += c
-    max += W_SECONDARY * recipePerfectValPart()
+    max += W_SECONDARY * recipeSlotMaxValPart()
     lines.push({
       key: k,
       label: effAttrLabel(k),
@@ -431,7 +469,7 @@ function accumulateArchetype(
     const vp = valPartBase(effectiveRaw) + valPartOverflow(effectiveRaw)
     const c = w * vp
     sum += c
-    max += w * recipePerfectValPart()
+    max += w * recipeSlotMaxValPart()
     engineLines.push({
       key: ex.key,
       label: effAttrLabel(ex.key),
@@ -444,8 +482,9 @@ function accumulateArchetype(
     })
   }
   const basePct = max <= 0 ? 0 : (100 * sum) / max
+  const floorFactor = rolePrimaryFloorFactor(a.id, get)
   let brainMult: EffectivenessWinnerDetail['brainMult']
-  let afterBrain = basePct
+  let afterBrain = basePct * floorFactor
   if (
     (a.brain === 'defense' || a.brain === 'assist') &&
     !recipeIncludesBrainMentals(a)
@@ -454,7 +493,7 @@ function accumulateArchetype(
     const anticipation = Math.max(0, Math.min(20, get('anticipation')))
     const factor = defenseBrainFactor(decisions, anticipation)
     brainMult = { decisions, anticipation, factor: Math.round(factor * 10000) / 10000 }
-    afterBrain = basePct * factor
+    afterBrain = basePct * floorFactor * factor
   }
   afterBrain = Math.min(100, afterBrain)
   const preSynValue = afterBrain
@@ -531,12 +570,12 @@ export function computeEffectivenessFull(
   const preC = best.rawFinal
   const c = Math.max(1, Math.min(20, getAttr('consistency')))
   const rel = consistencyReliabilityFactor(c)
-  const effPercent = preC < 0 ? 0 : round1(Math.min(100, preC * rel))
+  const effPercent = preC < 0 ? 0 : compressDisplayEff(preC * rel)
 
   const byArchetype: EffectivenessArchetypeRow[] = scored.map((s, i) => ({
     archetypeId: s.a.id,
     archetypeLabel: s.a.label,
-    percent: round1(Math.min(100, Math.max(0, s.rawFinal * rel))),
+    percent: compressDisplayEff(Math.max(0, s.rawFinal * rel)),
     isWinner: i === 0,
   }))
 

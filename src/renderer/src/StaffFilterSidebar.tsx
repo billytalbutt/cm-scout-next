@@ -93,6 +93,10 @@ export type StaffFilterSidebarProps = {
   setStaffAttrMinMatchAtLeast: (v: string) => void
   activeStaffAttrFilterCount: number
   adjustStaffMatchAtLeast: (delta: number) => void
+  /** Chairman / MD preset (staff editor). */
+  showBoardOnlyPreset?: boolean
+  boardOnly?: boolean
+  setBoardOnly?: (v: boolean) => void
   /** Open hidden attribute mins by default (staff editor). */
   defaultHiddenOpen?: boolean
 }
@@ -137,16 +141,30 @@ export function StaffFilterSidebar({
   setStaffAttrMinMatchAtLeast,
   activeStaffAttrFilterCount,
   adjustStaffMatchAtLeast,
+  showBoardOnlyPreset,
+  boardOnly,
+  setBoardOnly,
   defaultHiddenOpen,
 }: StaffFilterSidebarProps) {
   return (
     <>
+      {showBoardOnlyPreset && setBoardOnly != null ? (
+        <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+          <input
+            type="checkbox"
+            checked={boardOnly ?? false}
+            onChange={(e) => setBoardOnly(e.target.checked)}
+          />
+          Chairman / Managing director only (jobs 1 &amp; 2)
+        </label>
+      ) : null}
       <label>
         <span className="filter-field-label">Job role</span>
         <select
-          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+          className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm disabled:opacity-50"
           value={staffJobForClub}
           onChange={(e) => setStaffJobForClub(e.target.value)}
+          disabled={boardOnly === true}
         >
           <option value="">Any role</option>
           {staffJobOptions.map((o) => (
