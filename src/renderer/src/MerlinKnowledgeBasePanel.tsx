@@ -70,6 +70,8 @@ const TOC: { id: string; label: string }[] = [
   { id: 'kb-instructions', label: 'Player instructions' },
   { id: 'kb-setpieces', label: 'Set pieces' },
   { id: 'kb-training', label: 'Training & coaching' },
+  { id: 'kb-coach-reports', label: 'Coach reports' },
+  { id: 'kb-board', label: 'Chairman / MD' },
 ]
 
 export function MerlinKnowledgeBasePanel() {
@@ -164,7 +166,8 @@ export function MerlinKnowledgeBasePanel() {
         <KbUl>
           <li>
             <strong className="font-medium text-zinc-300">Consistency:</strong> Probability check on true CA each match;
-            high consistency trumps high CA.
+            high consistency trumps high CA. Mental and technical attrs are penalised on off-days; physical attrs like
+            Pace and Jumping are largely unaffected.
           </li>
           <li>
             <strong className="font-medium text-zinc-300">Important Matches:</strong> Temporary CA boost in cup finals,
@@ -341,6 +344,59 @@ export function MerlinKnowledgeBasePanel() {
           <li>Tactics: best minds with 15+ Outfield and 15+ Tactics.</li>
           <li>Fitness, Shooting, Skills: remaining 15+ Outfield coaches distributed evenly.</li>
         </ol>
+      </KbSection>
+
+      <KbSection id="kb-coach-reports" title="11. Decoding Coach Reports">
+        <p>
+          Coach reports are direct, literal translations of hidden mathematical calculations regarding Current Ability
+          (CA) and Potential Ability (PA).
+        </p>
+        <p>
+          <strong className="font-medium text-zinc-300">Golden rule:</strong> Never trust a coach report unless the coach
+          has 15+ in <strong className="font-medium text-zinc-300">Judging Player Potential</strong> (youth) or 15+ in{' '}
+          <strong className="font-medium text-zinc-300">Judging Player Ability</strong> (current starters).
+        </p>
+        <KbH3>&quot;Developing signs of becoming a great player&quot;</KbH3>
+        <p>
+          Exceptionally high PA ceiling (usually 150+ out of 200) with CA trending upward. Lock down a long contract;
+          keep Medium training and give first-team minutes to close the CA–PA gap.
+        </p>
+        <KbH3>&quot;Playing well in training and should have an extended run in the first team&quot;</KbH3>
+        <p>
+          CA has jumped via training and now matches or beats your starters; hidden form is peaking. Give 3–5 consecutive
+          starts (cups or easier league games). Beyond a threshold, growth needs competitive minutes — loan out if they
+          cannot break into the XI.
+        </p>
+      </KbSection>
+
+      <KbSection id="kb-board" title="12. Boardroom Dynamics: Chairman / Managing Director">
+        <p>
+          Managers cannot directly control or fire the Chairman or Managing Director, but this individual sets the
+          club&apos;s financial and political reality through four hidden attributes on their{' '}
+          <span className="font-mono text-zinc-500">nonplayer.dat</span> row (staff jobs 1 and 2):
+        </p>
+        <KbUl>
+          <li>
+            <strong className="font-medium text-zinc-300">Business (1–20):</strong> Financial competence — sponsorships,
+            revenue, stadium expansion. Low Business boards panic over minor debts and force sales.
+          </li>
+          <li>
+            <strong className="font-medium text-zinc-300">Interference (1–20):</strong> Likelihood of meddling — accepting
+            bids over your head or blocking signings you want.
+          </li>
+          <li>
+            <strong className="font-medium text-zinc-300">Patience (1–20):</strong> Job security — high Patience tolerates
+            bad runs while you rebuild; low Patience sacks quickly.
+          </li>
+          <li>
+            <strong className="font-medium text-zinc-300">Resources (1–20, &quot;sugar daddy&quot;):</strong> How often the
+            board member injects personal wealth — clearing debt and boosting the transfer kitty.
+          </li>
+        </KbUl>
+        <p className="text-zinc-500">
+          Use the Staff / MD editor to browse all staff, filter Chairman + Managing Director roles, and set minimums on
+          these hidden bytes.
+        </p>
       </KbSection>
     </div>
   )

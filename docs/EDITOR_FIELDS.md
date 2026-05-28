@@ -29,7 +29,7 @@ The **Club editor** has **Clear all squad unhappiness on save** — same actions
 
 Linked via `staff.dat` `non_player_id` (row index). Writable coaching/tactics/business fields: see `src/main/database/nonplayerDiskLayout.ts`.
 
-Managing directors use `staff.job_for_club === 2` (`TStaff.JobForClub`).
+Managing directors and chairmen use `staff.job_for_club === 2` (Managing director) or `1` (Chairman). Board hidden attrs on `nonplayer.dat`: **Business**, **Interference**, **Patience**, **Resources** (sugar daddy — raw byte 1–20).
 
 ## Contract (`contract.dat`, 80-byte rows)
 

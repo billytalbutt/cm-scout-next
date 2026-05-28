@@ -47,6 +47,7 @@ describe('cm0102StaffHiddenDisplay', () => {
     expect(staffHiddenMeaningfulForDisplay('attackerPref', 12, 8)).toBe(true)
     expect(staffHiddenMeaningfulForDisplay('business', 12, 8)).toBe(false)
     expect(staffHiddenMeaningfulForDisplay('business', 12, STAFF_JOB_CHAIRMAN)).toBe(true)
+    expect(staffHiddenMeaningfulForDisplay('business', 12, 2)).toBe(true)
     expect(staffHiddenMeaningfulForDisplay('coachingTechnique', -1, 8)).toBe(false)
     expect(staffHiddenMeaningfulForDisplay('coachingTechnique', 1, 8)).toBe(true)
     expect(staffHiddenMeaningfulForDisplay('formation', 0, 8)).toBe(false)

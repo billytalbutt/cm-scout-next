@@ -31,6 +31,8 @@ export type StaffBrowseFilter = {
   club: string
   /** When set, only rows with this `TStaff.JobForClub` byte. */
   jobForClub?: number
+  /** When set, row job must be one of these bytes (overrides single `jobForClub` when non-empty). */
+  jobForClubIn?: number[]
   includePlayers: boolean
   ageMin?: number
   ageMax?: number
@@ -226,7 +228,11 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
     if (club && !clubName.toLowerCase().includes(club)) return
 
     const jobLabel = staffJobForClubLabel(s.job_for_club)
-    if (jobForClub != null && Number.isFinite(jobForClub) && s.job_for_club !== jobForClub) return
+    if (f.jobForClubIn?.length) {
+      if (!f.jobForClubIn.includes(s.job_for_club)) return
+    } else if (jobForClub != null && Number.isFinite(jobForClub) && s.job_for_club !== jobForClub) {
+      return
+    }
 
     const age =
       ageOnGameDate(s.dob_iso, gameDateIso) ?? ageFromBirthYearOnly(s.year_of_birth, gameDateIso)
@@ -318,6 +324,14 @@ export function parseStaffBrowseFilter(raw: Record<string, unknown>): StaffBrows
     const jn = Math.floor(Number(jobRaw))
     if (Number.isFinite(jn)) jobForClub = jn
   }
+  let jobForClubIn: number[] | undefined
+  const jobInRaw = raw.jobForClubIn
+  if (Array.isArray(jobInRaw) && jobInRaw.length > 0) {
+    jobForClubIn = jobInRaw
+      .map((x) => Math.floor(Number(x)))
+      .filter((n) => Number.isFinite(n))
+    if (jobForClubIn.length === 0) jobForClubIn = undefined
+  }
   const num = (key: string): number | undefined => {
     const v = raw[key]
     if (v === undefined || v === null || v === '') return undefined
@@ -338,7 +352,8 @@ export function parseStaffBrowseFilter(raw: Record<string, unknown>): StaffBrows
     q: String(raw.q ?? ''),
     nation: String(raw.nation ?? ''),
     club: String(raw.club ?? ''),
-    jobForClub,
+    jobForClub: jobForClubIn?.length ? undefined : jobForClub,
+    jobForClubIn,
     includePlayers: !!raw.includePlayers,
     ageMin: num('ageMin'),
     ageMax: num('ageMax'),

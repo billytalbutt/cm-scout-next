@@ -93,6 +93,8 @@ export type StaffFilterSidebarProps = {
   setStaffAttrMinMatchAtLeast: (v: string) => void
   activeStaffAttrFilterCount: number
   adjustStaffMatchAtLeast: (delta: number) => void
+  /** Open hidden attribute mins by default (staff editor). */
+  defaultHiddenOpen?: boolean
 }
 
 export function StaffFilterSidebar({
@@ -135,6 +137,7 @@ export function StaffFilterSidebar({
   setStaffAttrMinMatchAtLeast,
   activeStaffAttrFilterCount,
   adjustStaffMatchAtLeast,
+  defaultHiddenOpen,
 }: StaffFilterSidebarProps) {
   return (
     <>
@@ -303,9 +306,9 @@ export function StaffFilterSidebar({
           <StaffAttrMinGrid specs={STAFF_REGULAR_ATTR_FILTERS} attrMins={staffAttrMins} setStaffAttrMinAt={setStaffAttrMinAt} />
         </div>
       </details>
-      <details className="rounded-md border border-zinc-800 bg-zinc-900/40">
+      <details className="rounded-md border border-zinc-800 bg-zinc-900/40" open={defaultHiddenOpen}>
         <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400">
-          Hidden attributes
+          Hidden attributes (incl. board / sugar daddy)
         </summary>
         <div className="max-h-52 overflow-y-auto border-t border-zinc-800 px-2 py-2 cm-scroll">
           <StaffAttrMinGrid specs={STAFF_HIDDEN_ATTR_FILTERS} attrMins={staffAttrMins} setStaffAttrMinAt={setStaffAttrMinAt} />

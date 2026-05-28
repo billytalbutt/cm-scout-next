@@ -148,7 +148,7 @@ const NP_HIDDEN_EXTRA: { key: keyof NonPlayerRecord; label: string }[] = [
   { key: 'offside', label: 'Offside' },
   { key: 'patience', label: 'Patience' },
   { key: 'pressing', label: 'Pressing' },
-  { key: 'resources', label: 'Resources' },
+  { key: 'resources', label: 'Resources (sugar daddy)' },
 ]
 
 const NP_HIDDEN_POS_FIELDS: { key: keyof NonPlayerRecord; label: string }[] = [

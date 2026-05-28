@@ -99,8 +99,14 @@ export function staffChairmanTraitLabel(key: (typeof STAFF_CHAIRMAN_ONLY_KEYS)[n
   return `${names[key]} ${ig}/20`
 }
 
-/** CM `JobForClub` byte for chairman (`staff.dat`). */
+/** CM `JobForClub` bytes for chairman / managing director (board business attrs). */
 export const STAFF_JOB_CHAIRMAN = 1
+export const STAFF_JOB_MANAGING_DIRECTOR = 2
+export const STAFF_JOB_BOARD_ROLES = new Set<number>([STAFF_JOB_CHAIRMAN, STAFF_JOB_MANAGING_DIRECTOR])
+
+export function staffIsBoardRole(jobForClub: number): boolean {
+  return STAFF_JOB_BOARD_ROLES.has(jobForClub)
+}
 
 /**
  * Whether a hidden field is “active” in CM — i.e. would appear on the staff profile or matters for role.
@@ -135,7 +141,7 @@ export function staffHiddenMeaningfulForDisplay(
   jobForClub: number,
 ): boolean {
   if ((STAFF_CHAIRMAN_ONLY_KEYS as readonly string[]).includes(key)) {
-    return jobForClub === STAFF_JOB_CHAIRMAN
+    return staffIsBoardRole(jobForClub)
   }
   if ((STAFF_POSITION_PREF_KEYS as readonly string[]).includes(key)) {
     return staffPositionPrefIsSet(raw)
