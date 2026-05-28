@@ -4,11 +4,13 @@ Offsets follow CM0102Patcher `SaveChanger/Structures.cs` unless noted. Editing r
 
 ## Player unhappiness / morale
 
-CM 01/02 does not expose a separate `unhappiness` byte in the parsed structures used here. Unsettled players are usually reflected by:
+CM 01/02 stores unsettled-player state in several places (same areas the GK Save Game Editor clears under **Contract → Unhappiness**):
 
 | Field | File | Offset | Action in “Clear unhappiness” |
 |-------|------|--------|-------------------------------|
-| `morale` | `player.dat` | 69 (`i8`) | Set to **20** (maximum) |
+| `morale` (`PlayerMorale`) | `player.dat` | 69 (`i8`) | Set to **20** (maximum) |
+| `club_valuation` (`ClubValuation`) | `staff.dat` | 0x60 (`u8`) | Set to **0** |
+| Issue / feature block (`Unknown18_*`) | `contract.dat` | 54–71 (18 bytes) | Zeroed — squad depth, rotation, sold teammate, etc. |
 | Transfer request flag | `contract.dat` | `transfer_status` byte 78, **bit 0x08** | Cleared (`transfer_status & ~8`) |
 
 `transfer_status` other bits (CM Scout parity):
@@ -18,6 +20,8 @@ CM 01/02 does not expose a separate `unhappiness` byte in the parsed structures 
 - `0x08` — transfer listed by player request  
 
 Morale remains editable as a normal attribute in the player editor.
+
+**Important:** Save writes a **new copy** of the file. Load that edited save in CM (and reload it in Merlin) to see changes in-game.
 
 ## Staff / non-player (`nonplayer.dat`, 68 bytes)
 

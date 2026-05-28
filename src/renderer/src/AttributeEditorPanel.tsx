@@ -260,9 +260,15 @@ export function AttributeEditorPanel({
         baselineRef.current = { ...base, ...changes }
         if (clearInjury) {
           setClearInjury(false)
+        }
+        if (clearUnhappiness) {
+          setClearUnhappiness(false)
+        }
+        if (clearInjury || clearUnhappiness) {
           const refreshed = await window.cmapi.getEditorSnapshot(snap.staffIndex)
           if (refreshed && typeof refreshed === 'object' && 'values' in refreshed) {
             setSnap(refreshed as EditorSnapshot)
+            baselineRef.current = { ...(refreshed as EditorSnapshot).values }
           }
         }
       } else if (out && typeof out === 'object' && 'error' in out) {
@@ -490,7 +496,7 @@ export function AttributeEditorPanel({
         </div>
         <label
           className="mt-3 flex items-center gap-2 text-xs text-zinc-300"
-          title="Sets morale to maximum and clears any transfer request on save."
+          title="Sets morale to 20, clears contract issue flags (squad depth, rotation, etc.), and clears any transfer request. Saves a new file — load that save in CM to apply."
         >
           <input
             type="checkbox"

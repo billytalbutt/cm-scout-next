@@ -309,3 +309,55 @@ export function filterStaffGridRows(db: ParsedDatabase, f: StaffBrowseFilter): S
   out.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
   return out
 }
+
+/** Normalise an IPC staff browse / shortlist filter payload (without paging fields). */
+export function parseStaffBrowseFilter(raw: Record<string, unknown>): StaffBrowseFilter {
+  const jobRaw = raw.jobForClub ?? raw.job
+  let jobForClub: number | undefined
+  if (jobRaw !== undefined && jobRaw !== null && jobRaw !== '') {
+    const jn = Math.floor(Number(jobRaw))
+    if (Number.isFinite(jn)) jobForClub = jn
+  }
+  const num = (key: string): number | undefined => {
+    const v = raw[key]
+    if (v === undefined || v === null || v === '') return undefined
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  }
+  const attrRaw = raw.attrMins
+  const attrMins = Array.isArray(attrRaw)
+    ? attrRaw.map((x) => {
+        if (x === null || x === undefined || x === '') return null
+        const n = Number(x)
+        return Number.isFinite(n) && n > 0 ? n : null
+      })
+    : undefined
+  const matchRaw = num('attrMinMatchAtLeast')
+  const contractCat = raw.contractTypeCategory
+  return {
+    q: String(raw.q ?? ''),
+    nation: String(raw.nation ?? ''),
+    club: String(raw.club ?? ''),
+    jobForClub,
+    includePlayers: !!raw.includePlayers,
+    ageMin: num('ageMin'),
+    ageMax: num('ageMax'),
+    wageMin: num('wageMin'),
+    wageMax: num('wageMax'),
+    coachingCaMin: num('coachingCaMin'),
+    coachingCaMax: num('coachingCaMax'),
+    reputationMin: num('reputationMin'),
+    reputationMax: num('reputationMax'),
+    coachingPaMin: num('coachingPaMin'),
+    coachingPaMax: num('coachingPaMax'),
+    contractTypeCategory:
+      typeof contractCat === 'string' && contractCat.length > 0
+        ? (contractCat as ContractTypeCategoryId)
+        : undefined,
+    contractExpiresWithinMonths: num('contractExpiresWithinMonths'),
+    leavingOnBosman: raw.leavingOnBosman === true ? true : undefined,
+    euPassport: raw.euPassport === true ? true : undefined,
+    attrMins,
+    attrMinMatchAtLeast: matchRaw != null && matchRaw >= 1 ? Math.floor(matchRaw) : undefined,
+  }
+}

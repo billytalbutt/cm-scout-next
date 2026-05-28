@@ -178,7 +178,26 @@ declare global {
       setShortlistStore: (
         store: import('../../shared/shortlistTypes').ShortlistStore,
       ) => Promise<{ ok: true } | { ok: false; error: string }>
-      getShortlistPlayerRows: (staffIndices: number[]) => Promise<GridPlayerRow[]>
+      getShortlistPlayerRows: (payload: {
+        staffIndices: number[]
+        filter?: Record<string, unknown>
+      }) => Promise<GridPlayerRow[]>
+      getShortlistStaffRows: (payload: {
+        staffIndices: number[]
+        filter?: import('../../main/staffBrowse').StaffBrowseFilter
+      }) => Promise<
+        Array<{
+          staffIndex: number
+          staffId: number
+          name: string
+          jobLabel: string
+          club: string
+          nation: string
+          score: number
+          staffCa: number | null
+          staffPa: number | null
+        }>
+      >
       exportShortlistPls: (payload: {
         staffIndices: number[]
         defaultName?: string

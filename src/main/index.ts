@@ -49,20 +49,20 @@ import {
 import { loadShortlistStoreFromDisk, saveShortlistStoreToDisk } from './shortlistStore'
 import type { ShortlistStore } from '../shared/shortlistTypes'
 import type { GridIncludeFlags } from '../shared/gridTypes'
-import { ENGINE_SNIFFER_IDS, type EngineSnifferId } from './engineSniffer'
-import { filterUiPlayerRows, type GetRowsFilter } from './gridRowFilter'
+import { filterUiPlayerRows, parseGetRowsFilter } from './gridRowFilter'
 import {
-  parsePositionRoleFilterIds,
-  parsePositionSideFilterIds,
-} from '../shared/playerPositionFilter'
-import { filterStaffGridRows } from './staffBrowse'
+  parseShortlistFilterRaw,
+  parseShortlistStaffIndices,
+  shortlistPlayerGridRows,
+  shortlistStaffGridRows,
+} from './shortlistRows'
+import { filterStaffGridRows, parseStaffBrowseFilter } from './staffBrowse'
 import {
   buildClubDetailPayload,
   buildClubSquadGridRows,
   buildClubSquadPlayerRows,
   filterClubListRows,
 } from './clubBrowse'
-import type { ContractTypeCategoryId } from '../shared/contractTypes'
 import { buildStaffProfilePayload } from './staffProfilePayload'
 import { verifyClubCashOnArchive } from './database/clubCashPatch'
 import { refreshClubCashFromArchive } from './database/clubRecords'
@@ -562,33 +562,8 @@ ipcMain.handle('get-rows', async (_e, payload: unknown) => {
     limitRaw !== undefined && limitRaw !== null && limitRaw !== '' && Number.isFinite(Number(limitRaw))
   const limit = hasLimit ? Math.max(1, Math.floor(Number(limitRaw))) : undefined
 
+  const filter = parseGetRowsFilter(raw)
   const gridInclude = (raw.gridInclude ?? {}) as GridIncludeFlags
-  delete raw.offset
-  delete raw.limit
-  delete raw.gridInclude
-
-  const es = raw.engineSniffer
-  if (typeof es === 'string' && (ENGINE_SNIFFER_IDS as readonly string[]).includes(es)) {
-    ;(raw as GetRowsFilter).engineSniffer = es as EngineSnifferId
-  } else {
-    delete raw.engineSniffer
-  }
-
-  const ammRaw = raw.attrMinMatchAtLeast
-  delete raw.attrMinMatchAtLeast
-  if (ammRaw !== undefined && ammRaw !== null && ammRaw !== '') {
-    const n = Math.floor(Number(ammRaw))
-    if (Number.isFinite(n) && n >= 1) {
-      ;(raw as GetRowsFilter).attrMinMatchAtLeast = n
-    }
-  }
-
-  const filter = raw as GetRowsFilter
-  if (raw.isRegenLikely === true || raw.isRegenLikely === 'true' || raw.isRegenLikely === 1) {
-    filter.isRegenLikely = true
-  }
-  filter.positionRoles = parsePositionRoleFilterIds(raw.positionRoles)
-  filter.positionSides = parsePositionSideFilterIds(raw.positionSides)
 
   const gameDateIso = loaded.db.gameDateIso ?? null
   const rows = filterUiPlayerRows(allRowsForGrid(), filter, { gameDateIso })
@@ -615,56 +590,7 @@ ipcMain.handle('get-staff-rows', async (_e, payload: unknown) => {
   const limit = Math.max(1, Math.floor(Number(raw.limit) || 80))
   delete raw.offset
   delete raw.limit
-  const jobRaw = raw.jobForClub ?? raw.job
-  let jobForClub: number | undefined
-  if (jobRaw !== undefined && jobRaw !== null && jobRaw !== '') {
-    const jn = Math.floor(Number(jobRaw))
-    if (Number.isFinite(jn)) jobForClub = jn
-  } else {
-    jobForClub = undefined
-  }
-  const num = (key: string): number | undefined => {
-    const v = raw[key]
-    if (v === undefined || v === null || v === '') return undefined
-    const n = Number(v)
-    return Number.isFinite(n) ? n : undefined
-  }
-  const attrRaw = raw.attrMins
-  const attrMins = Array.isArray(attrRaw)
-    ? attrRaw.map((x) => {
-        if (x === null || x === undefined || x === '') return null
-        const n = Number(x)
-        return Number.isFinite(n) && n > 0 ? n : null
-      })
-    : undefined
-  const matchRaw = num('attrMinMatchAtLeast')
-  const contractCat = raw.contractTypeCategory
-  const all = filterStaffGridRows(loaded.db, {
-    q: String(raw.q ?? ''),
-    nation: String(raw.nation ?? ''),
-    club: String(raw.club ?? ''),
-    jobForClub,
-    includePlayers: !!raw.includePlayers,
-    ageMin: num('ageMin'),
-    ageMax: num('ageMax'),
-    wageMin: num('wageMin'),
-    wageMax: num('wageMax'),
-    coachingCaMin: num('coachingCaMin'),
-    coachingCaMax: num('coachingCaMax'),
-    reputationMin: num('reputationMin'),
-    reputationMax: num('reputationMax'),
-    coachingPaMin: num('coachingPaMin'),
-    coachingPaMax: num('coachingPaMax'),
-    contractTypeCategory:
-      typeof contractCat === 'string' && contractCat.length > 0
-        ? (contractCat as ContractTypeCategoryId)
-        : undefined,
-    contractExpiresWithinMonths: num('contractExpiresWithinMonths'),
-    leavingOnBosman: raw.leavingOnBosman === true ? true : undefined,
-    euPassport: raw.euPassport === true ? true : undefined,
-    attrMins,
-    attrMinMatchAtLeast: matchRaw != null && matchRaw >= 1 ? Math.floor(matchRaw) : undefined,
-  })
+  const all = filterStaffGridRows(loaded.db, parseStaffBrowseFilter(raw))
   const total = all.length
   const page = all.slice(offset, offset + limit)
   return { total, rows: page, offset, capped: offset + page.length < total }
@@ -1340,27 +1266,6 @@ function plsEntriesFromStaffIndices(db: ParsedDatabase, staffIndices: number[]):
   return out
 }
 
-function gridRowsForStaffIndices(staffIndices: number[], inc?: GridIncludeFlags): GridPlayerRow[] {
-  if (!loaded) return []
-  const out: GridPlayerRow[] = []
-  const seen = new Set<number>()
-  for (const idx of staffIndices) {
-    if (!Number.isFinite(idx) || idx < 0 || seen.has(idx)) continue
-    seen.add(idx)
-    let ui = loaded.rows.find((r) => r.staffIndex === idx)
-    if (!ui) {
-      const built = buildUiPlayerRowAtIndex(loaded.db, idx)
-      if (!built) continue
-      applyCmScoutRatings([built])
-      applyEffectivenessRatings([built])
-      applyEngineMetaProfiles([built])
-      ui = built
-    }
-    out.push(mapUiRowToGridPayload(ui, inc ?? { role7: true }))
-  }
-  return out
-}
-
 ipcMain.handle('get-shortlist-store', async () => {
   if (!loaded?.indexPath) return { version: 1 as const, lists: [] }
   return loadShortlistStoreFromDisk(loaded.indexPath)
@@ -1380,11 +1285,18 @@ ipcMain.handle('set-shortlist-store', async (_e, store: unknown) => {
   }
 })
 
-ipcMain.handle('get-shortlist-player-rows', async (_e, staffIndices: unknown) => {
-  const ids = Array.isArray(staffIndices)
-    ? staffIndices.map((x) => Math.floor(Number(x))).filter((n) => Number.isFinite(n) && n >= 0)
-    : []
-  return gridRowsForStaffIndices(ids, { role7: true })
+ipcMain.handle('get-shortlist-player-rows', async (_e, payload: unknown) => {
+  if (!loaded) return []
+  const staffIndices = parseShortlistStaffIndices(payload)
+  const filterRaw = parseShortlistFilterRaw(payload)
+  return shortlistPlayerGridRows(loaded, staffIndices, filterRaw, { role7: true })
+})
+
+ipcMain.handle('get-shortlist-staff-rows', async (_e, payload: unknown) => {
+  if (!loaded) return []
+  const staffIndices = parseShortlistStaffIndices(payload)
+  const filterRaw = parseShortlistFilterRaw(payload)
+  return shortlistStaffGridRows(loaded.db, staffIndices, filterRaw)
 })
 
 ipcMain.handle('export-shortlist-pls', async (event, payload: unknown) => {

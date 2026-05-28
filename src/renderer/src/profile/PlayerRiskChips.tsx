@@ -8,24 +8,21 @@ export function PlayerRiskChips({
   disciplineRisk?: boolean
   lowConsistencyRisk?: boolean
 }) {
-  if (!injuryRisk && !disciplineRisk && !lowConsistencyRisk) return null
+  const parts: { key: string; label: string; tone: 'alert' | 'muted' }[] = []
+  if (injuryRisk) parts.push({ key: 'injury', label: 'Injury risk', tone: 'alert' })
+  if (disciplineRisk) parts.push({ key: 'discipline', label: 'Discipline risk', tone: 'alert' })
+  if (lowConsistencyRisk) parts.push({ key: 'consistency', label: 'Low consistency', tone: 'muted' })
+
+  if (parts.length === 0) return null
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {injuryRisk && (
-        <span className="rounded-md border border-amber-700/50 bg-amber-950/40 px-2 py-0.5 text-[10px] font-medium text-amber-200/90">
-          Injury risk
+    <p className="text-[11px] leading-snug text-zinc-500">
+      {parts.map((part, i) => (
+        <span key={part.key}>
+          {i > 0 && <span className="text-zinc-600"> · </span>}
+          <span className={part.tone === 'alert' ? 'text-rose-300/90' : 'text-zinc-400'}>{part.label}</span>
         </span>
-      )}
-      {disciplineRisk && (
-        <span className="rounded-md border border-orange-700/50 bg-orange-950/40 px-2 py-0.5 text-[10px] font-medium text-orange-200/90">
-          Discipline risk
-        </span>
-      )}
-      {lowConsistencyRisk && (
-        <span className="rounded-md border border-zinc-600/50 bg-zinc-900/60 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
-          Low consistency
-        </span>
-      )}
-    </div>
+      ))}
+    </p>
   )
 }

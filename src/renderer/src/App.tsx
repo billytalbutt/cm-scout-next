@@ -47,6 +47,10 @@ import { AddToShortlistButton } from './shortlists/AddToShortlistButton'
 import { useShortlists } from './shortlists/useShortlists'
 import type { ShortlistKind } from '../../shared/shortlistTypes'
 import {
+  buildPlayerGridFilterPayload,
+  type PlayerGridFilterBuildInput,
+} from './filters/buildPlayerGridFilter'
+import {
   initialPitchSlots,
   snapAndRedistributePitch,
   type PitchSlot,
@@ -475,6 +479,7 @@ export function App() {
   const [compareRightStaffIndex, setCompareRightStaffIndex] = useState<number | null>(null)
   const [comparePickTarget, setComparePickTarget] = useState<'left' | 'right' | null>(null)
   const [shortlistNavOrder, setShortlistNavOrder] = useState<number[]>([])
+  const [shortlistKind, setShortlistKind] = useState<ShortlistKind>('players')
   const [editorPane, setEditorPane] = useState<'player' | 'staff' | 'club'>('player')
   /** Last club selected in Clubs tab — Tactics Lab uses this for save tactic wiring. */
   const [tacticsSeedClubId, setTacticsSeedClubId] = useState<number | null>(null)
@@ -659,6 +664,124 @@ export function App() {
   )
 
   const gridInclude = useMemo(() => gridFlagsForVisibleColumnIds(columnOrder), [columnOrder])
+
+  const playerFilterInputs = useMemo(
+    (): Omit<PlayerGridFilterBuildInput, 'browseTab' | 'gridInclude'> => ({
+      committedText,
+      caMin,
+      caMax,
+      paMin,
+      paMax,
+      cmScoutMin,
+      cmScoutMax,
+      effMin,
+      effMax,
+      ageMin,
+      ageMax,
+      valueMin,
+      valueMax,
+      wageMin,
+      wageMax,
+      shCareerGoalsMin,
+      shCareerGoalsMax,
+      shSeasonGoalsMin,
+      shSeasonGoalsMax,
+      shCareerAppsMin,
+      shSeasonAppsMin,
+      csGoalsMin,
+      csGoalsMax,
+      csAssistsMin,
+      csAssistsMax,
+      csAppsMin,
+      csLeagueGoalsMin,
+      csLeagueAssistsMin,
+      csCompetitionId,
+      csCompGoalsMin,
+      csCompGoalsMax,
+      csCompAssistsMin,
+      csCompAssistsMax,
+      csCompAppsMin,
+      contractTypeCategory,
+      tlClub,
+      tlRequest,
+      loanListed,
+      euOnly,
+      bosmanOnly,
+      minReleaseClause,
+      expiresWithinMonths,
+      attrMins,
+      attrMinMatchAtLeast,
+      regenOnly,
+      engineSniffer,
+      positionFilterRoles,
+      positionFilterSides,
+    }),
+    [
+      committedText,
+      caMin,
+      caMax,
+      paMin,
+      paMax,
+      cmScoutMin,
+      cmScoutMax,
+      effMin,
+      effMax,
+      ageMin,
+      ageMax,
+      valueMin,
+      valueMax,
+      wageMin,
+      wageMax,
+      shCareerGoalsMin,
+      shCareerGoalsMax,
+      shSeasonGoalsMin,
+      shSeasonGoalsMax,
+      shCareerAppsMin,
+      shSeasonAppsMin,
+      csGoalsMin,
+      csGoalsMax,
+      csAssistsMin,
+      csAssistsMax,
+      csAppsMin,
+      csLeagueGoalsMin,
+      csLeagueAssistsMin,
+      csCompetitionId,
+      csCompGoalsMin,
+      csCompGoalsMax,
+      csCompAssistsMin,
+      csCompAssistsMax,
+      csCompAppsMin,
+      contractTypeCategory,
+      tlClub,
+      tlRequest,
+      loanListed,
+      euOnly,
+      bosmanOnly,
+      minReleaseClause,
+      expiresWithinMonths,
+      attrMins,
+      attrMinMatchAtLeast,
+      regenOnly,
+      engineSniffer,
+      positionFilterRoles,
+      positionFilterSides,
+    ],
+  )
+
+  const playerGridFilterPayload = useMemo(
+    () =>
+      buildPlayerGridFilterPayload({
+        ...playerFilterInputs,
+        browseTab: browseTab === 'regens' ? 'regens' : 'players',
+        gridInclude: { role7: true },
+      }),
+    [playerFilterInputs, browseTab],
+  )
+
+  const showPlayerFilters =
+    browseTab === 'players' || browseTab === 'regens' || (browseTab === 'shortlists' && shortlistKind === 'players')
+  const showStaffFilters = browseTab === 'staff' || (browseTab === 'shortlists' && shortlistKind === 'staff')
+
   const profileAsideRef = useRef<HTMLDivElement>(null)
   const profileAsideShellRef = useRef<HTMLElement>(null)
   const lastProfilePanePxRef = useRef(readProfilePanePx())
@@ -738,110 +861,11 @@ export function App() {
     }
     const seq = ++refreshSeq.current
     setGridRefreshing(true)
-    const f: Record<string, unknown> = {
-      q: committedText.q,
-      nation: committedText.nation,
-      club: committedText.club,
-    }
-    const num = (s: string) => (s === '' ? undefined : Number(s))
-    const caLo = num(caMin)
-    const caHi = num(caMax)
-    const paLo = num(paMin)
-    const paHi = num(paMax)
-    const ageLo = num(ageMin)
-    const ageHi = num(ageMax)
-    const vLo = num(valueMin)
-    const vHi = num(valueMax)
-    const wLo = num(wageMin)
-    const wHi = num(wageMax)
-    if (Number.isFinite(caLo)) f.caMin = caLo
-    if (Number.isFinite(caHi)) f.caMax = caHi
-    if (Number.isFinite(paLo)) f.paMin = paLo
-    if (Number.isFinite(paHi)) f.paMax = paHi
-    const scoutLo = num(cmScoutMin)
-    const scoutHi = num(cmScoutMax)
-    const effLo = num(effMin)
-    const effHi = num(effMax)
-    if (Number.isFinite(scoutLo)) f.cmScoutMin = scoutLo
-    if (Number.isFinite(scoutHi)) f.cmScoutMax = scoutHi
-    if (Number.isFinite(effLo)) f.effMin = effLo
-    if (Number.isFinite(effHi)) f.effMax = effHi
-    if (Number.isFinite(ageLo)) f.ageMin = ageLo
-    if (Number.isFinite(ageHi)) f.ageMax = ageHi
-    if (Number.isFinite(vLo)) f.valueMin = vLo
-    if (Number.isFinite(vHi)) f.valueMax = vHi
-    if (Number.isFinite(wLo)) f.wageMin = wLo
-    if (Number.isFinite(wHi)) f.wageMax = wHi
-    const scgMin = num(shCareerGoalsMin)
-    const scgMax = num(shCareerGoalsMax)
-    const ssgMin = num(shSeasonGoalsMin)
-    const ssgMax = num(shSeasonGoalsMax)
-    const scaMin = num(shCareerAppsMin)
-    const ssaMin = num(shSeasonAppsMin)
-    if (Number.isFinite(scgMin)) f.shCareerGoalsMin = scgMin
-    if (Number.isFinite(scgMax)) f.shCareerGoalsMax = scgMax
-    if (Number.isFinite(ssgMin)) f.shSeasonGoalsMin = ssgMin
-    if (Number.isFinite(ssgMax)) f.shSeasonGoalsMax = ssgMax
-    if (Number.isFinite(scaMin)) f.shCareerAppsMin = scaMin
-    if (Number.isFinite(ssaMin)) f.shSeasonAppsMin = ssaMin
-    const csgMin = num(csGoalsMin)
-    const csgMax = num(csGoalsMax)
-    const csaMin = num(csAssistsMin)
-    const csaMax = num(csAssistsMax)
-    const csapMin = num(csAppsMin)
-    const clgMin = num(csLeagueGoalsMin)
-    const claMin = num(csLeagueAssistsMin)
-    if (Number.isFinite(csgMin)) f.csGoalsMin = csgMin
-    if (Number.isFinite(csgMax)) f.csGoalsMax = csgMax
-    if (Number.isFinite(csaMin)) f.csAssistsMin = csaMin
-    if (Number.isFinite(csaMax)) f.csAssistsMax = csaMax
-    if (Number.isFinite(csapMin)) f.csAppsMin = csapMin
-    if (Number.isFinite(clgMin)) f.csLeagueGoalsMin = clgMin
-    if (Number.isFinite(claMin)) f.csLeagueAssistsMin = claMin
-    const compId = Math.floor(Number(csCompetitionId))
-    if (csCompetitionId.trim() !== '' && Number.isFinite(compId) && compId > 0) {
-      f.csCompetitionId = compId
-    }
-    const ccgMin = num(csCompGoalsMin)
-    const ccgMax = num(csCompGoalsMax)
-    const ccaMin = num(csCompAssistsMin)
-    const ccaMax = num(csCompAssistsMax)
-    const ccAppsMin = num(csCompAppsMin)
-    if (Number.isFinite(ccgMin)) f.csCompGoalsMin = ccgMin
-    if (Number.isFinite(ccgMax)) f.csCompGoalsMax = ccgMax
-    if (Number.isFinite(ccaMin)) f.csCompAssistsMin = ccaMin
-    if (Number.isFinite(ccaMax)) f.csCompAssistsMax = ccaMax
-    if (Number.isFinite(ccAppsMin)) f.csCompAppsMin = ccAppsMin
-    if (contractTypeCategory) f.contractTypeCategory = contractTypeCategory
-    if (tlClub) f.transferListedClub = true
-    if (tlRequest) f.transferListedRequest = true
-    if (loanListed) f.listedForLoan = true
-    if (euOnly) f.euPassport = true
-    if (bosmanOnly) f.leavingOnBosman = true
-    if (minReleaseClause) f.hasMinimumReleaseClause = true
-    const expM = num(expiresWithinMonths)
-    if (expiresWithinMonths.trim() !== '' && Number.isFinite(expM) && expM >= 1) {
-      f.contractExpiresWithinMonths = Math.floor(expM)
-    }
-    const mins = attrMins.map((s) => {
-      if (s.trim() === '') return null
-      const n = Number(s)
-      return Number.isFinite(n) && n > 0 ? n : null
+    const f = buildPlayerGridFilterPayload({
+      ...playerFilterInputs,
+      browseTab,
+      gridInclude,
     })
-    if (mins.some((m) => m != null)) f.attrMins = mins
-    const matchN = num(attrMinMatchAtLeast)
-    if (attrMinMatchAtLeast.trim() !== '' && Number.isFinite(matchN) && matchN >= 1) {
-      f.attrMinMatchAtLeast = Math.floor(matchN)
-    }
-    if (browseTab === 'regens') {
-      f.isRegenLikely = true
-    } else if (regenOnly) {
-      f.isRegenLikely = true
-    }
-    if (engineSniffer !== 'off') f.engineSniffer = engineSniffer
-    if (positionFilterRoles.length) f.positionRoles = positionFilterRoles
-    if (positionFilterSides.length) f.positionSides = positionFilterSides
-    f.gridInclude = gridInclude
     const ROWS_IPC_PAGE = 12000
     try {
       if (typeof window.cmapi?.getRows !== 'function') {
@@ -927,57 +951,10 @@ export function App() {
       if (refreshSeq.current === seq) setGridRefreshing(false)
     }
   }, [
-    committedText,
-    caMin,
-    caMax,
-    paMin,
-    paMax,
-    cmScoutMin,
-    cmScoutMax,
-    effMin,
-    effMax,
-    ageMin,
-    ageMax,
-    valueMin,
-    valueMax,
-    wageMin,
-    wageMax,
-    shCareerGoalsMin,
-    shCareerGoalsMax,
-    shSeasonGoalsMin,
-    shSeasonGoalsMax,
-    shCareerAppsMin,
-    shSeasonAppsMin,
-    csGoalsMin,
-    csGoalsMax,
-    csAssistsMin,
-    csAssistsMax,
-    csAppsMin,
-    csLeagueGoalsMin,
-    csLeagueAssistsMin,
-    csCompetitionId,
-    csCompGoalsMin,
-    csCompGoalsMax,
-    csCompAssistsMin,
-    csCompAssistsMax,
-    csCompAppsMin,
-    contractTypeCategory,
-    tlClub,
-    tlRequest,
-    loanListed,
-    euOnly,
-    bosmanOnly,
-    minReleaseClause,
-    expiresWithinMonths,
-    attrMins,
-    attrMinMatchAtLeast,
-    loadInfo,
-    gridInclude,
+    playerFilterInputs,
     browseTab,
-    regenOnly,
-    engineSniffer,
-    positionFilterRoles,
-    positionFilterSides,
+    gridInclude,
+    loadInfo,
   ])
 
   useEffect(() => {
@@ -1663,7 +1640,7 @@ export function App() {
               onCommit={setCommittedText}
               onPendingChange={setTextFiltersPending}
             />
-            {browseTab === 'staff' && (
+            {showStaffFilters && (
               <StaffFilterSidebar
                 ageMin={ageMin}
                 setAgeMin={setAgeMin}
@@ -1725,11 +1702,12 @@ export function App() {
             )}
             {browseTab === 'shortlists' && (
               <p className="text-[11px] leading-snug text-zinc-500">
-                Shortlists are saved per loaded database. Add players or staff from the grid (right-click) or profile.
-                Export player lists as <span className="font-mono text-zinc-400">.pls</span> into your CM0102 Search folder.
+                Shortlists are saved per loaded database. Left-hand filters apply to the shortlist table — switch between
+                player and staff shortlists with the tabs above the list. Export player lists as{' '}
+                <span className="font-mono text-zinc-400">.pls</span> into your CM0102 Search folder.
               </p>
             )}
-            {(browseTab === 'players' || browseTab === 'regens') && (
+            {showPlayerFilters && (
             <>
             <p className="filter-section-heading">General</p>
             <div className="grid grid-cols-2 gap-2">
@@ -2434,6 +2412,10 @@ export function App() {
               <ShortlistsPanel
                 loadInfo={!!loadInfo}
                 shortlists={shortlists}
+                kind={shortlistKind}
+                onKindChange={setShortlistKind}
+                playerFilter={playerGridFilterPayload}
+                staffFilter={staffBrowseFilter}
                 onPlayerNavOrderChange={setShortlistNavOrder}
                 onOpenPlayer={(si) => {
                   void pick(si)

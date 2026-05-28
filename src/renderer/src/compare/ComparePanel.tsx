@@ -38,7 +38,7 @@ function CompareHeader({ p }: { p: ProfilePayload }) {
       )}
       {p.effPercent != null && (
         <p className="text-[11px] text-zinc-400">
-          Eff <span className="font-mono text-emerald-200/90">{p.effPercent.toFixed(1)}%</span>
+          Eff <span className="font-mono text-zinc-200">{p.effPercent.toFixed(1)}%</span>
           {p.effArchetype ? ` (${p.effArchetype})` : ''}
         </p>
       )}

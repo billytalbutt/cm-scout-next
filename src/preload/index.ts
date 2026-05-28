@@ -142,8 +142,10 @@ contextBridge.exposeInMainWorld('cmapi', {
     ipcRenderer.invoke('get-shortlist-store') as Promise<{ version: 1; lists: unknown[] }>,
   setShortlistStore: (store: { version: 1; lists: unknown[] }) =>
     ipcRenderer.invoke('set-shortlist-store', store) as Promise<{ ok: true } | { ok: false; error: string }>,
-  getShortlistPlayerRows: (staffIndices: number[]) =>
-    ipcRenderer.invoke('get-shortlist-player-rows', staffIndices) as Promise<Array<Record<string, unknown>>>,
+  getShortlistPlayerRows: (payload: { staffIndices: number[]; filter?: Record<string, unknown> }) =>
+    ipcRenderer.invoke('get-shortlist-player-rows', payload) as Promise<Array<Record<string, unknown>>>,
+  getShortlistStaffRows: (payload: { staffIndices: number[]; filter?: Record<string, unknown> }) =>
+    ipcRenderer.invoke('get-shortlist-staff-rows', payload) as Promise<Array<Record<string, unknown>>>,
   exportShortlistPls: (payload: { staffIndices: number[]; defaultName?: string }) =>
     ipcRenderer.invoke('export-shortlist-pls', payload) as Promise<
       { ok: true; path: string; count: number } | { ok: false; error: string }

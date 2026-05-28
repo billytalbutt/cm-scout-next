@@ -20,3 +20,7 @@ export const CONTRACT_DISK_FIELDS: Record<string, { offset: number; kind: DiskFi
   transfer_status: { offset: 78, kind: 'u8' },
   squad_status: { offset: 79, kind: 'u8' },
 }
+
+/** GK editor “Contract → Unhappiness” block (`TContract.Unknown18_*`, 18 bytes). */
+export const CONTRACT_ISSUE_BLOCK_OFFSET = 54
+export const CONTRACT_ISSUE_BLOCK_LENGTH = 18

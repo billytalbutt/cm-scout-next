@@ -278,3 +278,36 @@ export function filterUiPlayerRows(
   }
   return out
 }
+
+/** Normalise an IPC `get-rows` / shortlist filter payload (without paging fields). */
+export function parseGetRowsFilter(raw: Record<string, unknown>): GetRowsFilter {
+  const filter = { ...raw } as GetRowsFilter
+  delete (filter as Record<string, unknown>).offset
+  delete (filter as Record<string, unknown>).limit
+  delete (filter as Record<string, unknown>).gridInclude
+
+  const es = raw.engineSniffer
+  if (typeof es === 'string' && es.length > 0) {
+    filter.engineSniffer = es as EngineSnifferId
+  } else {
+    delete filter.engineSniffer
+  }
+
+  const ammRaw = raw.attrMinMatchAtLeast
+  if (ammRaw !== undefined && ammRaw !== null && ammRaw !== '') {
+    const n = Math.floor(Number(ammRaw))
+    if (Number.isFinite(n) && n >= 1) {
+      filter.attrMinMatchAtLeast = n
+    }
+  } else {
+    delete filter.attrMinMatchAtLeast
+  }
+
+  if (raw.isRegenLikely === true || raw.isRegenLikely === 'true' || raw.isRegenLikely === 1) {
+    filter.isRegenLikely = true
+  }
+
+  filter.positionRoles = parsePositionRoleFilterIds(raw.positionRoles)
+  filter.positionSides = parsePositionSideFilterIds(raw.positionSides)
+  return filter
+}

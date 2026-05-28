@@ -11,6 +11,8 @@ import {
 } from '../shared/contractEditorDisplay'
 import {
   CONTRACT_DISK_FIELDS,
+  CONTRACT_ISSUE_BLOCK_LENGTH,
+  CONTRACT_ISSUE_BLOCK_OFFSET,
   CONTRACT_ROW_BYTES,
 } from './database/contractDiskLayout'
 import { findBlock, writeScalarAt } from './database/playerStaffDiskLayout'
@@ -135,4 +137,17 @@ export function clearTransferRequestAtContractRow(buf: Buffer, contractRowAbs: n
   const off = contractRowAbs + (CONTRACT_DISK_FIELDS.transfer_status?.offset ?? 78)
   const ts = buf.readUInt8(off)
   buf.writeUInt8(ts & ~8, off)
+}
+
+/**
+ * Clear in-game player issue / unhappiness data on a contract row.
+ * Matches GK Save Game Editor “Contract → Unhappiness” (zeros the 18-byte issue block).
+ */
+export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: number): void {
+  buf.fill(
+    0,
+    contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET,
+    contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET + CONTRACT_ISSUE_BLOCK_LENGTH,
+  )
+  clearTransferRequestAtContractRow(buf, contractRowAbs)
 }

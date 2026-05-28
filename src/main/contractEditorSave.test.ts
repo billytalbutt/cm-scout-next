@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { readBlocksDirectory } from './database/parser'
 import {
   buildContractEditorPatchedBuffer,
+  clearContractUnhappinessAtRow,
   resolveContractRowAbsOffset,
 } from './contractEditorSave'
+import {
+  CONTRACT_ISSUE_BLOCK_LENGTH,
+  CONTRACT_ISSUE_BLOCK_OFFSET,
+} from './database/contractDiskLayout'
 import type { BlockInfo, ContractRecord, ParsedDatabase, StaffRecord } from './database/types'
 
 function minimalContractArchive(staffIndex: number, wage: number): Buffer {
@@ -13,6 +19,9 @@ function minimalContractArchive(staffIndex: number, wage: number): Buffer {
   row.writeInt32LE(staffIndex, 0)
   row.writeInt32LE(100, 4)
   row.writeInt32LE(wage, 12)
+  row.writeUInt8(0xff, 54)
+  row.writeUInt8(0xab, 71)
+  row.writeUInt8(8, 78)
   return Buffer.concat([header, row])
 }
 
@@ -59,7 +68,6 @@ function fakeDb(staffIndex: number, wage: number, blocks: BlockInfo[]): ParsedDa
 describe('contractEditorSave', () => {
   it('patches wage at resolved row offset', () => {
     const archive = minimalContractArchive(0, 500)
-    const { blocks } = readBlocksDirectory(archive)
     const contractBlock: BlockInfo = {
       name: 'contract.dat',
       position: 0,
@@ -76,5 +84,15 @@ describe('contractEditorSave', () => {
     if (built.ok) {
       expect(built.buffer.readInt32LE(base! + 12)).toBe(2500)
     }
+  })
+
+  it('clears contract issue block and transfer-request bit', () => {
+    const archive = minimalContractArchive(0, 500)
+    const base = 8
+    clearContractUnhappinessAtRow(archive, base)
+    for (let i = 0; i < CONTRACT_ISSUE_BLOCK_LENGTH; i++) {
+      expect(archive.readUInt8(base + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
+    }
+    expect(archive.readUInt8(base + 78)).toBe(0)
   })
 })
