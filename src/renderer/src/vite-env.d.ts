@@ -235,7 +235,7 @@ export interface ProfileAttrCell {
   highlightTier?: 'primary' | 'secondary'
   /** Amber ring — Eff % recipe primary (×5 weight). */
   highlightEngine?: boolean
-  /** Sky label — forum lore attr not already a recipe primary. */
+  /** Electric-blue label — forum key attrs for this role (may also have an amber ring). */
   highlightRecipeAccent?: boolean
   /** When set, show this label instead of the numeric in-game rating. */
   displayText?: string | null

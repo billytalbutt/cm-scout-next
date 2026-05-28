@@ -57,9 +57,11 @@ export function PlayerProfileTabViews({
         <HoverTip
           tip={
             <p>
-              Row tint and amber rings follow the natural role selected (
-              <span className="font-mono text-zinc-200">{p.highlightRolesLabel}</span>). Use Eff % by recipe below
-              scouting on the main window, or the tiles above in this pop-out.
+              Row tint and amber rings follow the Eff % recipe for the role selected (
+              <span className="font-mono text-zinc-200">{p.highlightRolesLabel}</span>).{' '}
+              <span className="font-semibold text-sky-400">Blue labels</span> mark forum key attributes for that
+              position (e.g. marking / tackling / positioning for a DM). Use Eff % by recipe below scouting on the main
+              window, or the tiles above in this pop-out.
             </p>
           }
         >

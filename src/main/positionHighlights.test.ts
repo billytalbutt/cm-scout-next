@@ -62,13 +62,24 @@ describe('positionHighlights engine breakers', () => {
     }
   })
 
-  it('AMC rings use recipe primaries; forum-only attrs become accent labels', () => {
+  it('AMC rings use recipe primaries; forum key attrs get blue labels', () => {
     const amc = computeHighlightSetsForArchetype('amc')
     expect(amc.playerEngineBreaker.has('technique')).toBe(true)
     expect(amc.playerEngineBreaker.has('decisions')).toBe(true)
     expect(amc.playerEngineBreaker.has('passing')).toBe(true)
     expect(amc.playerEngineBreaker.has('dribbling')).toBe(false)
+    expect(amc.playerRecipeAccent.has('technique')).toBe(true)
+    expect(amc.playerRecipeAccent.has('passing')).toBe(true)
     expect(amc.playerRecipeAccent.has('off_the_ball')).toBe(true)
+  })
+
+  it('DMC forum key attrs include marking plus recipe primaries as blue labels', () => {
+    const dmc = computeHighlightSetsForArchetype('dmc')
+    expect(dmc.playerEngineBreaker.has('positioning')).toBe(true)
+    expect(dmc.playerEngineBreaker.has('tackling')).toBe(true)
+    expect(dmc.playerRecipeAccent.has('marking')).toBe(true)
+    expect(dmc.playerRecipeAccent.has('positioning')).toBe(true)
+    expect(dmc.playerRecipeAccent.has('tackling')).toBe(true)
   })
 
   it('AMW rings differ from AMC (wide attacker vs central hub)', () => {

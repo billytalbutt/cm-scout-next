@@ -3019,8 +3019,8 @@ export function App() {
                         </span>
                         {' · '}
                         <span className="inline-flex items-center gap-1.5">
-                          <span className="font-semibold text-sky-300/90">Sky label</span>
-                          Forum lore (not a recipe primary)
+                          <span className="font-semibold text-sky-400">Blue label</span>
+                          Forum key attrs for role (2–4 per position)
                         </span>
                         <span className="block pt-1 text-zinc-500">
                           Hidden panel: amber ring on consistency, important matches, natural fitness, injury proneness,

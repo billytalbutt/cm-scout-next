@@ -156,7 +156,7 @@ export type HighlightSets = {
   playerSecondary: Set<string>
   /** Amber ring — Eff % recipe primaries (×5 weight). */
   playerEngineBreaker: Set<string>
-  /** Coloured label — forum lore attrs not already a recipe primary. */
+  /** Coloured label — forum “must-have” key attrs for this role (may overlap amber rings). */
   playerRecipeAccent: Set<string>
   staffPrimary: Set<string>
   staffSecondary: Set<string>
@@ -217,9 +217,7 @@ function applyRecipeHighlightLogic(role: PositionRoleId, archetypeId: string): H
   for (const x of UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS) playerEngineBreaker.add(x)
 
   const playerRecipeAccent = new Set<string>()
-  for (const k of forumBreakers) {
-    if (!playerEngineBreaker.has(k)) playerRecipeAccent.add(k)
-  }
+  for (const k of forumBreakers) playerRecipeAccent.add(k)
 
   return { ...base, playerEngineBreaker, playerRecipeAccent }
 }

@@ -34,7 +34,7 @@ export function profileAttrHighlightClass(
 export function profileAttrLabelClass(
   cell: Pick<ProfileAttrCell, 'highlightTier' | 'highlightRecipeAccent'>,
 ): string {
-  if (cell.highlightRecipeAccent) return 'truncate font-semibold text-sky-300/90'
+  if (cell.highlightRecipeAccent) return 'truncate font-semibold text-sky-400'
   if (cell.highlightTier === 'primary') return 'truncate font-medium text-emerald-200/85'
   return 'truncate text-zinc-400'
 }

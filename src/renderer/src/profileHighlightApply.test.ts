@@ -76,7 +76,7 @@ const dmPack: ProfileHighlightPack = {
   playerPrimary: ['tackling', 'positioning', 'marking'],
   playerSecondary: ['passing'],
   playerEngineBreaker: ['tackling', 'positioning', 'stamina'],
-  playerRecipeAccent: ['marking'],
+  playerRecipeAccent: ['marking', 'tackling', 'positioning'],
   staffPrimary: [],
   staffSecondary: [],
 }
@@ -88,7 +88,7 @@ const wbPack: ProfileHighlightPack = {
   playerPrimary: ['crossing', 'pace', 'stamina'],
   playerSecondary: ['tackling'],
   playerEngineBreaker: ['pace', 'acceleration', 'tackling'],
-  playerRecipeAccent: ['crossing'],
+  playerRecipeAccent: ['crossing', 'pace', 'acceleration'],
   staffPrimary: [],
   staffSecondary: [],
 }
@@ -113,6 +113,8 @@ describe('applyProfileHighlightPack', () => {
     expect(wb.attrColumns[0].find((c) => c.key === 'crossing')?.highlightTier).toBe('primary')
     expect(wb.attrColumns[0].find((c) => c.key === 'crossing')?.highlightEngine).toBe(false)
     expect(wb.attrColumns[0].find((c) => c.key === 'crossing')?.highlightRecipeAccent).toBe(true)
+    expect(dm.attrColumns[0].find((c) => c.key === 'tackling')?.highlightRecipeAccent).toBe(true)
+    expect(dm.attrColumns[0].find((c) => c.key === 'tackling')?.highlightEngine).toBe(true)
     expect(wb.attrColumns[0].find((c) => c.key === 'tackling')?.highlightTier).toBe('secondary')
     expect(wb.highlightRolesLabel).toBe('WB')
   })
