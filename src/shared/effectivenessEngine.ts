@@ -12,6 +12,9 @@
  * **Natural gate:** Only archetypes natural for the player (>14) are scored; else **Unsure** — Eff % is always
  * among position‑appropriate recipes (MC vs DMC vs AMC, etc.), never a generic “all roles” blend.
  *
+ * **Brain mult (DC only):** Centre-backs use a softened decisions+anticipation factor because those attrs are not
+ * recipe secondaries. DMC includes them as secondaries already — no extra multiplier (avoids double-counting).
+ *
  * @see https://champman0102.net/viewtopic.php?t=3350 — hidden attributes (community reference)
  */
 
@@ -82,7 +85,8 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
     label: 'DMC',
     primary: ['positioning', 'tackling', 'stamina'],
     secondary: ['anticipation', 'decisions', 'strength'],
-    brain: 'defense',
+    /** Mentals are already recipe secondaries — no extra multiplicative brain (was double-counting). */
+    brain: 'none',
     engineExtras: [
       { key: 'teamwork', weight: 2 },
       { key: 'determination', weight: 2 },
@@ -358,6 +362,22 @@ export function archetypeSynergyPercent(archetypeId: string, get: (name: string)
   }
 }
 
+function recipeIncludesBrainMentals(a: EffectivenessArchetype): boolean {
+  const keys = new Set([...a.primary, ...a.secondary])
+  return keys.has('decisions') && keys.has('anticipation')
+}
+
+/**
+ * DC/SW brain gate — decisions + anticipation for reading danger.
+ * Uses average (not product) so 15–16 mentals on an otherwise elite profile are not halved.
+ */
+export function defenseBrainFactor(decisions: number, anticipation: number): number {
+  const d = Math.max(0, Math.min(20, decisions)) / 20
+  const a = Math.max(0, Math.min(20, anticipation)) / 20
+  const avg = (d + a) / 2
+  return 0.35 + 0.65 * avg
+}
+
 function accumulateArchetype(
   a: EffectivenessArchetype,
   get: (name: string) => number,
@@ -426,10 +446,13 @@ function accumulateArchetype(
   const basePct = max <= 0 ? 0 : (100 * sum) / max
   let brainMult: EffectivenessWinnerDetail['brainMult']
   let afterBrain = basePct
-  if (a.brain === 'defense' || a.brain === 'assist') {
+  if (
+    (a.brain === 'defense' || a.brain === 'assist') &&
+    !recipeIncludesBrainMentals(a)
+  ) {
     const decisions = Math.max(0, Math.min(20, get('decisions')))
     const anticipation = Math.max(0, Math.min(20, get('anticipation')))
-    const factor = (decisions / 20) * (anticipation / 20)
+    const factor = defenseBrainFactor(decisions, anticipation)
     brainMult = { decisions, anticipation, factor: Math.round(factor * 10000) / 10000 }
     afterBrain = basePct * factor
   }

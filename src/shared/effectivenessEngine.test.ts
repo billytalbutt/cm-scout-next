@@ -3,6 +3,7 @@ import { inGameCa18, inGameCa18Uncapped } from './cm0102AttributeDisplay'
 import {
   computeEffectivenessFull,
   computePlayerRiskFlags,
+  defenseBrainFactor,
   valPart,
 } from './effectivenessEngine'
 import { effectivenessAttrGetter } from '../main/effectivenessAttrGetter'
@@ -148,6 +149,95 @@ describe('injury proneness does not affect Eff %', () => {
     expect(effLow.effPercent).toBe(effHigh.effPercent)
     expect(computePlayerRiskFlags(getLow).injuryRisk).toBe(false)
     expect(computePlayerRiskFlags(getHigh).injuryRisk).toBe(true)
+  })
+})
+
+describe('DMC effectiveness (no double brain penalty)', () => {
+  const dmcOnly = new Set(['dmc'])
+
+  function anchorDmcPlayer(overrides: Partial<PlayerRecord> = {}): PlayerRecord {
+    return {
+      id: 1,
+      squad_number: 6,
+      current_ability: 153,
+      potential_ability: 170,
+      home_reputation: 5000,
+      current_reputation: 5000,
+      world_reputation: 5000,
+      goalkeeper: 1,
+      sweeper: 8,
+      defender: 14,
+      defensive_midfielder: 20,
+      midfielder: 17,
+      attacking_midfielder: 10,
+      attacker: 8,
+      wing_back: 10,
+      right_side: 12,
+      left_side: 12,
+      centre_side: 16,
+      positioning: 20,
+      tackling: 18,
+      stamina: 18,
+      marking: 17,
+      anticipation: 15,
+      decisions: 16,
+      strength: 16,
+      teamwork: 16,
+      passing: 16,
+      technique: 16,
+      creativity: 14,
+      work_rate: 12,
+      pace: 15,
+      acceleration: 15,
+      aggression: 14,
+      bravery: 16,
+      heading: 15,
+      jumping: 14,
+      balance: 15,
+      agility: 14,
+      crossing: 11,
+      dribbling: 12,
+      finishing: 11,
+      flair: 2,
+      long_shots: 13,
+      off_the_ball: 14,
+      penalties: 12,
+      handling: 1,
+      one_on_ones: 1,
+      reflexes: 1,
+      throw_ins: 10,
+      consistency: 19,
+      dirtiness: 8,
+      important_matches: 19,
+      injury_proneness: 3,
+      natural_fitness: 18,
+      corners: 11,
+      free_kicks: 11,
+      ...overrides,
+    } as PlayerRecord
+  }
+
+  const staffAnchor = { determination: 17, professionalism: 18, teamwork: 16 } as StaffRecord
+
+  it('strong DMC regen with solid mentals scores high-60s/low-70s, not ~40%', () => {
+    const p = anchorDmcPlayer()
+    const get = effectivenessAttrGetter(p, staffAnchor)
+    const full = computeEffectivenessFull(get, dmcOnly)
+    expect(full.effPercent).not.toBeNull()
+    expect(full.effPercent!).toBeGreaterThan(65)
+    expect(full.effPercent!).toBeLessThan(88)
+    expect(full.winnerDetail?.brainMult).toBeUndefined()
+    expect(full.byArchetype[0]!.archetypeId).toBe('dmc')
+  })
+})
+
+describe('defenseBrainFactor (DC)', () => {
+  it('uses average mentals so 16/15 is not crushed like the old product formula', () => {
+    expect(defenseBrainFactor(20, 20)).toBeCloseTo(1, 5)
+    expect(defenseBrainFactor(16, 15)).toBeGreaterThan(0.8)
+    expect(defenseBrainFactor(16, 15)).toBeLessThan(0.9)
+    const oldProduct = (16 / 20) * (15 / 20)
+    expect(defenseBrainFactor(16, 15)).toBeGreaterThan(oldProduct + 0.25)
   })
 })
 

@@ -72,9 +72,9 @@ export function EffDetailContent({
 
       {d.brainMult ? (
         <p className="text-zinc-400">
-          Base (recipe + engine) {d.basePercent.toFixed(1)}% × brain ({d.brainMult.decisions} Dec / 20 ×{' '}
-          {d.brainMult.anticipation} Ant / 20 ={' '}
-          <span className="font-mono text-zinc-200">{d.brainMult.factor}</span>) →{' '}
+          Base (recipe + engine) {d.basePercent.toFixed(1)}% × brain (
+          {d.brainMult.decisions} Dec + {d.brainMult.anticipation} Ant → avg mental{' '}
+          <span className="font-mono text-zinc-200">×{d.brainMult.factor.toFixed(3)}</span>) →{' '}
           <span className="font-mono text-zinc-100">{d.preConsistencyPercent.toFixed(1)}%</span>
         </p>
       ) : (

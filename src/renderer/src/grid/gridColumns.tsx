@@ -106,7 +106,7 @@ function defFor(
           header: () => (
             <span
               className="cursor-help border-b border-dotted border-zinc-500"
-              title="Eff %: recipe + engine hiddens (profile scale), brain mult, then consistency factor. Naturals &gt;14. Unsure = no recipe. Not CM Scout %."
+              title="Eff %: weighted recipe + engine hiddens for each natural role. DMC/DC differ — DMC scores Dec/Ant in the recipe; DC applies a brain read. Not CM Scout %."
             >
               {lab}
             </span>

@@ -97,9 +97,9 @@ export function buildEffectivenessNarrative(input: EffectivenessNarrativeInput):
     strengthBits.push('profile synergy bonus for a community “Xavi-style” shape')
   }
 
-  if (d.brainMult && d.brainMult.factor >= 0.72) {
+  if (d.brainMult && d.brainMult.factor >= 0.88) {
     strengthBits.push(
-      `sharp brain (${d.brainMult.decisions} Decisions, ${d.brainMult.anticipation} Anticipation) multiplying defensive reads`,
+      `sharp defensive reads (${d.brainMult.decisions} Decisions, ${d.brainMult.anticipation} Anticipation)`,
     )
   }
 
