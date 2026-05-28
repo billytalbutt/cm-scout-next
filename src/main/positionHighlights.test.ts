@@ -82,6 +82,22 @@ describe('positionHighlights engine breakers', () => {
     expect(dmc.playerRecipeAccent.has('tackling')).toBe(true)
   })
 
+  it('hidden-panel community attrs get blue labels on every role', () => {
+    const dmc = computeHighlightSetsForArchetype('dmc')
+    expect(dmc.playerRecipeAccent.has('consistency')).toBe(true)
+    expect(dmc.playerRecipeAccent.has('important_matches')).toBe(true)
+    expect(dmc.playerRecipeAccent.has('natural_fitness')).toBe(true)
+    expect(dmc.playerRecipeAccent.has('professionalism')).toBe(true)
+    expect(dmc.playerRecipeAccent.has('pressure')).toBe(true)
+    expect(dmc.playerRecipeAccent.has('ambition')).toBe(true)
+    expect(dmc.playerRecipeAccent.has('injury_proneness')).toBe(false)
+  })
+
+  it('GK one-on-ones is blue (forum key shown in hidden column)', () => {
+    const gk = computeHighlightSetsForArchetype('gk')
+    expect(gk.playerRecipeAccent.has('one_on_ones')).toBe(true)
+  })
+
   it('AMW rings differ from AMC (wide attacker vs central hub)', () => {
     const amw = computeHighlightSetsForArchetype('amw')
     const amc = computeHighlightSetsForArchetype('amc')

@@ -151,12 +151,46 @@ export const UNIVERSAL_HIDDEN_ENGINE_BREAKERS = [
 /** Staff mentals in the hidden panel that gate long-term output (forum + Eff % engine extras). */
 export const UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS = ['professionalism', 'pressure'] as const
 
+/**
+ * Hidden-panel attrs highlighted blue — community “bankers” on every player (champman0102 threads).
+ * Amber rings for these stay on {@link UNIVERSAL_HIDDEN_ENGINE_BREAKERS}; blue labels match the main-panel pattern.
+ */
+export const UNIVERSAL_HIDDEN_RECIPE_ACCENT = [
+  'important_matches',
+  'consistency',
+  'natural_fitness',
+] as const
+
+/** Staff mentals in the hidden panel — forum emphasis (blue label). */
+export const STAFF_HIDDEN_RECIPE_ACCENT = ['professionalism', 'pressure', 'ambition'] as const
+
+/** Keys rendered in the player hidden panel (`profilePayload` HIDDEN_DISPLAY_ORDER). */
+export const HIDDEN_PANEL_ATTR_KEYS = new Set<string>([
+  'adaptability',
+  'ambition',
+  'consistency',
+  'corners',
+  'dirtiness',
+  'important_matches',
+  'injury_proneness',
+  'loyalty',
+  'natural_fitness',
+  'one_on_ones',
+  'penalties',
+  'pressure',
+  'professionalism',
+  'sportsmanship',
+  'temperament',
+  'throw_ins',
+  'versatility',
+])
+
 export type HighlightSets = {
   playerPrimary: Set<string>
   playerSecondary: Set<string>
   /** Amber ring — Eff % recipe primaries (×5 weight). */
   playerEngineBreaker: Set<string>
-  /** Coloured label — forum “must-have” key attrs for this role (may overlap amber rings). */
+  /** Coloured label — forum key attrs for role + hidden-panel community bankers. */
   playerRecipeAccent: Set<string>
   staffPrimary: Set<string>
   staffSecondary: Set<string>
@@ -218,6 +252,8 @@ function applyRecipeHighlightLogic(role: PositionRoleId, archetypeId: string): H
 
   const playerRecipeAccent = new Set<string>()
   for (const k of forumBreakers) playerRecipeAccent.add(k)
+  for (const k of UNIVERSAL_HIDDEN_RECIPE_ACCENT) playerRecipeAccent.add(k)
+  for (const k of STAFF_HIDDEN_RECIPE_ACCENT) playerRecipeAccent.add(k)
 
   return { ...base, playerEngineBreaker, playerRecipeAccent }
 }

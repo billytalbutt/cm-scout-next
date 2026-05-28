@@ -146,7 +146,7 @@ export type ProfileAttrCell = {
   /** FM-style row tint: key attributes for natural position(s) */
   highlightTier?: 'primary' | 'secondary'
   highlightEngine?: boolean
-  /** Forum lore attr — coloured label when not a recipe primary (no extra ring). */
+  /** Forum / community key attr — blue label on main or hidden panel (may overlap amber rings). */
   highlightRecipeAccent?: boolean
 }
 

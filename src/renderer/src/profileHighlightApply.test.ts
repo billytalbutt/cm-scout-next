@@ -53,7 +53,21 @@ function minimalProfile(): ProfilePayload {
       right: { label: 'Right', inGame: 15, inGameUncapped: 15, raw: 15, inMatch: 15 },
       morale: { label: 'Morale', inGame: 15, inGameUncapped: 15, raw: 15, inMatch: 15 },
     },
-    hiddenColumns: [[], [], []],
+    hiddenColumns: [
+      [
+        {
+          key: 'consistency',
+          label: 'Consistency',
+          inGame: 18,
+          inGameUncapped: 18,
+          raw: 18,
+          inMatch: 18,
+          invert: false,
+        },
+      ],
+      [],
+      [],
+    ],
     highlightRolesLabel: 'DM',
     defaultHighlightRoleCmScoutIndex: 2,
     highlightPacksByCmScoutIndex: [dmPack, wbPack],
@@ -115,6 +129,8 @@ describe('applyProfileHighlightPack', () => {
     expect(wb.attrColumns[0].find((c) => c.key === 'crossing')?.highlightRecipeAccent).toBe(true)
     expect(dm.attrColumns[0].find((c) => c.key === 'tackling')?.highlightRecipeAccent).toBe(true)
     expect(dm.attrColumns[0].find((c) => c.key === 'tackling')?.highlightEngine).toBe(true)
+    expect(dm.hiddenColumns[0].find((c) => c.key === 'consistency')?.highlightRecipeAccent).toBe(true)
+    expect(dm.hiddenColumns[0].find((c) => c.key === 'consistency')?.highlightEngine).toBe(true)
     expect(wb.attrColumns[0].find((c) => c.key === 'tackling')?.highlightTier).toBe('secondary')
     expect(wb.highlightRolesLabel).toBe('WB')
   })

@@ -89,7 +89,13 @@ export function PlayerProfileTabViews({
     return (
       <div className="space-y-3">
         {naturalRolePicker}
-        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hidden</h3>
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          Hidden
+          <span className="ml-2 font-normal normal-case text-zinc-600">
+            · <span className="font-semibold text-sky-400">Blue</span> = community bankers (consistency, big games,
+            fitness, professionalism)
+          </span>
+        </h3>
         <div
           key={`hidden-${profileHighlightArchetypeId}`}
           className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2"

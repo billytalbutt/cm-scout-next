@@ -3024,7 +3024,10 @@ export function App() {
                         </span>
                         <span className="block pt-1 text-zinc-500">
                           Hidden panel: amber ring on consistency, important matches, natural fitness, injury proneness,
-                          professionalism, pressure. AMC vs wide AM use separate highlight packs — pick the Eff recipe tile.
+                          professionalism, pressure. Same{' '}
+                          <span className="font-semibold text-sky-400">blue labels</span> on community hidden attrs
+                          (consistency, big games, natural fitness, professionalism, pressure, ambition). AMC vs wide AM
+                          use separate highlight packs — pick the Eff recipe tile.
                         </span>
                       </p>
                     </div>
