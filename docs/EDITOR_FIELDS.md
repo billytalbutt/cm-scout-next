@@ -23,6 +23,8 @@ Morale remains editable as a normal attribute in the player editor.
 
 **Important:** Save writes a **new copy** of the file. Load that edited save in CM (and reload it in Merlin) to see changes in-game.
 
+The **Club editor** has **Clear all squad unhappiness on save** — same actions as above for every playable squad player at the selected club.
+
 ## Staff / non-player (`nonplayer.dat`, 68 bytes)
 
 Linked via `staff.dat` `non_player_id` (row index). Writable coaching/tactics/business fields: see `src/main/database/nonplayerDiskLayout.ts`.

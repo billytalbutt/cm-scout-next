@@ -75,9 +75,10 @@ export function DevelopmentPanel({
     <div className="space-y-4 pb-4">
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-[11px] leading-snug text-zinc-500">
         <span className="font-medium text-zinc-300">Player development</span> — Compares each player&apos;s{' '}
-        <strong className="font-normal text-zinc-400">current attributes</strong> against the same fields stored in your
-        regen snapshot. Take a snapshot early in a save (same workflow as regen tracking); reload the save later to see
-        training gains, CA growth, and attribute drift. Re-save the snapshot to reset the baseline.
+        <strong className="font-normal text-zinc-400">in-game attributes (1–20)</strong> against the same display
+        values stored in your regen snapshot. Take a snapshot early in a save (same workflow as regen tracking); reload
+        the save later to see training gains, CA growth, and attribute drift. Re-save the snapshot to reset the
+        baseline.
       </div>
 
       {!loadInfo && (
@@ -118,6 +119,12 @@ export function DevelopmentPanel({
 
       {loadInfo && data?.ready && (
         <>
+          {data.legacySnapshot && (
+            <div className="rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-[11px] leading-snug text-zinc-400">
+              This snapshot stored raw disk values from an older version. Comparisons are converted to in-game 1–20
+              display, but re-save the snapshot for the most accurate baseline.
+            </div>
+          )}
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="In snapshot" value={data.totals.inSnapshot.toLocaleString()} />
             <StatCard label="With changes" value={data.totals.withChanges.toLocaleString()} />

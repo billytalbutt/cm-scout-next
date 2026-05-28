@@ -32,6 +32,8 @@ export type PlayerDevelopmentSummary = {
 export type DevelopmentRowsResponse = {
   ready: boolean
   reason?: 'no_snapshot' | 'legacy_snapshot'
+  /** Snapshot stored raw disk intrinsics; deltas are converted but re-save for best accuracy. */
+  legacySnapshot?: boolean
   snapshotAt?: string
   snapshotGameDate?: string | null
   totals: {

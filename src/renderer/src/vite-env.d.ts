@@ -172,8 +172,10 @@ declare global {
       saveClubEdits: (
         clubId: number,
         values: Record<string, number>,
-        options?: { inPlace?: boolean },
-      ) => Promise<{ ok: true; path: string; inPlace?: boolean } | { ok: false; error: string }>
+        options?: { inPlace?: boolean; clearSquadUnhappiness?: boolean },
+      ) => Promise<
+        { ok: true; path: string; inPlace?: boolean; squadCleared?: number } | { ok: false; error: string }
+      >
       getShortlistStore: () => Promise<{ version: 1; lists: import('../../shared/shortlistTypes').Shortlist[] }>
       setShortlistStore: (
         store: import('../../shared/shortlistTypes').ShortlistStore,

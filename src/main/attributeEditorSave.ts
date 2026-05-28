@@ -4,10 +4,7 @@ import {
   clearInjuryAtAbsOffset,
   resolveInjuryHistoryAbsOffset,
 } from './database/injuryHistory'
-import {
-  clearContractUnhappinessAtRow,
-  resolveContractRowAbsOffset,
-} from './contractEditorSave'
+import { applyClearUnhappinessForStaff } from './squadUnhappinessClear'
 import {
   findBlock,
   PLAYER_DISK_FIELDS,
@@ -17,9 +14,6 @@ import {
   STAFF_ROW_BYTES,
   writeScalarAt,
 } from './database/playerStaffDiskLayout'
-
-/** `TStaff.ClubValuation` — runtime club-satisfaction byte (not wage/value). */
-const STAFF_CLUB_VALUATION_OFFSET = 0x60
 
 export type AttributeEditorSaveResult =
   | { ok: true; buffer: Buffer }
@@ -94,10 +88,8 @@ export function buildPatchedArchiveBuffer(
   }
 
   if (opts?.clearUnhappiness) {
-    writeScalarAt(out, playerBase + PLAYER_DISK_FIELDS.morale.offset, 'i8', 20)
-    writeScalarAt(out, staffBase + STAFF_CLUB_VALUATION_OFFSET, 'u8', 0)
-    const contractRow = resolveContractRowAbsOffset(out, blocks, staffIndex)
-    if (contractRow != null) clearContractUnhappinessAtRow(out, contractRow)
+    const cleared = applyClearUnhappinessForStaff(out, blocks, db, staffIndex)
+    if (!cleared.ok) return cleared
   }
 
   return { ok: true, buffer: out }

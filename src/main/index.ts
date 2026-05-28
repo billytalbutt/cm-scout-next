@@ -46,6 +46,7 @@ import {
   developmentTotals,
   filterAndSortDevelopmentRows,
 } from './playerDevelopment'
+import { developmentDisplayVector48, resolveSnapshotDisplay48, snapshotUsesLegacyRawAttrs } from './developmentDisplay'
 import { loadShortlistStoreFromDisk, saveShortlistStoreToDisk } from './shortlistStore'
 import type { ShortlistStore } from '../shared/shortlistTypes'
 import type { GridIncludeFlags } from '../shared/gridTypes'
@@ -74,6 +75,7 @@ import {
 } from './archiveSync'
 import { injuryTypeLabel, readPlayerInjuryFromArchive } from './database/injuryHistory'
 import { buildClubEditorSnapshot, buildPatchedArchiveForClubEdits } from './clubEditorSave'
+import { applyClearUnhappinessForClubSquad } from './squadUnhappinessClear'
 import {
   buildEditorValueMap,
   buildPatchedArchiveBuffer,
@@ -851,6 +853,7 @@ ipcMain.handle('get-development-rows', async (_e, payload: unknown) => {
   const sortBy =
     sortRaw === 'name' || sortRaw === 'ca' || sortRaw === 'gains' ? sortRaw : ('net' as const)
   const all = buildAllDevelopmentSummaries(loaded.rows, baseline)
+  const legacySnapshot = Object.values(baseline.entries).some((e) => snapshotUsesLegacyRawAttrs(e))
   const filtered = filterAndSortDevelopmentRows(all, {
     q: typeof raw.q === 'string' ? raw.q : undefined,
     club: typeof raw.club === 'string' ? raw.club : undefined,
@@ -863,6 +866,7 @@ ipcMain.handle('get-development-rows', async (_e, payload: unknown) => {
     ready: true,
     snapshotAt: baseline.createdIso,
     snapshotGameDate: baseline.gameDateIso,
+    legacySnapshot,
     totals,
     total: filtered.length,
     rows: page,
@@ -883,7 +887,14 @@ ipcMain.handle('get-player-development-detail', async (_e, staffIndex: unknown) 
   if (!row) return { ready: false, summary: null }
   const entry = baseline.entries[String(row.staff.id)]
   if (!entry?.attr48) return { ready: false, summary: null }
-  const summary = buildPlayerDevelopmentSummary(row, entry, intrinsicRaw48(row.player, row.staff))
+  const before = resolveSnapshotDisplay48(entry)
+  if (!before) return { ready: false, summary: null }
+  const summary = buildPlayerDevelopmentSummary(
+    row,
+    entry,
+    before,
+    developmentDisplayVector48(row.player, row.staff),
+  )
   return { ready: true, summary }
 })
 
@@ -1141,40 +1152,60 @@ ipcMain.handle('get-club-editor-snapshot', async (_e, clubId: unknown) => {
 function applyClubEditsToLoadedArchive(
   clubId: number,
   values: Record<string, number>,
-): { ok: true; buffer: Buffer } | { ok: false; error: string } {
+  opts?: { clearSquadUnhappiness?: boolean },
+): { ok: true; buffer: Buffer; squadCleared?: number } | { ok: false; error: string } {
   if (!loaded) return { ok: false, error: 'No database loaded.' }
-  const built = buildPatchedArchiveForClubEdits(
-    loaded.archiveBuf,
-    loaded.db.blocks,
-    loaded.db.compressed,
-    loaded.db,
-    clubId,
-    values,
-  )
-  if (!built.ok) return built
-  loaded.archiveBuf = built.buffer
+  let buf = loaded.archiveBuf
+  if (Object.keys(values).length > 0) {
+    const built = buildPatchedArchiveForClubEdits(
+      loaded.archiveBuf,
+      loaded.db.blocks,
+      loaded.db.compressed,
+      loaded.db,
+      clubId,
+      values,
+    )
+    if (!built.ok) return built
+    buf = built.buffer
+  } else if (opts?.clearSquadUnhappiness) {
+    buf = Buffer.from(loaded.archiveBuf)
+  }
+  let squadCleared: number | undefined
+  if (opts?.clearSquadUnhappiness) {
+    const cleared = applyClearUnhappinessForClubSquad(buf, loaded.db.blocks, loaded.db, clubId)
+    if (!cleared.ok) return cleared
+    squadCleared = cleared.cleared
+  }
+  loaded.archiveBuf = buf
   loaded.pathKey = pathKeyForDb(loaded.indexPath)
-  loaded.db = refreshLoadedDbFromArchive(loaded.indexPath, built.buffer)
-  return { ok: true, buffer: built.buffer }
+  loaded.db = refreshLoadedDbFromArchive(loaded.indexPath, buf)
+  return { ok: true, buffer: buf, squadCleared }
 }
 
 ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
   if (!loaded) return { ok: false as const, error: 'No database loaded.' }
   syncLoadedArchiveFromDisk()
-  const p = payload as { clubId?: unknown; values?: unknown; changes?: unknown; inPlace?: unknown }
+  const p = payload as {
+    clubId?: unknown
+    values?: unknown
+    changes?: unknown
+    inPlace?: unknown
+    clearSquadUnhappiness?: unknown
+  }
   const clubId = Math.floor(Number(p.clubId))
   const ch = p.values ?? p.changes
   if (!Number.isFinite(clubId) || clubId <= 0 || typeof ch !== 'object' || ch === null) {
     return { ok: false as const, error: 'Invalid save payload.' }
   }
   const values = ch as Record<string, number>
-  if (Object.keys(values).length === 0) {
+  const clearSquadUnhappiness = p.clearSquadUnhappiness === true
+  if (Object.keys(values).length === 0 && !clearSquadUnhappiness) {
     return { ok: false as const, error: 'No club fields to save.' }
   }
 
   if (p.inPlace === true) {
     try {
-      const applied = applyClubEditsToLoadedArchive(clubId, values)
+      const applied = applyClubEditsToLoadedArchive(clubId, values, { clearSquadUnhappiness })
       if (!applied.ok) return { ok: false as const, error: applied.error }
       const writtenPaths = writeArchiveToDiskSiblings(loaded.indexPath, applied.buffer)
       const verifyPath = loaded.indexPath
@@ -1195,6 +1226,7 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
         path: verifyPath,
         inPlace: true as const,
         writtenPaths,
+        squadCleared: applied.squadCleared,
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -1202,15 +1234,27 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
     }
   }
 
-  const built = buildPatchedArchiveForClubEdits(
-    loaded.archiveBuf,
-    loaded.db.blocks,
-    loaded.db.compressed,
-    loaded.db,
-    clubId,
-    values,
-  )
-  if (!built.ok) return { ok: false as const, error: built.error }
+  let patchBuf = loaded.archiveBuf
+  if (Object.keys(values).length > 0) {
+    const built = buildPatchedArchiveForClubEdits(
+      loaded.archiveBuf,
+      loaded.db.blocks,
+      loaded.db.compressed,
+      loaded.db,
+      clubId,
+      values,
+    )
+    if (!built.ok) return { ok: false as const, error: built.error }
+    patchBuf = built.buffer
+  } else if (clearSquadUnhappiness) {
+    patchBuf = Buffer.from(loaded.archiveBuf)
+  }
+  let squadCleared: number | undefined
+  if (clearSquadUnhappiness) {
+    const cleared = applyClearUnhappinessForClubSquad(patchBuf, loaded.db.blocks, loaded.db, clubId)
+    if (!cleared.ok) return { ok: false as const, error: cleared.error }
+    squadCleared = cleared.cleared
+  }
 
   const parent =
     BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
@@ -1234,12 +1278,12 @@ ipcMain.handle('save-club-edits', async (event, payload: unknown) => {
       })
   if (dlg.canceled || !dlg.filePath) return { ok: false as const, error: 'cancelled' }
   try {
-    writeFileSync(dlg.filePath, built.buffer)
-    loaded.archiveBuf = built.buffer
+    writeFileSync(dlg.filePath, patchBuf)
+    loaded.archiveBuf = patchBuf
     loaded.indexPath = dlg.filePath
     loaded.pathKey = pathKeyForDb(dlg.filePath)
-    loaded.db = refreshLoadedDbFromArchive(dlg.filePath, built.buffer)
-    return { ok: true as const, path: dlg.filePath, inPlace: false as const }
+    loaded.db = refreshLoadedDbFromArchive(dlg.filePath, patchBuf)
+    return { ok: true as const, path: dlg.filePath, inPlace: false as const, squadCleared }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     return { ok: false as const, error: msg }

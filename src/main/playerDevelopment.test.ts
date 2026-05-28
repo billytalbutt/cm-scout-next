@@ -64,7 +64,7 @@ describe('playerDevelopment', () => {
     const before = new Array(48).fill(12)
     const after = [...before]
     after[0] = 15
-    const sum = buildPlayerDevelopmentSummary(row(130, after), entry({ ca: 120, attr48: before }), after)
+    const sum = buildPlayerDevelopmentSummary(row(130, after), entry({ ca: 120, attr48: before }), before, after)
     expect(sum?.caDelta).toBe(10)
     expect(sum?.attrsUp).toBe(1)
     expect(sum?.netAttrPoints).toBe(3)

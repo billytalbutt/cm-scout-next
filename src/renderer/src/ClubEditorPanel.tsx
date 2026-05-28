@@ -109,6 +109,7 @@ export function ClubEditorPanel({
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [clearSquadUnhappiness, setClearSquadUnhappiness] = useState(false)
   const baselineRef = useRef<Record<string, number> | null>(null)
 
   const financeFields = useMemo(() => CLUB_EDITOR_FIELDS.filter((f) => f.section === 'club_finance'), [])
@@ -117,6 +118,7 @@ export function ClubEditorPanel({
   useEffect(() => {
     setSaveMsg(null)
     setErr(null)
+    setClearSquadUnhappiness(false)
     if (!loadInfo || compressed || clubId == null || typeof window.cmapi?.getClubEditorSnapshot !== 'function') {
       setSnap(null)
       setDraft({})
@@ -176,6 +178,7 @@ export function ClubEditorPanel({
   }, [])
 
   const hasChanges = useMemo(() => {
+    if (clearSquadUnhappiness) return true
     const base = baselineRef.current
     if (!base) return false
     for (const key of Object.keys(base)) {
@@ -192,7 +195,7 @@ export function ClubEditorPanel({
       if (Math.trunc(n) !== base[key]) return true
     }
     return false
-  }, [draft])
+  }, [draft, clearSquadUnhappiness])
 
   const saveDisabled = compressed || !snap || saving || !hasChanges
 
@@ -205,7 +208,8 @@ export function ClubEditorPanel({
       const raw = draft[key]
       if (raw === undefined) continue
       if (spec?.kind === 'bool') {
-        values[key] = raw === '1' ? 1 : 0
+        const b = raw === '1' ? 1 : 0
+        if (b !== base[key]) values[key] = b
         continue
       }
       const n = Number(raw)
@@ -213,7 +217,8 @@ export function ClubEditorPanel({
         setErr(`Invalid number for ${spec?.label ?? key}`)
         return null
       }
-      values[key] = clampClubEditorValue(key, Math.trunc(n))
+      const c = clampClubEditorValue(key, Math.trunc(n))
+      if (c !== base[key]) values[key] = c
     }
     return values
   }, [draft])
@@ -242,10 +247,16 @@ export function ClubEditorPanel({
   const onSaveInPlace = useCallback(async () => {
     if (!snap || compressed || typeof window.cmapi?.saveClubEdits !== 'function') return
     const values = collectValues()
-    if (!values) return
+    if (values == null) return
+    if (Object.keys(values).length === 0 && !clearSquadUnhappiness) {
+      setSaveMsg('No changes to save.')
+      return
+    }
     if (
       !window.confirm(
-        `Overwrite the loaded save file?\n\n${databasePath ?? 'Current save'}\n\nQuit CM completely before saving, then load/Continue this exact file to see bank balance and stadium changes.`,
+        `Overwrite the loaded save file?\n\n${databasePath ?? 'Current save'}\n\nQuit CM completely before saving, then load/Continue this exact file to see changes in CM.${
+          clearSquadUnhappiness ? '\n\nThis will clear unhappiness for every squad player at this club.' : ''
+        }`,
       )
     ) {
       return
@@ -254,12 +265,20 @@ export function ClubEditorPanel({
     setErr(null)
     setSaveMsg(null)
     try {
-      const out = await window.cmapi.saveClubEdits(snap.clubId, values, { inPlace: true })
+      const out = await window.cmapi.saveClubEdits(snap.clubId, values, {
+        inPlace: true,
+        clearSquadUnhappiness,
+      })
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
         const savedPath = String(out.path)
+        setClearSquadUnhappiness(false)
         await refreshAfterSave(snap.clubId, savedPath)
+        const cleared =
+          'squadCleared' in out && typeof out.squadCleared === 'number'
+            ? ` Cleared unhappiness for ${out.squadCleared} squad players.`
+            : ''
         setSaveMsg(
-          `Updated ${savedPath}. Quit CM if it was running, then load/Continue this file and check Finances → Bank balance.`,
+          `Updated ${savedPath}.${cleared} Quit CM if it was running, then load/Continue this file and check Finances → Bank balance.`,
         )
       } else if (out && typeof out === 'object' && 'error' in out) {
         const er = (out as { error?: string }).error
@@ -270,22 +289,31 @@ export function ClubEditorPanel({
     } finally {
       setSaving(false)
     }
-  }, [collectValues, compressed, databasePath, refreshAfterSave, snap])
+  }, [clearSquadUnhappiness, collectValues, compressed, databasePath, refreshAfterSave, snap])
 
   const onSave = useCallback(async () => {
     if (!snap || compressed || typeof window.cmapi?.saveClubEdits !== 'function') return
     const values = collectValues()
-    if (!values) return
+    if (values == null) return
+    if (Object.keys(values).length === 0 && !clearSquadUnhappiness) {
+      setSaveMsg('No changes to save.')
+      return
+    }
     setSaving(true)
     setErr(null)
     setSaveMsg(null)
     try {
-      const out = await window.cmapi.saveClubEdits(snap.clubId, values)
+      const out = await window.cmapi.saveClubEdits(snap.clubId, values, { clearSquadUnhappiness })
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
         const savedPath = String(out.path)
+        setClearSquadUnhappiness(false)
         await refreshAfterSave(snap.clubId, savedPath)
+        const cleared =
+          'squadCleared' in out && typeof out.squadCleared === 'number'
+            ? ` Cleared unhappiness for ${out.squadCleared} squad players.`
+            : ''
         setSaveMsg(
-          `Saved ${savedPath}. In CM: Continue that exact file (not an older copy). After playing and saving in-game, use File → Load that same path here before editing again.`,
+          `Saved ${savedPath}.${cleared} In CM: Continue that exact file (not an older copy). After playing and saving in-game, use File → Load that same path here before editing again.`,
         )
       } else if (out && typeof out === 'object' && 'error' in out) {
         const er = (out as { error?: string }).error
@@ -297,7 +325,7 @@ export function ClubEditorPanel({
     } finally {
       setSaving(false)
     }
-  }, [collectValues, compressed, refreshAfterSave, snap])
+  }, [clearSquadUnhappiness, collectValues, compressed, refreshAfterSave, snap])
 
   if (!loadInfo) {
     return null
@@ -415,6 +443,20 @@ export function ClubEditorPanel({
               onBool={onBool}
             />
           </div>
+
+          <label
+            className="flex items-center gap-2 text-xs text-zinc-300"
+            title="Sets morale to Superb (20), clears contract issue flags, and clears transfer requests for every playable squad player at this club. Saves a new file — load that save in CM to apply."
+          >
+            <input
+              type="checkbox"
+              checked={clearSquadUnhappiness}
+              disabled={saving}
+              onChange={(e) => setClearSquadUnhappiness(e.target.checked)}
+              className="rounded border-zinc-600"
+            />
+            Clear all squad unhappiness on save
+          </label>
 
           <div className="flex flex-wrap items-center gap-2">
             <button

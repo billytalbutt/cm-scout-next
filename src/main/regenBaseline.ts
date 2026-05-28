@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { app } from 'electron'
-import { intrinsicRaw48 } from './cmScoutRating'
+import { scoutDisplayVector48 } from './cmScoutRating'
 import type { PlayerRecord, UiPlayerRow } from './database/types'
 
 /** Natural-position vector — same key as `regenDetection` heuristic buckets. */
@@ -40,7 +40,7 @@ export type RegenBaselineEntry = {
   posSig: string
   dobIso: string | null
   jobForClub: number
-  /** v2 snapshots: raw intrinsic attrs (48) for development tracking since snapshot. */
+  /** v2+ snapshots: in-game display attrs (48, 1–20) for development tracking since snapshot. */
   attr48?: number[]
 }
 
@@ -95,7 +95,7 @@ export function buildBaselineFromRows(
       posSig: playerPosSig(r.player),
       dobIso: s.dob_iso,
       jobForClub: s.job_for_club,
-      attr48: intrinsicRaw48(r.player, s),
+      attr48: scoutDisplayVector48(r.player, r.staff),
     }
   }
   return {

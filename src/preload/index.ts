@@ -134,9 +134,18 @@ contextBridge.exposeInMainWorld('cmapi', {
   saveContractEdits: (staffIndex: number, changes: Record<string, number>) =>
     ipcRenderer.invoke('save-contract-edits', { staffIndex, changes }),
   getClubEditorSnapshot: (clubId: number) => ipcRenderer.invoke('get-club-editor-snapshot', clubId),
-  saveClubEdits: (clubId: number, values: Record<string, number>, options?: { inPlace?: boolean }) =>
-    ipcRenderer.invoke('save-club-edits', { clubId, values, inPlace: options?.inPlace === true }) as Promise<
-      { ok: true; path: string; inPlace?: boolean } | { ok: false; error: string }
+  saveClubEdits: (
+    clubId: number,
+    values: Record<string, number>,
+    options?: { inPlace?: boolean; clearSquadUnhappiness?: boolean },
+  ) =>
+    ipcRenderer.invoke('save-club-edits', {
+      clubId,
+      values,
+      inPlace: options?.inPlace === true,
+      clearSquadUnhappiness: options?.clearSquadUnhappiness === true,
+    }) as Promise<
+      { ok: true; path: string; inPlace?: boolean; squadCleared?: number } | { ok: false; error: string }
     >,
   getShortlistStore: () =>
     ipcRenderer.invoke('get-shortlist-store') as Promise<{ version: 1; lists: unknown[] }>,

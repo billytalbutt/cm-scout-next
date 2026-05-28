@@ -3,7 +3,7 @@ import type {
   AttrDevelopmentDelta,
   PlayerDevelopmentSummary,
 } from '../shared/playerDevelopmentTypes'
-import { intrinsicRaw48 } from './cmScoutRating'
+import { developmentDisplayVector48, resolveSnapshotDisplay48 } from './developmentDisplay'
 import type { UiPlayerRow } from './database/types'
 import type { RegenBaselineEntry, RegenBaselineFile } from './regenBaseline'
 
@@ -34,11 +34,11 @@ export function compareAttr48(before: number[], after: number[]): AttrDevelopmen
 export function buildPlayerDevelopmentSummary(
   row: UiPlayerRow,
   entry: RegenBaselineEntry,
-  currentAttr48: number[],
+  beforeDisplay48: number[],
+  currentDisplay48: number[],
 ): PlayerDevelopmentSummary | null {
-  const before = entry.attr48
-  if (!before || before.length !== 48) return null
-  const deltas = compareAttr48(before, currentAttr48)
+  if (beforeDisplay48.length !== 48 || currentDisplay48.length !== 48) return null
+  const deltas = compareAttr48(beforeDisplay48, currentDisplay48)
   const attrsUp = deltas.filter((d) => d.improved).length
   const attrsDown = deltas.filter((d) => !d.improved).length
   const netAttrPoints = deltas.reduce(
@@ -89,8 +89,10 @@ export function buildAllDevelopmentSummaries(
     if (r.staffIndex < 0) continue
     const entry = baseline.entries[String(r.staff.id)]
     if (!entry?.attr48) continue
-    const current = intrinsicRaw48(r.player, r.staff)
-    const sum = buildPlayerDevelopmentSummary(r, entry, current)
+    const before = resolveSnapshotDisplay48(entry)
+    if (!before) continue
+    const current = developmentDisplayVector48(r.player, r.staff)
+    const sum = buildPlayerDevelopmentSummary(r, entry, before, current)
     if (sum) out.push(sum)
   }
   return out
