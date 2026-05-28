@@ -1,19 +1,19 @@
 import { useMemo } from 'react'
-import { cmScoutIndexFromEffectivenessArchetypeId } from '../../../shared/profileHighlightRole'
 import type { ProfilePayload } from '../vite-env.d'
 import { cmScoutRoleValueTierByRole } from './profileUi'
 import { RolePercentMiniCell } from './RolePercentMiniCell'
 
 type Props = {
   profile: ProfilePayload
-  activeRoleIdx: number
-  onSelectRole: (roleCmScoutIndex: number) => void
+  activeArchetypeId: string
+  onSelectArchetype: (archetypeId: string) => void
 }
 
 /**
  * Eff % by recipe (natural roles) — click a tile to drive attribute / hidden highlights.
+ * AMC and wide AM are separate tiles (both differ from CM Scout’s single “AM” column).
  */
-export function NaturalRoleHighlightPicker({ profile, activeRoleIdx, onSelectRole }: Props) {
+export function NaturalRoleHighlightPicker({ profile, activeArchetypeId, onSelectArchetype }: Props) {
   const rows = profile.effByArchetype
   if (!rows?.length) return null
 
@@ -27,10 +27,8 @@ export function NaturalRoleHighlightPicker({ profile, activeRoleIdx, onSelectRol
       <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
         Eff % by recipe (natural roles)
       </p>
-      <div className="mt-1 grid grid-cols-7 gap-1 text-center">
+      <div className="mt-1 flex flex-wrap gap-1">
         {rows.map((row, rowIndex) => {
-          const roleIdx = cmScoutIndexFromEffectivenessArchetypeId(row.archetypeId)
-          if (roleIdx == null) return null
           const tier = tierByRowIndex.get(rowIndex)
           return (
             <RolePercentMiniCell
@@ -38,9 +36,9 @@ export function NaturalRoleHighlightPicker({ profile, activeRoleIdx, onSelectRol
               label={row.archetypeLabel}
               percent={`${row.percent.toFixed(1)}%`}
               tier={tier}
-              selected={activeRoleIdx === roleIdx}
-              title={`Highlight key attributes for ${row.archetypeLabel}`}
-              onClick={() => onSelectRole(roleIdx)}
+              selected={activeArchetypeId === row.archetypeId}
+              title={`Highlight key attributes for ${row.archetypeLabel} recipe`}
+              onClick={() => onSelectArchetype(row.archetypeId)}
             />
           )
         })}

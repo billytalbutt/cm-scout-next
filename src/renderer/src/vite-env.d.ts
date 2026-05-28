@@ -211,11 +211,13 @@ declare global {
 }
 
 export interface ProfileHighlightPack {
+  archetypeId: string
   roleCmScoutIndex: number
   roleLabel: string
   playerPrimary: string[]
   playerSecondary: string[]
   playerEngineBreaker: string[]
+  playerRecipeAccent: string[]
   staffPrimary: string[]
   staffSecondary: string[]
 }
@@ -229,8 +231,10 @@ export interface ProfileAttrCell {
   inMatch: number
   invert: boolean
   highlightTier?: 'primary' | 'secondary'
-  /** Thin ring — absolute “engine breaker” bankers for natural role(s). */
+  /** Amber ring — Eff % recipe primary (×5 weight). */
   highlightEngine?: boolean
+  /** Sky label — forum lore attr not already a recipe primary. */
+  highlightRecipeAccent?: boolean
   /** When set, show this label instead of the numeric in-game rating. */
   displayText?: string | null
 }
@@ -390,6 +394,7 @@ export interface ProfilePayload {
   /** Effectiveness % (best archetype); bracket label on grid. Null when naturals matched no recipe — show Unsure. */
   effPercent?: number | null
   effArchetype?: string
+  effArchetypeId?: string
   injuryRisk?: boolean
   disciplineRisk?: boolean
   lowConsistencyRisk?: boolean
@@ -454,7 +459,11 @@ export interface ProfilePayload {
   highlightRolesLabel: string
   /** CM Scout column index (0–6) used for attribute rings on open; click another column to switch. */
   defaultHighlightRoleCmScoutIndex?: number
-  /** One pack per GK/D/DM/M/AM/A/WB column — drives highlight rings when user picks a role. */
+  /** Winning or selected Eff recipe id (e.g. amc vs amw). */
+  defaultHighlightArchetypeId?: string
+  /** One pack per Eff archetype — drives highlights when user picks a recipe tile. */
+  highlightPacksByArchetypeId?: Record<string, ProfileHighlightPack>
+  /** One pack per GK/D/DM/M/AM/A/WB CM Scout column — fallback when archetype pack missing. */
   highlightPacksByCmScoutIndex?: ProfileHighlightPack[]
   seasonStats: ProfileSeasonStats
   /** Meta-profile DNA tags from `engineMetaProfiles` (grid filter + profile). */

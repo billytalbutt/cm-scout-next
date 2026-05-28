@@ -1,4 +1,5 @@
 import type { PlayerRecord } from './database/types'
+import { EFFECTIVENESS_ARCHETYPES } from '../shared/effectivenessEngine'
 
 /**
  * Key / secondary attributes per CM0102 position role for profile highlighting.
@@ -8,7 +9,7 @@ import type { PlayerRecord } from './database/types'
  * Staff highlights follow editor mental descriptions + forum emphasis on ambition / professionalism.
  */
 
-export type PositionRoleId = 'GK' | 'SW' | 'D' | 'WB' | 'DM' | 'M' | 'AM' | 'ST'
+export type PositionRoleId = 'GK' | 'SW' | 'D' | 'WB' | 'DM' | 'M' | 'AMC' | 'AMW' | 'ST'
 
 const ROLE_FIELD: Record<PositionRoleId, keyof PlayerRecord> = {
   GK: 'goalkeeper',
@@ -17,86 +18,94 @@ const ROLE_FIELD: Record<PositionRoleId, keyof PlayerRecord> = {
   WB: 'wing_back',
   DM: 'defensive_midfielder',
   M: 'midfielder',
-  AM: 'attacking_midfielder',
+  AMC: 'attacking_midfielder',
+  AMW: 'attacking_midfielder',
   ST: 'attacker',
 }
 
-const ROLE_ORDER: PositionRoleId[] = ['GK', 'SW', 'D', 'WB', 'DM', 'M', 'AM', 'ST']
+const ROLE_ORDER: PositionRoleId[] = ['GK', 'SW', 'D', 'WB', 'DM', 'M', 'AMC', 'AMW', 'ST']
 
 const SUIT_CUT = 14
 
 type Pack = {
   playerPrimary: readonly string[]
   playerSecondary: readonly string[]
-  /** 2–4 “banker” attrs per role (Eff % primaries + forum engine-breaker lore). */
-  playerEngineBreaker: readonly string[]
+  /** Forum “must-have” lore — shown as coloured labels when not a recipe primary. */
+  playerForumBreaker: readonly string[]
   staffPrimary: readonly string[]
   staffSecondary: readonly string[]
 }
 
-/**
- * Absolute must-haves for the position — smaller set than primary highlights.
- * Aligned with `EFFECTIVENESS_ARCHETYPES` primaries (×5 recipe) and champman0102 “key attribute” threads
- * (e.g. marking+positioning, passing+decisions+technique hubs, finishing+OTB+pace for poachers).
- */
-const ENGINE_BREAKERS_BY_ROLE: Record<PositionRoleId, readonly string[]> = {
+/** Forum engine-breaker lore per role (may differ from Eff % recipe primaries). */
+const FORUM_BREAKERS_BY_ROLE: Record<PositionRoleId, readonly string[]> = {
   GK: ['handling', 'reflexes', 'one_on_ones'],
   SW: ['positioning', 'anticipation', 'tackling'],
   D: ['marking', 'positioning', 'tackling'],
   WB: ['pace', 'acceleration', 'crossing'],
   DM: ['tackling', 'positioning', 'marking'],
   M: ['technique', 'decisions', 'teamwork'],
-  AM: ['creativity', 'technique', 'off_the_ball', 'dribbling'],
+  AMC: ['technique', 'passing', 'off_the_ball'],
+  AMW: ['pace', 'acceleration', 'dribbling'],
   ST: ['finishing', 'off_the_ball', 'pace', 'anticipation'],
 }
+
+/** @deprecated Use {@link FORUM_BREAKERS_BY_ROLE}. */
+export const ENGINE_BREAKERS_BY_ROLE = FORUM_BREAKERS_BY_ROLE
 
 const BY_ROLE: Record<PositionRoleId, Pack> = {
   GK: {
     playerPrimary: ['handling', 'reflexes', 'one_on_ones', 'positioning', 'anticipation', 'agility'],
     playerSecondary: ['jumping', 'bravery', 'marking', 'heading', 'throw_ins', 'decisions', 'teamwork'],
-    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.GK,
+    playerForumBreaker: FORUM_BREAKERS_BY_ROLE.GK,
     staffPrimary: ['professionalism', 'pressure', 'ambition'],
     staffSecondary: ['adaptability', 'loyalty', 'sportsmanship', 'temperament'],
   },
   SW: {
     playerPrimary: ['positioning', 'tackling', 'marking', 'anticipation', 'heading', 'passing', 'decisions'],
     playerSecondary: ['pace', 'stamina', 'bravery', 'creativity', 'teamwork', 'work_rate', 'jumping', 'strength'],
-    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.SW,
+    playerForumBreaker: FORUM_BREAKERS_BY_ROLE.SW,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'adaptability', 'loyalty', 'sportsmanship', 'temperament'],
   },
   D: {
     playerPrimary: ['positioning', 'tackling', 'marking', 'heading', 'anticipation', 'strength', 'jumping', 'pace'],
     playerSecondary: ['aggression', 'bravery', 'teamwork', 'decisions', 'work_rate', 'passing', 'acceleration'],
-    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.D,
+    playerForumBreaker: FORUM_BREAKERS_BY_ROLE.D,
     staffPrimary: ['professionalism', 'ambition'],
     staffSecondary: ['pressure', 'temperament', 'sportsmanship', 'loyalty', 'adaptability'],
   },
   WB: {
     playerPrimary: ['crossing', 'pace', 'stamina', 'tackling', 'positioning', 'off_the_ball', 'work_rate', 'acceleration'],
     playerSecondary: ['marking', 'passing', 'decisions', 'teamwork', 'agility', 'dribbling', 'anticipation', 'balance'],
-    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.WB,
+    playerForumBreaker: FORUM_BREAKERS_BY_ROLE.WB,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'adaptability', 'loyalty', 'sportsmanship', 'temperament'],
   },
   DM: {
     playerPrimary: ['tackling', 'positioning', 'marking', 'passing', 'decisions', 'work_rate', 'stamina', 'teamwork', 'heading'],
     playerSecondary: ['anticipation', 'strength', 'aggression', 'long_shots', 'creativity', 'bravery', 'jumping'],
-    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.DM,
+    playerForumBreaker: FORUM_BREAKERS_BY_ROLE.DM,
     staffPrimary: ['professionalism', 'ambition'],
     staffSecondary: ['pressure', 'temperament', 'loyalty', 'adaptability', 'sportsmanship'],
   },
   M: {
     playerPrimary: ['technique', 'decisions', 'teamwork', 'passing', 'anticipation', 'stamina', 'work_rate', 'creativity'],
     playerSecondary: ['off_the_ball', 'long_shots', 'flair', 'positioning', 'dribbling', 'pace', 'balance', 'tackling'],
-    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.M,
+    playerForumBreaker: FORUM_BREAKERS_BY_ROLE.M,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'loyalty', 'adaptability', 'sportsmanship', 'temperament'],
   },
-  AM: {
-    playerPrimary: ['creativity', 'technique', 'dribbling', 'passing', 'decisions', 'flair', 'off_the_ball', 'long_shots'],
-    playerSecondary: ['finishing', 'teamwork', 'work_rate', 'stamina', 'anticipation', 'pace', 'acceleration', 'balance'],
-    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.AM,
+  AMC: {
+    playerPrimary: ['technique', 'decisions', 'passing', 'creativity', 'off_the_ball', 'anticipation', 'flair'],
+    playerSecondary: ['dribbling', 'finishing', 'teamwork', 'work_rate', 'stamina', 'long_shots', 'pace', 'acceleration', 'balance'],
+    playerForumBreaker: FORUM_BREAKERS_BY_ROLE.AMC,
+    staffPrimary: ['ambition', 'professionalism'],
+    staffSecondary: ['pressure', 'temperament', 'loyalty', 'adaptability', 'sportsmanship'],
+  },
+  AMW: {
+    playerPrimary: ['pace', 'acceleration', 'dribbling', 'crossing', 'off_the_ball', 'flair', 'technique'],
+    playerSecondary: ['creativity', 'passing', 'decisions', 'stamina', 'work_rate', 'finishing', 'anticipation', 'balance'],
+    playerForumBreaker: FORUM_BREAKERS_BY_ROLE.AMW,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'temperament', 'loyalty', 'adaptability', 'sportsmanship'],
   },
@@ -113,7 +122,7 @@ const BY_ROLE: Record<PositionRoleId, Pack> = {
       'heading',
     ],
     playerSecondary: ['long_shots', 'creativity', 'balance', 'jumping', 'strength', 'work_rate', 'decisions', 'teamwork'],
-    playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.ST,
+    playerForumBreaker: FORUM_BREAKERS_BY_ROLE.ST,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'loyalty', 'temperament', 'adaptability', 'sportsmanship'],
   },
@@ -131,7 +140,6 @@ const UNIVERSAL_PLAYER_SECONDARY = [
 
 /**
  * Hidden-panel bankers for every player — Eff % engine block + champman0102 hidden-attribute threads.
- * Same for all positions (outfield and GK); shown in the Hidden section with the amber engine ring.
  */
 export const UNIVERSAL_HIDDEN_ENGINE_BREAKERS = [
   'important_matches',
@@ -146,14 +154,84 @@ export const UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS = ['professionalism', 'press
 export type HighlightSets = {
   playerPrimary: Set<string>
   playerSecondary: Set<string>
+  /** Amber ring — Eff % recipe primaries (×5 weight). */
   playerEngineBreaker: Set<string>
+  /** Coloured label — forum lore attrs not already a recipe primary. */
+  playerRecipeAccent: Set<string>
   staffPrimary: Set<string>
   staffSecondary: Set<string>
   rolesUsed: PositionRoleId[]
 }
 
+const ARCHETYPE_TO_ROLE: Record<string, PositionRoleId> = {
+  gk: 'GK',
+  dc: 'D',
+  wb: 'WB',
+  dmc: 'DM',
+  mc: 'M',
+  amc: 'AMC',
+  amw: 'AMW',
+  st: 'ST',
+}
+
+const ROLE_TO_DEFAULT_ARCHETYPE: Record<PositionRoleId, string> = {
+  GK: 'gk',
+  SW: 'dc',
+  D: 'dc',
+  WB: 'wb',
+  DM: 'dmc',
+  M: 'mc',
+  AMC: 'amc',
+  AMW: 'amw',
+  ST: 'st',
+}
+
+export function roleFromEffectivenessArchetypeId(archetypeId: string): PositionRoleId {
+  return ARCHETYPE_TO_ROLE[archetypeId.toLowerCase()] ?? 'M'
+}
+
+function mergeRolePack(role: PositionRoleId): Omit<HighlightSets, 'playerEngineBreaker' | 'playerRecipeAccent'> {
+  const pack = BY_ROLE[role]
+  const playerPrimary = new Set<string>(pack.playerPrimary)
+  const playerSecondary = new Set<string>(pack.playerSecondary)
+  const staffPrimary = new Set<string>(pack.staffPrimary)
+  const staffSecondary = new Set<string>(pack.staffSecondary)
+
+  for (const u of UNIVERSAL_PLAYER_SECONDARY) {
+    if (!playerPrimary.has(u)) playerSecondary.add(u)
+  }
+  for (const x of playerPrimary) playerSecondary.delete(x)
+  for (const x of staffPrimary) staffSecondary.delete(x)
+
+  return { playerPrimary, playerSecondary, staffPrimary, staffSecondary, rolesUsed: [role] }
+}
+
+function applyRecipeHighlightLogic(role: PositionRoleId, archetypeId: string): HighlightSets {
+  const base = mergeRolePack(role)
+  const arch = EFFECTIVENESS_ARCHETYPES.find((a) => a.id === archetypeId)
+  const forumBreakers = BY_ROLE[role].playerForumBreaker
+
+  const playerEngineBreaker = new Set<string>()
+  for (const k of arch?.primary ?? forumBreakers) playerEngineBreaker.add(k)
+  for (const x of UNIVERSAL_HIDDEN_ENGINE_BREAKERS) playerEngineBreaker.add(x)
+  for (const x of UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS) playerEngineBreaker.add(x)
+
+  const playerRecipeAccent = new Set<string>()
+  for (const k of forumBreakers) {
+    if (!playerEngineBreaker.has(k)) playerRecipeAccent.add(k)
+  }
+
+  return { ...base, playerEngineBreaker, playerRecipeAccent }
+}
+
+/** Highlights aligned to a specific Eff % recipe (rings = primaries, accent labels = forum lore). */
+export function computeHighlightSetsForArchetype(archetypeId: string): HighlightSets {
+  const role = roleFromEffectivenessArchetypeId(archetypeId)
+  return applyRecipeHighlightLogic(role, archetypeId)
+}
+
 function bestFallbackRole(p: PlayerRecord): PositionRoleId {
-  const order: PositionRoleId[] = ['ST', 'AM', 'M', 'DM', 'WB', 'D', 'SW', 'GK']
+  const order: PositionRoleId[] = ['ST', 'AMC', 'AMW', 'M', 'DM', 'WB', 'D', 'SW', 'GK']
   let best: PositionRoleId = 'M'
   let bestV = -1
   for (const id of order) {
@@ -179,32 +257,30 @@ function mergePacks(roles: PositionRoleId[]): HighlightSets {
   const playerPrimary = new Set<string>()
   const playerSecondary = new Set<string>()
   const playerEngineBreaker = new Set<string>()
+  const playerRecipeAccent = new Set<string>()
   const staffPrimary = new Set<string>()
   const staffSecondary = new Set<string>()
 
   for (const r of roles) {
-    const pack = BY_ROLE[r]
-    for (const x of pack.playerPrimary) playerPrimary.add(x)
-    for (const x of pack.playerSecondary) playerSecondary.add(x)
-    for (const x of pack.playerEngineBreaker) playerEngineBreaker.add(x)
-    for (const x of pack.staffPrimary) staffPrimary.add(x)
-    for (const x of pack.staffSecondary) staffSecondary.add(x)
+    const sets = computeHighlightSetsForArchetype(ROLE_TO_DEFAULT_ARCHETYPE[r])
+    for (const x of sets.playerPrimary) playerPrimary.add(x)
+    for (const x of sets.playerSecondary) playerSecondary.add(x)
+    for (const x of sets.playerEngineBreaker) playerEngineBreaker.add(x)
+    for (const x of sets.playerRecipeAccent) playerRecipeAccent.add(x)
+    for (const x of sets.staffPrimary) staffPrimary.add(x)
+    for (const x of sets.staffSecondary) staffSecondary.add(x)
   }
 
-  for (const u of UNIVERSAL_PLAYER_SECONDARY) {
-    if (!playerPrimary.has(u)) playerSecondary.add(u)
+  return {
+    playerPrimary,
+    playerSecondary,
+    playerEngineBreaker,
+    playerRecipeAccent,
+    staffPrimary,
+    staffSecondary,
+    rolesUsed: roles,
   }
-
-  for (const x of playerPrimary) playerSecondary.delete(x)
-  for (const x of staffPrimary) staffSecondary.delete(x)
-
-  for (const x of UNIVERSAL_HIDDEN_ENGINE_BREAKERS) playerEngineBreaker.add(x)
-  for (const x of UNIVERSAL_STAFF_HIDDEN_ENGINE_BREAKERS) playerEngineBreaker.add(x)
-
-  return { playerPrimary, playerSecondary, playerEngineBreaker, staffPrimary, staffSecondary, rolesUsed: roles }
 }
-
-export { ENGINE_BREAKERS_BY_ROLE }
 
 /** CM Scout `WeightsSet` column index → profile highlight role (8-field ladder uses ST for “A”). */
 const CM_SCOUT_INDEX_TO_ROLE: Record<number, PositionRoleId> = {
@@ -212,18 +288,33 @@ const CM_SCOUT_INDEX_TO_ROLE: Record<number, PositionRoleId> = {
   1: 'D',
   2: 'DM',
   3: 'M',
-  4: 'AM',
+  4: 'AMC',
   5: 'ST',
   6: 'WB',
+}
+
+/** CM Scout role column → default Eff archetype id for highlight packs. */
+export const CM_SCOUT_INDEX_TO_ARCHETYPE: Record<number, string> = {
+  0: 'gk',
+  1: 'dc',
+  2: 'dmc',
+  3: 'mc',
+  4: 'amc',
+  5: 'st',
+  6: 'wb',
 }
 
 export function positionRoleFromCmScoutIndex(index: number): PositionRoleId {
   return CM_SCOUT_INDEX_TO_ROLE[index] ?? 'M'
 }
 
+export function defaultArchetypeFromCmScoutIndex(index: number): string {
+  return CM_SCOUT_INDEX_TO_ARCHETYPE[index] ?? 'mc'
+}
+
 /** Highlights for a single role only (not merged across all natural positions). */
 export function computeHighlightSetsForRole(role: PositionRoleId): HighlightSets {
-  return mergePacks([role])
+  return computeHighlightSetsForArchetype(ROLE_TO_DEFAULT_ARCHETYPE[role])
 }
 
 /**
@@ -259,7 +350,7 @@ export function pickBestCmScoutRoleIndex(
   return bestIdx
 }
 
-/** @deprecated Prefer {@link computeHighlightSetsForRole} + {@link pickBestCmScoutRoleIndex} for profiles. */
+/** @deprecated Prefer {@link computeHighlightSetsForArchetype} for profiles. */
 export function computeHighlightSets(p: PlayerRecord): HighlightSets {
   return mergePacks(naturalRolesForHighlight(p))
 }

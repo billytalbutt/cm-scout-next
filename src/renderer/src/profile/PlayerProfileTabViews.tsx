@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { formatIsoDateUk } from '../../../shared/dateDisplay'
 import type { ProfilePayload } from '../vite-env.d'
-import { applyProfileHighlightPack, highlightPackForRole } from '../profileHighlightApply'
+import { applyProfileHighlightPack, highlightPackForArchetype } from '../profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './NaturalRoleHighlightPicker'
 import { RegenProfileHint } from './RegenProfileHint'
 import {
@@ -20,8 +20,8 @@ type Props = {
   profile: ProfilePayload
   showEngineAttrs: boolean
   activeTab: ProfileTabId
-  profileHighlightRoleIdx: number
-  onHighlightRoleIdx: (roleIdx: number) => void
+  profileHighlightArchetypeId: string
+  onHighlightArchetypeId: (archetypeId: string) => void
   onOpenPredecessor?: (staffIndex: number) => void
 }
 
@@ -29,15 +29,15 @@ export function PlayerProfileTabViews({
   profile,
   showEngineAttrs,
   activeTab,
-  profileHighlightRoleIdx,
-  onHighlightRoleIdx,
+  profileHighlightArchetypeId,
+  onHighlightArchetypeId,
   onOpenPredecessor,
 }: Props) {
   const displayProfile = useMemo(() => {
-    const pack = highlightPackForRole(profile, profileHighlightRoleIdx)
+    const pack = highlightPackForArchetype(profile, profileHighlightArchetypeId)
     if (!pack) return profile
     return applyProfileHighlightPack(profile, pack)
-  }, [profile, profileHighlightRoleIdx])
+  }, [profile, profileHighlightArchetypeId])
 
   const p = displayProfile
 
@@ -45,8 +45,8 @@ export function PlayerProfileTabViews({
     profile.effByArchetype && profile.effByArchetype.length > 0 ? (
       <NaturalRoleHighlightPicker
         profile={profile}
-        activeRoleIdx={profileHighlightRoleIdx}
-        onSelectRole={onHighlightRoleIdx}
+        activeArchetypeId={profileHighlightArchetypeId}
+        onSelectArchetype={onHighlightArchetypeId}
       />
     ) : null
 
@@ -69,7 +69,7 @@ export function PlayerProfileTabViews({
           </h3>
         </HoverTip>
         <div
-          key={`attr-${profileHighlightRoleIdx}`}
+          key={`attr-${profileHighlightArchetypeId}`}
           className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2"
         >
           <ProfileAttrColumn cells={p.attrColumns[0]} showEngineAttrs={showEngineAttrs} />
@@ -89,7 +89,7 @@ export function PlayerProfileTabViews({
         {naturalRolePicker}
         <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-500">Hidden</h3>
         <div
-          key={`hidden-${profileHighlightRoleIdx}`}
+          key={`hidden-${profileHighlightArchetypeId}`}
           className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2"
         >
           <ProfileAttrColumn cells={p.hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />

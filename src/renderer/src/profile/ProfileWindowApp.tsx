@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ProfilePayload, StaffProfilePayload } from '../vite-env.d'
-import { defaultProfileHighlightRoleIdx } from '../../../shared/profileHighlightRole'
+import { defaultProfileHighlightArchetypeId } from '../../../shared/profileHighlightRole'
 import type { ProfileWindowRoute } from './profileWindowRoute'
 import { PlayerProfileHeader, PlayerProfileTabViews } from './PlayerProfileTabViews'
 import { StaffProfileTabViews } from './StaffProfileTabViews'
@@ -24,7 +24,7 @@ export function ProfileWindowApp({ route: initialRoute }: { route: ProfileWindow
   const [player, setPlayer] = useState<ProfilePayload | null>(null)
   const [staff, setStaff] = useState<StaffProfilePayload | null>(null)
   const [tab, setTab] = useState<ProfileTabId>('attributes')
-  const [profileHighlightRoleIdx, setProfileHighlightRoleIdx] = useState(0)
+  const [profileHighlightArchetypeId, setProfileHighlightArchetypeId] = useState('mc')
   const showEngineAttrs = loadShowEngineAttrs()
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export function ProfileWindowApp({ route: initialRoute }: { route: ProfileWindow
         }
         setPlayer(p)
         setStaff(null)
-        setProfileHighlightRoleIdx(defaultProfileHighlightRoleIdx(p))
+        setProfileHighlightArchetypeId(defaultProfileHighlightArchetypeId(p))
         document.title = `${p.name} — CM Merlin`
       } else {
         const s = await window.cmapi?.getStaffProfile(route.staffIndex)
@@ -113,8 +113,8 @@ export function ProfileWindowApp({ route: initialRoute }: { route: ProfileWindow
                   profile={player}
                   showEngineAttrs={showEngineAttrs}
                   activeTab={tab}
-                  profileHighlightRoleIdx={profileHighlightRoleIdx}
-                  onHighlightRoleIdx={setProfileHighlightRoleIdx}
+                  profileHighlightArchetypeId={profileHighlightArchetypeId}
+                  onHighlightArchetypeId={setProfileHighlightArchetypeId}
                   onOpenPredecessor={openPredecessor}
                 />
               </>

@@ -119,6 +119,7 @@ function defFor(
             return (
               <EffPercentCell
                 staffIndex={row.original.staffIndex}
+                playerName={row.original.name}
                 effPercent={pct ?? null}
                 effArchetype={role}
                 cmScoutRatingBp={cm}

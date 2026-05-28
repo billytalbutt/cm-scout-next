@@ -17,16 +17,17 @@ import {
   type Ca18Key,
 } from './database/attributes'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
-import { computeEffectivenessFull, computePlayerRiskFlags } from '../shared/effectivenessEngine'
+import { computeEffectivenessFull, computePlayerRiskFlags, EFFECTIVENESS_ARCHETYPES } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
 import { CM_SCOUT_ROLE_SHORT } from '../shared/cmScoutRoles'
 import {
-  computeHighlightSetsForRole,
+  computeHighlightSetsForArchetype,
+  defaultArchetypeFromCmScoutIndex,
   footMoraleHighlightTier,
   pickBestCmScoutRoleIndex,
-  positionRoleFromCmScoutIndex,
+  roleFromEffectivenessArchetypeId,
   type HighlightSets,
   type PositionRoleId,
 } from './positionHighlights'
@@ -145,26 +146,37 @@ export type ProfileAttrCell = {
   /** FM-style row tint: key attributes for natural position(s) */
   highlightTier?: 'primary' | 'secondary'
   highlightEngine?: boolean
+  /** Forum lore attr — coloured label when not a recipe primary (no extra ring). */
+  highlightRecipeAccent?: boolean
 }
 
 /** Serialized highlight pack per CM Scout role column (renderer applies on role click). */
 export type ProfileHighlightPack = {
+  archetypeId: string
   roleCmScoutIndex: number
   roleLabel: string
   playerPrimary: string[]
   playerSecondary: string[]
   playerEngineBreaker: string[]
+  playerRecipeAccent: string[]
   staffPrimary: string[]
   staffSecondary: string[]
 }
 
-function serializeHighlightPack(roleCmScoutIndex: number, sets: HighlightSets): ProfileHighlightPack {
+function archetypeHighlightLabel(archetypeId: string): string {
+  const arch = EFFECTIVENESS_ARCHETYPES.find((a) => a.id === archetypeId)
+  return arch?.label ?? archetypeId.toUpperCase()
+}
+
+function serializeHighlightPack(archetypeId: string, roleCmScoutIndex: number, sets: HighlightSets): ProfileHighlightPack {
   return {
+    archetypeId,
     roleCmScoutIndex,
-    roleLabel: CM_SCOUT_ROLE_SHORT[roleCmScoutIndex] ?? positionRoleFromCmScoutIndex(roleCmScoutIndex),
+    roleLabel: archetypeHighlightLabel(archetypeId),
     playerPrimary: [...sets.playerPrimary],
     playerSecondary: [...sets.playerSecondary],
     playerEngineBreaker: [...sets.playerEngineBreaker],
+    playerRecipeAccent: [...sets.playerRecipeAccent],
     staffPrimary: [...sets.staffPrimary],
     staffSecondary: [...sets.staffSecondary],
   }
@@ -391,15 +403,26 @@ export function buildProfilePayload(
   const riskFlags = computePlayerRiskFlags(effGet)
 
   let defaultHighlightRoleCmScoutIndex = pickBestCmScoutRoleIndex(rolePercents, cmScoutRoleSuitable)
+  let defaultHighlightArchetypeId = defaultArchetypeFromCmScoutIndex(defaultHighlightRoleCmScoutIndex)
   if (effFull.effArchetypeId && effFull.effArchetypeId !== 'unsure') {
+    defaultHighlightArchetypeId = effFull.effArchetypeId
     const fromEff = cmScoutIndexFromEffectivenessArchetypeId(effFull.effArchetypeId)
     if (fromEff != null) defaultHighlightRoleCmScoutIndex = fromEff
   }
-  const highlightPacksByCmScoutIndex = [0, 1, 2, 3, 4, 5, 6].map((idx) =>
-    serializeHighlightPack(idx, computeHighlightSetsForRole(positionRoleFromCmScoutIndex(idx))),
-  )
-  const hl = computeHighlightSetsForRole(positionRoleFromCmScoutIndex(defaultHighlightRoleCmScoutIndex))
-  const rolesUsed: PositionRoleId[] = [positionRoleFromCmScoutIndex(defaultHighlightRoleCmScoutIndex)]
+  const highlightPacksByArchetypeId: Record<string, ProfileHighlightPack> = {}
+  for (const a of EFFECTIVENESS_ARCHETYPES) {
+    highlightPacksByArchetypeId[a.id] = serializeHighlightPack(
+      a.id,
+      cmScoutIndexFromEffectivenessArchetypeId(a.id) ?? defaultHighlightRoleCmScoutIndex,
+      computeHighlightSetsForArchetype(a.id),
+    )
+  }
+  const highlightPacksByCmScoutIndex = [0, 1, 2, 3, 4, 5, 6].map((idx) => {
+    const archetypeId = defaultArchetypeFromCmScoutIndex(idx)
+    return highlightPacksByArchetypeId[archetypeId]!
+  })
+  const hl = computeHighlightSetsForArchetype(defaultHighlightArchetypeId)
+  const rolesUsed: PositionRoleId[] = [roleFromEffectivenessArchetypeId(defaultHighlightArchetypeId)]
 
   const tierForPlayerAttr = (key: string): 'primary' | 'secondary' | undefined => {
     if (key === 'injury_proneness' || key === 'dirtiness') return undefined
@@ -428,6 +451,7 @@ export function buildProfilePayload(
         invert: false,
         highlightTier: tierForPlayerAttr(key),
         highlightEngine: hl.playerEngineBreaker.has(key),
+        highlightRecipeAccent: hl.playerRecipeAccent.has(key),
       }
     }
     const x = other[key]!
@@ -447,6 +471,7 @@ export function buildProfilePayload(
       invert: inv,
       highlightTier,
       highlightEngine: hl.playerEngineBreaker.has(key),
+      highlightRecipeAccent: hl.playerRecipeAccent.has(key),
     }
   }
 
@@ -534,8 +559,10 @@ export function buildProfilePayload(
     dobIso: s.dob_iso,
     euPassport: row.euPassport,
     positionLabel: formatNaturalPositions(p),
-    highlightRolesLabel: CM_SCOUT_ROLE_SHORT[defaultHighlightRoleCmScoutIndex] ?? rolesUsed[0]!,
+    highlightRolesLabel: archetypeHighlightLabel(defaultHighlightArchetypeId),
     defaultHighlightRoleCmScoutIndex,
+    defaultHighlightArchetypeId,
+    highlightPacksByArchetypeId,
     highlightPacksByCmScoutIndex,
     reputation: {
       home: p.home_reputation,
@@ -547,6 +574,7 @@ export function buildProfilePayload(
     cmScoutRatingBp: row.cmScoutRatingBp,
     effPercent: effFull.effPercent,
     effArchetype: effFull.effArchetype,
+    effArchetypeId: effFull.effArchetypeId,
     injuryRisk: riskFlags.injuryRisk,
     disciplineRisk: riskFlags.disciplineRisk,
     lowConsistencyRisk: riskFlags.lowConsistency,

@@ -67,14 +67,15 @@ import { ClubEditorPanel } from './ClubEditorPanel'
 import { ComparePanel } from './compare/ComparePanel'
 import type { ProfileNavigationContext } from '../../shared/profileNavigation'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
-import { applyProfileHighlightPack, highlightPackForRole } from './profileHighlightApply'
+import { applyProfileHighlightPack, highlightPackForArchetype } from './profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
 import { formatIsoDateUk } from '../../shared/dateDisplay'
 import { InstructionHintRow, ProfilePlayerIdentity } from './profile/profileUi'
 import { EffectivenessRecipeBreakdown } from './profile/EffectivenessRecipeBreakdown'
 import { PlayerRiskChips } from './profile/PlayerRiskChips'
 import { RolePercentMiniCell } from './profile/RolePercentMiniCell'
-import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
+import { defaultProfileHighlightArchetypeId } from '../../shared/profileHighlightRole'
+import { defaultArchetypeFromCmScoutIndex } from '../../main/positionHighlights'
 import {
   getCopiedPlayerAttributes,
   setCopiedPlayerAttributes,
@@ -384,7 +385,7 @@ export function App() {
 
   const [profile, setProfile] = useState<ProfilePayload | null>(null)
   /** CM Scout % column (0–6) driving attribute highlight rings on the open profile. */
-  const [profileHighlightRoleIdx, setProfileHighlightRoleIdx] = useState(0)
+  const [profileHighlightArchetypeId, setProfileHighlightArchetypeId] = useState('mc')
   const [copyAttrsMsg, setCopyAttrsMsg] = useState<string | null>(null)
   const [copiedAttrs, setCopiedAttrs] = useState<CopiedPlayerAttributes | null>(() => getCopiedPlayerAttributes())
   const [staffProfile, setStaffProfile] = useState<StaffProfilePayload | null>(null)
@@ -1038,15 +1039,15 @@ export function App() {
 
   useEffect(() => {
     if (sel == null || !profile) return
-    setProfileHighlightRoleIdx(defaultProfileHighlightRoleIdx(profile))
-  }, [sel, profile?.defaultHighlightRoleCmScoutIndex, profile?.effByArchetype])
+    setProfileHighlightArchetypeId(defaultProfileHighlightArchetypeId(profile))
+  }, [sel, profile?.defaultHighlightArchetypeId, profile?.effByArchetype, profile?.effArchetypeId])
 
   const displayProfile = useMemo(() => {
     if (!profile) return profile
-    const pack = highlightPackForRole(profile, profileHighlightRoleIdx)
+    const pack = highlightPackForArchetype(profile, profileHighlightArchetypeId)
     if (!pack) return profile
     return applyProfileHighlightPack(profile, pack)
-  }, [profile, profileHighlightRoleIdx])
+  }, [profile, profileHighlightArchetypeId])
 
   const loadDatabase = useCallback(async () => {
     setErr(null)
@@ -3014,11 +3015,16 @@ export function App() {
                         {' · '}
                         <span className="inline-flex items-center gap-1.5">
                           <span className="h-2.5 w-6 rounded ring-1 ring-inset ring-amber-100/40" />
-                          Engine breaker (must-have)
+                          Recipe primary (×5 in Eff %)
+                        </span>
+                        {' · '}
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="font-semibold text-sky-300/90">Sky label</span>
+                          Forum lore (not a recipe primary)
                         </span>
                         <span className="block pt-1 text-zinc-500">
-                          Engine ring applies to visible attributes and Hidden (e.g. Important matches, Consistency,
-                          Natural fitness, Injury proneness, Professionalism, Pressure).
+                          Hidden panel: amber ring on consistency, important matches, natural fitness, injury proneness,
+                          professionalism, pressure. AMC vs wide AM use separate highlight packs — pick the Eff recipe tile.
                         </span>
                       </p>
                     </div>
@@ -3030,7 +3036,7 @@ export function App() {
                   </h3>
                 </HoverTip>
                 <div
-                  key={`attr-${profileHighlightRoleIdx}`}
+                  key={`attr-${profileHighlightArchetypeId}`}
                   className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2"
                 >
                   <ProfileAttrColumn cells={(displayProfile ?? profile).attrColumns[0]} showEngineAttrs={showEngineAttrs} />
@@ -3065,7 +3071,7 @@ export function App() {
                   </h3>
                 </HoverTip>
                 <div
-                  key={`hidden-${profileHighlightRoleIdx}`}
+                  key={`hidden-${profileHighlightArchetypeId}`}
                   className="grid grid-cols-3 gap-x-2 border-t border-zinc-800/60 pt-2"
                 >
                   <ProfileAttrColumn cells={(displayProfile ?? profile).hiddenColumns[0]} showEngineAttrs={showEngineAttrs} />
@@ -3234,8 +3240,8 @@ export function App() {
                       {profile.effByArchetype && profile.effByArchetype.length > 0 && (
                         <NaturalRoleHighlightPicker
                           profile={profile}
-                          activeRoleIdx={profileHighlightRoleIdx}
-                          onSelectRole={setProfileHighlightRoleIdx}
+                          activeArchetypeId={profileHighlightArchetypeId}
+                          onSelectArchetype={setProfileHighlightArchetypeId}
                         />
                       )}
                       <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -3255,9 +3261,13 @@ export function App() {
                                 label={lab}
                                 percent={`${pct}%`}
                                 tier={tier}
-                                selected={profileHighlightRoleIdx === roleIdx}
-                                title={`Highlight attributes for ${lab}`}
-                                onClick={() => setProfileHighlightRoleIdx(roleIdx)}
+                                selected={
+                                  defaultArchetypeFromCmScoutIndex(roleIdx) === profileHighlightArchetypeId
+                                }
+                                title={`Highlight attributes for ${lab} (CM Scout column)`}
+                                onClick={() =>
+                                  setProfileHighlightArchetypeId(defaultArchetypeFromCmScoutIndex(roleIdx))
+                                }
                               />
                             )
                           })

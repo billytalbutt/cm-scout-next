@@ -31,3 +31,31 @@ export function defaultProfileHighlightRoleIdx(profile: {
   }
   return profile.defaultHighlightRoleCmScoutIndex ?? 0
 }
+
+/** Default Eff archetype for attribute highlights (distinguishes AMC vs wide AM). */
+export function defaultProfileHighlightArchetypeId(profile: {
+  defaultHighlightArchetypeId?: string
+  effArchetypeId?: string
+  effByArchetype?: readonly EffectivenessArchetypeRow[]
+  defaultHighlightRoleCmScoutIndex?: number
+}): string {
+  if (profile.defaultHighlightArchetypeId) return profile.defaultHighlightArchetypeId
+  const rows = profile.effByArchetype
+  if (rows?.length) {
+    const winner = rows.find((r) => r.isWinner)
+    const pick = winner ?? rows.reduce((a, b) => (b.percent > a.percent ? b : a))
+    return pick.archetypeId
+  }
+  if (profile.effArchetypeId && profile.effArchetypeId !== 'unsure') return profile.effArchetypeId
+  const idx = profile.defaultHighlightRoleCmScoutIndex ?? 0
+  const fromIdx: Record<number, string> = {
+    0: 'gk',
+    1: 'dc',
+    2: 'dmc',
+    3: 'mc',
+    4: 'amc',
+    5: 'st',
+    6: 'wb',
+  }
+  return fromIdx[idx] ?? 'mc'
+}

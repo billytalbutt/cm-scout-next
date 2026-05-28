@@ -70,21 +70,25 @@ function minimalProfile(): ProfilePayload {
 }
 
 const dmPack: ProfileHighlightPack = {
+  archetypeId: 'dmc',
   roleCmScoutIndex: 2,
-  roleLabel: 'DM',
+  roleLabel: 'DMC',
   playerPrimary: ['tackling', 'positioning', 'marking'],
   playerSecondary: ['passing'],
-  playerEngineBreaker: ['tackling', 'positioning', 'marking'],
+  playerEngineBreaker: ['tackling', 'positioning', 'stamina'],
+  playerRecipeAccent: ['marking'],
   staffPrimary: [],
   staffSecondary: [],
 }
 
 const wbPack: ProfileHighlightPack = {
+  archetypeId: 'wb',
   roleCmScoutIndex: 6,
   roleLabel: 'WB',
   playerPrimary: ['crossing', 'pace', 'stamina'],
   playerSecondary: ['tackling'],
-  playerEngineBreaker: ['pace', 'acceleration', 'crossing'],
+  playerEngineBreaker: ['pace', 'acceleration', 'tackling'],
+  playerRecipeAccent: ['crossing'],
   staffPrimary: [],
   staffSecondary: [],
 }
@@ -107,7 +111,8 @@ describe('applyProfileHighlightPack', () => {
     expect(dm.attrColumns[0].find((c) => c.key === 'crossing')?.highlightTier).toBeUndefined()
 
     expect(wb.attrColumns[0].find((c) => c.key === 'crossing')?.highlightTier).toBe('primary')
-    expect(wb.attrColumns[0].find((c) => c.key === 'crossing')?.highlightEngine).toBe(true)
+    expect(wb.attrColumns[0].find((c) => c.key === 'crossing')?.highlightEngine).toBe(false)
+    expect(wb.attrColumns[0].find((c) => c.key === 'crossing')?.highlightRecipeAccent).toBe(true)
     expect(wb.attrColumns[0].find((c) => c.key === 'tackling')?.highlightTier).toBe('secondary')
     expect(wb.highlightRolesLabel).toBe('WB')
   })

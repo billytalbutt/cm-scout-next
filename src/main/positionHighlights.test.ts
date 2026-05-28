@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeHighlightSets,
+  computeHighlightSetsForArchetype,
   computeHighlightSetsForRole,
   pickBestCmScoutRoleIndex,
   ENGINE_BREAKERS_BY_ROLE,
@@ -34,7 +35,7 @@ function minimalPlayer(overrides: Partial<PlayerRecord> = {}): PlayerRecord {
 }
 
 describe('positionHighlights engine breakers', () => {
-  it('exposes 2–4 bankers per role', () => {
+  it('exposes 2–4 forum breakers per role', () => {
     for (const role of Object.keys(ENGINE_BREAKERS_BY_ROLE) as (keyof typeof ENGINE_BREAKERS_BY_ROLE)[]) {
       const n = ENGINE_BREAKERS_BY_ROLE[role].length
       expect(n).toBeGreaterThanOrEqual(2)
@@ -61,7 +62,25 @@ describe('positionHighlights engine breakers', () => {
     }
   })
 
-  it('single-role highlights do not merge M and AM engine breakers', () => {
+  it('AMC rings use recipe primaries; forum-only attrs become accent labels', () => {
+    const amc = computeHighlightSetsForArchetype('amc')
+    expect(amc.playerEngineBreaker.has('technique')).toBe(true)
+    expect(amc.playerEngineBreaker.has('decisions')).toBe(true)
+    expect(amc.playerEngineBreaker.has('passing')).toBe(true)
+    expect(amc.playerEngineBreaker.has('dribbling')).toBe(false)
+    expect(amc.playerRecipeAccent.has('off_the_ball')).toBe(true)
+  })
+
+  it('AMW rings differ from AMC (wide attacker vs central hub)', () => {
+    const amw = computeHighlightSetsForArchetype('amw')
+    const amc = computeHighlightSetsForArchetype('amc')
+    expect(amw.playerEngineBreaker.has('pace')).toBe(true)
+    expect(amw.playerEngineBreaker.has('dribbling')).toBe(true)
+    expect(amc.playerEngineBreaker.has('passing')).toBe(true)
+    expect(amw.playerEngineBreaker.has('passing')).toBe(false)
+  })
+
+  it('single-role highlights do not merge M and AMC engine breakers', () => {
     const p = minimalPlayer({
       midfielder: 18,
       attacking_midfielder: 18,
@@ -70,15 +89,14 @@ describe('positionHighlights engine breakers', () => {
     })
     const merged = computeHighlightSets(p)
     expect(merged.playerEngineBreaker.has('technique')).toBe(true)
-    expect(merged.playerEngineBreaker.has('creativity')).toBe(true)
 
     const mOnly = computeHighlightSetsForRole('M')
     expect(mOnly.playerEngineBreaker.has('technique')).toBe(true)
-    expect(mOnly.playerEngineBreaker.has('creativity')).toBe(false)
+    expect(mOnly.playerEngineBreaker.has('passing')).toBe(false)
 
-    const amOnly = computeHighlightSetsForRole('AM')
-    expect(amOnly.playerEngineBreaker.has('creativity')).toBe(true)
-    expect(amOnly.playerEngineBreaker.has('marking')).toBe(false)
+    const amcOnly = computeHighlightSetsForRole('AMC')
+    expect(amcOnly.playerEngineBreaker.has('passing')).toBe(true)
+    expect(amcOnly.playerEngineBreaker.has('marking')).toBe(false)
   })
 
   it('pickBestCmScoutRoleIndex prefers suitable roles then highest %', () => {

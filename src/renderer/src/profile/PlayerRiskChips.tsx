@@ -8,19 +8,25 @@ export function PlayerRiskChips({
   disciplineRisk?: boolean
   lowConsistencyRisk?: boolean
 }) {
-  const parts: { key: string; label: string; tone: 'alert' | 'muted' }[] = []
-  if (injuryRisk) parts.push({ key: 'injury', label: 'Injury risk', tone: 'alert' })
-  if (disciplineRisk) parts.push({ key: 'discipline', label: 'Discipline risk', tone: 'alert' })
-  if (lowConsistencyRisk) parts.push({ key: 'consistency', label: 'Low consistency', tone: 'muted' })
+  const parts: { key: string; label: string; className: string }[] = []
+  if (injuryRisk) {
+    parts.push({ key: 'injury', label: 'Injury risk', className: 'font-semibold text-rose-400/95' })
+  }
+  if (disciplineRisk) {
+    parts.push({ key: 'discipline', label: 'Discipline risk', className: 'font-semibold text-amber-300/95' })
+  }
+  if (lowConsistencyRisk) {
+    parts.push({ key: 'consistency', label: 'Low consistency', className: 'font-semibold text-amber-200/90' })
+  }
 
   if (parts.length === 0) return null
 
   return (
-    <p className="text-[11px] leading-snug text-zinc-500">
+    <p className="text-[11px] leading-snug">
       {parts.map((part, i) => (
         <span key={part.key}>
-          {i > 0 && <span className="text-zinc-600"> · </span>}
-          <span className={part.tone === 'alert' ? 'text-rose-300/90' : 'text-zinc-400'}>{part.label}</span>
+          {i > 0 && <span className="font-normal text-zinc-600"> · </span>}
+          <span className={part.className}>{part.label}</span>
         </span>
       ))}
     </p>

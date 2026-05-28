@@ -15,20 +15,28 @@ export function engineBracketClass(uncapped: number, inGame: number): string {
   return 'rounded bg-violet-500/15 px-1 font-semibold text-violet-100 tabular-nums'
 }
 
-/** Row tint: core / supporting fills plus optional thin ring for engine-breaker bankers. */
-export function profileAttrHighlightClass(cell: Pick<ProfileAttrCell, 'highlightTier' | 'highlightEngine'>): string {
+/** Row tint: core / supporting fills plus optional thin ring for recipe primaries. */
+export function profileAttrHighlightClass(
+  cell: Pick<ProfileAttrCell, 'highlightTier' | 'highlightEngine' | 'highlightRecipeAccent'>,
+): string {
   const parts: string[] = []
   if (cell.highlightTier === 'primary') {
     parts.push('rounded', 'px-1', '-mx-1', 'bg-emerald-500/[0.14]')
   } else if (cell.highlightTier === 'secondary') {
     parts.push('rounded', 'px-1', '-mx-1', 'bg-sky-500/[0.11]')
-  } else if (cell.highlightEngine) {
-    parts.push('rounded', 'px-1', '-mx-1')
   }
   if (cell.highlightEngine) {
-    parts.push('ring-1', 'ring-inset', 'ring-amber-100/40')
+    parts.push('rounded', 'px-1', '-mx-1', 'ring-1', 'ring-inset', 'ring-amber-100/40')
   }
   return parts.join(' ')
+}
+
+export function profileAttrLabelClass(
+  cell: Pick<ProfileAttrCell, 'highlightTier' | 'highlightRecipeAccent'>,
+): string {
+  if (cell.highlightRecipeAccent) return 'truncate font-semibold text-sky-300/90'
+  if (cell.highlightTier === 'primary') return 'truncate font-medium text-emerald-200/85'
+  return 'truncate text-zinc-400'
 }
 
 export function ProfileAttrColumn({
@@ -45,7 +53,7 @@ export function ProfileAttrColumn({
           key={a.key}
           className={`flex justify-between gap-1.5 border-b border-zinc-800/30 py-1 ${profileAttrHighlightClass(a)}`}
         >
-          <span className="truncate text-zinc-400" title={a.key}>
+          <span className={profileAttrLabelClass(a)} title={a.key}>
             {a.label}
           </span>
           {typeof a.displayText === 'string' ? (

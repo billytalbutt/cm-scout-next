@@ -1,12 +1,18 @@
-import { footMoraleHighlightTier, positionRoleFromCmScoutIndex } from '../../main/positionHighlights'
+import {
+  defaultArchetypeFromCmScoutIndex,
+  footMoraleHighlightTier,
+  roleFromEffectivenessArchetypeId,
+} from '../../main/positionHighlights'
 import type { ProfileAttrCell, ProfilePayload } from './vite-env.d'
 
 export type ProfileHighlightPack = {
+  archetypeId: string
   roleCmScoutIndex: number
   roleLabel: string
   playerPrimary: string[]
   playerSecondary: string[]
   playerEngineBreaker: string[]
+  playerRecipeAccent: string[]
   staffPrimary: string[]
   staffSecondary: string[]
 }
@@ -41,26 +47,30 @@ function mapCell(c: ProfileAttrCell, pack: ProfileHighlightPack): ProfileAttrCel
     ...c,
     highlightTier: tierForKey(c.key, pack),
     highlightEngine: pack.playerEngineBreaker.includes(c.key),
+    highlightRecipeAccent: pack.playerRecipeAccent.includes(c.key),
   }
 }
 
-function footTier(
-  key: 'left_foot' | 'right_foot' | 'morale',
-  roleCmScoutIndex: number,
-): 'primary' | 'secondary' | undefined {
-  return footMoraleHighlightTier(key, [positionRoleFromCmScoutIndex(roleCmScoutIndex)])
+function footTier(archetypeId: string, key: 'left_foot' | 'right_foot' | 'morale'): 'primary' | 'secondary' | undefined {
+  return footMoraleHighlightTier(key, [roleFromEffectivenessArchetypeId(archetypeId)])
+}
+
+export function highlightPackForArchetype(
+  profile: ProfilePayload,
+  archetypeId: string,
+): ProfileHighlightPack | undefined {
+  return profile.highlightPacksByArchetypeId?.[archetypeId]
 }
 
 export function highlightPackForRole(
   profile: ProfilePayload,
   roleCmScoutIndex: number,
 ): ProfileHighlightPack | undefined {
-  const packs = profile.highlightPacksByCmScoutIndex
-  if (!packs?.length) return undefined
-  return packs.find((p) => p.roleCmScoutIndex === roleCmScoutIndex) ?? packs[roleCmScoutIndex]
+  const archetypeId = defaultArchetypeFromCmScoutIndex(roleCmScoutIndex)
+  return highlightPackForArchetype(profile, archetypeId) ?? profile.highlightPacksByCmScoutIndex?.[roleCmScoutIndex]
 }
 
-/** Clone profile with attribute/hidden highlights for one CM Scout role column. */
+/** Clone profile with attribute/hidden highlights for one Eff archetype (or CM Scout role fallback). */
 export function applyProfileHighlightPack(
   profile: ProfilePayload,
   pack: ProfileHighlightPack | undefined,
@@ -80,15 +90,16 @@ export function applyProfileHighlightPack(
   ]
 
   const feetMorale = {
-    left: { ...profile.feetMorale.left, highlightTier: footTier('left_foot', pack.roleCmScoutIndex) },
-    right: { ...profile.feetMorale.right, highlightTier: footTier('right_foot', pack.roleCmScoutIndex) },
-    morale: { ...profile.feetMorale.morale, highlightTier: footTier('morale', pack.roleCmScoutIndex) },
+    left: { ...profile.feetMorale.left, highlightTier: footTier(pack.archetypeId, 'left_foot') },
+    right: { ...profile.feetMorale.right, highlightTier: footTier(pack.archetypeId, 'right_foot') },
+    morale: { ...profile.feetMorale.morale, highlightTier: footTier(pack.archetypeId, 'morale') },
   }
 
   return {
     ...profile,
     highlightRolesLabel: pack.roleLabel,
     defaultHighlightRoleCmScoutIndex: pack.roleCmScoutIndex,
+    defaultHighlightArchetypeId: pack.archetypeId,
     attrColumns,
     hiddenColumns,
     feetMorale,
