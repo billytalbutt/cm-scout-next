@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
 import { computeEffectivenessFull } from '../shared/effectivenessEngine'
+import { profileNavStep, type ProfileNavigationContext } from '../shared/profileNavigation'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import {
@@ -78,6 +79,14 @@ import {
   buildPatchedArchiveBuffer,
   editorSubjectLabel,
 } from './attributeEditorSave'
+import {
+  buildContractEditorPatchedBuffer,
+  buildContractEditorSnapshot,
+} from './contractEditorSave'
+import {
+  buildStaffEditorPatchedBuffer,
+  buildStaffEditorSnapshot,
+} from './staffEditorSave'
 import { buildCmScoutPlsBuffer, PLS_MAX_PLAYERS, type PlsStaffEntry } from './cmScoutPls'
 import type { PitchSlot } from '../shared/tacticsPitchSnap'
 import type { GridPlayerRow } from '../shared/gridTypes'
@@ -121,6 +130,10 @@ function syncLoadedArchiveFromDisk(): void {
 }
 
 const profileWindows = new Map<string, BrowserWindow>()
+const profileNavByWebContents = new Map<
+  number,
+  { kind: 'player' | 'staff'; nav: ProfileNavigationContext }
+>()
 
 function profileWindowKey(kind: string, staffIndex: number): string {
   return `${kind}:${staffIndex}`
@@ -691,24 +704,78 @@ ipcMain.handle('get-staff-profile', async (_e, staffIndex: unknown) => {
 
 ipcMain.handle(
   'open-profile-window',
-  async (_e, args: { staffIndex?: unknown; kind?: unknown }) => {
+  async (
+    _e,
+    args: {
+      staffIndex?: unknown
+      kind?: unknown
+      navigation?: ProfileNavigationContext
+    },
+  ) => {
     if (!loaded) return { ok: false as const, error: 'Load a save in the main window first.' }
     const staffIndex = Math.floor(Number(args?.staffIndex))
     const kind = args?.kind === 'staff' ? 'staff' : 'player'
     if (!Number.isFinite(staffIndex) || staffIndex < 0) {
       return { ok: false as const, error: 'Invalid profile.' }
     }
+    const nav = args?.navigation
     const key = profileWindowKey(kind, staffIndex)
     const existing = profileWindows.get(key)
     if (existing && !existing.isDestroyed()) {
       loadProfileWindow(existing, kind, staffIndex)
+      if (nav?.orderedStaffIndices?.length) {
+        profileNavByWebContents.set(existing.webContents.id, { kind, nav })
+      }
       existing.focus()
       return { ok: true as const }
     }
     const win = createProfileWindow(kind, staffIndex)
     profileWindows.set(key, win)
-    win.on('closed', () => profileWindows.delete(key))
+    if (nav?.orderedStaffIndices?.length) {
+      profileNavByWebContents.set(win.webContents.id, { kind, nav })
+    }
+    win.on('closed', () => {
+      profileWindows.delete(key)
+      profileNavByWebContents.delete(win.webContents.id)
+    })
     return { ok: true as const }
+  },
+)
+
+ipcMain.handle('profile-window-nav-state', (e) => {
+  const ctx = profileNavByWebContents.get(e.sender.id)
+  if (!ctx?.nav.orderedStaffIndices.length) {
+    return { ok: true as const, hasNav: false as const }
+  }
+  const ordered = ctx.nav.orderedStaffIndices
+  const staffIndex = Number(new URLSearchParams(
+    e.sender.getURL().split('?')[1] ?? '',
+  ).get('staffIndex'))
+  const idx = Number.isFinite(staffIndex) ? ordered.indexOf(staffIndex) : -1
+  return {
+    ok: true as const,
+    hasNav: true as const,
+    index: idx >= 0 ? idx : 0,
+    total: ordered.length,
+    source: ctx.nav.source,
+  }
+})
+
+ipcMain.handle(
+  'profile-window-navigate',
+  async (e, args: { direction?: unknown }) => {
+    const ctx = profileNavByWebContents.get(e.sender.id)
+    if (!ctx) return { ok: false as const, error: 'No navigation list for this window.' }
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return { ok: false as const, error: 'Window not found.' }
+    const params = new URLSearchParams(win.webContents.getURL().split('?')[1] ?? '')
+    const current = Math.floor(Number(params.get('staffIndex')))
+    if (!Number.isFinite(current)) return { ok: false as const, error: 'Invalid profile.' }
+    const direction = args?.direction === 'prev' ? 'prev' : 'next'
+    const next = profileNavStep(ctx.nav.orderedStaffIndices, current, direction)
+    if (next == null) return { ok: false as const, error: 'Could not navigate.' }
+    loadProfileWindow(win, ctx.kind, next)
+    return { ok: true as const, staffIndex: next }
   },
 )
 
@@ -923,7 +990,8 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
   }
   const changes = ch as Record<string, number>
   const clearInjury = p.clearInjury === true
-  if (Object.keys(changes).length === 0 && !clearInjury) {
+  const clearUnhappiness = p.clearUnhappiness === true
+  if (Object.keys(changes).length === 0 && !clearInjury && !clearUnhappiness) {
     return { ok: false as const, error: 'No changes to save.' }
   }
   const built = buildPatchedArchiveBuffer(
@@ -933,6 +1001,7 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
     loaded.db,
     staffIndex,
     changes,
+    { clearInjury, clearUnhappiness },
   )
   if (!built.ok) return { ok: false as const, error: built.error }
 
@@ -942,6 +1011,132 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
   const ext = extname(base) || '.dat'
   const stem = ext.length > 0 ? base.slice(0, -ext.length) : base
   const suggested = join(dirname(loaded.indexPath), `${stem}-edited${ext}`)
+  const dlg = parent
+    ? await dialog.showSaveDialog(parent, {
+        title: 'Save edited database',
+        defaultPath: suggested,
+        filters: [
+          { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      })
+    : await dialog.showSaveDialog({
+        title: 'Save edited database',
+        defaultPath: suggested,
+        filters: [
+          { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      })
+  if (dlg.canceled || !dlg.filePath) return { ok: false as const, error: 'cancelled' }
+  try {
+    writeFileSync(dlg.filePath, built.buffer)
+    return { ok: true as const, path: dlg.filePath }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { ok: false as const, error: msg }
+  }
+})
+
+ipcMain.handle('get-staff-editor-snapshot', async (_e, staffIndex: unknown) => {
+  if (!loaded) return null
+  syncLoadedArchiveFromDisk()
+  const idx = Math.floor(Number(staffIndex))
+  if (!Number.isFinite(idx) || idx < 0) return null
+  return buildStaffEditorSnapshot(loaded.db, idx)
+})
+
+ipcMain.handle('save-staff-edits', async (event, payload: unknown) => {
+  if (!loaded) return { ok: false as const, error: 'No database loaded.' }
+  syncLoadedArchiveFromDisk()
+  const p = payload as { staffIndex?: unknown; changes?: unknown }
+  const staffIndex = Math.floor(Number(p.staffIndex))
+  const ch = p.changes
+  if (!Number.isFinite(staffIndex) || staffIndex < 0 || typeof ch !== 'object' || ch === null) {
+    return { ok: false as const, error: 'Invalid save payload.' }
+  }
+  const changes = ch as Record<string, number>
+  if (Object.keys(changes).length === 0) {
+    return { ok: false as const, error: 'No changes to save.' }
+  }
+  const built = buildStaffEditorPatchedBuffer(
+    loaded.archiveBuf,
+    loaded.db.blocks,
+    loaded.db.compressed,
+    loaded.db,
+    staffIndex,
+    changes,
+  )
+  if (!built.ok) return { ok: false as const, error: built.error }
+  const parent =
+    BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
+  const base = basename(loaded.indexPath)
+  const ext = extname(base) || '.dat'
+  const stem = ext.length > 0 ? base.slice(0, -ext.length) : base
+  const suggested = join(dirname(loaded.indexPath), `${stem}-staff-edited${ext}`)
+  const dlg = parent
+    ? await dialog.showSaveDialog(parent, {
+        title: 'Save edited database',
+        defaultPath: suggested,
+        filters: [
+          { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      })
+    : await dialog.showSaveDialog({
+        title: 'Save edited database',
+        defaultPath: suggested,
+        filters: [
+          { name: 'CM0102 archive', extensions: ['sav', 'dat'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
+      })
+  if (dlg.canceled || !dlg.filePath) return { ok: false as const, error: 'cancelled' }
+  try {
+    writeFileSync(dlg.filePath, built.buffer)
+    return { ok: true as const, path: dlg.filePath }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return { ok: false as const, error: msg }
+  }
+})
+
+ipcMain.handle('get-contract-editor-snapshot', async (_e, staffIndex: unknown) => {
+  if (!loaded) return null
+  syncLoadedArchiveFromDisk()
+  const idx = Math.floor(Number(staffIndex))
+  if (!Number.isFinite(idx) || idx < 0) return null
+  return buildContractEditorSnapshot(loaded.db, idx)
+})
+
+ipcMain.handle('save-contract-edits', async (event, payload: unknown) => {
+  if (!loaded) return { ok: false as const, error: 'No database loaded.' }
+  syncLoadedArchiveFromDisk()
+  const p = payload as { staffIndex?: unknown; changes?: unknown }
+  const staffIndex = Math.floor(Number(p.staffIndex))
+  const ch = p.changes
+  if (!Number.isFinite(staffIndex) || staffIndex < 0 || typeof ch !== 'object' || ch === null) {
+    return { ok: false as const, error: 'Invalid save payload.' }
+  }
+  const changes = ch as Record<string, number>
+  if (Object.keys(changes).length === 0) {
+    return { ok: false as const, error: 'No changes to save.' }
+  }
+  const built = buildContractEditorPatchedBuffer(
+    loaded.archiveBuf,
+    loaded.db.blocks,
+    loaded.db.compressed,
+    loaded.db,
+    staffIndex,
+    changes,
+  )
+  if (!built.ok) return { ok: false as const, error: built.error }
+  const parent =
+    BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0] ?? undefined
+  const base = basename(loaded.indexPath)
+  const ext = extname(base) || '.dat'
+  const stem = ext.length > 0 ? base.slice(0, -ext.length) : base
+  const suggested = join(dirname(loaded.indexPath), `${stem}-contract-edited${ext}`)
   const dlg = parent
     ? await dialog.showSaveDialog(parent, {
         title: 'Save edited database',

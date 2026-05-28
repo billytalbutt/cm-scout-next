@@ -1,6 +1,7 @@
 /**
  * Position-archetype “effectiveness” % (Eff %): weighted **recipe** (primary / secondary) plus a small
- * **engine** block of hiddens / set-piece / staff mentals that scouting lore ties to match output.
+ * **engine** block of hiddens / set-piece / staff mentals that scouting lore ties to on-pitch output.
+ * Injury proneness and discipline (dirtiness/aggression) are **not** scored here — see `computePlayerRiskFlags`.
  * All inputs use `effectivenessAttrGetter` (uncapped engine display where profile brackets exceed 20).
  *
  * **Consistency (hidden):** CM0102 does not publish exact formulas; community discussion treats it as
@@ -61,7 +62,6 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
       { key: 'professionalism', weight: 1.5 },
       { key: 'important_matches', weight: 1.5 },
       { key: 'natural_fitness', weight: 1.5 },
-      { key: 'injury_proneness', weight: 1.5, invert: true },
     ],
   },
   {
@@ -75,7 +75,6 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
       { key: 'determination', weight: 2 },
       { key: 'professionalism', weight: 1.5 },
       { key: 'important_matches', weight: 1.5 },
-      { key: 'injury_proneness', weight: 1, invert: true },
     ],
   },
   {
@@ -88,9 +87,7 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
       { key: 'teamwork', weight: 2 },
       { key: 'determination', weight: 2 },
       { key: 'professionalism', weight: 1.5 },
-      { key: 'aggression', weight: 1 },
       { key: 'important_matches', weight: 1.5 },
-      { key: 'injury_proneness', weight: 1.5, invert: true },
     ],
   },
   {
@@ -109,7 +106,6 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
       { key: 'determination', weight: 2 },
       { key: 'professionalism', weight: 0.75 },
       { key: 'influence', weight: 0.75 },
-      { key: 'injury_proneness', weight: 1, invert: true },
     ],
   },
   {
@@ -125,7 +121,6 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
       { key: 'professionalism', weight: 1.5 },
       { key: 'natural_fitness', weight: 1.5 },
       { key: 'technique', weight: 1.5 },
-      { key: 'injury_proneness', weight: 1, invert: true },
     ],
   },
   {
@@ -142,7 +137,6 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
       { key: 'influence', weight: 0.75 },
       { key: 'determination', weight: 2 },
       { key: 'professionalism', weight: 0.75 },
-      { key: 'injury_proneness', weight: 1, invert: true },
     ],
   },
   {
@@ -157,10 +151,34 @@ export const EFFECTIVENESS_ARCHETYPES: readonly EffectivenessArchetype[] = [
       { key: 'determination', weight: 2 },
       { key: 'professionalism', weight: 1.5 },
       { key: 'technique', weight: 2 },
-      { key: 'injury_proneness', weight: 2, invert: true },
     ],
   },
 ] as const
+
+/** Availability / discipline risks — shown in UI only; do not affect Eff %. */
+export type PlayerRiskFlags = {
+  injuryRisk: boolean
+  disciplineRisk: boolean
+  lowConsistency: boolean
+}
+
+const INJURY_RISK_THRESHOLD = 14
+const DISCIPLINE_DIRTINESS_THRESHOLD = 14
+const DISCIPLINE_AGGRESSION_THRESHOLD = 14
+const LOW_CONSISTENCY_THRESHOLD = 8
+
+export function computePlayerRiskFlags(getAttr: (name: string) => number): PlayerRiskFlags {
+  const injury = Math.max(0, Math.min(20, getAttr('injury_proneness')))
+  const dirtiness = Math.max(0, Math.min(20, getAttr('dirtiness')))
+  const aggression = Math.max(0, Math.min(20, getAttr('aggression')))
+  const consistency = Math.max(0, Math.min(20, getAttr('consistency')))
+  return {
+    injuryRisk: injury >= INJURY_RISK_THRESHOLD,
+    disciplineRisk:
+      dirtiness >= DISCIPLINE_DIRTINESS_THRESHOLD && aggression >= DISCIPLINE_AGGRESSION_THRESHOLD,
+    lowConsistency: consistency > 0 && consistency <= LOW_CONSISTENCY_THRESHOLD,
+  }
+}
 
 const W_PRIMARY = 5
 const W_SECONDARY = 1.5

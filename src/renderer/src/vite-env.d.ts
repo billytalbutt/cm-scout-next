@@ -100,7 +100,16 @@ declare global {
       openProfileWindow: (args: {
         staffIndex: number
         kind: 'player' | 'staff'
+        navigation?: import('../../shared/profileNavigation').ProfileNavigationContext
       }) => Promise<{ ok: true } | { ok: false; error: string }>
+      profileWindowNavState: () => Promise<
+        | { ok: true; hasNav: false }
+        | { ok: true; hasNav: true; index: number; total: number; source: string }
+        | { ok: false; error: string }
+      >
+      profileWindowNavigate: (direction: 'next' | 'prev') => Promise<
+        { ok: true; staffIndex: number } | { ok: false; error: string }
+      >
       getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>
       saveRegenBaseline: () => Promise<RegenBaselineMutationResult>
       clearRegenBaseline: () => Promise<RegenBaselineMutationResult>
@@ -122,7 +131,29 @@ declare global {
       saveAttributeEdits: (
         staffIndex: number,
         changes: Record<string, number>,
-        options?: { clearInjury?: boolean },
+        options?: { clearInjury?: boolean; clearUnhappiness?: boolean },
+      ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
+      getStaffEditorSnapshot: (staffIndex: number) => Promise<{
+        staffIndex: number
+        staffId: number
+        name: string
+        jobForClub: number
+        nonPlayerRowIndex: number | null
+        values: Record<string, number>
+      } | null>
+      saveStaffEdits: (
+        staffIndex: number,
+        changes: Record<string, number>,
+      ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
+      getContractEditorSnapshot: (staffIndex: number) => Promise<{
+        staffIndex: number
+        name: string
+        hasContract: boolean
+        values: Record<string, number>
+      } | null>
+      saveContractEdits: (
+        staffIndex: number,
+        changes: Record<string, number>,
       ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
       getClubEditorSnapshot: (clubId: number) => Promise<
         | {
@@ -339,6 +370,9 @@ export interface ProfilePayload {
   /** Effectiveness % (best archetype); bracket label on grid. Null when naturals matched no recipe — show Unsure. */
   effPercent?: number | null
   effArchetype?: string
+  injuryRisk?: boolean
+  disciplineRisk?: boolean
+  lowConsistencyRisk?: boolean
   eliteEngineBadgeKind?:
     | 'finisher'
     | 'playmaker'

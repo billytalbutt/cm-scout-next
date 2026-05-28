@@ -1,4 +1,4 @@
-import { computeEffectivenessFull } from '../shared/effectivenessEngine'
+import { computeEffectivenessFull, computePlayerRiskFlags } from '../shared/effectivenessEngine'
 import type { UiPlayerRow } from './database/types'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
@@ -14,6 +14,10 @@ export function applyEffectivenessRatings(rows: UiPlayerRow[]): void {
     row.effPercent = full.effPercent
     row.effArchetype = full.effArchetype
     row.effArchetypeId = full.effArchetypeId
+    const risks = computePlayerRiskFlags(get)
+    row.injuryRisk = risks.injuryRisk
+    row.disciplineRisk = risks.disciplineRisk
+    row.lowConsistencyRisk = risks.lowConsistency
     const badge = evaluateEliteEngineBadge(row.player, row.staff, full.effArchetypeId, full.effPercent)
     if (badge) {
       row.eliteEngineBadgeKind = badge.kind

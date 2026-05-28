@@ -1,7 +1,7 @@
 {
   "name": "cm-scout-next",
   "version": "0.1.0",
-  "description": "CM-01/02 Merlin — CM 01/02 scouting & editor (uncompressed & compressed index.dat)",
+  "description": "CM Merlin — CM 01/02 scouting, compare, regen tracking & save editor",
   "main": "out/main/index.js",
   "type": "module",
   "author": "",

@@ -54,17 +54,21 @@ import {
 } from '../../shared/tacticsPitchSnap'
 import { loadSavedTacticsLayout } from './tactics/tacticsLayoutStorage'
 import { AttributeEditorPanel } from './AttributeEditorPanel'
+import { StaffEditorPanel } from './StaffEditorPanel'
 import { DevelopmentPanel } from './DevelopmentPanel'
 import { PlayerDevelopmentDetail } from './PlayerDevelopmentDetail'
 import { MerlinKnowledgeBasePanel } from './MerlinKnowledgeBasePanel'
 import type { PlayerDevelopmentSummary } from '../../shared/playerDevelopmentTypes'
 import { ClubEditorPanel } from './ClubEditorPanel'
+import { ComparePanel } from './compare/ComparePanel'
+import type { ProfileNavigationContext } from '../../shared/profileNavigation'
 import { attrColor, engineBracketClass, profileAttrHighlightClass, ProfileAttrColumn } from './ProfileAttrBlocks'
 import { applyProfileHighlightPack, highlightPackForRole } from './profileHighlightApply'
 import { NaturalRoleHighlightPicker } from './profile/NaturalRoleHighlightPicker'
 import { formatIsoDateUk } from '../../shared/dateDisplay'
 import { InstructionHintRow, ProfilePlayerIdentity } from './profile/profileUi'
 import { EffectivenessRecipeBreakdown } from './profile/EffectivenessRecipeBreakdown'
+import { PlayerRiskChips } from './profile/PlayerRiskChips'
 import { RolePercentMiniCell } from './profile/RolePercentMiniCell'
 import { defaultProfileHighlightRoleIdx } from '../../shared/profileHighlightRole'
 import {
@@ -467,6 +471,11 @@ export function App() {
     }
   })
   const [browseTab, setBrowseTab] = useState<BrowseTabId>('players')
+  const [compareLeftStaffIndex, setCompareLeftStaffIndex] = useState<number | null>(null)
+  const [compareRightStaffIndex, setCompareRightStaffIndex] = useState<number | null>(null)
+  const [comparePickTarget, setComparePickTarget] = useState<'left' | 'right' | null>(null)
+  const [shortlistNavOrder, setShortlistNavOrder] = useState<number[]>([])
+  const [editorPane, setEditorPane] = useState<'player' | 'staff' | 'club'>('player')
   /** Last club selected in Clubs tab — Tactics Lab uses this for save tactic wiring. */
   const [tacticsSeedClubId, setTacticsSeedClubId] = useState<number | null>(null)
   const [tacticsSeedClubName, setTacticsSeedClubName] = useState<string | null>(null)
@@ -720,6 +729,7 @@ export function App() {
       browseTab === 'tactics' ||
       browseTab === 'editor' ||
       browseTab === 'shortlists' ||
+      browseTab === 'compare' ||
       browseTab === 'development' ||
       browseTab === 'knowledge'
     ) {
@@ -1206,13 +1216,41 @@ export function App() {
       const el = scrollParentRef.current
       if (el) browseTabScrollRef.current[browseTab] = el.scrollTop
       setBrowseTab(next)
-      if (loadInfo && (next === 'players' || next === 'regens')) {
+      if (loadInfo && (next === 'players' || next === 'regens' || next === 'compare')) {
         window.setTimeout(() => void refresh(), 0)
       }
     },
     [browseTab, loadInfo, refresh],
   )
   const tableRows = table.getRowModel().rows
+
+  const buildPopoutNavigation = useCallback(
+    (kind: 'player' | 'staff'): ProfileNavigationContext | undefined => {
+      if (kind !== 'player') return undefined
+      if (browseTab === 'players' || browseTab === 'regens' || browseTab === 'compare') {
+        const order = table.getRowModel().rows.map((r) => r.original.staffIndex)
+        if (order.length < 2) return undefined
+        return { orderedStaffIndices: order, source: 'grid' }
+      }
+      if (browseTab === 'shortlists' && shortlistNavOrder.length >= 2) {
+        return { orderedStaffIndices: shortlistNavOrder, source: 'shortlist' }
+      }
+      return undefined
+    },
+    [browseTab, table, shortlistNavOrder],
+  )
+
+  const openPopoutProfile = useCallback(
+    (staffIndex: number, kind: 'player' | 'staff') => {
+      void window.cmapi?.openProfileWindow({
+        staffIndex,
+        kind,
+        navigation: buildPopoutNavigation(kind),
+      })
+    },
+    [buildPopoutNavigation],
+  )
+
   const colCount = table.getAllLeafColumns().length
 
   const rowVirtualizer = useVirtualizer({
@@ -1654,6 +1692,12 @@ export function App() {
                 activeStaffAttrFilterCount={activeStaffAttrFilterCount}
                 adjustStaffMatchAtLeast={adjustStaffMatchAtLeast}
               />
+            )}
+            {browseTab === 'compare' && (
+              <p className="text-[11px] leading-snug text-zinc-500">
+                Filters apply to the player grid below. Pick left/right slots, then click a row to assign a player for
+                side-by-side comparison.
+              </p>
             )}
             {(browseTab === 'tactics' ||
               browseTab === 'editor' ||
@@ -2377,12 +2421,11 @@ export function App() {
               <ShortlistsPanel
                 loadInfo={!!loadInfo}
                 shortlists={shortlists}
+                onPlayerNavOrderChange={setShortlistNavOrder}
                 onOpenPlayer={(si) => {
-                  changeBrowseTab('players')
                   void pick(si)
                 }}
                 onOpenStaff={(si) => {
-                  changeBrowseTab('staff')
                   setStaffTableSel(si)
                   void loadStaffProfile(si)
                 }}
@@ -2439,23 +2482,84 @@ export function App() {
             )}
             {browseTab === 'editor' && (
               <div className="cm-scroll min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-                <ClubEditorPanel
-                  key={loadInfo?.path ?? 'no-save'}
-                  loadInfo={!!loadInfo}
-                  compressed={!!loadInfo?.compressed}
-                  databasePath={loadInfo?.path ?? null}
-                  onSavedToPath={(path) =>
-                    setLoadInfo((prev) => (prev ? { ...prev, path } : prev))
-                  }
-                />
-                <AttributeEditorPanel
-                  loadInfo={!!loadInfo}
-                  compressed={!!loadInfo?.compressed}
-                  staffIndex={sel}
-                />
+                <div className="mb-4 flex flex-wrap gap-1 border-b border-zinc-800 pb-2">
+                  {(
+                    [
+                      { id: 'player' as const, label: 'Player' },
+                      { id: 'staff' as const, label: 'Staff / MD' },
+                      { id: 'club' as const, label: 'Club' },
+                    ] as const
+                  ).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setEditorPane(t.id)}
+                      className={`pill-tab text-xs ${editorPane === t.id ? 'pill-tab-active' : 'pill-tab-inactive'}`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+                {editorPane === 'club' && (
+                  <ClubEditorPanel
+                    key={loadInfo?.path ?? 'no-save'}
+                    loadInfo={!!loadInfo}
+                    compressed={!!loadInfo?.compressed}
+                    databasePath={loadInfo?.path ?? null}
+                    onSavedToPath={(path) =>
+                      setLoadInfo((prev) => (prev ? { ...prev, path } : prev))
+                    }
+                  />
+                )}
+                {editorPane === 'player' && (
+                  <AttributeEditorPanel
+                    loadInfo={!!loadInfo}
+                    compressed={!!loadInfo?.compressed}
+                    staffIndex={sel}
+                  />
+                )}
+                {editorPane === 'staff' && (
+                  <StaffEditorPanel
+                    loadInfo={!!loadInfo}
+                    compressed={!!loadInfo?.compressed}
+                    staffIndex={staffTableSel}
+                  />
+                )}
               </div>
             )}
-            {(browseTab === 'players' || browseTab === 'regens') && (
+            {browseTab === 'compare' && (
+              <div className="cm-scroll min-h-0 flex-1 overflow-y-auto p-3">
+                <ComparePanel
+                  loadInfo={!!loadInfo}
+                  leftStaffIndex={compareLeftStaffIndex}
+                  rightStaffIndex={compareRightStaffIndex}
+                  showEngineAttrs={showEngineAttrs}
+                  onPickLeft={() => {
+                    if (sel != null) {
+                      setCompareLeftStaffIndex(sel)
+                      setComparePickTarget(null)
+                    } else setComparePickTarget('left')
+                  }}
+                  onPickRight={() => {
+                    if (sel != null) {
+                      setCompareRightStaffIndex(sel)
+                      setComparePickTarget(null)
+                    } else setComparePickTarget('right')
+                  }}
+                  onClear={() => {
+                    setCompareLeftStaffIndex(null)
+                    setCompareRightStaffIndex(null)
+                    setComparePickTarget(null)
+                  }}
+                />
+                {comparePickTarget && (
+                  <p className="mt-2 text-[11px] text-amber-200/90">
+                    Click a player row below to set the {comparePickTarget} player.
+                  </p>
+                )}
+              </div>
+            )}
+            {(browseTab === 'players' || browseTab === 'regens' || browseTab === 'compare') && (
             <>
             {browseTab === 'regens' && loadInfo && (
               <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-[11px]">
@@ -2609,7 +2713,15 @@ export function App() {
                   return (
                     <tr
                       key={row.id}
-                      onClick={() => setSel(row.original.staffIndex)}
+                      onClick={() => {
+                        const si = row.original.staffIndex
+                        setSel(si)
+                        if (browseTab === 'compare' && comparePickTarget) {
+                          if (comparePickTarget === 'left') setCompareLeftStaffIndex(si)
+                          else setCompareRightStaffIndex(si)
+                          setComparePickTarget(null)
+                        }
+                      }}
                       onDoubleClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
@@ -2758,12 +2870,7 @@ export function App() {
                   <button
                     type="button"
                     title="Open staff profile in a separate window"
-                    onClick={() =>
-                      void window.cmapi?.openProfileWindow({
-                        staffIndex: staffProfile.staffIndex,
-                        kind: 'staff',
-                      })
-                    }
+                    onClick={() => openPopoutProfile(staffProfile.staffIndex, 'staff')}
                     className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60"
                   >
                     Pop out
@@ -2838,7 +2945,7 @@ export function App() {
                     <button
                       type="button"
                       title="Open this profile in a separate window (Attributes / Hidden / Other tabs)"
-                      onClick={() => void window.cmapi?.openProfileWindow({ staffIndex: sel, kind: 'player' })}
+                      onClick={() => openPopoutProfile(sel, 'player')}
                       className="rounded-md border border-zinc-600/60 bg-zinc-800/60 px-2.5 py-1 text-[11px] font-medium text-zinc-200 transition hover:bg-zinc-700/60"
                     >
                       Pop out
@@ -2876,7 +2983,7 @@ export function App() {
                 <RegenProfileHint
                   regen={profile.regen}
                   onOpenPredecessor={(staffIndex) =>
-                    void window.cmapi?.openProfileWindow({ staffIndex, kind: 'player' })
+                    openPopoutProfile(staffIndex, 'player')
                   }
                 />
               )}
@@ -3084,12 +3191,21 @@ export function App() {
                             <div className="border-t border-zinc-700/80 pt-2">
                               <p className="font-semibold text-zinc-300">Effectiveness %</p>
                               {profile.effPercent != null ? (
-                                <p className="mt-1 text-zinc-400">
-                                  Best archetype:{' '}
-                                  <span className="font-mono text-zinc-200">
-                                    {profile.effPercent.toFixed(1)}% ({profile.effArchetype})
-                                  </span>
-                                </p>
+                                <>
+                                  <p className="mt-1 text-zinc-400">
+                                    Best archetype:{' '}
+                                    <span className="font-mono text-zinc-200">
+                                      {profile.effPercent.toFixed(1)}% ({profile.effArchetype})
+                                    </span>
+                                  </p>
+                                  <div className="mt-2">
+                                    <PlayerRiskChips
+                                      injuryRisk={profile.injuryRisk}
+                                      disciplineRisk={profile.disciplineRisk}
+                                      lowConsistencyRisk={profile.lowConsistencyRisk}
+                                    />
+                                  </div>
+                                </>
                               ) : (
                                 <p className="mt-1 italic text-violet-200/95">
                                   Natural positions did not match any effectiveness recipe — use CM Scout % above.

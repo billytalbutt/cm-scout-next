@@ -45,7 +45,7 @@ const ENGINE_BREAKERS_BY_ROLE: Record<PositionRoleId, readonly string[]> = {
   D: ['marking', 'positioning', 'tackling'],
   WB: ['pace', 'acceleration', 'crossing'],
   DM: ['tackling', 'positioning', 'marking'],
-  M: ['technique', 'decisions', 'passing'],
+  M: ['technique', 'decisions', 'teamwork'],
   AM: ['creativity', 'technique', 'off_the_ball', 'dribbling'],
   ST: ['finishing', 'off_the_ball', 'pace', 'anticipation'],
 }
@@ -87,8 +87,8 @@ const BY_ROLE: Record<PositionRoleId, Pack> = {
     staffSecondary: ['pressure', 'temperament', 'loyalty', 'adaptability', 'sportsmanship'],
   },
   M: {
-    playerPrimary: ['passing', 'decisions', 'technique', 'teamwork', 'work_rate', 'creativity', 'off_the_ball', 'tackling'],
-    playerSecondary: ['stamina', 'anticipation', 'long_shots', 'flair', 'positioning', 'dribbling', 'pace', 'balance'],
+    playerPrimary: ['technique', 'decisions', 'teamwork', 'passing', 'anticipation', 'stamina', 'work_rate', 'creativity'],
+    playerSecondary: ['off_the_ball', 'long_shots', 'flair', 'positioning', 'dribbling', 'pace', 'balance', 'tackling'],
     playerEngineBreaker: ENGINE_BREAKERS_BY_ROLE.M,
     staffPrimary: ['ambition', 'professionalism'],
     staffSecondary: ['pressure', 'loyalty', 'adaptability', 'sportsmanship', 'temperament'],

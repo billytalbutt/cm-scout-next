@@ -4,6 +4,7 @@ type BrowseTabId =
   | 'development'
   | 'staff'
   | 'shortlists'
+  | 'compare'
   | 'clubs'
   | 'tactics'
   | 'knowledge'
@@ -12,6 +13,7 @@ type BrowseTabId =
 const TABS: { id: BrowseTabId; label: string }[] = [
   { id: 'players', label: 'All players' },
   { id: 'regens', label: 'Regens' },
+  { id: 'compare', label: 'Compare' },
   { id: 'development', label: 'Development' },
   { id: 'staff', label: 'Staff' },
   { id: 'shortlists', label: 'Shortlists' },

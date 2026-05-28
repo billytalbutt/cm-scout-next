@@ -1,7 +1,8 @@
 import type { EffectivenessRunnerUp, EffectivenessWinnerDetail } from '../../../shared/effectivenessEngine'
 import { attrColor } from '../ProfileAttrBlocks'
 
-const INVERT_RECIPE_ATTRS = new Set(['injury_proneness', 'dirtiness'])
+/** Recipe no longer scores injury/dirtiness — invert only if reintroduced in engine extras. */
+const INVERT_RECIPE_ATTRS = new Set<string>()
 
 type StatRow = {
   key: string

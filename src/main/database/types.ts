@@ -328,6 +328,10 @@ export interface UiPlayerRow {
   effPercent?: number | null
   effArchetype?: string
   effArchetypeId?: string
+  /** Availability risks (UI only — not used in Eff % formula). */
+  injuryRisk?: boolean
+  disciplineRisk?: boolean
+  lowConsistencyRisk?: boolean
   eliteEngineBadgeKind?:
     | 'finisher'
     | 'playmaker'

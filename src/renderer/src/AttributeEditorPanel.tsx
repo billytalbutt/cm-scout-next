@@ -15,6 +15,7 @@ import {
   subscribeCopiedPlayerAttributes,
 } from '../../shared/copiedPlayerAttributes'
 import { EditorPlayerPicker } from './editor/EditorPlayerPicker'
+import { ContractEditorSection } from './editor/ContractEditorSection'
 
 export type EditorSnapshot = {
   staffIndex: number
@@ -125,6 +126,7 @@ export function AttributeEditorPanel({
   const [copiedAttrs, setCopiedAttrs] = useState(getCopiedPlayerAttributes)
   const [searchedStaffIndex, setSearchedStaffIndex] = useState<number | null>(null)
   const [clearInjury, setClearInjury] = useState(false)
+  const [clearUnhappiness, setClearUnhappiness] = useState(false)
   const baselineRef = useRef<Record<string, number> | null>(null)
   const effectiveStaffIndex = searchedStaffIndex ?? staffIndex
 
@@ -165,6 +167,7 @@ export function AttributeEditorPanel({
         }
         setDraft(d)
         setClearInjury(false)
+        setClearUnhappiness(false)
         setErr(null)
       })
       .catch((e: unknown) => {
@@ -220,7 +223,7 @@ export function AttributeEditorPanel({
     return false
   }, [draft])
 
-  const hasChanges = hasAttrChanges || clearInjury
+  const hasChanges = hasAttrChanges || clearInjury || clearUnhappiness
 
   const saveDisabled = compressed || !snap || saving || !hasChanges
 
@@ -240,7 +243,7 @@ export function AttributeEditorPanel({
       const t = Math.trunc(n)
       if (t !== base[key]) changes[key] = t
     }
-    if (Object.keys(changes).length === 0 && !clearInjury) {
+    if (Object.keys(changes).length === 0 && !clearInjury && !clearUnhappiness) {
       setSaveMsg('No changes to save.')
       return
     }
@@ -250,6 +253,7 @@ export function AttributeEditorPanel({
     try {
       const out = await window.cmapi.saveAttributeEdits(snap.staffIndex, changes, {
         clearInjury,
+        clearUnhappiness,
       })
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
         setSaveMsg(`Saved to ${String((out as { path: string }).path)}`)
@@ -271,7 +275,7 @@ export function AttributeEditorPanel({
     } finally {
       setSaving(false)
     }
-  }, [clearInjury, compressed, draft, snap])
+  }, [clearInjury, clearUnhappiness, compressed, draft, snap])
 
   if (!loadInfo) {
     return <p className="text-sm text-zinc-500">Load a database first.</p>
@@ -484,7 +488,22 @@ export function AttributeEditorPanel({
             />
           ))}
         </div>
+        <label className="mt-3 flex items-start gap-2 text-xs text-zinc-400">
+          <input
+            type="checkbox"
+            checked={clearUnhappiness}
+            onChange={(e) => setClearUnhappiness(e.target.checked)}
+            className="mt-0.5 rounded border-zinc-600"
+          />
+          <span>
+            <strong className="text-zinc-300">Clear unhappiness</strong> on save — sets morale to 20 and clears
+            transfer-request flag on contract (<span className="font-mono">transfer_status &amp; ~8</span>). See{' '}
+            <span className="text-zinc-500">docs/EDITOR_FIELDS.md</span>.
+          </span>
+        </label>
       </section>
+
+      <ContractEditorSection loadInfo={loadInfo} compressed={compressed} staffIndex={effectiveStaffIndex} />
 
       <div className="flex flex-wrap items-center gap-2 border-t border-zinc-800 pt-4">
         <button

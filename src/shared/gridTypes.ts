@@ -27,6 +27,9 @@ export type GridPlayerRow = {
   effPercent?: number | null
   effArchetype?: string
   effArchetypeId?: string
+  injuryRisk?: boolean
+  disciplineRisk?: boolean
+  lowConsistencyRisk?: boolean
   eliteEngineBadgeKind?:
     | 'finisher'
     | 'playmaker'

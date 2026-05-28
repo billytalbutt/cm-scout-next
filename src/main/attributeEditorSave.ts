@@ -4,6 +4,7 @@ import {
   clearInjuryAtAbsOffset,
   resolveInjuryHistoryAbsOffset,
 } from './database/injuryHistory'
+import { clearTransferRequestAtContractRow, resolveContractRowAbsOffset } from './contractEditorSave'
 import {
   findBlock,
   PLAYER_DISK_FIELDS,
@@ -29,7 +30,7 @@ export function buildPatchedArchiveBuffer(
   db: ParsedDatabase,
   staffIndex: number,
   changes: Record<string, number>,
-  opts?: { clearInjury?: boolean },
+  opts?: { clearInjury?: boolean; clearUnhappiness?: boolean },
 ): AttributeEditorSaveResult {
   if (compressed) {
     return {
@@ -84,6 +85,12 @@ export function buildPatchedArchiveBuffer(
     if (typeof off !== 'number') return { ok: false, error: off.error }
     const cleared = clearInjuryAtAbsOffset(out, off)
     if (!cleared.ok) return cleared
+  }
+
+  if (opts?.clearUnhappiness) {
+    writeScalarAt(out, playerBase + PLAYER_DISK_FIELDS.morale.offset, 'i8', 20)
+    const contractRow = resolveContractRowAbsOffset(out, blocks, staffIndex)
+    if (contractRow != null) clearTransferRequestAtContractRow(out, contractRow)
   }
 
   return { ok: true, buffer: out }

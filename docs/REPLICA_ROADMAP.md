@@ -1,4 +1,4 @@
-# CM Scout Next → CM Scout–class replica
+# CM Merlin → CM Scout–class replica
 
 Goal: **same behaviour as classic CM Scout / CM Scout Intrinsic** (data, filters, profile logic), with a **new Electron + React UI**. Extra features ship only after this baseline is solid.
 

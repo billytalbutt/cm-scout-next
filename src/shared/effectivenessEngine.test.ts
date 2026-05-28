@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { inGameCa18, inGameCa18Uncapped } from './cm0102AttributeDisplay'
-import { computeEffectivenessFull, valPart } from './effectivenessEngine'
+import {
+  computeEffectivenessFull,
+  computePlayerRiskFlags,
+  valPart,
+} from './effectivenessEngine'
 import { effectivenessAttrGetter } from '../main/effectivenessAttrGetter'
 import type { PlayerRecord, StaffRecord } from '../main/database/types'
 
@@ -124,5 +128,47 @@ describe('poacher effectiveness', () => {
     const finLine = hi.winnerDetail?.lines.find((l) => l.key === 'finishing')
     expect(finLine?.overflow).toBe(true)
     expect(finLine?.raw).toBeGreaterThan(20)
+  })
+})
+
+describe('injury proneness does not affect Eff %', () => {
+  const stOnly = new Set(['st'])
+
+  it('same Eff % when only injury proneness differs', () => {
+    const lowInjury = poacherPlayer(26, 30)
+    lowInjury.injury_proneness = 4
+    const highInjury = poacherPlayer(26, 30)
+    highInjury.injury_proneness = 18
+
+    const getLow = effectivenessAttrGetter(lowInjury, staffStub)
+    const getHigh = effectivenessAttrGetter(highInjury, staffStub)
+    const effLow = computeEffectivenessFull(getLow, stOnly)
+    const effHigh = computeEffectivenessFull(getHigh, stOnly)
+
+    expect(effLow.effPercent).toBe(effHigh.effPercent)
+    expect(computePlayerRiskFlags(getLow).injuryRisk).toBe(false)
+    expect(computePlayerRiskFlags(getHigh).injuryRisk).toBe(true)
+  })
+})
+
+describe('false-positive control (weak primaries)', () => {
+  const stOnly = new Set(['st'])
+
+  it('mediocre finisher profile stays below elite poacher Eff %', () => {
+    const weak = poacherPlayer(12, 12)
+    weak.pace = 12
+    weak.acceleration = 12
+    weak.finishing = 12
+    weak.off_the_ball = 12
+    weak.injury_proneness = 4
+    const elite = poacherPlayer(26, 30)
+    const getWeak = effectivenessAttrGetter(weak, staffStub)
+    const getElite = effectivenessAttrGetter(elite, staffStub)
+    const weakEff = computeEffectivenessFull(getWeak, stOnly)
+    const eliteEff = computeEffectivenessFull(getElite, stOnly)
+    expect(weakEff.effPercent).not.toBeNull()
+    expect(eliteEff.effPercent).not.toBeNull()
+    expect(weakEff.effPercent!).toBeLessThan(80)
+    expect(eliteEff.effPercent! - weakEff.effPercent!).toBeGreaterThan(10)
   })
 })

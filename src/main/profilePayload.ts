@@ -17,7 +17,7 @@ import {
   type Ca18Key,
 } from './database/attributes'
 import type { PlayerRecord, StaffRecord, UiPlayerRow } from './database/types'
-import { computeEffectivenessFull } from '../shared/effectivenessEngine'
+import { computeEffectivenessFull, computePlayerRiskFlags } from '../shared/effectivenessEngine'
 import { eligibleEffectivenessArchetypeIds } from './effectivenessNaturalFit'
 import { effectivenessAttrGetter } from './effectivenessAttrGetter'
 import { formatNaturalPositions, humanizeAttrKey, splitIntoThreeColumns } from './profileLayout'
@@ -30,6 +30,7 @@ import {
   type HighlightSets,
   type PositionRoleId,
 } from './positionHighlights'
+import { cmScoutIndexFromEffectivenessArchetypeId } from '../shared/profileHighlightRole'
 import { ENGINE_META_PROFILE_LABELS, type EngineMetaProfileId } from '../shared/engineMetaProfileCatalog'
 import { computeFreeRoleHint, computeTacticalInstructionHints } from './playerTacticalHints'
 
@@ -385,7 +386,15 @@ export function buildProfilePayload(
 
   const cmScoutRoleSuitable = [0, 1, 2, 3, 4, 5, 6].map((i) => ratingPositionSuitable(i, p))
   const rolePercents = row.cmScoutRolePercents ?? []
-  const defaultHighlightRoleCmScoutIndex = pickBestCmScoutRoleIndex(rolePercents, cmScoutRoleSuitable)
+  const effGet = effectivenessAttrGetter(p, s)
+  const effFull = computeEffectivenessFull(effGet, eligibleEffectivenessArchetypeIds(p))
+  const riskFlags = computePlayerRiskFlags(effGet)
+
+  let defaultHighlightRoleCmScoutIndex = pickBestCmScoutRoleIndex(rolePercents, cmScoutRoleSuitable)
+  if (effFull.effArchetypeId && effFull.effArchetypeId !== 'unsure') {
+    const fromEff = cmScoutIndexFromEffectivenessArchetypeId(effFull.effArchetypeId)
+    if (fromEff != null) defaultHighlightRoleCmScoutIndex = fromEff
+  }
   const highlightPacksByCmScoutIndex = [0, 1, 2, 3, 4, 5, 6].map((idx) =>
     serializeHighlightPack(idx, computeHighlightSetsForRole(positionRoleFromCmScoutIndex(idx))),
   )
@@ -507,11 +516,6 @@ export function buildProfilePayload(
         })()
       : null
 
-  const effFull = computeEffectivenessFull(
-    effectivenessAttrGetter(p, s),
-    eligibleEffectivenessArchetypeIds(p),
-  )
-
   const engineMetaProfiles =
     row.engineMetaProfileIds?.map((id) => ({
       id,
@@ -543,6 +547,9 @@ export function buildProfilePayload(
     cmScoutRatingBp: row.cmScoutRatingBp,
     effPercent: effFull.effPercent,
     effArchetype: effFull.effArchetype,
+    injuryRisk: riskFlags.injuryRisk,
+    disciplineRisk: riskFlags.disciplineRisk,
+    lowConsistencyRisk: riskFlags.lowConsistency,
     effByArchetype: effFull.byArchetype,
     effWinnerDetail: effFull.winnerDetail ?? undefined,
     effRunnerUp: effFull.runnerUp,

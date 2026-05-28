@@ -398,12 +398,8 @@ export function passesAttributeMins(
   return pass >= need
 }
 
-export function transferListedByClub(ts: number): boolean {
-  return (ts & 1) === 1
-}
-export function transferListedByRequest(ts: number): boolean {
-  return (ts & 8) === 8
-}
-export function listedForLoan(ts: number): boolean {
-  return (ts & 2) === 2
-}
+export {
+  transferListedByClub,
+  transferListedByRequest,
+  listedForLoan,
+} from '../shared/transferStatus'

@@ -5,6 +5,7 @@ import type { ProfileWindowRoute } from './profileWindowRoute'
 import { PlayerProfileHeader, PlayerProfileTabViews } from './PlayerProfileTabViews'
 import { StaffProfileTabViews } from './StaffProfileTabViews'
 import { ProfileTabBar, type ProfileTabId } from './profileUi'
+import { ProfileWindowNavBar } from './ProfileWindowNavBar'
 
 const ENGINE_ATTRS_LS = 'cm-scout-next-profile-engine-attrs'
 
@@ -16,7 +17,8 @@ function loadShowEngineAttrs(): boolean {
   }
 }
 
-export function ProfileWindowApp({ route }: { route: ProfileWindowRoute }) {
+export function ProfileWindowApp({ route: initialRoute }: { route: ProfileWindowRoute }) {
+  const [route, setRoute] = useState(initialRoute)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [player, setPlayer] = useState<ProfilePayload | null>(null)
@@ -91,8 +93,13 @@ export function ProfileWindowApp({ route }: { route: ProfileWindowRoute }) {
 
   return (
     <div className="cm-scroll flex h-screen min-h-0 flex-col overflow-y-auto bg-zinc-950 text-zinc-100">
+      <ProfileWindowNavBar
+        kind={route.kind}
+        staffIndex={route.staffIndex}
+        onStaffIndexChange={(next) => setRoute({ kind: route.kind, staffIndex: next })}
+      />
       <div className="sticky top-0 z-10 border-b border-zinc-800/80 bg-zinc-950/95 px-4 py-2 backdrop-blur-sm">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Profile window</p>
+        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">CM Merlin · Profile</p>
       </div>
       <div className="space-y-4 px-4 py-4">
         {player && (

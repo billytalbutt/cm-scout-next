@@ -9,9 +9,16 @@ type Props = {
   shortlists: ShortlistsApi
   onOpenPlayer: (staffIndex: number) => void
   onOpenStaff: (staffIndex: number) => void
+  onPlayerNavOrderChange?: (staffIndices: number[]) => void
 }
 
-export function ShortlistsPanel({ loadInfo, shortlists, onOpenPlayer, onOpenStaff }: Props) {
+export function ShortlistsPanel({
+  loadInfo,
+  shortlists,
+  onOpenPlayer,
+  onOpenStaff,
+  onPlayerNavOrderChange,
+}: Props) {
   const [kind, setKind] = useState<ShortlistKind>('players')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [playerRows, setPlayerRows] = useState<GridPlayerRow[]>([])
@@ -54,6 +61,14 @@ export function ShortlistsPanel({ loadInfo, shortlists, onOpenPlayer, onOpenStaf
   useEffect(() => {
     if (selected) void loadPlayerRows(selected)
   }, [selected, loadPlayerRows])
+
+  useEffect(() => {
+    if (selected?.kind === 'players') {
+      onPlayerNavOrderChange?.(playerRows.map((r) => r.staffIndex))
+    } else {
+      onPlayerNavOrderChange?.([])
+    }
+  }, [playerRows, selected?.kind, onPlayerNavOrderChange])
 
   const exportList = async () => {
     if (!selected) return

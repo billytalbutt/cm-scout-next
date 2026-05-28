@@ -72,9 +72,23 @@ contextBridge.exposeInMainWorld('cmapi', {
     >,
   getProfile: (staffIndex: number) => ipcRenderer.invoke('get-profile', staffIndex),
   getStaffProfile: (staffIndex: number) => ipcRenderer.invoke('get-staff-profile', staffIndex),
-  openProfileWindow: (args: { staffIndex: number; kind: 'player' | 'staff' }) =>
+  openProfileWindow: (args: {
+    staffIndex: number
+    kind: 'player' | 'staff'
+    navigation?: import('../shared/profileNavigation').ProfileNavigationContext
+  }) =>
     ipcRenderer.invoke('open-profile-window', args) as Promise<
       { ok: true } | { ok: false; error: string }
+    >,
+  profileWindowNavState: () =>
+    ipcRenderer.invoke('profile-window-nav-state') as Promise<
+      | { ok: true; hasNav: false }
+      | { ok: true; hasNav: true; index: number; total: number; source: string }
+      | { ok: false; error: string }
+    >,
+  profileWindowNavigate: (direction: 'next' | 'prev') =>
+    ipcRenderer.invoke('profile-window-navigate', { direction }) as Promise<
+      { ok: true; staffIndex: number } | { ok: false; error: string }
     >,
   getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),
@@ -93,13 +107,22 @@ contextBridge.exposeInMainWorld('cmapi', {
   saveAttributeEdits: (
     staffIndex: number,
     changes: Record<string, number>,
-    options?: { clearInjury?: boolean },
+    options?: { clearInjury?: boolean; clearUnhappiness?: boolean },
   ) =>
     ipcRenderer.invoke('save-attribute-edits', {
       staffIndex,
       changes,
       clearInjury: options?.clearInjury === true,
+      clearUnhappiness: options?.clearUnhappiness === true,
     }),
+  getStaffEditorSnapshot: (staffIndex: number) =>
+    ipcRenderer.invoke('get-staff-editor-snapshot', staffIndex),
+  saveStaffEdits: (staffIndex: number, changes: Record<string, number>) =>
+    ipcRenderer.invoke('save-staff-edits', { staffIndex, changes }),
+  getContractEditorSnapshot: (staffIndex: number) =>
+    ipcRenderer.invoke('get-contract-editor-snapshot', staffIndex),
+  saveContractEdits: (staffIndex: number, changes: Record<string, number>) =>
+    ipcRenderer.invoke('save-contract-edits', { staffIndex, changes }),
   getClubEditorSnapshot: (clubId: number) => ipcRenderer.invoke('get-club-editor-snapshot', clubId),
   saveClubEdits: (clubId: number, values: Record<string, number>, options?: { inPlace?: boolean }) =>
     ipcRenderer.invoke('save-club-edits', { clubId, values, inPlace: options?.inPlace === true }) as Promise<
