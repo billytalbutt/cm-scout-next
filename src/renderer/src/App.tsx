@@ -1311,6 +1311,19 @@ export function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (typeof window.cmapi?.onProfilePopoutSelection !== 'function') return
+    return window.cmapi.onProfilePopoutSelection((staffIndex) => {
+      void pick(staffIndex)
+      const rowIdx = tableRows.findIndex((r) => r.original.staffIndex === staffIndex)
+      if (rowIdx >= 0) {
+        requestAnimationFrame(() => {
+          rowVirtualizer.scrollToIndex(rowIdx, { align: 'auto' })
+        })
+      }
+    })
+  }, [pick, tableRows, rowVirtualizer])
+
   useEffect(() => subscribeCopiedPlayerAttributes(() => setCopiedAttrs(getCopiedPlayerAttributes())), [])
 
   const applyAttrFilterMinsFromPlayer = useCallback(async (staffIndex: number, source: 'clipboard' | 'picker') => {

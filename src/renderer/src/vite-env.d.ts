@@ -110,6 +110,7 @@ declare global {
       profileWindowNavigate: (direction: 'next' | 'prev', staffIndex?: number) => Promise<
         { ok: true; staffIndex: number } | { ok: false; error: string }
       >
+      onProfilePopoutSelection: (handler: (staffIndex: number) => void) => () => void
       getEffectivenessDetail: (staffIndex: number) => Promise<EffectivenessFullResult | null>
       saveRegenBaseline: () => Promise<RegenBaselineMutationResult>
       clearRegenBaseline: () => Promise<RegenBaselineMutationResult>

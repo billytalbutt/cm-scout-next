@@ -90,6 +90,16 @@ contextBridge.exposeInMainWorld('cmapi', {
       | { ok: true; hasNav: true; index: number; total: number; source: string }
       | { ok: false; error: string }
     >,
+  onProfilePopoutSelection: (handler: (staffIndex: number) => void) => {
+    const listener = (_e: unknown, payload: { staffIndex?: number }) => {
+      const si = Math.floor(Number(payload?.staffIndex))
+      if (Number.isFinite(si) && si >= 0) handler(si)
+    }
+    ipcRenderer.on('profile-popout-selection', listener)
+    return () => {
+      ipcRenderer.removeListener('profile-popout-selection', listener)
+    }
+  },
   getEffectivenessDetail: (staffIndex: number) => ipcRenderer.invoke('get-effectiveness-detail', staffIndex),
   saveRegenBaseline: () => ipcRenderer.invoke('save-regen-baseline'),
   clearRegenBaseline: () => ipcRenderer.invoke('clear-regen-baseline'),

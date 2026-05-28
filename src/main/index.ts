@@ -130,6 +130,12 @@ function syncLoadedArchiveFromDisk(): void {
 }
 
 const profileWindows = new Map<string, BrowserWindow>()
+let mainBrowserWindow: BrowserWindow | null = null
+
+function notifyMainWindowPopoutSelection(staffIndex: number): void {
+  if (!mainBrowserWindow || mainBrowserWindow.isDestroyed()) return
+  mainBrowserWindow.webContents.send('profile-popout-selection', { staffIndex })
+}
 const profileNavByWebContents = new Map<
   number,
   { kind: 'player' | 'staff'; nav: ProfileNavigationContext }
@@ -392,6 +398,10 @@ function createWindow(): BrowserWindow {
     },
   })
   win.once('ready-to-show', () => win.show())
+  mainBrowserWindow = win
+  win.on('closed', () => {
+    if (mainBrowserWindow === win) mainBrowserWindow = null
+  })
   if (process.env.ELECTRON_RENDERER_URL) {
     void win.loadURL(process.env.ELECTRON_RENDERER_URL)
     if (!app.isPackaged) win.webContents.openDevTools({ mode: 'detach' })
@@ -796,6 +806,7 @@ ipcMain.handle(
     const direction = args?.direction === 'prev' ? 'prev' : 'next'
     const next = profileNavStep(ctx.nav.orderedStaffIndices, current, direction)
     if (next == null) return { ok: false as const, error: 'Could not navigate.' }
+    notifyMainWindowPopoutSelection(next)
     return { ok: true as const, staffIndex: next }
   },
 )
