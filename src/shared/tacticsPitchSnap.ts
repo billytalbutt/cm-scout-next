@@ -43,6 +43,67 @@ export const LINEUP_GROUPS = [
 
 export type LineupGroupId = (typeof LINEUP_GROUPS)[number]['id']
 
+export type PitchColumnIndex = 0 | 1 | 2 | 3 | 4
+
+/** Five fixed horizontal slots per row (L → R), matching CM0102 pitch positions. */
+export const PITCH_COLUMNS = [0.1, 0.3, 0.5, 0.7, 0.9] as const
+
+/** CM role label for each column on a tactical row (GK uses centre column only). */
+const COLUMN_ROLE: Record<TacticalRowId, readonly [string, string, string, string, string]> = {
+  gk: ['GK', 'GK', 'GK', 'GK', 'GK'],
+  sw: ['SW', 'SW', 'SW', 'SW', 'SW'],
+  def: ['DL', 'DCL', 'DC', 'DCR', 'DR'],
+  dm: ['DMCL', 'DMCL', 'DMC', 'DMCR', 'DMCR'],
+  mc: ['ML', 'MCL', 'MC', 'MCR', 'MR'],
+  am: ['AML', 'AMCL', 'AMC', 'AMCR', 'AMR'],
+  fwd: ['STCL', 'STC', 'ST', 'STCR', 'STCR'],
+}
+
+export function pitchColumnX(col: PitchColumnIndex): number {
+  return PITCH_COLUMNS[col]
+}
+
+export function nearestColumnIndex(x: number): PitchColumnIndex {
+  let best: PitchColumnIndex = 0
+  let bd = Infinity
+  for (let i = 0; i < PITCH_COLUMNS.length; i++) {
+    const d = Math.abs(PITCH_COLUMNS[i]! - x)
+    if (d < bd) {
+      bd = d
+      best = i as PitchColumnIndex
+    }
+  }
+  return best
+}
+
+export function roleForColumn(rowId: TacticalRowId, col: PitchColumnIndex): string {
+  return COLUMN_ROLE[rowId][col]
+}
+
+/**
+ * Assign each slot a unique column on its row, preserving left-to-right order from drag position.
+ * Players snap to the nearest free column — two in the middle stay narrow instead of hugging touchlines.
+ */
+export function assignColumnsOnRow(slots: PitchSlot[]): PitchColumnIndex[] {
+  if (slots.length === 0) return []
+  const sortedIdx = slots.map((_, i) => i).sort((a, b) => slots[a]!.x - slots[b]!.x)
+  const used = new Set<number>()
+  const result: PitchColumnIndex[] = new Array(slots.length)
+  const columnOrder: PitchColumnIndex[] = [0, 1, 2, 3, 4]
+
+  for (const idx of sortedIdx) {
+    const x = slots[idx]!.x
+    const candidates = [...columnOrder].sort(
+      (a, b) => Math.abs(PITCH_COLUMNS[a] - x) - Math.abs(PITCH_COLUMNS[b] - x),
+    )
+    const col = candidates.find((c) => !used.has(c))!
+    used.add(col)
+    result[idx] = col
+  }
+  return result
+}
+
+/** @deprecated Count-based role table — use {@link roleForColumn} after column snap. */
 const ROW_ROLES: Record<TacticalRowId, Record<number, readonly string[]>> = {
   gk: { 1: ['GK'] },
   sw: { 1: ['SW'], 2: ['SW', 'SW'], 3: ['SW', 'SW', 'SW'], 4: ['SW', 'SW', 'SW', 'SW'], 5: ['SW', 'SW', 'SW', 'SW', 'SW'] },
@@ -105,12 +166,21 @@ export function tacticalRowForY(y: number): TacticalRowId {
   return TACTICAL_ROWS.find((r) => r.y === sy)!.id
 }
 
-/** Even spacing across the pitch width (fixes 5-man rows hugging the touchlines). */
+/** @deprecated Use {@link PITCH_COLUMNS} and {@link assignColumnsOnRow}. */
 export function evenRowXPositions(count: number, min = 0.1, max = 0.9): number[] {
   if (count <= 0) return []
-  if (count === 1) return [0.5]
-  const span = max - min
-  return Array.from({ length: count }, (_, i) => min + (span * i) / (count - 1))
+  if (count === 1) return [PITCH_COLUMNS[2]]
+  if (count >= 5) return [...PITCH_COLUMNS]
+  const cols = assignColumnsOnRow(
+    Array.from({ length: count }, (_, i) => ({
+      id: String(i),
+      role: '',
+      x: min + ((max - min) * i) / (count - 1),
+      y: 0,
+      arrow: 'none' as const,
+    })),
+  )
+  return cols.map((c) => PITCH_COLUMNS[c])
 }
 
 export function rolesForTacticalRow(rowId: TacticalRowId, count: number): string[] {
@@ -130,7 +200,7 @@ export const CM_ROW_X_BY_COUNT: Record<number, readonly number[]> = {
 }
 
 export function snapXPositionsForRow(slots: PitchSlot[]): number[] {
-  return evenRowXPositions(slots.length)
+  return assignColumnsOnRow(slots).map((c) => PITCH_COLUMNS[c])
 }
 
 export function snapXPositionsForCount(n: number): number[] {
@@ -168,18 +238,23 @@ function enforceSingleGoalkeeper(slots: PitchSlot[]): PitchSlot[] {
 
 function redistributeRow(slots: PitchSlot[], rowId: TacticalRowId): PitchSlot[] {
   const y = tacticalRowY(rowId)
-  const sorted = [...slots].sort((a, b) => a.x - b.x)
-  const roles = rolesForTacticalRow(rowId, sorted.length)
-  const xs = evenRowXPositions(sorted.length)
-  return sorted.map((s, i) => ({
-    ...s,
-    y,
-    x: xs[i] ?? 0.5,
-    role: roles[i] ?? roles[0]!,
-  }))
+  if (rowId === 'gk') {
+    const keep = slots[0]!
+    return [{ ...keep, y, x: PITCH_COLUMNS[2], role: 'GK' }]
+  }
+  const columns = assignColumnsOnRow(slots)
+  return slots.map((s, i) => {
+    const col = columns[i]!
+    return {
+      ...s,
+      y,
+      x: PITCH_COLUMNS[col],
+      role: roleForColumn(rowId, col),
+    }
+  })
 }
 
-/** Snap each slot to the nearest tactical row, space evenly on X, and set CM role from the row. */
+/** Snap each slot to the nearest tactical row and CM column (five per row, one GK centre). */
 export function snapAndRedistributePitch(slots: PitchSlot[]): PitchSlot[] {
   const snappedY = slots.map((s) => ({
     ...s,

@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { TACTIC_PRESETS } from './tacticsCommunityPresets'
 import {
+  assignColumnsOnRow,
   evenRowXPositions,
+  PITCH_COLUMNS,
   pitchRowKey,
   pitchSlotsFromPreset,
+  roleForColumn,
   rolesForTacticalRow,
   snapAndRedistributePitch,
   tacticalRowForY,
@@ -14,14 +17,50 @@ function rowAt(slots: PitchSlot[], rowId: ReturnType<typeof tacticalRowForY>): P
   return slots.filter((s) => tacticalRowForY(s.y) === rowId).sort((a, b) => a.x - b.x)
 }
 
+function pct(xs: number[]): number[] {
+  return xs.map((x) => Math.round(x * 100))
+}
+
+describe('PITCH_COLUMNS', () => {
+  it('defines five CM-style horizontal slots', () => {
+    expect([...PITCH_COLUMNS]).toEqual([0.1, 0.3, 0.5, 0.7, 0.9])
+  })
+})
+
+describe('assignColumnsOnRow', () => {
+  it('keeps two central players narrow instead of touchline-to-touchline', () => {
+    const slots: PitchSlot[] = [
+      { id: 'a', role: 'ST', x: 0.38, y: 0.78, arrow: 'none' },
+      { id: 'b', role: 'ST', x: 0.62, y: 0.78, arrow: 'none' },
+    ]
+    const cols = assignColumnsOnRow(slots)
+    expect(cols.map((c) => PITCH_COLUMNS[c])).toEqual([0.3, 0.7])
+  })
+
+  it('places three narrow AMs on centre-left, centre, centre-right', () => {
+    const slots: PitchSlot[] = [
+      { id: 'a', role: 'AM', x: 0.28, y: 0.64, arrow: 'none' },
+      { id: 'b', role: 'AM', x: 0.5, y: 0.64, arrow: 'none' },
+      { id: 'c', role: 'AM', x: 0.72, y: 0.64, arrow: 'none' },
+    ]
+    const cols = assignColumnsOnRow(slots)
+    expect(cols.map((c) => PITCH_COLUMNS[c])).toEqual([0.3, 0.5, 0.7])
+  })
+
+  it('allows wide ML–MC–MR when dragged to the flanks', () => {
+    const slots: PitchSlot[] = [
+      { id: 'a', role: 'M', x: 0.12, y: 0.52, arrow: 'none' },
+      { id: 'b', role: 'M', x: 0.5, y: 0.52, arrow: 'none' },
+      { id: 'c', role: 'M', x: 0.88, y: 0.52, arrow: 'none' },
+    ]
+    const cols = assignColumnsOnRow(slots)
+    expect(cols.map((c) => PITCH_COLUMNS[c])).toEqual([0.1, 0.5, 0.9])
+  })
+})
+
 describe('evenRowXPositions', () => {
-  it('spaces five players evenly from touchline to touchline', () => {
-    const xs = evenRowXPositions(5)
-    expect(xs[0]).toBeCloseTo(0.1, 5)
-    expect(xs[4]).toBeCloseTo(0.9, 5)
-    expect(xs[2]).toBeCloseTo(0.5, 5)
-    expect(xs[2]! - xs[1]!).toBeCloseTo(xs[1]! - xs[0]!, 5)
-    expect(xs[4]! - xs[3]!).toBeCloseTo(xs[3]! - xs[2]!, 5)
+  it('uses column positions for five players', () => {
+    expect(evenRowXPositions(5)).toEqual([...PITCH_COLUMNS])
   })
 })
 
@@ -33,6 +72,15 @@ describe('rolesForTacticalRow', () => {
   })
 })
 
+describe('roleForColumn', () => {
+  it('maps column index to CM role on each row', () => {
+    expect(roleForColumn('mc', 0)).toBe('ML')
+    expect(roleForColumn('mc', 2)).toBe('MC')
+    expect(roleForColumn('am', 1)).toBe('AMCL')
+    expect(roleForColumn('def', 4)).toBe('DR')
+  })
+})
+
 describe('snapAndRedistributePitch', () => {
   it('every community preset has eleven slots after snap', () => {
     for (const preset of TACTIC_PRESETS) {
@@ -41,19 +89,19 @@ describe('snapAndRedistributePitch', () => {
     }
   })
 
-  it('4-1-3-2: mids on one line with even spacing; strikers on forward line', () => {
+  it('4-1-3-2: narrow central mids and strikers', () => {
     const preset = TACTIC_PRESETS.find((p) => p.id === '4132_press_short')!
     const slots = pitchSlotsFromPreset(preset)
     const mids = rowAt(slots, 'mc')
     const strikers = rowAt(slots, 'fwd')
 
-    expect(mids.map((s) => s.x).map((x) => Math.round(x * 100))).toEqual([10, 50, 90])
-    expect(mids.every((s) => s.role.startsWith('M'))).toBe(true)
-    expect(strikers.map((s) => s.x).map((x) => Math.round(x * 100))).toEqual([10, 90])
-    expect(strikers.map((s) => s.role)).toEqual(['STCL', 'STCR'])
+    expect(pct(mids.map((s) => s.x))).toEqual([30, 50, 70])
+    expect(mids.map((s) => s.role)).toEqual(['MCL', 'MC', 'MCR'])
+    expect(pct(strikers.map((s) => s.x))).toEqual([30, 70])
+    expect(strikers.map((s) => s.role)).toEqual(['STC', 'STCR'])
   })
 
-  it('keeps four defenders evenly spaced after drag', () => {
+  it('keeps four defenders on outer columns after drag', () => {
     const preset = TACTIC_PRESETS.find((p) => p.id === '4132_press_short')!
     const messy = preset.slots.map((s, i) => ({
       id: `t-${i}`,
@@ -64,11 +112,11 @@ describe('snapAndRedistributePitch', () => {
     }))
     const slots = snapAndRedistributePitch(messy)
     const backFour = rowAt(slots, 'def')
-    expect(backFour.map((s) => s.x).map((x) => Math.round(x * 100))).toEqual([10, 37, 63, 90])
+    expect(pct(backFour.map((s) => s.x))).toEqual([10, 30, 70, 90])
     expect(backFour.map((s) => s.role)).toEqual(['DL', 'DCL', 'DCR', 'DR'])
   })
 
-  it('moving AMC to midfield row becomes MC', () => {
+  it('moving AMC to midfield row becomes MC column role', () => {
     const slots = snapAndRedistributePitch([
       { id: '1', role: 'AMC', x: 0.5, y: 0.52, arrow: 'none' },
       { id: '2', role: 'MC', x: 0.3, y: 0.52, arrow: 'none' },
@@ -76,7 +124,8 @@ describe('snapAndRedistributePitch', () => {
     ])
     const amSlot = slots.find((s) => s.id === '1')!
     expect(tacticalRowForY(amSlot.y)).toBe('mc')
-    expect(['MC', 'MCL', 'MCR']).toContain(amSlot.role)
+    expect(amSlot.x).toBeCloseTo(0.5, 5)
+    expect(amSlot.role).toBe('MC')
   })
 
   it('moving DM to forward row becomes striker', () => {
@@ -93,7 +142,7 @@ describe('snapAndRedistributePitch', () => {
     const defLine = rowAt(slots, 'def')
     expect(defLine).toHaveLength(5)
     expect(defLine.map((s) => s.role)).toEqual(['DL', 'DCL', 'DC', 'DCR', 'DR'])
-    expect(defLine.map((s) => s.x).map((x) => Math.round(x * 100))).toEqual([10, 30, 50, 70, 90])
+    expect(pct(defLine.map((s) => s.x))).toEqual([10, 30, 50, 70, 90])
   })
 
   it('only one goalkeeper on the GK line', () => {
@@ -104,6 +153,17 @@ describe('snapAndRedistributePitch', () => {
     ])
     expect(rowAt(slots, 'gk')).toHaveLength(1)
     expect(rowAt(slots, 'def').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('two DMs side by side on centre-left and centre-right columns', () => {
+    const slots = snapAndRedistributePitch([
+      { id: 'gk', role: 'GK', x: 0.5, y: 0.06, arrow: 'none' },
+      { id: 'dm1', role: 'DMC', x: 0.35, y: 0.4, arrow: 'none' },
+      { id: 'dm2', role: 'DMC', x: 0.65, y: 0.4, arrow: 'none' },
+    ])
+    const dms = rowAt(slots, 'dm')
+    expect(pct(dms.map((s) => s.x))).toEqual([30, 70])
+    expect(dms.map((s) => s.role)).toEqual(['DMCL', 'DMCR'])
   })
 })
 

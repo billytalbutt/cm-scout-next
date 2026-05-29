@@ -5,7 +5,39 @@
  *
  * Each preset defines 11 outfield roles; Y values align with {@link TACTICAL_ROWS} in tacticsPitchSnap.
  */
-export type TacticArrow = 'none' | 'forward' | 'back'
+export type TacticArrow =
+  | 'none'
+  | 'forward'
+  | 'back'
+  | 'left'
+  | 'right'
+  | 'forward-left'
+  | 'forward-right'
+  | 'back-left'
+  | 'back-right'
+
+/** Right-click cycle order (matches CM0102 movement arrows). */
+export const TACTIC_ARROW_CYCLE: readonly TacticArrow[] = [
+  'none',
+  'forward',
+  'forward-right',
+  'right',
+  'back-right',
+  'back',
+  'back-left',
+  'left',
+  'forward-left',
+]
+
+export function nextTacticArrow(a: TacticArrow): TacticArrow {
+  const i = TACTIC_ARROW_CYCLE.indexOf(a)
+  const next = i < 0 ? 0 : (i + 1) % TACTIC_ARROW_CYCLE.length
+  return TACTIC_ARROW_CYCLE[next]!
+}
+
+export function isForwardishArrow(a: TacticArrow): boolean {
+  return a === 'forward' || a === 'forward-left' || a === 'forward-right'
+}
 
 export type TacticPresetId =
   | '442_narrow'

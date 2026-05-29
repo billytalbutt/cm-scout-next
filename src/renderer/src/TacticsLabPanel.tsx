@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   pitchSlotsFromPreset,
+  PITCH_COLUMNS,
   snapAndRedistributePitch,
   TACTICAL_ROWS,
   teamRatingFromAssignments,
@@ -8,9 +9,11 @@ import {
   type TacticsPlayerAssignment,
 } from '../../shared/tacticsPitchSnap'
 import { clearSavedTacticsLayout, saveTacticsLayout } from './tactics/tacticsLayoutStorage'
+import { TacticArrowGlyph } from './tactics/TacticArrowGlyph'
 import {
   TACTIC_PRESETS,
-  type TacticArrow,
+  isForwardishArrow,
+  nextTacticArrow,
   type TacticPresetId,
 } from '../../shared/tacticsCommunityPresets'
 import { TacticsClubPicker } from './tactics/TacticsClubPicker'
@@ -18,12 +21,6 @@ import { TacticsClubPicker } from './tactics/TacticsClubPicker'
 type Mentality = 'defensive' | 'normal' | 'attacking'
 type PassingStyle = 'short' | 'mixed' | 'direct' | 'long'
 type TacklingStyle = 'normal' | 'hard'
-
-function nextArrow(a: TacticArrow): TacticArrow {
-  if (a === 'none') return 'forward'
-  if (a === 'forward') return 'back'
-  return 'none'
-}
 
 function tacticBenchmarkScore(args: {
   presetId: TacticPresetId
@@ -89,7 +86,10 @@ export function TacticsLabPanel({
   const [tackling, setTackling] = useState<TacklingStyle>('normal')
   const [layoutMsg, setLayoutMsg] = useState<string | null>(null)
   const p = useMemo(() => TACTIC_PRESETS.find((x) => x.id === preset)!, [preset])
-  const forwardArrows = useMemo(() => pitchSlots.filter((z) => z.arrow === 'forward').length, [pitchSlots])
+  const forwardArrows = useMemo(
+    () => pitchSlots.filter((z) => isForwardishArrow(z.arrow)).length,
+    [pitchSlots],
+  )
   const lineupRating = useMemo(
     () => teamRatingFromAssignments(pitchSlots, assignments),
     [pitchSlots, assignments],
@@ -165,9 +165,9 @@ export function TacticsLabPanel({
     <div className="space-y-4">
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-[11px] leading-snug text-zinc-500">
         <span className="font-medium text-zinc-300">Tactics Lab</span> — Drag icons between the seven tactical lines
-        (GK, sweeper, defence, DM, midfield, AM, forward). They snap to that line, space evenly (up to five per line, one
-        GK only), and the badge updates to the CM role for that row (e.g. AMC → MC on the midfield line). Right-click for
-        forward / backward arrows. Save your layout per save file.
+        (GK, sweeper, defence, DM, midfield, AM, forward). On release they snap to that line and the nearest of five
+        horizontal slots (left → right). Two or three in the middle stay narrow — drag wider for touchline roles. Right-click
+        to cycle movement arrows (8 directions, like CM). Save your layout per save file.
       </div>
       {loadInfo && (
         <TacticsClubPicker
@@ -188,12 +188,21 @@ export function TacticsLabPanel({
           >
             <div className="pointer-events-none absolute inset-2 rounded-md border border-zinc-800/60 opacity-40" />
             {TACTICAL_ROWS.map((row) => (
-              <div
-                key={row.id}
-                className="pointer-events-none absolute left-[6%] right-[6%] border-t border-dashed border-zinc-700/50"
-                style={{ top: `${(1 - row.y) * 100}%` }}
-                title={row.label}
-              />
+              <div key={row.id} className="pointer-events-none absolute inset-0">
+                <div
+                  className="absolute left-[6%] right-[6%] border-t border-dashed border-zinc-700/50"
+                  style={{ top: `${(1 - row.y) * 100}%` }}
+                  title={row.label}
+                />
+                {row.id !== 'gk' &&
+                  PITCH_COLUMNS.map((colX) => (
+                    <div
+                      key={`${row.id}-${colX}`}
+                      className="absolute h-1.5 w-px bg-zinc-700/35"
+                      style={{ left: `${colX * 100}%`, top: `${(1 - row.y) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                    />
+                  ))}
+              </div>
             ))}
             {pitchSlots.map((slot) => {
               const a = assignments[slot.id]
@@ -204,27 +213,18 @@ export function TacticsLabPanel({
                   key={slot.id}
                   type="button"
                   title={`${slot.role}${a?.name ? ` — ${a.name}` : ''}${rating != null ? ` · ${Math.round(rating)}%` : ''} — drag · right-click arrow`}
-                  className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-grab select-none flex-col items-center justify-center rounded-full border border-emerald-600/60 bg-emerald-950/85 text-[9px] font-semibold text-emerald-100 shadow hover:bg-emerald-900/90 active:cursor-grabbing"
+                  className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-grab select-none flex-col items-center justify-center rounded-full border border-zinc-600/70 bg-zinc-900/90 text-[9px] font-semibold text-zinc-200 shadow hover:bg-zinc-800/90 active:cursor-grabbing"
                   style={{ left: `${slot.x * 100}%`, top: `${(1 - slot.y) * 100}%` }}
                   onPointerDown={(e) => onSlotPointerDown(e, slot)}
                   onContextMenu={(e) => {
                     e.preventDefault()
                     onPitchSlotsChange((prev) =>
-                      prev.map((s) => (s.id === slot.id ? { ...s, arrow: nextArrow(s.arrow) } : s)),
+                      prev.map((s) => (s.id === slot.id ? { ...s, arrow: nextTacticArrow(s.arrow) } : s)),
                     )
                   }}
                 >
                   <span className="leading-none">{slot.role.slice(0, 2)}</span>
-                  {slot.arrow === 'forward' && (
-                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] leading-none text-sky-300">
-                      ▲
-                    </span>
-                  )}
-                  {slot.arrow === 'back' && (
-                    <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[9px] leading-none text-amber-300">
-                      ▼
-                    </span>
-                  )}
+                  <TacticArrowGlyph arrow={slot.arrow} />
                   {shortName && (
                     <span className="pointer-events-none absolute -bottom-3.5 max-w-[3rem] truncate text-[7px] font-normal text-zinc-300">
                       {shortName}
@@ -235,8 +235,8 @@ export function TacticsLabPanel({
             })}
           </div>
           <p className="mt-2 text-center text-[10px] text-zinc-500">
-            Release drag to snap to the nearest line. Lineup avg:{' '}
-            <span className="font-mono text-emerald-300/90">{lineupRating ?? '—'}</span>
+            Release drag to snap to the nearest line and column. Lineup avg:{' '}
+            <span className="font-mono text-zinc-300">{lineupRating ?? '—'}</span>
           </p>
           <div className="mt-2 flex flex-wrap justify-center gap-2">
             <button
