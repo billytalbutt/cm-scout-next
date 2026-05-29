@@ -25,7 +25,7 @@ function writeHistoryRow(
 
 describe('loadStaffHistoryFromDataDirectories', () => {
   it('loads staff_history.dat from a sibling Data folder', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'cm-scout-sh-'))
+    const dir = mkdtempSync(join(tmpdir(), 'cm-merlin-sh-'))
     const buf = Buffer.alloc(STAFF_HISTORY_ROW_BYTES * 2)
     writeHistoryRow(buf, 0, { id: 1, staffId: 152, year: 2004, clubId: 1165, apps: 10, goals: 2 })
     writeHistoryRow(buf, 17, { id: 2, staffId: 152, year: 2002, clubId: 500, apps: 5, goals: 1 })

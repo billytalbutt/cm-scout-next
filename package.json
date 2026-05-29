@@ -1,5 +1,5 @@
 {
-  "name": "cm-scout-next",
+  "name": "cm-merlin",
   "version": "0.1.0",
   "description": "CM Merlin — CM 01/02 scouting, compare, regen tracking & save editor",
   "main": "out/main/index.js",
@@ -51,7 +51,7 @@
     "vitest": "^3.2.4"
   },
   "build": {
-    "appId": "com.cmmerlinscout.app",
+    "appId": "com.cmmerlin.app",
     "productName": "CM Merlin",
     "icon": "build/icon.png",
     "directories": {

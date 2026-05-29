@@ -1,6 +1,8 @@
 import type { ClubFavoriteEntry, ClubFavoritesStore } from '../../../shared/clubFavoritesTypes'
 
-const LS_KEY = 'cm-scout-next-club-favorites-v1'
+import { MERLIN_LS } from '../../../shared/merlinStorageKeys'
+
+const LS_KEY = MERLIN_LS.clubFavorites
 
 function storageKey(dbPath: string | null): string {
   return dbPath ?? '__no_db__'

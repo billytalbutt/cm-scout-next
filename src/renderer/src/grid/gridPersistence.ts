@@ -1,6 +1,7 @@
 import { GRID_DEFAULT_COLUMN_ORDER, sanitizeGridColumnOrder } from '../../../shared/gridColumnCatalog'
+import { MERLIN_LS } from '../../../shared/merlinStorageKeys'
 
-const KEY = 'cm-scout-next-grid-columns-v2'
+const KEY = MERLIN_LS.gridColumns
 const MERGE_IF_ABSENT = ['isRegen', 'regenOf'] as const
 
 function ensureEffRatingAfterRating(order: string[]): void {

@@ -74,7 +74,7 @@ describe('clubCashPatch', () => {
     const clubId = 7
     const { buf, blocks } = miniArchive(clubId, 11_000_000)
     patchClubCashOnArchive(buf, blocks, clubId, 99_000_000)
-    const dir = mkdtempSync(join(tmpdir(), 'cm-scout-cash-'))
+    const dir = mkdtempSync(join(tmpdir(), 'cm-merlin-cash-'))
     const path = join(dir, 'test.sav')
     try {
       writeFileSync(path, buf)

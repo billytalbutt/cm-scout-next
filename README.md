@@ -1,6 +1,6 @@
 # CM Merlin
 
-**Repository:** [github.com/billytalbutt/cm-scout-next](https://github.com/billytalbutt/cm-scout-next)
+**Repository:** [github.com/billytalbutt/cm-merlin](https://github.com/billytalbutt/cm-merlin)
 
 Cross-platform **Electron + React + TypeScript** scout and editor for **Championship Manager 01/02** `index.dat` (Windows and macOS).
 
@@ -30,7 +30,7 @@ Data layout and attribute math follow **CM0102Patcher** and **CMScoutIntrinsicCo
 ## Run locally
 
 ```bash
-cd cm-scout-next
+cd cm-merlin
 npm install
 npm start
 ```

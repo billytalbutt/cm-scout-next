@@ -1,6 +1,6 @@
 # Blackburn verification players (uncompressed save)
 
-Use these `player.dat` row ids when comparing CM in-game stats to CM Scout Next.
+Use these `player.dat` row ids when comparing CM in-game stats to CM Merlin.
 
 | Player | player.dat id | staff.dat id | Notes |
 |--------|---------------|--------------|--------|

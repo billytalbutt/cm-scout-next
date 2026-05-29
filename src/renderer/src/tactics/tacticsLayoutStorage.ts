@@ -1,6 +1,8 @@
 import type { PitchSlot } from '../../../shared/tacticsPitchSnap'
 
-const LS_KEY = 'cm-scout-next-tactics-layout-v1'
+import { MERLIN_LS } from '../../../shared/merlinStorageKeys'
+
+const LS_KEY = MERLIN_LS.tacticsLayout
 
 type Store = Record<string, PitchSlot[]>
 

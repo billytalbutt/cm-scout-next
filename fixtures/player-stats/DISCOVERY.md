@@ -5,7 +5,7 @@ Use the **discovery tool** to find where CM0102 stores appearances, goals, assis
 ## Quick start
 
 ```bash
-cd cm-scout-next
+cd cm-merlin
 npm run discover:player-stats -- "C:/Users/bitalb/Downloads/Blackburn Uncompressed.sav"
 ```
 

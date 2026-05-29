@@ -10,7 +10,9 @@ import { ProfileAttrColumn } from '../ProfileAttrBlocks'
 import type { ProfileAttrCell, StaffProfilePayload } from '../vite-env.d'
 import { fmtMoney, ProfileTabBar, type ProfileTabId } from './profileUi'
 
-const SHOW_INACTIVE_HIDDEN_KEY = 'cm-scout-show-inactive-hidden'
+import { MERLIN_LS } from '../../../shared/merlinStorageKeys'
+
+const SHOW_INACTIVE_HIDDEN_KEY = MERLIN_LS.showInactiveHidden
 
 function loadShowInactiveHidden(): boolean {
   try {

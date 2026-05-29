@@ -31,7 +31,7 @@ const PLS_END = Buffer.from([
 ])
 
 const TITLE_ASCII = 'CM Scout Search'
-const MANAGER_ASCII = 'CM Scout Next'
+const MANAGER_ASCII = 'CM Merlin'
 
 /** TCMDate 8 bytes: day-of-year-1 (i16), year (i16), leap flag (i32). */
 export function tcmDateBytesFromIso(dobIso: string | null, yearOfBirth: number): Buffer {

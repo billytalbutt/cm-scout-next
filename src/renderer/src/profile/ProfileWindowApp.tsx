@@ -6,8 +6,9 @@ import { PlayerProfileHeader, PlayerProfileTabViews } from './PlayerProfileTabVi
 import { StaffProfileTabViews } from './StaffProfileTabViews'
 import { ProfileTabBar, type ProfileTabId } from './profileUi'
 import { ProfileWindowNavBar } from './ProfileWindowNavBar'
+import { MERLIN_LS } from '../../../shared/merlinStorageKeys'
 
-const ENGINE_ATTRS_LS = 'cm-scout-next-profile-engine-attrs'
+const ENGINE_ATTRS_LS = MERLIN_LS.profileEngineAttrs
 
 function loadShowEngineAttrs(): boolean {
   try {

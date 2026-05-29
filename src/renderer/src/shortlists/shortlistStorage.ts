@@ -6,8 +6,9 @@ import {
   type ShortlistKind,
   type ShortlistStore,
 } from '../../../shared/shortlistTypes'
+import { MERLIN_LS } from '../../../shared/merlinStorageKeys'
 
-const LS_KEY = 'cm-scout-next-shortlists-v1'
+const LS_KEY = MERLIN_LS.shortlists
 
 function readLocalFallback(): Record<string, ShortlistStore> {
   try {

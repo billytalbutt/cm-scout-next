@@ -1,4 +1,4 @@
-# CM Scout Next — roadmap / deferred work
+# CM Merlin — roadmap / deferred work
 
 ## In-save editor (Graeme Kelly–class, inside this app)
 

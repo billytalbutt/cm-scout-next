@@ -182,7 +182,7 @@ function simulateInPlaceClubSave(
 
 
 
-  const dir = mkdtempSync(join(tmpdir(), 'cm-scout-cash-int-'))
+  const dir = mkdtempSync(join(tmpdir(), 'cm-merlin-cash-int-'))
 
   const tempPath = join(dir, 'patched.sav')
 

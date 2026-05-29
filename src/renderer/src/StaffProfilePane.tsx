@@ -9,7 +9,9 @@ import { staffHiddenMeaningfulForDisplay } from '../../shared/cm0102StaffHiddenD
 import { ProfileAttrColumn } from './ProfileAttrBlocks'
 import type { ProfileAttrCell, StaffProfilePayload } from './vite-env.d'
 
-const SHOW_INACTIVE_HIDDEN_KEY = 'cm-scout-show-inactive-hidden'
+import { MERLIN_LS } from '../../shared/merlinStorageKeys'
+
+const SHOW_INACTIVE_HIDDEN_KEY = MERLIN_LS.showInactiveHidden
 
 function loadShowInactiveHidden(): boolean {
   try {

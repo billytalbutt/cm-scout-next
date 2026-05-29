@@ -87,12 +87,13 @@ import { CONTRACT_TYPE_FILTER_OPTIONS, type ContractTypeCategoryId } from '../..
 import { STAFF_ATTR_FILTER_COUNT } from '../../shared/staffAttrCatalog'
 import { staffJobForClubDropdownEntries } from '../../shared/staffJobCatalog'
 import type { StaffBrowseFilter } from '../../main/staffBrowse'
+import { MERLIN_LS } from '../../shared/merlinStorageKeys'
 
 const gridColHelper = createGridColumnHelper()
 
-const ENGINE_ATTRS_LS = 'cm-scout-next-profile-engine-attrs'
-const FILTERS_COLLAPSED_LS = 'cm-scout-next-filters-collapsed'
-const PROFILE_PANE_WIDTH_LS = 'cm-scout-next-profile-pane-px'
+const ENGINE_ATTRS_LS = MERLIN_LS.profileEngineAttrs
+const FILTERS_COLLAPSED_LS = MERLIN_LS.filtersCollapsed
+const PROFILE_PANE_WIDTH_LS = MERLIN_LS.profilePanePx
 const DEFAULT_PROFILE_PANE_PX = 400
 const MIN_PROFILE_PANE_PX = 240
 const MAX_PROFILE_PANE_PX = 720

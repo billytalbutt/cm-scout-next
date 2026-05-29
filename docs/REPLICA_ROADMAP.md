@@ -2,7 +2,7 @@
 
 Goal: **same behaviour as classic CM Scout / CM Scout Intrinsic** (data, filters, profile logic), with a **new Electron + React UI**. Extra features ship only after this baseline is solid.
 
-The original **CM Scout** (Windows) is closed source. The closest **open, line-by-line reference** the community has is **CMScout Intrinsic** (author vfilatov; community tree below). CM Scout Next already follows its **`index.dat`** layout and CA/in-match math in spirit; finishing “all of CM Scout” means **porting behaviour from that codebase** (and secondarily **CM0102Patcher** structures), not guessing.
+The original **CM Scout** (Windows) is closed source. The closest **open, line-by-line reference** the community has is **CMScout Intrinsic** (author vfilatov; community tree below). CM Merlin already follows its **`index.dat`** layout and CA/in-match math in spirit; finishing “all of CM Scout” means **porting behaviour from that codebase** (and secondarily **CM0102Patcher** structures), not guessing.
 
 ## Upstream codebases (clone and diff against)
 
