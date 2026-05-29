@@ -386,22 +386,22 @@ export function AttributeEditorPanel({
         <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">Current injury</h3>
         <p className="text-sm text-zinc-200">
           {snap.injury?.label ?? 'None'}
-          {snap.injury && snap.injury.typeId > 0 && (
-            <span className="ml-2 font-mono text-[11px] text-zinc-500">(type {snap.injury.typeId})</span>
-          )}
         </p>
         {snap.injury?.canClear ? (
-          <label className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
+          <label
+            className="mt-2 flex items-center gap-2 text-xs text-zinc-300"
+            title="Clears the active injury in the saved file copy. Load that save in CM to apply."
+          >
             <input
               type="checkbox"
               checked={clearInjury}
               onChange={(e) => setClearInjury(e.target.checked)}
               className="rounded border-zinc-600"
             />
-            Remove injury on save (clears injury_history.tmp for this player)
+            Clear injury on save
           </label>
         ) : (
-          <p className="mt-1 text-[11px] text-zinc-500">No active injury recorded in this save.</p>
+          <p className="mt-1 text-[11px] text-zinc-500">No active injury in the loaded save.</p>
         )}
       </section>
 

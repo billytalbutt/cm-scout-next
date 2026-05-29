@@ -73,7 +73,7 @@ import {
   refreshArchiveBufferFromDisk,
   writeArchiveToDiskSiblings,
 } from './archiveSync'
-import { injuryTypeLabel, readPlayerInjuryFromArchive } from './database/injuryHistory'
+import { injuryTypeLabel, readPlayerInjuryForStaff, isActiveInjuryType } from './database/injuryHistory'
 import { buildClubEditorSnapshot, buildPatchedArchiveForClubEdits } from './clubEditorSave'
 import { applyClearUnhappinessForClubSquad } from './squadUnhappinessClear'
 import {
@@ -123,7 +123,7 @@ function syncClubCashFromUserPath(): void {
 function syncLoadedArchiveFromDisk(): void {
   if (!loaded) return
   try {
-    const fresh = refreshArchiveBufferFromDisk(loaded.indexPath)
+    const fresh = readArchiveFromDisk(loaded.indexPath)
     loaded.archiveBuf = fresh.buffer
     refreshClubCashFromArchive(loaded.archiveBuf, loaded.db.clubsById)
   } catch {
@@ -932,7 +932,7 @@ ipcMain.handle('get-editor-snapshot', async (_e, staffIndex: unknown) => {
   const values = buildEditorValueMap(loaded.db, idx)
   if (!values) return null
   const s = loaded.db.staff[idx]!
-  const injuryState = readPlayerInjuryFromArchive(loaded.archiveBuf, s.id)
+  const injuryState = readPlayerInjuryForStaff(loaded.archiveBuf, s, idx)
   const injuryTypeId = injuryState?.injuryTypeId ?? 0
   return {
     staffIndex: idx,
@@ -943,7 +943,7 @@ ipcMain.handle('get-editor-snapshot', async (_e, staffIndex: unknown) => {
     injury: {
       typeId: injuryTypeId,
       label: injuryTypeLabel(injuryTypeId),
-      canClear: injuryTypeId > 0,
+      canClear: isActiveInjuryType(injuryTypeId),
     },
   }
 })

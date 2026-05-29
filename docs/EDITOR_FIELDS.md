@@ -21,6 +21,16 @@ CM 01/02 stores unsettled-player state in several places (same areas the GK Save
 
 Morale remains editable as a normal attribute in the player editor.
 
+## Current injury (`injury_history.tmp`)
+
+Active injuries live in `injury_history.tmp` (36-byte rows; staff id at byte 0, injury type id at byte 12 — 0 = fit). Merlin reads the **newest** sibling archive (`.sav` vs `index.dat`) so the editor matches what CM last wrote.
+
+| Action | File | Effect |
+|--------|------|--------|
+| Clear injury (player editor) | `injury_history.tmp` | Sets injury type id to **0** for the player’s active row |
+
+Lookup tries `staff.dat` id, linked `player.dat` id, and staff array index. Save writes a **new copy** — load that file in CM (and reload in Merlin) to apply.
+
 **Important:** Save writes a **new copy** of the file. Load that edited save in CM (and reload it in Merlin) to see changes in-game.
 
 The **Club editor** has **Clear all squad unhappiness on save** — same actions as above for every playable squad player at the selected club.

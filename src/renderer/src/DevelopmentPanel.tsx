@@ -10,8 +10,8 @@ function formatDelta(n: number): string {
 }
 
 function deltaClass(n: number): string {
-  if (n > 0) return 'text-emerald-300/90'
-  if (n < 0) return 'text-rose-300/80'
+  if (n > 0) return 'text-zinc-300'
+  if (n < 0) return 'text-zinc-400'
   return 'text-zinc-500'
 }
 
@@ -101,10 +101,11 @@ export function DevelopmentPanel({
       )}
 
       {loadInfo && data && !data.ready && data.reason === 'legacy_snapshot' && (
-        <div className="rounded-lg border border-amber-900/40 bg-amber-950/20 p-4 text-sm text-zinc-300">
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 text-[11px] leading-snug text-zinc-500">
           <p>
-            Your snapshot predates attribute tracking. Save a <strong className="font-normal text-zinc-200">new snapshot</strong>{' '}
-            to capture current attributes — existing regen links are kept, but development comparison needs a fresh save.
+            Your snapshot predates attribute tracking. Save a{' '}
+            <span className="font-medium text-zinc-300">new snapshot</span> to capture current attributes — existing regen
+            links are kept, but development comparison needs a fresh save.
           </p>
           <button
             type="button"
@@ -120,9 +121,10 @@ export function DevelopmentPanel({
       {loadInfo && data?.ready && (
         <>
           {data.legacySnapshot && (
-            <div className="rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-[11px] leading-snug text-zinc-400">
-              This snapshot stored raw disk values from an older version. Comparisons are converted to in-game 1–20
-              display, but re-save the snapshot for the most accurate baseline.
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 text-[11px] leading-snug text-zinc-500">
+              <span className="font-medium text-zinc-300">Legacy snapshot.</span> Stored raw disk values from an older
+              Merlin version — comparisons are converted to in-game 1–20 display. Re-save the snapshot when you can for
+              the most accurate baseline.
             </div>
           )}
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -279,7 +281,7 @@ function DevelopmentRow({
         {topGain ? (
           <span>
             {topGain.label}{' '}
-            <span className={topGain.improved ? 'text-emerald-300/80' : 'text-rose-300/70'}>
+            <span className={topGain.improved ? 'text-zinc-300' : 'text-zinc-400'}>
               {topGain.delta > 0 ? '+' : ''}
               {topGain.delta}
             </span>

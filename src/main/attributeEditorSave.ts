@@ -81,7 +81,8 @@ export function buildPatchedArchiveBuffer(
   }
 
   if (opts?.clearInjury) {
-    const off = resolveInjuryHistoryAbsOffset(out, blocks, staff.id)
+    const staff = db.staff[staffIndex]!
+    const off = resolveInjuryHistoryAbsOffset(out, blocks, staff, staffIndex)
     if (typeof off !== 'number') return { ok: false, error: off.error }
     const cleared = clearInjuryAtAbsOffset(out, off)
     if (!cleared.ok) return cleared
