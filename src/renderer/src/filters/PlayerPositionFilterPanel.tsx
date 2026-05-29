@@ -27,8 +27,7 @@ function toggleSide(list: PositionSideFilterId[], id: PositionSideFilterId, on: 
   return list.filter((x) => x !== id)
 }
 
-/** Label above checkbox — main/niche role rows (avoids long labels crowding neighbours). */
-function RoleCheckStacked({
+function RoleCheck({
   id,
   label,
   checked,
@@ -40,14 +39,14 @@ function RoleCheckStacked({
   onToggle: (id: PositionRoleFilterId, on: boolean) => void
 }) {
   return (
-    <label className="flex min-w-0 cursor-pointer flex-col items-center gap-1.5 py-0.5 text-center">
-      <span className="w-full text-[11px] leading-snug text-zinc-300">{label}</span>
+    <label className="flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-[11px] text-zinc-300">
       <input
         type="checkbox"
-        className="h-3.5 w-3.5 shrink-0 rounded border-zinc-600"
+        className="shrink-0 rounded border-zinc-600"
         checked={checked}
         onChange={(e) => onToggle(id, e.target.checked)}
       />
+      <span className="leading-snug">{label}</span>
     </label>
   )
 }
@@ -89,9 +88,9 @@ export function PlayerPositionFilterPanel({ roles, sides, onChange }: Props) {
       <p className="text-[10px] leading-snug text-zinc-600">
         Natural suitability &gt;14. Every ticked role and side must match (AND).
       </p>
-      <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
         {POSITION_ROLE_FILTER_MAIN.map((o) => (
-          <RoleCheckStacked
+          <RoleCheck
             key={o.id}
             id={o.id as PositionRoleFilterId}
             label={o.label}
@@ -100,9 +99,9 @@ export function PlayerPositionFilterPanel({ roles, sides, onChange }: Props) {
           />
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-x-5 gap-y-4 border-t border-zinc-800/80 pt-3">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-zinc-800/80 pt-3">
         {POSITION_ROLE_FILTER_NICHE.map((o) => (
-          <RoleCheckStacked
+          <RoleCheck
             key={o.id}
             id={o.id as PositionRoleFilterId}
             label={o.label}
