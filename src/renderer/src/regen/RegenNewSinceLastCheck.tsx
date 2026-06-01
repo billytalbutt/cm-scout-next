@@ -7,16 +7,10 @@ type Props = {
   onSelectStaffIndex: (staffIndex: number) => void
 }
 
-const MAX_SHOW = 8
-
 export function RegenNewSinceLastCheck({ rows, newStaffIds, onMarkSeen, onSelectStaffIndex }: Props) {
   if (newStaffIds.length === 0) return null
 
   const byId = new Map(rows.filter((r) => r.staffIndex != null).map((r) => [String(r.staffId ?? ''), r]))
-  const picks = newStaffIds
-    .map((id) => byId.get(id))
-    .filter((r): r is GridPlayerRow => !!r)
-    .slice(0, MAX_SHOW)
 
   return (
     <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
@@ -38,32 +32,41 @@ export function RegenNewSinceLastCheck({ rows, newStaffIds, onMarkSeen, onSelect
           Mark all seen
         </button>
       </div>
-      <ul className="mt-2.5 space-y-1">
-        {picks.map((r) => (
-          <li key={r.staffId ?? r.name}>
-            <button
-              type="button"
-              onClick={() => r.staffIndex != null && onSelectStaffIndex(r.staffIndex)}
-              className="flex w-full items-center justify-between gap-2 rounded-md border border-zinc-800/80 bg-zinc-950/50 px-2.5 py-1.5 text-left text-xs text-zinc-200 hover:bg-zinc-900/80"
+      <ul className="mt-2.5 max-h-64 space-y-1 overflow-y-auto overscroll-contain pr-1">
+        {newStaffIds.map((id) => {
+          const r = byId.get(id)
+          if (r) {
+            return (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={() => r.staffIndex != null && onSelectStaffIndex(r.staffIndex)}
+                  className="flex w-full items-center justify-between gap-2 rounded-md border border-zinc-800/80 bg-zinc-950/50 px-2.5 py-1.5 text-left text-xs text-zinc-200 hover:bg-zinc-900/80"
+                >
+                  <span className="min-w-0 truncate font-medium">{r.name}</span>
+                  <span className="shrink-0 text-[10px] text-zinc-500">
+                    {r.regenOf ? (
+                      <>
+                        of <span className="text-zinc-400">{r.regenOf}</span>
+                      </>
+                    ) : (
+                      'Likely regen'
+                    )}
+                  </span>
+                </button>
+              </li>
+            )
+          }
+          return (
+            <li
+              key={id}
+              className="rounded-md border border-zinc-800/80 bg-zinc-950/50 px-2.5 py-1.5 text-xs text-zinc-500"
             >
-              <span className="min-w-0 truncate font-medium">{r.name}</span>
-              <span className="shrink-0 text-[10px] text-zinc-500">
-                {r.regenOf ? (
-                  <>
-                    of <span className="text-zinc-400">{r.regenOf}</span>
-                  </>
-                ) : (
-                  'Likely regen'
-                )}
-              </span>
-            </button>
-          </li>
-        ))}
-        {newStaffIds.length > MAX_SHOW && (
-          <li className="px-2 py-0.5 text-[10px] text-zinc-500">
-            +{newStaffIds.length - MAX_SHOW} more in the grid below
-          </li>
-        )}
+              Staff <span className="font-mono text-zinc-400">{id}</span> — not in current grid; relax filters to
+              open
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

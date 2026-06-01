@@ -22,12 +22,14 @@ export const CONTRACT_DISK_FIELDS: Record<string, { offset: number; kind: DiskFi
 }
 
 /**
- * GK editor “Contract → Unhappiness” complaint flags (`Unknown18_1` + `Unknown18_2`, 16 bytes).
- * Bytes 70–71 (`Unknown18_3`) are left untouched — on some saves they correlate with squad/shirt state.
+ * GK editor “Contract → Unhappiness” block: `Unknown18_1` + `Unknown18_2` + `Unknown18_3` (18 bytes).
+ * Includes complaints such as unfair treatment / rotation / squad depth (separate from `player.dat` squad number).
  */
 export const CONTRACT_ISSUE_BLOCK_OFFSET = 54
-/** @deprecated Prefer {@link CONTRACT_UNHAPPINESS_FLAGS_LENGTH} — full 18-byte clear touched bytes 70–71. */
-export const CONTRACT_ISSUE_BLOCK_LENGTH = 16
-export const CONTRACT_UNHAPPINESS_FLAGS_LENGTH = 16
-/** `TContract.Unknown18_4` — clear after the 16-byte flag block. */
+export const CONTRACT_UNHAPPINESS_BLOCK_LENGTH = 18
+/** @deprecated Use {@link CONTRACT_UNHAPPINESS_BLOCK_LENGTH} */
+export const CONTRACT_ISSUE_BLOCK_LENGTH = CONTRACT_UNHAPPINESS_BLOCK_LENGTH
+/** @deprecated Use {@link CONTRACT_UNHAPPINESS_BLOCK_LENGTH} */
+export const CONTRACT_UNHAPPINESS_FLAGS_LENGTH = CONTRACT_UNHAPPINESS_BLOCK_LENGTH
+/** `TContract.Unknown18_4` — cleared after the 18-byte complaint block. */
 export const CONTRACT_UNHAPPINESS_TAIL_OFFSET = 72

@@ -7,7 +7,7 @@ import {
 } from './contractEditorSave'
 import {
   CONTRACT_ISSUE_BLOCK_OFFSET,
-  CONTRACT_UNHAPPINESS_FLAGS_LENGTH,
+  CONTRACT_UNHAPPINESS_BLOCK_LENGTH,
 } from './database/contractDiskLayout'
 import type { BlockInfo, ContractRecord, ParsedDatabase, StaffRecord } from './database/types'
 
@@ -92,11 +92,11 @@ describe('contractEditorSave', () => {
     archive.writeUInt8(0xcd, base + 70)
     archive.writeUInt8(0xef, base + 71)
     clearContractUnhappinessAtRow(archive, base)
-    for (let i = 0; i < CONTRACT_UNHAPPINESS_FLAGS_LENGTH; i++) {
+    for (let i = 0; i < CONTRACT_UNHAPPINESS_BLOCK_LENGTH; i++) {
       expect(archive.readUInt8(base + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
-    expect(archive.readUInt8(base + 70)).toBe(0xcd)
-    expect(archive.readUInt8(base + 71)).toBe(0xef)
+    expect(archive.readUInt8(base + 70)).toBe(0)
+    expect(archive.readUInt8(base + 71)).toBe(0)
     expect(archive.readUInt8(base + 78)).toBe(0)
   })
 })

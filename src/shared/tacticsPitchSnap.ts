@@ -123,6 +123,19 @@ export function rowXPositionsForCount(sorted: PitchSlot[]): number[] {
   return assignColumnsOnRow(sorted).map((c) => PITCH_COLUMNS[c])
 }
 
+/** Role labels from final X positions (not legacy count-based DL/DC/DR spread). */
+export function rolesForRowPositions(
+  rowId: TacticalRowId,
+  sorted: PitchSlot[],
+  xs: number[],
+): string[] {
+  if (sorted.length === 3 && isCentralCluster(sorted)) {
+    if (rowId === 'def') return ['DC', 'DC', 'DC']
+    if (rowId === 'sw') return ['SW', 'SW', 'SW']
+  }
+  return xs.map((x) => roleForColumn(rowId, nearestColumnIndex(x)))
+}
+
 /**
  * Movement arrow from drag target row/column (CM: same vertical line, any plane).
  */
@@ -316,7 +329,7 @@ function redistributeRow(slots: PitchSlot[], rowId: TacticalRowId): PitchSlot[] 
   const order = slots.map((_, i) => i).sort((a, b) => slots[a]!.x - slots[b]!.x)
   const sorted = order.map((i) => slots[i]!)
   const xs = rowXPositionsForCount(sorted)
-  const roles = rolesForTacticalRow(rowId, sorted.length)
+  const roles = rolesForRowPositions(rowId, sorted, xs)
   return slots.map((s, i) => {
     const sortedIdx = order.indexOf(i)
     return {

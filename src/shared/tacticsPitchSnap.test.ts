@@ -9,6 +9,7 @@ import {
   pitchRowKey,
   pitchSlotsFromPreset,
   roleForColumn,
+  rolesForRowPositions,
   rolesForTacticalRow,
   snapAndRedistributePitch,
   tacticalRowForY,
@@ -26,6 +27,18 @@ function pct(xs: number[]): number[] {
 describe('PITCH_COLUMNS', () => {
   it('defines five CM-style horizontal slots', () => {
     expect([...PITCH_COLUMNS]).toEqual([0.1, 0.3, 0.5, 0.7, 0.9])
+  })
+})
+
+describe('rolesForRowPositions', () => {
+  it('labels narrow three at the back as DC not DL/DR', () => {
+    const slots: PitchSlot[] = [
+      { id: 'a', role: 'D', x: 0.28, y: 0.28, arrow: 'none' },
+      { id: 'b', role: 'D', x: 0.5, y: 0.28, arrow: 'none' },
+      { id: 'c', role: 'D', x: 0.72, y: 0.28, arrow: 'none' },
+    ]
+    const xs = [0.3, 0.5, 0.7]
+    expect(rolesForRowPositions('def', slots, xs)).toEqual(['DC', 'DC', 'DC'])
   })
 })
 

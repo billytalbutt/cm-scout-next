@@ -132,6 +132,7 @@ export function TacticsLabPanel({
   )
 
   const pitchRef = useRef<HTMLDivElement>(null)
+  const pointerModeRef = useRef<'move' | 'arrow' | null>(null)
   const moveDragRef = useRef<{
     id: string
     dx: number
@@ -149,134 +150,143 @@ export function TacticsLabPanel({
     onPitchSlotsChange(pitchSlotsFromPreset(next))
   }
 
-  const onMovePointerMove = useCallback(
-    (e: PointerEvent) => {
+  const onSlotPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>, slot: PitchSlot) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const btn = e.currentTarget
+      btn.setPointerCapture(e.pointerId)
+
+      const pitch = pitchRef.current
+      if (!pitch) return
+      const r = pitch.getBoundingClientRect()
+      const cx = r.left + slot.x * r.width
+      const cy = r.top + (1 - slot.y) * r.height
+
+      if (e.button === 2) {
+        pointerModeRef.current = 'arrow'
+        arrowDragRef.current = {
+          id: slot.id,
+          fromRow: tacticalRowForY(slot.y),
+          fromX: slot.x,
+        }
+        const initial = { slotId: slot.id, target: snapArrowDragTarget(slot.x, slot.y) }
+        arrowPreviewRef.current = initial
+        setArrowPreview(initial)
+        return
+      }
+
+      if (e.button !== 0) {
+        pointerModeRef.current = null
+        btn.releasePointerCapture(e.pointerId)
+        return
+      }
+
+      pointerModeRef.current = 'move'
+      moveDragRef.current = {
+        id: slot.id,
+        dx: e.clientX - cx,
+        dy: e.clientY - cy,
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+      }
+    },
+    [],
+  )
+
+  const onSlotPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      const mode = pointerModeRef.current
+      const pitch = pitchRef.current
+      if (!pitch || !mode) return
+
+      if (mode === 'arrow') {
+        const d = arrowDragRef.current
+        if (!d) return
+        const { x, y } = pointerToPitchNorm(pitch, e.clientX, e.clientY)
+        const next = { slotId: d.id, target: snapArrowDragTarget(x, y) }
+        arrowPreviewRef.current = next
+        setArrowPreview(next)
+        return
+      }
+
       const d = moveDragRef.current
-      const el = pitchRef.current
-      if (!d || !el) return
-      const r = el.getBoundingClientRect()
+      if (!d) return
       if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_PX_THRESHOLD) {
         d.moved = true
       }
-      const cx = e.clientX - d.dx
-      const cy = e.clientY - d.dy
-      const { x, y } = pointerToPitchNorm(el, cx, cy)
+      const { x, y } = pointerToPitchNorm(pitch, e.clientX - d.dx, e.clientY - d.dy)
       onPitchSlotsChange((prev) => prev.map((s) => (s.id === d.id ? { ...s, x, y } : s)))
     },
     [onPitchSlotsChange],
   )
 
-  const endMoveDrag = useCallback(() => {
-    const d = moveDragRef.current
-    moveDragRef.current = null
-    window.removeEventListener('pointermove', onMovePointerMove)
-    window.removeEventListener('pointerup', endMoveDrag)
-    if (!d) return
-    if (!d.moved) {
-      onPitchSlotsChange((prev) =>
-        prev.map((s) =>
-          s.id === d.id ? { ...s, arrow: 'none', arrowTargetRow: null } : s,
-        ),
-      )
-      return
-    }
-    onPitchSlotsChange((prev) => snapAndRedistributePitch(prev))
-  }, [onMovePointerMove, onPitchSlotsChange])
-
-  const onArrowPointerMove = useCallback((e: PointerEvent) => {
-    const d = arrowDragRef.current
-    const el = pitchRef.current
-    if (!d || !el) return
-    const { x, y } = pointerToPitchNorm(el, e.clientX, e.clientY)
-    const target = snapArrowDragTarget(x, y)
-    const next = { slotId: d.id, target }
-    arrowPreviewRef.current = next
-    setArrowPreview(next)
-  }, [])
-
-  const endArrowDrag = useCallback(() => {
-    const d = arrowDragRef.current
-    arrowDragRef.current = null
-    const preview = arrowPreviewRef.current
-    arrowPreviewRef.current = null
-    setArrowPreview(null)
-    window.removeEventListener('pointermove', onArrowPointerMove)
-    window.removeEventListener('pointerup', endArrowDrag)
-    if (!d) return
-    onPitchSlotsChange((prev) => {
-      const snapped = snapAndRedistributePitch(prev)
-      return snapped.map((s) => {
-        if (s.id !== d.id) return s
-        const target =
-          preview?.slotId === d.id ? preview.target : snapArrowDragTarget(s.x, s.y)
-        const arrow = movementArrowForDrag(d.fromRow, d.fromX, target)
-        return {
-          ...s,
-          arrow,
-          arrowTargetRow: arrow === 'none' ? null : target.rowId,
-        }
-      })
-    })
-  }, [onArrowPointerMove, onPitchSlotsChange])
-
-  const onSlotPointerDown = (e: React.PointerEvent, slot: PitchSlot) => {
-    e.preventDefault()
-    const el = pitchRef.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    const cx = r.left + slot.x * r.width
-    const cy = r.top + (1 - slot.y) * r.height
-
-    if (e.button === 2) {
-      arrowDragRef.current = {
-        id: slot.id,
-        fromRow: tacticalRowForY(slot.y),
-        fromX: slot.x,
+  const onSlotPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      const btn = e.currentTarget
+      try {
+        btn.releasePointerCapture(e.pointerId)
+      } catch {
+        /* already released */
       }
-      const initial = { slotId: slot.id, target: snapArrowDragTarget(slot.x, slot.y) }
-      arrowPreviewRef.current = initial
-      setArrowPreview(initial)
-      window.addEventListener('pointermove', onArrowPointerMove)
-      window.addEventListener('pointerup', endArrowDrag)
-      return
-    }
+      const mode = pointerModeRef.current
+      pointerModeRef.current = null
 
-    if (e.button !== 0) return
-    moveDragRef.current = {
-      id: slot.id,
-      dx: e.clientX - cx,
-      dy: e.clientY - cy,
-      startX: e.clientX,
-      startY: e.clientY,
-      moved: false,
-    }
-    window.addEventListener('pointermove', onMovePointerMove)
-    window.addEventListener('pointerup', endMoveDrag)
-  }
+      if (mode === 'arrow') {
+        const d = arrowDragRef.current
+        arrowDragRef.current = null
+        const preview = arrowPreviewRef.current
+        arrowPreviewRef.current = null
+        setArrowPreview(null)
+        if (!d) return
+        onPitchSlotsChange((prev) =>
+          prev.map((s) => {
+            if (s.id !== d.id) return s
+            const target =
+              preview?.slotId === d.id ? preview.target : snapArrowDragTarget(s.x, s.y)
+            const arrow = movementArrowForDrag(d.fromRow, d.fromX, target)
+            return {
+              ...s,
+              arrow,
+              arrowTargetRow: arrow === 'none' ? null : target.rowId,
+            }
+          }),
+        )
+        return
+      }
 
-  useEffect(() => {
-    return () => {
-      window.removeEventListener('pointermove', onMovePointerMove)
-      window.removeEventListener('pointerup', endMoveDrag)
-      window.removeEventListener('pointermove', onArrowPointerMove)
-      window.removeEventListener('pointerup', endArrowDrag)
-    }
-  }, [onMovePointerMove, endMoveDrag, onArrowPointerMove, endArrowDrag])
+      if (mode !== 'move') return
+      const d = moveDragRef.current
+      moveDragRef.current = null
+      if (!d) return
+      if (!d.moved) {
+        onPitchSlotsChange((prev) =>
+          prev.map((s) =>
+            s.id === d.id ? { ...s, arrow: 'none', arrowTargetRow: null } : s,
+          ),
+        )
+        return
+      }
+      onPitchSlotsChange((prev) => snapAndRedistributePitch(prev))
+    },
+    [onPitchSlotsChange],
+  )
 
   const previewLine = useMemo(() => {
     if (!arrowPreview) return null
     const slot = pitchSlots.find((s) => s.id === arrowPreview.slotId)
     if (!slot) return null
-    return arrowLineEndpoints(slot.x, slot.y, arrowPreview.target.rowId)
+    return arrowLineEndpoints(slot.x, slot.y, arrowPreview.target.rowId, arrowPreview.target.x)
   }, [arrowPreview, pitchSlots])
 
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-[11px] leading-snug text-zinc-500">
-        <span className="font-medium text-zinc-300">Tactics Lab</span> — Drag icons between tactical lines; they snap
-        invisibly to the nearest row and column (two central players sit in the half-space, like CM).{' '}
-        <span className="text-zinc-400">Right-click and drag</span> to draw a movement arrow to any row;{' '}
-        <span className="text-zinc-400">left-click</span> a player to clear their arrow.
+        <span className="font-medium text-zinc-300">Tactics Lab</span> —{' '}
+        <span className="text-zinc-400">Left-click and drag</span> to move players between snap positions.{' '}
+        <span className="text-zinc-400">Right-click and drag</span> to draw a movement arrow to any line (player stays
+        put). Quick <span className="text-zinc-400">left-click</span> without dragging clears an arrow.
       </div>
       {loadInfo && (
         <TacticsClubPicker
@@ -316,7 +326,7 @@ export function TacticsLabPanel({
             {pitchSlots.map((slot) => {
               const line =
                 slot.arrow !== 'none' && slot.arrowTargetRow
-                  ? arrowLineEndpoints(slot.x, slot.y, slot.arrowTargetRow)
+                  ? arrowLineEndpoints(slot.x, slot.y, slot.arrowTargetRow, slot.x)
                   : null
               return line ? (
                 <svg
@@ -344,10 +354,14 @@ export function TacticsLabPanel({
                 <button
                   key={slot.id}
                   type="button"
-                  title={`${slot.role}${a?.name ? ` — ${a.name}` : ''}${rating != null ? ` · ${Math.round(rating)}%` : ''} — drag to move · right-drag arrow · left-click clears arrow`}
+                  title={`${slot.role}${a?.name ? ` — ${a.name}` : ''}${rating != null ? ` · ${Math.round(rating)}%` : ''} — left-drag move · right-drag arrow · left-click clears arrow`}
                   className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-grab select-none flex-col items-center justify-center rounded-full border border-zinc-600/70 bg-zinc-900/90 text-[9px] font-semibold text-zinc-200 shadow hover:bg-zinc-800/90 active:cursor-grabbing"
                   style={{ left: `${slot.x * 100}%`, top: `${(1 - slot.y) * 100}%` }}
                   onPointerDown={(e) => onSlotPointerDown(e, slot)}
+                  onPointerMove={onSlotPointerMove}
+                  onPointerUp={onSlotPointerUp}
+                  onPointerCancel={onSlotPointerUp}
+                  onContextMenu={(e) => e.preventDefault()}
                 >
                   <span className="leading-none">{slot.role.slice(0, 2)}</span>
                   <TacticArrowGlyph arrow={slot.arrow} />

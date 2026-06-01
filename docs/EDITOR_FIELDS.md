@@ -10,11 +10,11 @@ CM 01/02 stores unsettled-player state in several places (same areas the GK Save
 |-------|------|--------|-------------------------------|
 | `morale` (`PlayerMorale`) | `player.dat` | 69 (`i8`) | Set to **20** (Superb) |
 | `club_valuation` (`ClubValuation`) | `staff.dat` | 0x60 (`u8`) | Set to **20** (maximum) |
-| Issue flags (`Unknown18_1` / `Unknown18_2`) | `contract.dat` | 54–69 (16 bytes) | Zeroed — squad depth, rotation, sold teammate, etc. |
+| Issue block (`Unknown18_1` / `Unknown18_2` / `Unknown18_3`) | `contract.dat` | 54–71 (18 bytes) | Zeroed — squad depth, rotation, unfair treatment, sold teammate, etc. |
 | `Unknown18_4` | `contract.dat` | 72 (`u8`) | Zeroed |
 | Transfer request flag | `contract.dat` | `transfer_status` byte 78, **bit 0x08** | Cleared (`transfer_status & ~8`) |
 
-Bytes **70–71** (`Unknown18_3`) are **not** modified — on some saves they correlate with squad/shirt state.
+Squad shirt numbers live on `player.dat` byte 4 (`squad_number`), not in the contract issue block.
 
 `transfer_status` other bits (CM Scout parity):
 

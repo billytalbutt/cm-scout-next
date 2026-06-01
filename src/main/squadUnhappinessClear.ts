@@ -3,6 +3,7 @@ import { buildClubSquadPlayerRows } from './clubBrowse'
 import {
   findBlock,
   PLAYER_DISK_FIELDS,
+  PLAYER_ROW_BYTES,
   STAFF_ROW_BYTES,
   writeScalarAt,
 } from './database/playerStaffDiskLayout'
@@ -35,8 +36,14 @@ export function applyClearUnhappinessForStaff(
   if (!playerBlock || !staffBlock) {
     return { ok: false, error: 'Archive is missing player.dat or staff.dat block.' }
   }
-  const playerBase = playerBlock.position + playerRow * 80
+  const playerBase = playerBlock.position + playerRow * PLAYER_ROW_BYTES
+  if (playerBase + PLAYER_ROW_BYTES > buf.length || playerBase < 0) {
+    return { ok: false, error: 'player.dat row falls outside the file — unexpected block size.' }
+  }
   const staffBase = staffBlock.position + staffIndex * STAFF_ROW_BYTES
+  if (staffBase + STAFF_ROW_BYTES > buf.length || staffBase < 0) {
+    return { ok: false, error: 'staff.dat row falls outside the file — unexpected block size.' }
+  }
   writeScalarAt(buf, playerBase + PLAYER_DISK_FIELDS.morale.offset, 'i8', MORALE_SUPERB)
   writeScalarAt(buf, staffBase + STAFF_CLUB_VALUATION_OFFSET, 'u8', CLUB_VALUATION_SUPERB)
   const contractRow = resolveContractRowAbsOffset(buf, blocks, staffIndex)

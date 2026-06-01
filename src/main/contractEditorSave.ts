@@ -13,7 +13,7 @@ import {
   CONTRACT_DISK_FIELDS,
   CONTRACT_ISSUE_BLOCK_OFFSET,
   CONTRACT_ROW_BYTES,
-  CONTRACT_UNHAPPINESS_FLAGS_LENGTH,
+  CONTRACT_UNHAPPINESS_BLOCK_LENGTH,
   CONTRACT_UNHAPPINESS_TAIL_OFFSET,
 } from './database/contractDiskLayout'
 import { findBlock, writeScalarAt } from './database/playerStaffDiskLayout'
@@ -148,7 +148,7 @@ export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: numbe
   buf.fill(
     0,
     contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET,
-    contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET + CONTRACT_UNHAPPINESS_FLAGS_LENGTH,
+    contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET + CONTRACT_UNHAPPINESS_BLOCK_LENGTH,
   )
   if (contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET < buf.length) {
     buf.writeUInt8(0, contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
