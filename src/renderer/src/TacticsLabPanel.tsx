@@ -10,13 +10,13 @@ import {
   type TacticalRowId,
 } from '../../shared/tacticsPitchSnap'
 import {
-  arrowLineEndpoints,
+  computeMovementArrowLine,
   movementArrowForDrag,
   snapArrowDragTarget,
   type ArrowDragTarget,
 } from '../../shared/tacticsArrowDrag'
 import { clearSavedTacticsLayout, saveTacticsLayout } from './tactics/tacticsLayoutStorage'
-import { TacticArrowGlyph } from './tactics/TacticArrowGlyph'
+import { TacticMovementArrows } from './tactics/TacticMovementArrows'
 import {
   TACTIC_PRESETS,
   isForwardishArrow,
@@ -171,7 +171,10 @@ export function TacticsLabPanel({
           fromRow: tacticalRowForY(slot.y),
           fromX: slot.x,
         }
-        const initial = { slotId: slot.id, target: snapArrowDragTarget(slot.x, slot.y) }
+        const initial = {
+          slotId: slot.id,
+          target: snapArrowDragTarget(slot.x, slot.y, pitchSlots, slot.id),
+        }
         arrowPreviewRef.current = initial
         setArrowPreview(initial)
         return
@@ -193,7 +196,7 @@ export function TacticsLabPanel({
         moved: false,
       }
     },
-    [],
+    [pitchSlots],
   )
 
   const onSlotPointerMove = useCallback(
@@ -206,7 +209,7 @@ export function TacticsLabPanel({
         const d = arrowDragRef.current
         if (!d) return
         const { x, y } = pointerToPitchNorm(pitch, e.clientX, e.clientY)
-        const next = { slotId: d.id, target: snapArrowDragTarget(x, y) }
+        const next = { slotId: d.id, target: snapArrowDragTarget(x, y, pitchSlots, d.id) }
         arrowPreviewRef.current = next
         setArrowPreview(next)
         return
@@ -220,7 +223,7 @@ export function TacticsLabPanel({
       const { x, y } = pointerToPitchNorm(pitch, e.clientX - d.dx, e.clientY - d.dy)
       onPitchSlotsChange((prev) => prev.map((s) => (s.id === d.id ? { ...s, x, y } : s)))
     },
-    [onPitchSlotsChange],
+    [onPitchSlotsChange, pitchSlots],
   )
 
   const onSlotPointerUp = useCallback(
@@ -245,7 +248,9 @@ export function TacticsLabPanel({
           prev.map((s) => {
             if (s.id !== d.id) return s
             const target =
-              preview?.slotId === d.id ? preview.target : snapArrowDragTarget(s.x, s.y)
+              preview?.slotId === d.id
+                ? preview.target
+                : snapArrowDragTarget(s.x, s.y, prev, d.id)
             const arrow = movementArrowForDrag(d.fromRow, d.fromX, target)
             return {
               ...s,
@@ -275,12 +280,39 @@ export function TacticsLabPanel({
     [onPitchSlotsChange],
   )
 
-  const previewLine = useMemo(() => {
-    if (!arrowPreview) return null
+  const previewLines = useMemo(() => {
+    if (!arrowPreview) return []
     const slot = pitchSlots.find((s) => s.id === arrowPreview.slotId)
-    if (!slot) return null
-    return arrowLineEndpoints(slot.x, slot.y, arrowPreview.target.rowId, arrowPreview.target.x)
+    if (!slot) return []
+    const seg = computeMovementArrowLine(
+      'preview',
+      slot.id,
+      slot.x,
+      slot.y,
+      arrowPreview.target.rowId,
+      arrowPreview.target.x,
+      pitchSlots,
+    )
+    return seg ? [seg] : []
   }, [arrowPreview, pitchSlots])
+
+  const committedLines = useMemo(
+    () =>
+      pitchSlots.flatMap((slot) => {
+        if (slot.arrow === 'none' || !slot.arrowTargetRow) return []
+        const seg = computeMovementArrowLine(
+          slot.id,
+          slot.id,
+          slot.x,
+          slot.y,
+          slot.arrowTargetRow,
+          slot.arrowTargetX ?? slot.x,
+          pitchSlots,
+        )
+        return seg ? [seg] : []
+      }),
+    [pitchSlots],
+  )
 
   return (
     <div className="space-y-4">
@@ -309,50 +341,8 @@ export function TacticsLabPanel({
             onContextMenu={(e) => e.preventDefault()}
           >
             <PitchMarkings />
-            {previewLine && (
-              <svg
-                className="pointer-events-none absolute inset-0 z-[5] h-full w-full overflow-visible"
-                aria-hidden
-              >
-                <line
-                  x1={`${previewLine.x1}%`}
-                  y1={`${previewLine.y1}%`}
-                  x2={`${previewLine.x2}%`}
-                  y2={`${previewLine.y2}%`}
-                  stroke="rgb(161 161 170)"
-                  strokeWidth="1.5"
-                  strokeDasharray="4 3"
-                />
-              </svg>
-            )}
-            {pitchSlots.map((slot) => {
-              const line =
-                slot.arrow !== 'none' && slot.arrowTargetRow
-                  ? arrowLineEndpoints(
-                      slot.x,
-                      slot.y,
-                      slot.arrowTargetRow,
-                      slot.arrowTargetX ?? slot.x,
-                    )
-                  : null
-              return line ? (
-                <svg
-                  key={`line-${slot.id}`}
-                  className="pointer-events-none absolute inset-0 z-[4] h-full w-full overflow-visible"
-                  aria-hidden
-                >
-                  <line
-                    x1={`${line.x1}%`}
-                    y1={`${line.y1}%`}
-                    x2={`${line.x2}%`}
-                    y2={`${line.y2}%`}
-                    stroke="rgb(113 113 122)"
-                    strokeWidth="1.25"
-                    strokeDasharray="3 2"
-                  />
-                </svg>
-              ) : null
-            })}
+            <TacticMovementArrows lines={committedLines} />
+            <TacticMovementArrows lines={previewLines} preview />
             {pitchSlots.map((slot) => {
               const a = assignments[slot.id]
               const shortName = a?.name?.split(' ').pop()
@@ -371,7 +361,6 @@ export function TacticsLabPanel({
                   onContextMenu={(e) => e.preventDefault()}
                 >
                   <span className="leading-none">{slot.role.slice(0, 2)}</span>
-                  <TacticArrowGlyph arrow={slot.arrow} />
                   {shortName && (
                     <span className="pointer-events-none absolute -bottom-3.5 max-w-[3rem] truncate text-[7px] font-normal text-zinc-300">
                       {shortName}

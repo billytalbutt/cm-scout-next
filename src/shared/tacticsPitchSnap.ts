@@ -166,7 +166,11 @@ export function computeMovementArrow(
   fromX: number,
   toX: number,
 ): TacticArrow {
-  if (fromRow === toRow) return 'none'
+  if (fromRow === toRow) {
+    const dx = toX - fromX
+    if (Math.abs(dx) < 0.06) return 'none'
+    return dx > 0 ? 'right' : 'left'
+  }
   const dy = tacticalRowY(toRow) - tacticalRowY(fromRow)
   const dx = toX - fromX
   const adx = Math.abs(dx)
