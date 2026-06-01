@@ -31,6 +31,8 @@ import {
 } from './filters/PlayerPositionFilterPanel'
 import type { PositionRoleFilterId, PositionSideFilterId } from '../../shared/playerPositionFilter'
 import { RegenProfileHint } from './profile/RegenProfileHint'
+import { RegenNewSinceLastCheck } from './regen/RegenNewSinceLastCheck'
+import { clearRegenSeen, markRegensSeen, newRegenStaffIds } from './regen/regenSeenStorage'
 import { StaffProfilePane } from './StaffProfilePane'
 import { BrandHeaderStickers } from './BrandHeaderStickers'
 import { isProfilePopoutWindow } from './profile/profileWindowRoute'
@@ -561,6 +563,7 @@ export function App() {
   const [positionFilterRoles, setPositionFilterRoles] = useState<PositionRoleFilterId[]>([])
   const [positionFilterSides, setPositionFilterSides] = useState<PositionSideFilterId[]>([])
   const [regenBaselineSaving, setRegenBaselineSaving] = useState(false)
+  const [regenSeenTick, setRegenSeenTick] = useState(0)
   const [devDetail, setDevDetail] = useState<PlayerDevelopmentSummary | null>(null)
   const [regenOnly, setRegenOnly] = useState(false)
   const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
@@ -1036,8 +1039,25 @@ export function App() {
           }
         : li,
     )
+    clearRegenSeen(loadInfo?.path ?? null)
+    setRegenSeenTick((t) => t + 1)
     void refresh()
-  }, [refresh])
+  }, [loadInfo?.path, refresh])
+
+  const allRegenStaffIds = useMemo(
+    () => rows.filter((r) => r.isRegenLikely).map((r) => String(r.staffId)),
+    [rows],
+  )
+
+  const newRegenStaffIdsList = useMemo(() => {
+    void regenSeenTick
+    return newRegenStaffIds(loadInfo?.path ?? null, allRegenStaffIds)
+  }, [allRegenStaffIds, loadInfo?.path, regenSeenTick])
+
+  const markRegensAsSeen = useCallback(() => {
+    markRegensSeen(loadInfo?.path ?? null, allRegenStaffIds)
+    setRegenSeenTick((t) => t + 1)
+  }, [allRegenStaffIds, loadInfo?.path])
 
   useEffect(() => {
     const unsub = window.cmapi?.onDatabaseLoadProgress?.((p) => {
@@ -2575,6 +2595,14 @@ export function App() {
             )}
             {(browseTab === 'players' || browseTab === 'regens' || browseTab === 'compare') && (
             <>
+            {browseTab === 'regens' && loadInfo && loadInfo.regenBaseline.active && newRegenStaffIdsList.length > 0 && (
+              <RegenNewSinceLastCheck
+                rows={rows}
+                newStaffIds={newRegenStaffIdsList}
+                onMarkSeen={markRegensAsSeen}
+                onSelectStaffIndex={(idx) => setSel(idx)}
+              />
+            )}
             {browseTab === 'regens' && loadInfo && (
               <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-[11px]">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

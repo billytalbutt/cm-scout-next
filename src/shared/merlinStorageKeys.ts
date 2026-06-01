@@ -7,5 +7,6 @@ export const MERLIN_LS = {
   shortlists: 'cm-merlin-shortlists-v1',
   clubFavorites: 'cm-merlin-club-favorites-v1',
   tacticsLayout: 'cm-merlin-tactics-layout-v1',
+  regenSeen: 'cm-merlin-regen-seen-v1',
   showInactiveHidden: 'cm-merlin-show-inactive-hidden',
 } as const

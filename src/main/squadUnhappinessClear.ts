@@ -9,6 +9,9 @@ import {
 import { clearContractUnhappinessAtRow, resolveContractRowAbsOffset } from './contractEditorSave'
 
 const STAFF_CLUB_VALUATION_OFFSET = 0x60
+/** Max byte — in-game “superb” happiness with the club (GK editor sets morale to 20; valuation to max). */
+const CLUB_VALUATION_SUPERB = 20
+const MORALE_SUPERB = 20
 
 /** Playable squad player staff indices at a club (same set as the Clubs squad list). */
 export function clubSquadPlayerStaffIndices(db: ParsedDatabase, clubId: number): number[] {
@@ -34,8 +37,8 @@ export function applyClearUnhappinessForStaff(
   }
   const playerBase = playerBlock.position + playerRow * 80
   const staffBase = staffBlock.position + staffIndex * STAFF_ROW_BYTES
-  writeScalarAt(buf, playerBase + PLAYER_DISK_FIELDS.morale.offset, 'i8', 20)
-  writeScalarAt(buf, staffBase + STAFF_CLUB_VALUATION_OFFSET, 'u8', 0)
+  writeScalarAt(buf, playerBase + PLAYER_DISK_FIELDS.morale.offset, 'i8', MORALE_SUPERB)
+  writeScalarAt(buf, staffBase + STAFF_CLUB_VALUATION_OFFSET, 'u8', CLUB_VALUATION_SUPERB)
   const contractRow = resolveContractRowAbsOffset(buf, blocks, staffIndex)
   if (contractRow != null) clearContractUnhappinessAtRow(buf, contractRow)
   return { ok: true }

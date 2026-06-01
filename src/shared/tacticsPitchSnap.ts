@@ -7,6 +7,8 @@ export type PitchSlot = {
   x: number
   y: number
   arrow: TacticArrow
+  /** Row the movement arrow points to (same column as CM0102). */
+  arrowTargetRow?: TacticalRowId | null
 }
 
 export type TacticsPlayerAssignment = {
@@ -48,6 +50,12 @@ export type PitchColumnIndex = 0 | 1 | 2 | 3 | 4
 /** Five fixed horizontal slots per row (L → R), matching CM0102 pitch positions. */
 export const PITCH_COLUMNS = [0.1, 0.3, 0.5, 0.7, 0.9] as const
 
+/** Narrow trio (e.g. three AMs) — centre-left, centre, centre-right. */
+export const PITCH_NARROW_TRIO_X = [0.3, 0.5, 0.7] as const
+
+/** Narrow pair (e.g. two CMs) — half-space between trio slots, not touchline-wide. */
+export const PITCH_NARROW_PAIR_X = [0.4, 0.6] as const
+
 /** CM role label for each column on a tactical row (GK uses centre column only). */
 const COLUMN_ROLE: Record<TacticalRowId, readonly [string, string, string, string, string]> = {
   gk: ['GK', 'GK', 'GK', 'GK', 'GK'],
@@ -80,9 +88,72 @@ export function roleForColumn(rowId: TacticalRowId, col: PitchColumnIndex): stri
   return COLUMN_ROLE[rowId][col]
 }
 
+function rowSpan(sorted: PitchSlot[]): number {
+  if (sorted.length < 2) return 0
+  return sorted[sorted.length - 1]!.x - sorted[0]!.x
+}
+
+function rowCenterMean(sorted: PitchSlot[]): number {
+  if (sorted.length === 0) return 0.5
+  return sorted.reduce((a, s) => a + s.x, 0) / sorted.length
+}
+
+/** True when players are grouped in the middle third (not a wide pair). */
+function isCentralCluster(sorted: PitchSlot[]): boolean {
+  const span = rowSpan(sorted)
+  const mean = rowCenterMean(sorted)
+  return span < 0.48 && mean > 0.22 && mean < 0.78
+}
+
+/** X positions for N players on one row (sorted left → right). */
+export function rowXPositionsForCount(sorted: PitchSlot[]): number[] {
+  const n = sorted.length
+  if (n <= 0) return []
+  if (n === 1) return [0.5]
+  if (n === 5) return [...PITCH_COLUMNS]
+  if (n === 2) {
+    return isCentralCluster(sorted) ? [...PITCH_NARROW_PAIR_X] : [0.1, 0.9]
+  }
+  if (n === 3) {
+    return isCentralCluster(sorted) ? [...PITCH_NARROW_TRIO_X] : [0.1, 0.5, 0.9]
+  }
+  if (n === 4) {
+    return isCentralCluster(sorted) ? [0.2, 0.4, 0.6, 0.8] : [0.1, 0.3, 0.7, 0.9]
+  }
+  return assignColumnsOnRow(sorted).map((c) => PITCH_COLUMNS[c])
+}
+
+/**
+ * Movement arrow from drag target row/column (CM: same vertical line, any plane).
+ */
+export function computeMovementArrow(
+  fromRow: TacticalRowId,
+  toRow: TacticalRowId,
+  fromX: number,
+  toX: number,
+): TacticArrow {
+  if (fromRow === toRow) return 'none'
+  const dy = tacticalRowY(toRow) - tacticalRowY(fromRow)
+  const dx = toX - fromX
+  const adx = Math.abs(dx)
+  const ady = Math.abs(dy)
+  if (ady < 0.04 && adx < 0.06) return 'none'
+  const mostlyVertical = ady >= adx * 0.85
+  const mostlyHorizontal = adx >= ady * 0.85
+  if (mostlyVertical && adx < 0.14) {
+    return dy > 0 ? 'forward' : 'back'
+  }
+  if (mostlyHorizontal && ady < 0.1) {
+    return dx > 0 ? 'right' : 'left'
+  }
+  if (dy > 0 && dx > 0) return 'forward-right'
+  if (dy > 0 && dx < 0) return 'forward-left'
+  if (dy < 0 && dx > 0) return 'back-right'
+  return 'back-left'
+}
+
 /**
  * Assign each slot a unique column on its row, preserving left-to-right order from drag position.
- * Players snap to the nearest free column — two in the middle stay narrow instead of hugging touchlines.
  */
 export function assignColumnsOnRow(slots: PitchSlot[]): PitchColumnIndex[] {
   if (slots.length === 0) return []
@@ -240,16 +311,19 @@ function redistributeRow(slots: PitchSlot[], rowId: TacticalRowId): PitchSlot[] 
   const y = tacticalRowY(rowId)
   if (rowId === 'gk') {
     const keep = slots[0]!
-    return [{ ...keep, y, x: PITCH_COLUMNS[2], role: 'GK' }]
+    return [{ ...keep, y, x: PITCH_COLUMNS[2], role: 'GK', arrowTargetRow: null }]
   }
-  const columns = assignColumnsOnRow(slots)
+  const order = slots.map((_, i) => i).sort((a, b) => slots[a]!.x - slots[b]!.x)
+  const sorted = order.map((i) => slots[i]!)
+  const xs = rowXPositionsForCount(sorted)
+  const roles = rolesForTacticalRow(rowId, sorted.length)
   return slots.map((s, i) => {
-    const col = columns[i]!
+    const sortedIdx = order.indexOf(i)
     return {
       ...s,
       y,
-      x: PITCH_COLUMNS[col],
-      role: roleForColumn(rowId, col),
+      x: xs[sortedIdx] ?? 0.5,
+      role: roles[sortedIdx] ?? roles[0]!,
     }
   })
 }
@@ -304,6 +378,7 @@ export function pitchSlotsFromPreset(preset: TacticPreset): PitchSlot[] {
       x: s.x,
       y: s.y,
       arrow: s.arrow ?? 'none',
+      arrowTargetRow: s.arrowTargetRow ?? null,
     })),
   )
 }

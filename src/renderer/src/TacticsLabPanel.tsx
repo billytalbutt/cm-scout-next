@@ -1,19 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   pitchSlotsFromPreset,
-  PITCH_COLUMNS,
   snapAndRedistributePitch,
+  tacticalRowForY,
   TACTICAL_ROWS,
   teamRatingFromAssignments,
   type PitchSlot,
   type TacticsPlayerAssignment,
+  type TacticalRowId,
 } from '../../shared/tacticsPitchSnap'
+import {
+  arrowLineEndpoints,
+  movementArrowForDrag,
+  snapArrowDragTarget,
+  type ArrowDragTarget,
+} from '../../shared/tacticsArrowDrag'
 import { clearSavedTacticsLayout, saveTacticsLayout } from './tactics/tacticsLayoutStorage'
 import { TacticArrowGlyph } from './tactics/TacticArrowGlyph'
 import {
   TACTIC_PRESETS,
   isForwardishArrow,
-  nextTacticArrow,
   type TacticPresetId,
 } from '../../shared/tacticsCommunityPresets'
 import { TacticsClubPicker } from './tactics/TacticsClubPicker'
@@ -21,6 +27,8 @@ import { TacticsClubPicker } from './tactics/TacticsClubPicker'
 type Mentality = 'defensive' | 'normal' | 'attacking'
 type PassingStyle = 'short' | 'mixed' | 'direct' | 'long'
 type TacklingStyle = 'normal' | 'hard'
+
+const DRAG_PX_THRESHOLD = 5
 
 function tacticBenchmarkScore(args: {
   presetId: TacticPresetId
@@ -51,6 +59,14 @@ function tacticBenchmarkScore(args: {
   if (args.presetId === '4321_tree' && args.passing === 'short') s += 5
   if (args.presetId === '4231_shadow') s += 4
   return Math.min(99, Math.max(30, s))
+}
+
+function pointerToPitchNorm(el: HTMLDivElement, clientX: number, clientY: number): { x: number; y: number } {
+  const r = el.getBoundingClientRect()
+  const x = Math.min(0.94, Math.max(0.06, (clientX - r.left) / r.width))
+  const fracFromTop = (clientY - r.top) / r.height
+  const y = Math.min(0.92, Math.max(0.04, 1 - fracFromTop))
+  return { x, y }
 }
 
 export function TacticsLabPanel({
@@ -85,6 +101,11 @@ export function TacticsLabPanel({
   const [offside, setOffside] = useState(false)
   const [tackling, setTackling] = useState<TacklingStyle>('normal')
   const [layoutMsg, setLayoutMsg] = useState<string | null>(null)
+  const [arrowPreview, setArrowPreview] = useState<{
+    slotId: string
+    target: ArrowDragTarget
+  } | null>(null)
+
   const p = useMemo(() => TACTIC_PRESETS.find((x) => x.id === preset)!, [preset])
   const forwardArrows = useMemo(
     () => pitchSlots.filter((z) => isForwardishArrow(z.arrow)).length,
@@ -111,7 +132,16 @@ export function TacticsLabPanel({
   )
 
   const pitchRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null)
+  const moveDragRef = useRef<{
+    id: string
+    dx: number
+    dy: number
+    startX: number
+    startY: number
+    moved: boolean
+  } | null>(null)
+  const arrowDragRef = useRef<{ id: string; fromRow: TacticalRowId; fromX: number } | null>(null)
+  const arrowPreviewRef = useRef<{ slotId: string; target: ArrowDragTarget } | null>(null)
 
   const onPresetChange = (id: TacticPresetId) => {
     setPreset(id)
@@ -119,55 +149,134 @@ export function TacticsLabPanel({
     onPitchSlotsChange(pitchSlotsFromPreset(next))
   }
 
-  const onPointerMove = useCallback(
+  const onMovePointerMove = useCallback(
     (e: PointerEvent) => {
-      const d = dragRef.current
+      const d = moveDragRef.current
       const el = pitchRef.current
       if (!d || !el) return
       const r = el.getBoundingClientRect()
-      const centerPxX = e.clientX - d.dx
-      const centerPxY = e.clientY - d.dy
-      const nx = Math.min(0.94, Math.max(0.06, (centerPxX - r.left) / r.width))
-      const fracFromTop = (centerPxY - r.top) / r.height
-      const ny = Math.min(0.92, Math.max(0.04, 1 - fracFromTop))
-      onPitchSlotsChange((prev) => prev.map((s) => (s.id === d.id ? { ...s, x: nx, y: ny } : s)))
+      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_PX_THRESHOLD) {
+        d.moved = true
+      }
+      const cx = e.clientX - d.dx
+      const cy = e.clientY - d.dy
+      const { x, y } = pointerToPitchNorm(el, cx, cy)
+      onPitchSlotsChange((prev) => prev.map((s) => (s.id === d.id ? { ...s, x, y } : s)))
     },
     [onPitchSlotsChange],
   )
 
-  const endDrag = useCallback(() => {
-    dragRef.current = null
-    window.removeEventListener('pointermove', onPointerMove)
-    window.removeEventListener('pointerup', endDrag)
+  const endMoveDrag = useCallback(() => {
+    const d = moveDragRef.current
+    moveDragRef.current = null
+    window.removeEventListener('pointermove', onMovePointerMove)
+    window.removeEventListener('pointerup', endMoveDrag)
+    if (!d) return
+    if (!d.moved) {
+      onPitchSlotsChange((prev) =>
+        prev.map((s) =>
+          s.id === d.id ? { ...s, arrow: 'none', arrowTargetRow: null } : s,
+        ),
+      )
+      return
+    }
     onPitchSlotsChange((prev) => snapAndRedistributePitch(prev))
-  }, [onPointerMove, onPitchSlotsChange])
+  }, [onMovePointerMove, onPitchSlotsChange])
+
+  const onArrowPointerMove = useCallback((e: PointerEvent) => {
+    const d = arrowDragRef.current
+    const el = pitchRef.current
+    if (!d || !el) return
+    const { x, y } = pointerToPitchNorm(el, e.clientX, e.clientY)
+    const target = snapArrowDragTarget(x, y)
+    const next = { slotId: d.id, target }
+    arrowPreviewRef.current = next
+    setArrowPreview(next)
+  }, [])
+
+  const endArrowDrag = useCallback(() => {
+    const d = arrowDragRef.current
+    arrowDragRef.current = null
+    const preview = arrowPreviewRef.current
+    arrowPreviewRef.current = null
+    setArrowPreview(null)
+    window.removeEventListener('pointermove', onArrowPointerMove)
+    window.removeEventListener('pointerup', endArrowDrag)
+    if (!d) return
+    onPitchSlotsChange((prev) => {
+      const snapped = snapAndRedistributePitch(prev)
+      return snapped.map((s) => {
+        if (s.id !== d.id) return s
+        const target =
+          preview?.slotId === d.id ? preview.target : snapArrowDragTarget(s.x, s.y)
+        const arrow = movementArrowForDrag(d.fromRow, d.fromX, target)
+        return {
+          ...s,
+          arrow,
+          arrowTargetRow: arrow === 'none' ? null : target.rowId,
+        }
+      })
+    })
+  }, [onArrowPointerMove, onPitchSlotsChange])
 
   const onSlotPointerDown = (e: React.PointerEvent, slot: PitchSlot) => {
-    if (e.button !== 0) return
+    e.preventDefault()
     const el = pitchRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
     const cx = r.left + slot.x * r.width
     const cy = r.top + (1 - slot.y) * r.height
-    dragRef.current = { id: slot.id, dx: e.clientX - cx, dy: e.clientY - cy }
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', endDrag)
+
+    if (e.button === 2) {
+      arrowDragRef.current = {
+        id: slot.id,
+        fromRow: tacticalRowForY(slot.y),
+        fromX: slot.x,
+      }
+      const initial = { slotId: slot.id, target: snapArrowDragTarget(slot.x, slot.y) }
+      arrowPreviewRef.current = initial
+      setArrowPreview(initial)
+      window.addEventListener('pointermove', onArrowPointerMove)
+      window.addEventListener('pointerup', endArrowDrag)
+      return
+    }
+
+    if (e.button !== 0) return
+    moveDragRef.current = {
+      id: slot.id,
+      dx: e.clientX - cx,
+      dy: e.clientY - cy,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+    }
+    window.addEventListener('pointermove', onMovePointerMove)
+    window.addEventListener('pointerup', endMoveDrag)
   }
 
   useEffect(() => {
     return () => {
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', endDrag)
+      window.removeEventListener('pointermove', onMovePointerMove)
+      window.removeEventListener('pointerup', endMoveDrag)
+      window.removeEventListener('pointermove', onArrowPointerMove)
+      window.removeEventListener('pointerup', endArrowDrag)
     }
-  }, [onPointerMove, endDrag])
+  }, [onMovePointerMove, endMoveDrag, onArrowPointerMove, endArrowDrag])
+
+  const previewLine = useMemo(() => {
+    if (!arrowPreview) return null
+    const slot = pitchSlots.find((s) => s.id === arrowPreview.slotId)
+    if (!slot) return null
+    return arrowLineEndpoints(slot.x, slot.y, arrowPreview.target.rowId)
+  }, [arrowPreview, pitchSlots])
 
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-[11px] leading-snug text-zinc-500">
-        <span className="font-medium text-zinc-300">Tactics Lab</span> — Drag icons between the seven tactical lines
-        (GK, sweeper, defence, DM, midfield, AM, forward). On release they snap to that line and the nearest of five
-        horizontal slots (left → right). Two or three in the middle stay narrow — drag wider for touchline roles. Right-click
-        to cycle movement arrows (8 directions, like CM). Save your layout per save file.
+        <span className="font-medium text-zinc-300">Tactics Lab</span> — Drag icons between tactical lines; they snap
+        invisibly to the nearest row and column (two central players sit in the half-space, like CM).{' '}
+        <span className="text-zinc-400">Right-click and drag</span> to draw a movement arrow to any row;{' '}
+        <span className="text-zinc-400">left-click</span> a player to clear their arrow.
       </div>
       {loadInfo && (
         <TacticsClubPicker
@@ -185,25 +294,48 @@ export function TacticsLabPanel({
           <div
             ref={pitchRef}
             className="relative mx-auto aspect-[68/105] max-h-[min(52vh,520px)] w-full max-w-md touch-none rounded-lg border border-zinc-700/80 bg-zinc-950 shadow-inner shadow-black/40"
+            onContextMenu={(e) => e.preventDefault()}
           >
             <div className="pointer-events-none absolute inset-2 rounded-md border border-zinc-800/60 opacity-40" />
-            {TACTICAL_ROWS.map((row) => (
-              <div key={row.id} className="pointer-events-none absolute inset-0">
-                <div
-                  className="absolute left-[6%] right-[6%] border-t border-dashed border-zinc-700/50"
-                  style={{ top: `${(1 - row.y) * 100}%` }}
-                  title={row.label}
+            {previewLine && (
+              <svg
+                className="pointer-events-none absolute inset-0 z-[5] h-full w-full overflow-visible"
+                aria-hidden
+              >
+                <line
+                  x1={`${previewLine.x1}%`}
+                  y1={`${previewLine.y1}%`}
+                  x2={`${previewLine.x2}%`}
+                  y2={`${previewLine.y2}%`}
+                  stroke="rgb(161 161 170)"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 3"
                 />
-                {row.id !== 'gk' &&
-                  PITCH_COLUMNS.map((colX) => (
-                    <div
-                      key={`${row.id}-${colX}`}
-                      className="absolute h-1.5 w-px bg-zinc-700/35"
-                      style={{ left: `${colX * 100}%`, top: `${(1 - row.y) * 100}%`, transform: 'translate(-50%, -50%)' }}
-                    />
-                  ))}
-              </div>
-            ))}
+              </svg>
+            )}
+            {pitchSlots.map((slot) => {
+              const line =
+                slot.arrow !== 'none' && slot.arrowTargetRow
+                  ? arrowLineEndpoints(slot.x, slot.y, slot.arrowTargetRow)
+                  : null
+              return line ? (
+                <svg
+                  key={`line-${slot.id}`}
+                  className="pointer-events-none absolute inset-0 z-[4] h-full w-full overflow-visible"
+                  aria-hidden
+                >
+                  <line
+                    x1={`${line.x1}%`}
+                    y1={`${line.y1}%`}
+                    x2={`${line.x2}%`}
+                    y2={`${line.y2}%`}
+                    stroke="rgb(113 113 122)"
+                    strokeWidth="1.25"
+                    strokeDasharray="3 2"
+                  />
+                </svg>
+              ) : null
+            })}
             {pitchSlots.map((slot) => {
               const a = assignments[slot.id]
               const shortName = a?.name?.split(' ').pop()
@@ -212,16 +344,10 @@ export function TacticsLabPanel({
                 <button
                   key={slot.id}
                   type="button"
-                  title={`${slot.role}${a?.name ? ` — ${a.name}` : ''}${rating != null ? ` · ${Math.round(rating)}%` : ''} — drag · right-click arrow`}
+                  title={`${slot.role}${a?.name ? ` — ${a.name}` : ''}${rating != null ? ` · ${Math.round(rating)}%` : ''} — drag to move · right-drag arrow · left-click clears arrow`}
                   className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-grab select-none flex-col items-center justify-center rounded-full border border-zinc-600/70 bg-zinc-900/90 text-[9px] font-semibold text-zinc-200 shadow hover:bg-zinc-800/90 active:cursor-grabbing"
                   style={{ left: `${slot.x * 100}%`, top: `${(1 - slot.y) * 100}%` }}
                   onPointerDown={(e) => onSlotPointerDown(e, slot)}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    onPitchSlotsChange((prev) =>
-                      prev.map((s) => (s.id === slot.id ? { ...s, arrow: nextTacticArrow(s.arrow) } : s)),
-                    )
-                  }}
                 >
                   <span className="leading-none">{slot.role.slice(0, 2)}</span>
                   <TacticArrowGlyph arrow={slot.arrow} />
@@ -235,7 +361,7 @@ export function TacticsLabPanel({
             })}
           </div>
           <p className="mt-2 text-center text-[10px] text-zinc-500">
-            Release drag to snap to the nearest line and column. Lineup avg:{' '}
+            Release drag to snap. Lineup avg:{' '}
             <span className="font-mono text-zinc-300">{lineupRating ?? '—'}</span>
           </p>
           <div className="mt-2 flex flex-wrap justify-center gap-2">
@@ -349,9 +475,9 @@ export function TacticsLabPanel({
               </select>
             </label>
           </div>
-          <div className="rounded-lg border border-sky-900/40 bg-sky-950/20 p-3">
-            <div className="text-[10px] font-medium uppercase tracking-wide text-sky-300/90">Heuristic benchmark</div>
-            <div className="mt-1 font-mono text-2xl text-sky-100">{score}</div>
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+            <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Heuristic benchmark</div>
+            <div className="mt-1 font-mono text-2xl text-zinc-200">{score}</div>
             <p className="mt-1 text-[10px] text-zinc-500">
               Preset + team instructions + forward arrows + lineup role ratings.
             </p>

@@ -6,8 +6,8 @@ import {
   resolveContractRowAbsOffset,
 } from './contractEditorSave'
 import {
-  CONTRACT_ISSUE_BLOCK_LENGTH,
   CONTRACT_ISSUE_BLOCK_OFFSET,
+  CONTRACT_UNHAPPINESS_FLAGS_LENGTH,
 } from './database/contractDiskLayout'
 import type { BlockInfo, ContractRecord, ParsedDatabase, StaffRecord } from './database/types'
 
@@ -89,10 +89,14 @@ describe('contractEditorSave', () => {
   it('clears contract issue block and transfer-request bit', () => {
     const archive = minimalContractArchive(0, 500)
     const base = 8
+    archive.writeUInt8(0xcd, base + 70)
+    archive.writeUInt8(0xef, base + 71)
     clearContractUnhappinessAtRow(archive, base)
-    for (let i = 0; i < CONTRACT_ISSUE_BLOCK_LENGTH; i++) {
+    for (let i = 0; i < CONTRACT_UNHAPPINESS_FLAGS_LENGTH; i++) {
       expect(archive.readUInt8(base + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
+    expect(archive.readUInt8(base + 70)).toBe(0xcd)
+    expect(archive.readUInt8(base + 71)).toBe(0xef)
     expect(archive.readUInt8(base + 78)).toBe(0)
   })
 })

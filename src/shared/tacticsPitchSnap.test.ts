@@ -4,6 +4,8 @@ import {
   assignColumnsOnRow,
   evenRowXPositions,
   PITCH_COLUMNS,
+  PITCH_NARROW_PAIR_X,
+  rowXPositionsForCount,
   pitchRowKey,
   pitchSlotsFromPreset,
   roleForColumn,
@@ -24,6 +26,16 @@ function pct(xs: number[]): number[] {
 describe('PITCH_COLUMNS', () => {
   it('defines five CM-style horizontal slots', () => {
     expect([...PITCH_COLUMNS]).toEqual([0.1, 0.3, 0.5, 0.7, 0.9])
+  })
+})
+
+describe('rowXPositionsForCount', () => {
+  it('places two central midfielders in the narrow half-space (0.4 / 0.6)', () => {
+    const slots: PitchSlot[] = [
+      { id: 'a', role: 'MC', x: 0.35, y: 0.52, arrow: 'none' },
+      { id: 'b', role: 'MC', x: 0.65, y: 0.52, arrow: 'none' },
+    ]
+    expect(rowXPositionsForCount(slots)).toEqual([...PITCH_NARROW_PAIR_X])
   })
 })
 
@@ -97,8 +109,8 @@ describe('snapAndRedistributePitch', () => {
 
     expect(pct(mids.map((s) => s.x))).toEqual([30, 50, 70])
     expect(mids.map((s) => s.role)).toEqual(['MCL', 'MC', 'MCR'])
-    expect(pct(strikers.map((s) => s.x))).toEqual([30, 70])
-    expect(strikers.map((s) => s.role)).toEqual(['STC', 'STCR'])
+    expect(pct(strikers.map((s) => s.x))).toEqual([40, 60])
+    expect(strikers.map((s) => s.role)).toEqual(['STCL', 'STCR'])
   })
 
   it('keeps four defenders on outer columns after drag', () => {

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { buildPatchedArchiveBuffer } from './attributeEditorSave'
-import { CONTRACT_ISSUE_BLOCK_LENGTH, CONTRACT_ISSUE_BLOCK_OFFSET } from './database/contractDiskLayout'
+import {
+  CONTRACT_ISSUE_BLOCK_OFFSET,
+  CONTRACT_UNHAPPINESS_FLAGS_LENGTH,
+} from './database/contractDiskLayout'
 import { PLAYER_DISK_FIELDS, PLAYER_ROW_BYTES, STAFF_ROW_BYTES } from './database/playerStaffDiskLayout'
 import type { BlockInfo, ContractRecord, ParsedDatabase, PlayerRecord, StaffRecord } from './database/types'
 
@@ -59,10 +62,12 @@ describe('buildPatchedArchiveBuffer clearUnhappiness', () => {
     expect(built.ok).toBe(true)
     if (!built.ok) return
     expect(built.buffer.readInt8(PLAYER_BLOCK_POS + PLAYER_DISK_FIELDS.morale.offset)).toBe(20)
-    expect(built.buffer.readUInt8(STAFF_BLOCK_POS + 0x60)).toBe(0)
-    for (let i = 0; i < CONTRACT_ISSUE_BLOCK_LENGTH; i++) {
+    expect(built.buffer.readUInt8(STAFF_BLOCK_POS + 0x60)).toBe(20)
+    for (let i = 0; i < CONTRACT_UNHAPPINESS_FLAGS_LENGTH; i++) {
       expect(built.buffer.readUInt8(CONTRACT_ROW_POS + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
+    expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 70)).toBe(0xff)
+    expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 71)).toBe(0x11)
     expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 78)).toBe(0)
   })
 })
