@@ -23,6 +23,7 @@ import {
   type TacticPresetId,
 } from '../../shared/tacticsCommunityPresets'
 import { TacticsClubPicker } from './tactics/TacticsClubPicker'
+import { PitchMarkings } from './tactics/PitchMarkings'
 
 type Mentality = 'defensive' | 'normal' | 'attacking'
 type PassingStyle = 'short' | 'mixed' | 'direct' | 'long'
@@ -250,6 +251,7 @@ export function TacticsLabPanel({
               ...s,
               arrow,
               arrowTargetRow: arrow === 'none' ? null : target.rowId,
+              arrowTargetX: arrow === 'none' ? null : target.x,
             }
           }),
         )
@@ -263,7 +265,7 @@ export function TacticsLabPanel({
       if (!d.moved) {
         onPitchSlotsChange((prev) =>
           prev.map((s) =>
-            s.id === d.id ? { ...s, arrow: 'none', arrowTargetRow: null } : s,
+            s.id === d.id ? { ...s, arrow: 'none', arrowTargetRow: null, arrowTargetX: null } : s,
           ),
         )
         return
@@ -306,7 +308,7 @@ export function TacticsLabPanel({
             className="relative mx-auto aspect-[68/105] max-h-[min(52vh,520px)] w-full max-w-md touch-none rounded-lg border border-zinc-700/80 bg-zinc-950 shadow-inner shadow-black/40"
             onContextMenu={(e) => e.preventDefault()}
           >
-            <div className="pointer-events-none absolute inset-2 rounded-md border border-zinc-800/60 opacity-40" />
+            <PitchMarkings />
             {previewLine && (
               <svg
                 className="pointer-events-none absolute inset-0 z-[5] h-full w-full overflow-visible"
@@ -326,7 +328,12 @@ export function TacticsLabPanel({
             {pitchSlots.map((slot) => {
               const line =
                 slot.arrow !== 'none' && slot.arrowTargetRow
-                  ? arrowLineEndpoints(slot.x, slot.y, slot.arrowTargetRow, slot.x)
+                  ? arrowLineEndpoints(
+                      slot.x,
+                      slot.y,
+                      slot.arrowTargetRow,
+                      slot.arrowTargetX ?? slot.x,
+                    )
                   : null
               return line ? (
                 <svg

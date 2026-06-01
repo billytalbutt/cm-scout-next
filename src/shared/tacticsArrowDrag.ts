@@ -2,8 +2,6 @@ import type { TacticArrow } from './tacticsCommunityPresets'
 import {
   computeMovementArrow,
   nearestColumnIndex,
-  PITCH_COLUMNS,
-  pitchColumnX,
   tacticalRowForY,
   tacticalRowY,
   type PitchColumnIndex,
@@ -17,14 +15,15 @@ export type ArrowDragTarget = {
   y: number
 }
 
-/** Snap pointer position to nearest tactical row + column (CM movement arrows stay in-column). */
+/** Snap pointer Y to a tactical row; keep X for diagonal arrows (CM allows any target on the row). */
 export function snapArrowDragTarget(x: number, y: number): ArrowDragTarget {
   const rowId = tacticalRowForY(y)
   const column = nearestColumnIndex(x)
+  const clampedX = Math.min(0.94, Math.max(0.06, x))
   return {
     rowId,
     column,
-    x: pitchColumnX(column),
+    x: clampedX,
     y: tacticalRowY(rowId),
   }
 }

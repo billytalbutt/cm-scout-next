@@ -43,6 +43,15 @@ describe('rolesForRowPositions', () => {
 })
 
 describe('rowXPositionsForCount', () => {
+  it('places three central defenders narrow without wide flank drag', () => {
+    const slots: PitchSlot[] = [
+      { id: 'a', role: 'DC', x: 0.32, y: 0.28, arrow: 'none' },
+      { id: 'b', role: 'DC', x: 0.5, y: 0.28, arrow: 'none' },
+      { id: 'c', role: 'DC', x: 0.68, y: 0.28, arrow: 'none' },
+    ]
+    expect(rowXPositionsForCount(slots)).toEqual([0.3, 0.5, 0.7])
+  })
+
   it('places two central midfielders in the narrow half-space (0.4 / 0.6)', () => {
     const slots: PitchSlot[] = [
       { id: 'a', role: 'MC', x: 0.35, y: 0.52, arrow: 'none' },
@@ -180,6 +189,19 @@ describe('snapAndRedistributePitch', () => {
     expect(rowAt(slots, 'def').length).toBeGreaterThanOrEqual(1)
   })
 
+  it('three centre-backs snap narrow with DC roles', () => {
+    const slots = snapAndRedistributePitch([
+      { id: 'gk', role: 'GK', x: 0.5, y: 0.06, arrow: 'none' },
+      { id: 'd1', role: 'DC', x: 0.35, y: 0.28, arrow: 'none' },
+      { id: 'd2', role: 'DC', x: 0.5, y: 0.28, arrow: 'none' },
+      { id: 'd3', role: 'DC', x: 0.65, y: 0.28, arrow: 'none' },
+    ])
+    const def = rowAt(slots, 'def')
+    expect(def).toHaveLength(3)
+    expect(pct(def.map((s) => s.x))).toEqual([30, 50, 70])
+    expect(def.map((s) => s.role)).toEqual(['DC', 'DC', 'DC'])
+  })
+
   it('two DMs side by side on centre-left and centre-right columns', () => {
     const slots = snapAndRedistributePitch([
       { id: 'gk', role: 'GK', x: 0.5, y: 0.06, arrow: 'none' },
@@ -187,7 +209,7 @@ describe('snapAndRedistributePitch', () => {
       { id: 'dm2', role: 'DMC', x: 0.65, y: 0.4, arrow: 'none' },
     ])
     const dms = rowAt(slots, 'dm')
-    expect(pct(dms.map((s) => s.x))).toEqual([30, 70])
+    expect(pct(dms.map((s) => s.x))).toEqual([40, 60])
     expect(dms.map((s) => s.role)).toEqual(['DMCL', 'DMCR'])
   })
 })
