@@ -213,7 +213,10 @@ export function CurrentSeasonStatsTable({
   const scopes = seasonStats.cmHistoryScopes ?? []
   const comps = seasonStats.cmCompetitionRows ?? []
   const visibleScopes = scopes.filter(
-    (s) => s.key === 'seniorClub' || s.apps > 0 || s.goals > 0 || s.assists > 0,
+    (s) =>
+      s.key !== 'international' &&
+      s.key !== 'nonCompetitive' &&
+      (s.key === 'seniorClub' || s.apps > 0 || s.goals > 0 || s.assists > 0),
   )
   const hasData = seasonStats.cmHistoryAvailable && visibleScopes.length > 0
 

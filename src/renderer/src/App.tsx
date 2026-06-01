@@ -2979,21 +2979,6 @@ export function App() {
                     )}
                   </p>
                 )}
-                {(profile.seasonStats.internationalCaps.apps > 0 ||
-                  profile.seasonStats.internationalCaps.goals > 0) && (
-                  <p className="mt-1 text-xs text-zinc-400">
-                    International{' '}
-                    <span className="font-mono text-zinc-200">{profile.seasonStats.internationalCaps.apps}</span> caps
-                    {profile.seasonStats.internationalCaps.goals > 0 && (
-                      <>
-                        {' '}
-                        ·{' '}
-                        <span className="font-mono text-zinc-200">{profile.seasonStats.internationalCaps.goals}</span>{' '}
-                        goals
-                      </>
-                    )}
-                  </p>
-                )}
                 <p className="mt-2 text-sm">
                   <span className="text-zinc-500">CA</span>{' '}
                   <span className="font-mono text-emerald-300">{profile.ca}</span>
@@ -3407,7 +3392,10 @@ export function App() {
                     <tbody>
                       {(() => {
                         const visible = (profile.seasonStats.cmHistoryScopes ?? []).filter(
-                          (s) => s.key === 'seniorClub' || s.apps > 0 || s.goals > 0 || s.assists > 0,
+                          (s) =>
+                            s.key !== 'international' &&
+                            s.key !== 'nonCompetitive' &&
+                            (s.key === 'seniorClub' || s.apps > 0 || s.goals > 0 || s.assists > 0),
                         )
                         if (profile.seasonStats.cmHistoryAvailable && visible.length > 0) {
                           return visible.map((s) => (

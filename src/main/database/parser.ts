@@ -138,22 +138,8 @@ export function buildCurrentSeasonFromCompTmp(
   )
   if (!compBlocks.length) return undefined
 
-  const intlByPlayerDatId = new Map<number, { apps: number; goals: number }>()
-  for (const s of staff) {
-    const p = players[s.player_id]
-    if (p && (s.int_apps > 0 || s.int_goals > 0)) {
-      intlByPlayerDatId.set(p.id, { apps: s.int_apps, goals: s.int_goals })
-    }
-  }
-
-  const index = buildSeasonCompIndex(
-    compBlocks,
-    staff,
-    players,
-    clubCompsById,
-    leagueCompIds,
-    intlByPlayerDatId,
-  )
+  // Career caps in staff.dat are not current-season international; omit from comp-tmp index.
+  const index = buildSeasonCompIndex(compBlocks, staff, players, clubCompsById, leagueCompIds)
   return index.size ? index : undefined
 }
 

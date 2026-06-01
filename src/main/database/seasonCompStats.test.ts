@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { PROFILE_SEASON_SCOPE_ORDER } from './playerStatsCurrentSeason'
 import {
   SEASON_COMP_RECORD_BYTES,
   buildSeasonCompIndex,
@@ -23,7 +24,7 @@ function rec(opts: {
   b.writeUInt32LE(opts.staffId, 4)
   b.writeUInt32LE(opts.club, 8)
   b.writeUInt16LE(opts.apps, 12)
-  b.writeUInt16LE(opts.goals, 16)
+  b.writeUInt8(opts.goals, 14)
   b.writeUInt8(opts.assists, 18)
   b.writeUInt8(opts.mom, 22)
   b.writeUInt16LE(opts.ratingSum, 26)
@@ -70,7 +71,7 @@ describe('buildSeasonCompIndex', () => {
       { compId: 350, buf: block([rec({ pid: 100, staffId: 200, club: 5, apps: 2, goals: 1, assists: 1, mom: 1, ratingSum: 17, dribbles: 5 })]) },
       { compId: 326, buf: block([rec({ pid: 100, staffId: 200, club: 5, apps: 1, goals: 0, assists: 1, mom: 0, ratingSum: 8, dribbles: 9 })]) },
     ]
-    const idx = buildSeasonCompIndex(compBlocks, staff, players, clubComps, new Set(), undefined)
+    const idx = buildSeasonCompIndex(compBlocks, staff, players, clubComps, new Set())
     const p = idx.get(100)
     expect(p).toBeTruthy()
     if (!p) return
@@ -92,19 +93,45 @@ describe('buildSeasonCompIndex', () => {
     const compBlocks = [
       { compId: 38, buf: block([rec({ pid: 100, staffId: 999, club: 5, apps: 15, goals: 0, assists: 4, mom: 2, ratingSum: 116, dribbles: 62 })]) },
     ]
-    const idx = buildSeasonCompIndex(compBlocks, staff, players, clubComps, new Set(), undefined)
+    const idx = buildSeasonCompIndex(compBlocks, staff, players, clubComps, new Set())
     expect(idx.size).toBe(0)
   })
 
-  it('keeps International separate from Senior club', () => {
+  it('reads goals as u8 at offset 14 (IFK Göteborg golden)', () => {
+    const compBlocks = [
+      {
+        compId: 38,
+        buf: block([
+          rec({
+            pid: 51985,
+            staffId: 81267,
+            club: 0,
+            apps: 14,
+            goals: 2,
+            assists: 1,
+            mom: 6,
+            ratingSum: 100,
+            dribbles: 0,
+          }),
+        ]),
+      },
+    ]
+    const players: PlayerRecord[] = []
+    players[51985] = player(51985)
+    const staff: StaffRecord[] = [staffRow(81267, 51985)]
+    const idx = buildSeasonCompIndex(compBlocks, staff, players, clubComps, new Set([38]))
+    const p = idx.get(51985)!
+    expect(p.leagueGoals).toBe(2)
+    expect(p.leagueApps).toBe(14)
+  })
+
+  it('profile scopes omit International and Non Competitive rows', () => {
     const compBlocks = [
       { compId: 38, buf: block([rec({ pid: 100, staffId: 200, club: 5, apps: 10, goals: 2, assists: 1, mom: 1, ratingSum: 70, dribbles: 10 })]) },
     ]
-    const intl = new Map<number, { apps: number; goals: number }>([[100, { apps: 4, goals: 1 }]])
-    const idx = buildSeasonCompIndex(compBlocks, staff, players, clubComps, new Set(), intl)
-    const p = idx.get(100)!
-    expect(p.internationalApps).toBe(4)
-    expect(p.internationalGoals).toBe(1)
-    expect(p.seniorApps).toBe(10) // international NOT added to senior
+    const idx = buildSeasonCompIndex(compBlocks, staff, players, clubComps, new Set())
+    const keys = idx.get(100)!.scopes.map((s) => s.key)
+    expect(keys).toEqual([...PROFILE_SEASON_SCOPE_ORDER])
+    expect(keys).not.toContain('international')
   })
 })

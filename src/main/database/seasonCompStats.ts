@@ -9,7 +9,7 @@
  *   +4  u32  staff.dat id        (record is valid iff staff[id].player_id === player.dat id)
  *   +8  u32  club.dat id
  *   +12 u16  appearances
- *   +16 u16  goals
+ *   +14 u8   goals              (not u16 @16 — byte 16 is other data on real saves)
  *   +18 u8   assists
  *   +22 u8   man-of-the-match count
  *   +26 u16  rating sum          (average rating = ratingSum / apps, two decimals)
@@ -27,6 +27,7 @@
 import type { ClubCompRecord } from './clubComp'
 import {
   CM_STAT_SCOPE,
+  PROFILE_SEASON_SCOPE_ORDER,
   type CmScopeStatRow,
   type CmStatScopeKey,
   type PlayerCompSeasonRow,
@@ -41,7 +42,7 @@ const REL = {
   staffId: 4,
   clubId: 8,
   apps: 12,
-  goals: 16,
+  goals: 14,
   assists: 18,
   mom: 22,
   ratingSum: 26,
@@ -100,10 +101,10 @@ function readRecord(
   const staffId = buf.readUInt32LE(off + REL.staffId)
   if (pidByStaffId.get(staffId) !== playerDatId) return null
   const apps = buf.readUInt16LE(off + REL.apps)
-  const goals = buf.readUInt16LE(off + REL.goals)
+  const goals = buf.readUInt8(off + REL.goals)
   const assists = buf.readUInt8(off + REL.assists)
-  // Light sanity: a real season row never has goals/assists wildly exceeding appearances.
-  if (apps > 80 || goals > 80) return null
+  if (apps > 80 || goals > 80 || assists > 80) return null
+  if (!plausibleSeasonRow(apps, goals, assists, buf.readUInt16LE(off + REL.ratingSum))) return null
   return {
     playerDatId,
     rec: {
@@ -117,17 +118,63 @@ function readRecord(
   }
 }
 
-const SCOPE_ORDER: CmStatScopeKey[] = [
-  'nonCompetitive',
-  'league',
-  'cup',
-  'continental',
-  'international',
-  'seniorClub',
-]
-
 function emptyTotals() {
   return { apps: 0, goals: 0, assists: 0, mom: 0, ratingSum: 0, dribbles: 0 }
+}
+
+/** Reject sliding-window false positives (e.g. 60 apps, zero rating sum). */
+function plausibleSeasonRow(apps: number, goals: number, assists: number, ratingSum: number): boolean {
+  if (apps === 0 && goals === 0 && assists === 0) return false
+  if (goals > apps || assists > apps) return false
+  if (apps > 50) return false
+  if (apps > 0 && ratingSum > 0) {
+    const avg = ratingSum / apps
+    if (avg < 4.5 || avg > 10.5) return false
+  } else if (apps > 3) return false
+  return true
+}
+
+function recordPickScore(
+  off: number,
+  apps: number,
+  goals: number,
+  assists: number,
+  ratingSum: number,
+  blockAlignMod: number | null,
+): number {
+  let s = 0
+  if (blockAlignMod != null && off % SEASON_COMP_RECORD_BYTES === blockAlignMod) s += 40
+  if (apps > 0 && apps <= 50) s += 15
+  if (goals <= apps && assists <= apps) s += 10
+  if (apps > 0 && ratingSum > 0) {
+    const avg = ratingSum / apps
+    if (avg >= 5 && avg <= 10) s += 35
+    else if (avg >= 4.5 && avg <= 10.5) s += 15
+  } else if (apps > 0 && apps <= 3) s += 5
+  else if (apps > 3) s -= 40
+  if (apps > 35) s -= 50
+  return s
+}
+
+/** Dominant `offset % 45` among validated rows in a competition block. */
+function detectBlockAlignmentMod(buf: Buffer, pidByStaffId: Map<number, number>): number | null {
+  const counts = new Map<number, number>()
+  const last = buf.length - SEASON_COMP_RECORD_BYTES
+  for (let off = 0; off <= last; off++) {
+    const hit = readRecord(buf, off, pidByStaffId)
+    if (!hit) continue
+    const mod = off % SEASON_COMP_RECORD_BYTES
+    counts.set(mod, (counts.get(mod) ?? 0) + 1)
+  }
+  let best: number | null = null
+  let bestN = 0
+  for (const [mod, n] of counts) {
+    if (n > bestN) {
+      bestN = n
+      best = mod
+    }
+  }
+  return bestN >= 3 ? best : null
 }
 
 function avg(ratingSum: number, apps: number): number | null {
@@ -160,7 +207,6 @@ function scopeRow(
 
 /**
  * Build the current-season index keyed by `player.dat` id from per-competition `.tmp` blocks.
- * `internationalByPlayerDatId` supplies International caps (kept separate from Senior club).
  */
 export function buildSeasonCompIndex(
   compBlocks: readonly SeasonCompBlock[],
@@ -168,7 +214,6 @@ export function buildSeasonCompIndex(
   players: readonly PlayerRecord[],
   clubCompsById: Map<number, ClubCompRecord> | undefined,
   leagueCompIds: ReadonlySet<number>,
-  internationalByPlayerDatId?: Map<number, { apps: number; goals: number }>,
 ): Map<number, PlayerCurrentSeasonIndexed> {
   const out = new Map<number, PlayerCurrentSeasonIndexed>()
   if (!compBlocks.length) return out
@@ -179,17 +224,28 @@ export function buildSeasonCompIndex(
   for (const { compId, buf } of compBlocks) {
     const scope = classifyCompScope(compId, clubCompsById?.get(compId), leagueCompIds)
     if (!scope) continue
-    const seen = new Set<number>()
+    const blockAlignMod = detectBlockAlignmentMod(buf, pidByStaffId)
+    const bestByPlayer = new Map<number, { rec: Omit<SeasonCompRecord, 'compId' | 'scope'>; score: number }>()
     const last = buf.length - SEASON_COMP_RECORD_BYTES
     for (let off = 0; off <= last; off++) {
       const hit = readRecord(buf, off, pidByStaffId)
       if (!hit) continue
-      if (seen.has(hit.playerDatId)) continue
-      seen.add(hit.playerDatId)
-      const list = byPlayer.get(hit.playerDatId)
-      const rec: SeasonCompRecord = { compId, scope, ...hit.rec }
-      if (list) list.push(rec)
-      else byPlayer.set(hit.playerDatId, [rec])
+      const score = recordPickScore(
+        off,
+        hit.rec.apps,
+        hit.rec.goals,
+        hit.rec.assists,
+        hit.rec.ratingSum,
+        blockAlignMod,
+      )
+      const prev = bestByPlayer.get(hit.playerDatId)
+      if (!prev || score > prev.score) bestByPlayer.set(hit.playerDatId, { rec: hit.rec, score })
+    }
+    for (const [playerDatId, { rec }] of bestByPlayer) {
+      const list = byPlayer.get(playerDatId)
+      const row: SeasonCompRecord = { compId, scope, ...rec }
+      if (list) list.push(row)
+      else byPlayer.set(playerDatId, [row])
     }
   }
 
@@ -230,19 +286,12 @@ export function buildSeasonCompIndex(
       senior.dribbles += scopeTotals[s].dribbles
     }
 
-    const intl = internationalByPlayerDatId?.get(playerDatId)
-    const intlTotals = emptyTotals()
-    if (intl) {
-      intlTotals.apps = intl.apps
-      intlTotals.goals = intl.goals
-    }
-
     const scopeRowsByKey: Record<CmStatScopeKey, CmScopeStatRow> = {
       nonCompetitive: scopeRow('nonCompetitive', 'Non Competitive', emptyTotals()),
       league: scopeRow('league', 'League', scopeTotals.league),
       cup: scopeRow('cup', 'Cup', scopeTotals.cup),
       continental: scopeRow('continental', 'Continental', scopeTotals.continental),
-      international: scopeRow('international', 'International', intlTotals),
+      international: scopeRow('international', 'International', emptyTotals()),
       seniorClub: scopeRow('seniorClub', 'Senior club', senior),
     }
 
@@ -252,7 +301,7 @@ export function buildSeasonCompIndex(
       senior.apps > 0 || senior.goals > 0 || senior.assists > 0 || byCompetition.length > 0
 
     out.set(playerDatId, {
-      scopes: SCOPE_ORDER.map((k) => scopeRowsByKey[k]),
+      scopes: PROFILE_SEASON_SCOPE_ORDER.map((k) => scopeRowsByKey[k]),
       byCompetition,
       seniorApps: senior.apps,
       seniorGoals: senior.goals,
@@ -267,8 +316,8 @@ export function buildSeasonCompIndex(
       continentalApps: scopeTotals.continental.apps,
       continentalGoals: scopeTotals.continental.goals,
       continentalAssists: scopeTotals.continental.assists,
-      internationalApps: intlTotals.apps,
-      internationalGoals: intlTotals.goals,
+      internationalApps: 0,
+      internationalGoals: 0,
       internationalAssists: 0,
       available,
     })

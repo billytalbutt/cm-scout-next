@@ -77,6 +77,14 @@ export type CmStatScopeKey =
   | 'international'
   | 'seniorClub'
 
+/** Scopes shown in the player profile current-season table (club football only). */
+export const PROFILE_SEASON_SCOPE_ORDER: readonly CmStatScopeKey[] = [
+  'league',
+  'cup',
+  'continental',
+  'seniorClub',
+]
+
 export interface CmScopeStatRow {
   key: CmStatScopeKey
   label: string
@@ -548,18 +556,6 @@ export function decodePlayerCurrentSeasonStats(
     pickScopeRow(histRows, CM_STAT_SCOPE.continental),
     'player stats history.tmp',
   )
-  let intlTriple = pickScopeRow(histRows, 5) ?? pickScopeRow(histRows, 6)
-  if (!intlTriple && staffInternational && staffInternational.apps > 0) {
-    intlTriple = {
-      apps: staffInternational.apps,
-      goals: staffInternational.goals,
-      assists: 0,
-    }
-    add('international', 'International', intlTriple, 'staff.dat')
-  } else {
-    add('international', 'International', intlTriple, 'player stats history.tmp')
-  }
-
   if (seniorClub) {
     scopeRows.push(seniorClub)
   } else {
@@ -571,7 +567,7 @@ export function decodePlayerCurrentSeasonStats(
     )
   }
 
-  const ordered = SCOPE_ORDER.map((key) => scopeRows.find((r) => r.key === key)!).filter(Boolean)
+  const ordered = PROFILE_SEASON_SCOPE_ORDER.map((key) => scopeRows.find((r) => r.key === key)!).filter(Boolean)
 
   return { scopes: ordered, seniorClub }
 }
@@ -719,8 +715,6 @@ export function indexedFromDecoded(
   const league = scopeStats(decoded, 'league')
   const cup = scopeStats(decoded, 'cup')
   const continental = scopeStats(decoded, 'continental')
-  const international = scopeStats(decoded, 'international')
-
   let sumApps = 0
   let sumGoals = 0
   let sumAssists = 0
@@ -759,13 +753,14 @@ export function indexedFromDecoded(
     continental.apps > 0 ||
     continental.goals > 0 ||
     continental.assists > 0 ||
-    international.apps > 0 ||
-    international.goals > 0 ||
-    international.assists > 0 ||
     byCompetition.some((c) => c.apps > 0 || c.goals > 0 || c.assists > 0)
 
+  const profileScopes = decoded.scopes.filter((s) =>
+    (PROFILE_SEASON_SCOPE_ORDER as readonly string[]).includes(s.key),
+  )
+
   return {
-    scopes: decoded.scopes,
+    scopes: profileScopes,
     byCompetition,
     seniorApps,
     seniorGoals,
@@ -780,9 +775,9 @@ export function indexedFromDecoded(
     continentalApps: continental.apps,
     continentalGoals: continental.goals,
     continentalAssists: continental.assists,
-    internationalApps: international.apps,
-    internationalGoals: international.goals,
-    internationalAssists: international.assists,
+    internationalApps: 0,
+    internationalGoals: 0,
+    internationalAssists: 0,
     available: anyScope,
   }
 }

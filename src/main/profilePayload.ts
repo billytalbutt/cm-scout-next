@@ -349,7 +349,7 @@ function buildProfileSeasonStats(
       : undefined
 
   return {
-    internationalCaps: { apps: row.staff.int_apps, goals: row.staff.int_goals },
+    internationalCaps: { apps: 0, goals: 0 },
     saveCalendarYear: yearPick.saveCalendarYear,
     highlightHistoryYear: yearPick.highlightHistoryYear,
     currentYearResolution: yearPick.resolution,
