@@ -6,3 +6,7 @@ release
 *.log
 .DS_Store
 .cache
+
+# Local CM save games used for stats/cash verification (large, not committed)
+*.sav
+fixtures/golden/

@@ -13,8 +13,9 @@ import {
   parseIndexDat,
   buildUiPlayerRowAtIndex,
   patchUiRowsCurrentSeason,
+  readBlocksDirectory,
+  buildCurrentSeasonFromCompTmp,
 } from './database/parser'
-import { buildPlayerCurrentSeasonIndex } from './database/playerStatsCurrentSeason'
 import type { DatabaseLoadProgress } from '../shared/loadProgress'
 import { collectStaffHistorySearchDirs } from './database/staffHistoryLoad'
 import { getDefaultOpenDatabaseDirectory, getSuggestedSaveGameFolder } from './cm0102Paths'
@@ -490,26 +491,15 @@ ipcMain.handle('open-database', async (event) => {
         progress: 0.84,
       })
       try {
-        db.currentSeasonByPlayerDatId = buildPlayerCurrentSeasonIndex(
+        const { compressed, blocks } = readBlocksDirectory(archiveBuf)
+        db.currentSeasonByPlayerDatId = buildCurrentSeasonFromCompTmp(
+          archiveBuf,
+          compressed,
+          blocks,
           db.players,
           db.staff,
-          db.playerStatsHistoryBuf,
-          db.playerStatsDatBuf,
-          db.competitionNamesById ?? new Map(),
-          db.staffCompHistoryByStaffId,
-          db.savePerformanceByPlayerDatId,
-          (frac) => {
-            emitLoadProgress(sender, {
-              phase: 'season',
-              message:
-                frac < 0.4
-                  ? 'Scanning season history (47-byte rows)…'
-                  : frac < 0.5
-                    ? 'Locating player stats anchors (one pass)…'
-                    : 'Attaching goals & assists per player…',
-              progress: 0.84 + frac * 0.15,
-            })
-          },
+          db.clubCompsById,
+          db.clubDivisionCompIdByClubId,
         )
         patchUiRowsCurrentSeason(rows, db)
       } catch {
@@ -1081,14 +1071,24 @@ ipcMain.handle('get-contract-editor-snapshot', async (_e, staffIndex: unknown) =
 ipcMain.handle('save-contract-edits', async (event, payload: unknown) => {
   if (!loaded) return { ok: false as const, error: 'No database loaded.' }
   syncLoadedArchiveFromDisk()
-  const p = payload as { staffIndex?: unknown; changes?: unknown }
+  const p = payload as {
+    staffIndex?: unknown
+    changes?: unknown
+    dateChanges?: unknown
+  }
   const staffIndex = Math.floor(Number(p.staffIndex))
   const ch = p.changes
   if (!Number.isFinite(staffIndex) || staffIndex < 0 || typeof ch !== 'object' || ch === null) {
     return { ok: false as const, error: 'Invalid save payload.' }
   }
   const changes = ch as Record<string, number>
-  if (Object.keys(changes).length === 0) {
+  const dateChanges =
+    p.dateChanges && typeof p.dateChanges === 'object'
+      ? (p.dateChanges as { date_started?: string | null; contract_expires?: string | null })
+      : undefined
+  const hasDateChanges =
+    dateChanges != null && ('date_started' in dateChanges || 'contract_expires' in dateChanges)
+  if (Object.keys(changes).length === 0 && !hasDateChanges) {
     return { ok: false as const, error: 'No changes to save.' }
   }
   const built = buildContractEditorPatchedBuffer(
@@ -1098,6 +1098,7 @@ ipcMain.handle('save-contract-edits', async (event, payload: unknown) => {
     loaded.db,
     staffIndex,
     changes,
+    dateChanges,
   )
   if (!built.ok) return { ok: false as const, error: built.error }
   const parent =

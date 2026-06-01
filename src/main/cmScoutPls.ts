@@ -2,6 +2,9 @@
  * CM Scout / CM0102 `.pls` shortlist (see CM0102Patcher ScoutList.cs).
  * Player lists use staff.dat `id` (int32 LE) per 45-byte record.
  */
+import { tcmDateBytesFromIso } from './database/dates'
+
+export { tcmDateBytesFromIso }
 
 export const PLS_MAX_PLAYERS = 200
 
@@ -32,32 +35,6 @@ const PLS_END = Buffer.from([
 
 const TITLE_ASCII = 'CM Scout Search'
 const MANAGER_ASCII = 'CM Merlin'
-
-/** TCMDate 8 bytes: day-of-year-1 (i16), year (i16), leap flag (i32). */
-export function tcmDateBytesFromIso(dobIso: string | null, yearOfBirth: number): Buffer {
-  const out = Buffer.alloc(8)
-  if (dobIso) {
-    const [y, m, d] = dobIso.split('-').map(Number)
-    if ([y, m, d].every((n) => Number.isFinite(n))) {
-      const dt = new Date(Date.UTC(y, m - 1, d))
-      const day = Math.floor((dt.getTime() - Date.UTC(y, 0, 1)) / 86400000)
-      out.writeInt16LE(day, 0)
-      out.writeInt16LE(y, 2)
-      out.writeInt32LE(isLeapYear(y) ? 1 : 0, 4)
-      return out
-    }
-  }
-  if (yearOfBirth >= 1870 && yearOfBirth < 2100) {
-    out.writeInt16LE(0, 0)
-    out.writeInt16LE(yearOfBirth, 2)
-    out.writeInt32LE(isLeapYear(yearOfBirth) ? 1 : 0, 4)
-  }
-  return out
-}
-
-function isLeapYear(y: number): boolean {
-  return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
-}
 
 function writeAsciiFixed(buf: Buffer, off: number, len: number, text: string): void {
   const b = Buffer.from(text.slice(0, len), 'ascii')
@@ -101,7 +78,7 @@ export function buildCmScoutPlsBuffer(
     o += 4
     buf.writeInt32LE(e.staffId, o)
     o += 4
-    tcmDateBytesFromIso(e.dobIso, e.yearOfBirth).copy(buf, o)
+    tcmDateBytesFromIso(e.dobIso, e.yearOfBirth).copy(buf, o) // fallbackYear for year-only DOB
     o += 8
     o += 20
     buf.writeUInt8(0xff, o)

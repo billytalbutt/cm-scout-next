@@ -1,5 +1,5 @@
 import type { BlockInfo, ParsedDatabase } from './database/types'
-import { buildClubSquadPlayerRows } from './clubBrowse'
+import { buildClubSquadPlayerRows, staffEmployedAtClub } from './clubBrowse'
 import {
   findBlock,
   PLAYER_DISK_FIELDS,
@@ -8,15 +8,61 @@ import {
   writeScalarAt,
 } from './database/playerStaffDiskLayout'
 import { clearContractUnhappinessAtRow, resolveContractRowAbsOffset } from './contractEditorSave'
+import {
+  CONTRACT_SQUAD_MIRROR_OFFSET,
+  CONTRACT_UNHAPPINESS_TAIL_OFFSET,
+} from './database/contractDiskLayout'
 
 const STAFF_CLUB_VALUATION_OFFSET = 0x60
 /** Max byte — in-game “superb” happiness with the club (GK editor sets morale to 20; valuation to max). */
 const CLUB_VALUATION_SUPERB = 20
 const MORALE_SUPERB = 20
 
-/** Playable squad player staff indices at a club (same set as the Clubs squad list). */
+function isPlayerLinkedStaff(db: ParsedDatabase, staffIndex: number): boolean {
+  const s = db.staff[staffIndex]
+  return !!s && s.player_id >= 0 && s.player_id < db.players.length
+}
+
+function staffIndexForStaffId(db: ParsedDatabase, staffId: number): number | null {
+  if (staffId <= 0) return null
+  const idx = db.staff.findIndex((s) => s.id === staffId)
+  return idx >= 0 ? idx : null
+}
+
+/**
+ * Player-linked staff indices to clear at a club.
+ * Broader than the Clubs UI squad list: includes every employed player and anyone listed in
+ * `club.dat` squad / team-selected slots (CM can show them as unhappy even when name filters
+ * exclude them from Merlin’s squad table).
+ */
 export function clubSquadPlayerStaffIndices(db: ParsedDatabase, clubId: number): number[] {
-  return buildClubSquadPlayerRows(db, clubId).map((r) => r.staffIndex)
+  const seen = new Set<number>()
+  const add = (staffIndex: number) => {
+    if (!isPlayerLinkedStaff(db, staffIndex) || seen.has(staffIndex)) return
+    seen.add(staffIndex)
+  }
+
+  for (const row of buildClubSquadPlayerRows(db, clubId)) {
+    add(row.staffIndex)
+  }
+
+  for (let staffIndex = 0; staffIndex < db.staff.length; staffIndex++) {
+    if (staffEmployedAtClub(db, staffIndex, clubId)) add(staffIndex)
+  }
+
+  const club = db.clubsById?.get(clubId)
+  if (club) {
+    for (const sid of club.squadStaffIds) {
+      const idx = staffIndexForStaffId(db, sid)
+      if (idx != null) add(idx)
+    }
+    for (const sid of club.teamSelectedStaffIds) {
+      const idx = staffIndexForStaffId(db, sid)
+      if (idx != null) add(idx)
+    }
+  }
+
+  return [...seen]
 }
 
 export function applyClearUnhappinessForStaff(
@@ -46,8 +92,17 @@ export function applyClearUnhappinessForStaff(
   }
   writeScalarAt(buf, playerBase + PLAYER_DISK_FIELDS.morale.offset, 'i8', MORALE_SUPERB)
   writeScalarAt(buf, staffBase + STAFF_CLUB_VALUATION_OFFSET, 'u8', CLUB_VALUATION_SUPERB)
+  const squadNumber = buf.readUInt8(playerBase + PLAYER_DISK_FIELDS.squad_number.offset)
   const contractRow = resolveContractRowAbsOffset(buf, blocks, staffIndex)
-  if (contractRow != null) clearContractUnhappinessAtRow(buf, contractRow)
+  if (contractRow != null) {
+    clearContractUnhappinessAtRow(buf, contractRow)
+    if (squadNumber > 0) {
+      buf.writeUInt8(squadNumber, contractRow + CONTRACT_SQUAD_MIRROR_OFFSET)
+      if (contractRow + CONTRACT_UNHAPPINESS_TAIL_OFFSET < buf.length) {
+        buf.writeUInt8(squadNumber, contractRow + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
+      }
+    }
+  }
   return { ok: true }
 }
 

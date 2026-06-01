@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { applyClearUnhappinessForStaff } from './squadUnhappinessClear'
-import { CONTRACT_ISSUE_BLOCK_OFFSET, CONTRACT_UNHAPPINESS_BLOCK_LENGTH } from './database/contractDiskLayout'
+import {
+  applyClearUnhappinessForClubSquad,
+  applyClearUnhappinessForStaff,
+  clubSquadPlayerStaffIndices,
+} from './squadUnhappinessClear'
+import { buildClubSquadPlayerRows } from './clubBrowse'
+import { CONTRACT_ISSUE_BLOCK_OFFSET, CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH } from './database/contractDiskLayout'
 import { PLAYER_DISK_FIELDS, PLAYER_ROW_BYTES, STAFF_ROW_BYTES } from './database/playerStaffDiskLayout'
 import type { BlockInfo, ContractRecord, ParsedDatabase, PlayerRecord, StaffRecord } from './database/types'
 
@@ -93,8 +98,113 @@ describe('applyClearUnhappinessForStaff', () => {
     const staffBase = STAFF_BLOCK_POS + STAFF_ROW_BYTES
     expect(buf.readUInt8(staffBase + 0x60)).toBe(20)
 
-    for (let i = 0; i < CONTRACT_UNHAPPINESS_BLOCK_LENGTH; i++) {
+    for (let i = 0; i < CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH; i++) {
       expect(buf.readUInt8(CONTRACT_ROW_POS + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
+  })
+})
+
+describe('clubSquadPlayerStaffIndices', () => {
+  it('includes employed players missing from the UI squad list (no resolved name)', () => {
+    const playerStaff = {
+      id: 50,
+      first_name_id: 0,
+      second_name_id: 0,
+      common_name_id: 0,
+      player_id: 0,
+      club_job_id: 100,
+    } as StaffRecord
+    const db = {
+      staff: [playerStaff],
+      players: [{ id: 1 } as PlayerRecord],
+      firstNames: [''],
+      secondNames: [''],
+      commonNames: [''],
+      clubNames: new Map([[100, 'Test FC']]),
+      contractsByStaffIndex: new Map(),
+      clubsById: new Map([
+        [
+          100,
+          {
+            id: 100,
+            name: 'Test FC',
+            squadStaffIds: [],
+            teamSelectedStaffIds: [],
+          },
+        ],
+      ]),
+    } as unknown as ParsedDatabase
+
+    expect(buildClubSquadPlayerRows(db, 100)).toHaveLength(0)
+    expect(clubSquadPlayerStaffIndices(db, 100)).toEqual([0])
+  })
+
+  it('includes players listed in club.dat squad slots even when employment fields disagree', () => {
+    const playerStaff = {
+      id: 77,
+      first_name_id: 1,
+      second_name_id: 1,
+      common_name_id: 0,
+      player_id: 0,
+      club_job_id: 999,
+    } as StaffRecord
+    const db = {
+      staff: [playerStaff],
+      players: [{ id: 1 } as PlayerRecord],
+      firstNames: ['', 'John'],
+      secondNames: ['', 'Smith'],
+      commonNames: [''],
+      clubNames: new Map([[100, 'Test FC']]),
+      contractsByStaffIndex: new Map(),
+      clubsById: new Map([
+        [
+          100,
+          {
+            id: 100,
+            name: 'Test FC',
+            squadStaffIds: [77, -1],
+            teamSelectedStaffIds: [],
+          },
+        ],
+      ]),
+    } as unknown as ParsedDatabase
+
+    expect(buildClubSquadPlayerRows(db, 100)).toHaveLength(0)
+    expect(clubSquadPlayerStaffIndices(db, 100)).toEqual([0])
+  })
+})
+
+describe('applyClearUnhappinessForClubSquad', () => {
+  it('clears employed players even when they are absent from the UI squad list', () => {
+    const buf = buildArchive()
+    const db = fakeDb()
+    db.staff[0] = {
+      id: 1,
+      first_name_id: 0,
+      second_name_id: 0,
+      common_name_id: 0,
+      player_id: 0,
+      club_valuation: 6,
+      club_job_id: 10,
+    } as StaffRecord
+    db.clubsById = new Map([
+      [
+        10,
+        {
+          id: 10,
+          squadStaffIds: [],
+          teamSelectedStaffIds: [],
+        },
+      ],
+    ])
+
+    expect(buildClubSquadPlayerRows(db, 10)).toHaveLength(0)
+    const r = applyClearUnhappinessForClubSquad(buf, db.blocks, db, 10)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.cleared).toBe(1)
+
+    expect(buf.readInt8(PLAYER_BLOCK_POS + PLAYER_DISK_FIELDS.morale.offset)).toBe(20)
+    expect(buf.readUInt8(STAFF_BLOCK_POS + 0x60)).toBe(20)
   })
 })

@@ -27,10 +27,12 @@ import { parseStadiumRecords } from './stadiumRecords'
 import { parseTacticsDatIndex } from './tacticsDat'
 import { parsePlayerStatsFromSave } from './playerStatsFields'
 import { parsePlayerStatsSummary } from './playerStatsSummary'
+import type { PlayerCurrentSeasonIndexed } from './playerStatsCurrentSeason'
 import {
-  buildPlayerCurrentSeasonIndex,
-  type PlayerCurrentSeasonIndexed,
-} from './playerStatsCurrentSeason'
+  buildSeasonCompIndex,
+  collectSeasonCompBlocks,
+} from './seasonCompStats'
+import type { ClubCompRecord } from './clubComp'
 import {
   refineHighlightYearWithHistoryFallback,
   resolveStaffHistoryHighlightYear,
@@ -103,6 +105,56 @@ function blockData(file: Buffer, compressed: boolean, b: BlockInfo): Buffer {
   const r = new CmBinaryReader(file, compressed)
   r.seek(b.position)
   return r.readBytes(b.size)
+}
+
+/** Build current-season per-scope stats from per-competition `{Comp}_{id}.tmp` blocks. */
+export function buildCurrentSeasonFromCompTmp(
+  file: Buffer,
+  compressed: boolean,
+  blocks: BlockInfo[],
+  players: PlayerRecord[],
+  staff: StaffRecord[],
+  clubCompsById: Map<number, ClubCompRecord> | undefined,
+  clubDivisionCompIdByClubId: Map<number, number>,
+): Map<number, PlayerCurrentSeasonIndexed> | undefined {
+  const leagueCompIds = new Set<number>()
+  for (const compId of clubDivisionCompIdByClubId.values()) if (compId > 0) leagueCompIds.add(compId)
+
+  const byName = new Map<string, BlockInfo>()
+  for (const b of blocks) if (!byName.has(b.name)) byName.set(b.name, b)
+
+  const compBlocks = collectSeasonCompBlocks(
+    blocks.map((b) => b.name),
+    (name) => {
+      const b = byName.get(name)
+      if (!b || b.size <= 0) return null
+      try {
+        return blockData(file, compressed, b)
+      } catch {
+        return null
+      }
+    },
+    (compId) => clubCompsById?.has(compId) ?? false,
+  )
+  if (!compBlocks.length) return undefined
+
+  const intlByPlayerDatId = new Map<number, { apps: number; goals: number }>()
+  for (const s of staff) {
+    const p = players[s.player_id]
+    if (p && (s.int_apps > 0 || s.int_goals > 0)) {
+      intlByPlayerDatId.set(p.id, { apps: s.int_apps, goals: s.int_goals })
+    }
+  }
+
+  const index = buildSeasonCompIndex(
+    compBlocks,
+    staff,
+    players,
+    clubCompsById,
+    leagueCompIds,
+    intlByPlayerDatId,
+  )
+  return index.size ? index : undefined
 }
 
 function parsePlayer(buf: Buffer, off: number): PlayerRecord {
@@ -605,16 +657,16 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     }
   }
 
-  if (!options.skipCurrentSeasonIndex && (playerStatsHistoryBuf?.length || playerStatsDatBuf?.length)) {
+  if (!options.skipCurrentSeasonIndex) {
     try {
-      currentSeasonByPlayerDatId = buildPlayerCurrentSeasonIndex(
+      currentSeasonByPlayerDatId = buildCurrentSeasonFromCompTmp(
+        file,
+        compressed,
+        blocks,
         players,
         staff,
-        playerStatsHistoryBuf,
-        playerStatsDatBuf,
-        competitionNamesById ?? new Map(),
-        staffCompHistoryByStaffId,
-        savePerformanceByPlayerDatId,
+        clubCompsById,
+        clubDivisionCompIdByClubId,
       )
     } catch {
       currentSeasonByPlayerDatId = undefined

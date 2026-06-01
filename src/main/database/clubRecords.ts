@@ -2,7 +2,6 @@
  * Full `club.dat` row (581 bytes, `TClub` in CM0102Patcher Structures.cs).
  * Offsets verified by sequential Pack=1 layout from ID through HasLinkedClub.
  */
-import { readCashDisplay } from '../../shared/cm2LongFormat'
 import { readLatin1String } from './cmBinaryReader'
 import { readArchiveBlock } from './parser'
 import type { ClubRecord } from './types'
@@ -30,7 +29,7 @@ export function parseClubRecords(data: Buffer): Map<number, ClubRecord> {
     const name = readLatin1String(row.subarray(4, 55), 51)
     const nation = row.readInt32LE(83)
     const division = row.readInt32LE(87)
-    const cash = readCashDisplay(row.readInt32LE(101))
+    const cash = row.readInt32LE(101)
     const stadium = row.readInt32LE(105)
     const attendance = row.readInt32LE(115)
     const training = row.readUInt8(127)

@@ -189,61 +189,125 @@ export function PlayerProfileTabViews({
         </ul>
       </div>
 
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-        <h3 className="mb-2 font-semibold text-zinc-300">
-          Current season
-          {profile.seasonStats.cmHistorySeasonLabel ? (
-            <span className="ml-2 font-mono text-sm font-normal text-emerald-200/90">
-              {profile.seasonStats.cmHistorySeasonLabel}
-            </span>
-          ) : null}
-        </h3>
+      <CurrentSeasonStatsTable seasonStats={profile.seasonStats} />
+    </div>
+  )
+}
+
+function statNum(v: number | null | undefined): string {
+  return v != null && v !== 0 ? String(v) : v === 0 ? '0' : '—'
+}
+function statRating(v: number | null | undefined): string {
+  return v != null ? v.toFixed(2) : '—'
+}
+function statRate(v: number | null | undefined): string {
+  return v != null ? v.toFixed(1) : '—'
+}
+
+/** CM-style current-season breakdown: per scope (League/Cup/Continental/Senior) + per competition. */
+export function CurrentSeasonStatsTable({
+  seasonStats,
+}: {
+  seasonStats: ProfilePayload['seasonStats']
+}) {
+  const scopes = seasonStats.cmHistoryScopes ?? []
+  const comps = seasonStats.cmCompetitionRows ?? []
+  const visibleScopes = scopes.filter(
+    (s) => s.key === 'seniorClub' || s.apps > 0 || s.goals > 0 || s.assists > 0,
+  )
+  const hasData = seasonStats.cmHistoryAvailable && visibleScopes.length > 0
+
+  return (
+    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
+      <h3 className="mb-2 font-semibold text-zinc-300">
+        Current season
+        {seasonStats.cmHistorySeasonLabel ? (
+          <span className="ml-2 font-mono text-sm font-normal text-emerald-200/90">
+            {seasonStats.cmHistorySeasonLabel}
+          </span>
+        ) : null}
+      </h3>
+
+      {!hasData ? (
+        <p className="px-1 py-2 text-zinc-500">
+          {seasonStats.savePerformanceHint ?? 'No current-season stats decoded for this player.'}
+        </p>
+      ) : (
         <div className="overflow-x-auto rounded border border-emerald-900/40 bg-emerald-950/20">
-          <table className="w-full min-w-[16rem] border-collapse text-left text-[11px]">
+          <table className="w-full min-w-[22rem] border-collapse text-left text-[11px]">
             <thead>
               <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
-                <th className="px-2 py-1.5 font-medium">Club</th>
+                <th className="px-2 py-1.5 font-medium">Competition</th>
                 <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
-                <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
+                <th className="px-2 py-1.5 text-right font-mono font-medium">Gls</th>
                 <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
-                <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
+                <th className="px-2 py-1.5 text-right font-mono font-medium">MoM</th>
+                <th className="px-2 py-1.5 text-right font-mono font-medium">Drb</th>
+                <th className="px-2 py-1.5 text-right font-mono font-medium">Av R</th>
               </tr>
             </thead>
             <tbody>
-              {profile.seasonStats.currentSeasonPerformance ? (
-                <tr className="border-b border-zinc-800/40">
-                  <td
-                    className="max-w-[14rem] truncate px-2 py-1.5 text-zinc-100"
-                    title={profile.seasonStats.currentSeasonPerformance.label}
+              {visibleScopes.map((s) => {
+                const senior = s.key === 'seniorClub'
+                return (
+                  <tr
+                    key={s.key}
+                    className={
+                      senior
+                        ? 'border-t border-emerald-800/50 bg-emerald-950/40 font-semibold'
+                        : 'border-b border-zinc-800/40'
+                    }
                   >
-                    {profile.seasonStats.currentSeasonPerformance.label}
-                  </td>
-                  <td className="px-2 py-1.5 text-right font-mono text-emerald-200">
-                    {profile.seasonStats.currentSeasonPerformance.apps}
-                  </td>
-                  <td className="px-2 py-1.5 text-right font-mono text-emerald-200">
-                    {profile.seasonStats.currentSeasonPerformance.goals}
-                  </td>
-                  <td className="px-2 py-1.5 text-right font-mono text-zinc-300">
-                    {profile.seasonStats.currentSeasonPerformance.assists ?? '—'}
-                  </td>
-                  <td className="px-2 py-1.5 text-right font-mono text-zinc-300">
-                    {profile.seasonStats.currentSeasonPerformance.averageRating != null
-                      ? profile.seasonStats.currentSeasonPerformance.averageRating.toFixed(2)
-                      : '—'}
-                  </td>
-                </tr>
-              ) : (
-                <tr>
-                  <td colSpan={5} className="px-2 py-2.5 text-center text-zinc-500">
-                    No current-season row resolved.
-                  </td>
-                </tr>
-              )}
+                    <td className="px-2 py-1.5 text-zinc-100">{s.label}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-emerald-200">{statNum(s.apps)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-emerald-200">{statNum(s.goals)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-zinc-300">{statNum(s.assists)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-zinc-300">{statNum(s.mom)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-zinc-300">{statRate(s.dribbles)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-amber-200">{statRating(s.averageRating)}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
+
+      {comps.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+            By competition
+          </p>
+          <div className="overflow-x-auto rounded border border-zinc-800 bg-zinc-950/40">
+            <table className="w-full min-w-[22rem] border-collapse text-left text-[11px]">
+              <thead>
+                <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
+                  <th className="px-2 py-1.5 font-medium">Competition</th>
+                  <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
+                  <th className="px-2 py-1.5 text-right font-mono font-medium">Gls</th>
+                  <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
+                  <th className="px-2 py-1.5 text-right font-mono font-medium">MoM</th>
+                  <th className="px-2 py-1.5 text-right font-mono font-medium">Av R</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comps.map((c) => (
+                  <tr key={c.competitionId} className="border-b border-zinc-800/40">
+                    <td className="max-w-[14rem] truncate px-2 py-1.5 text-zinc-100" title={c.competitionName}>
+                      {c.competitionName}
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono text-emerald-200">{statNum(c.apps)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-emerald-200">{statNum(c.goals)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-zinc-300">{statNum(c.assists)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-zinc-300">{statNum(c.mom)}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-amber-200">{statRating(c.averageRating)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

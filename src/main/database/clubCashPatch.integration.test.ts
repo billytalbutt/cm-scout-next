@@ -48,8 +48,6 @@ import { loadSaveBlocksFast } from './saveBlocksFast'
 
 import { parseIndexDat } from './parser'
 
-import { cashLooksPlainOnDisk, readCashDisplay } from '../../shared/cm2LongFormat'
-
 import { findBlock } from './playerStaffDiskLayout'
 
 
@@ -104,7 +102,7 @@ function cashRawAt(
 
   clubId: number,
 
-): { raw: number; display: number; offset: number; priorWasPlain: boolean } | { error: string } {
+): { raw: number; display: number; offset: number } | { error: string } {
 
   const off = clubCashAbsoluteOffset(archive, blocks, clubId)
 
@@ -116,11 +114,9 @@ function cashRawAt(
 
     raw,
 
-    display: readCashDisplay(raw),
+    display: raw,
 
     offset: off,
-
-    priorWasPlain: cashLooksPlainOnDisk(raw),
 
   }
 
@@ -148,9 +144,9 @@ function simulateInPlaceClubSave(
 
   tempPath: string
 
-  before: { raw: number; display: number; offset: number; priorWasPlain: boolean }
+  before: { raw: number; display: number; offset: number }
 
-  after: { raw: number; display: number; offset: number; priorWasPlain: boolean }
+  after: { raw: number; display: number; offset: number }
 
 } {
 
@@ -286,15 +282,7 @@ describe('club cash on real save (integration)', () => {
 
         expect(newRaw).toBe(result.after.raw)
 
-        expect(readCashDisplay(newRaw)).toBe(MARKER_POUNDS)
-
-
-
-        if (!result.before.priorWasPlain) {
-
-          expect(cashLooksPlainOnDisk(newRaw), 'packed save keeps packed bytes').toBe(false)
-
-        }
+        expect(newRaw).toBe(MARKER_POUNDS)
 
 
 

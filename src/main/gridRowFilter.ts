@@ -8,6 +8,7 @@ import {
   transferListedByClub,
   transferListedByRequest,
 } from './cmScoutRating'
+import { isContractUnprotected } from '../shared/contractProtection'
 import {
   contractTypeMatchesCategory,
   type ContractTypeCategoryId,
@@ -48,6 +49,9 @@ export type GetRowsFilter = {
   csAssistsMax?: number
   csAppsMin?: number
   csAppsMax?: number
+  /** Senior-club average match rating this save (e.g. min 8.00). */
+  csAvrMin?: number
+  csAvrMax?: number
   /** League-only goals this save (scope decode). */
   csLeagueGoalsMin?: number
   csLeagueGoalsMax?: number
@@ -70,6 +74,8 @@ export type GetRowsFilter = {
   leavingOnBosman?: boolean
   contractExpiresWithinMonths?: number
   hasMinimumReleaseClause?: boolean
+  /** Post-2001 transfer rules: initial 2/3-year protection period has elapsed (approach to sign). */
+  contractUnprotected?: boolean
   attrMins?: (number | null)[]
   /** Among `attrMins` entries &gt; 0, require at least this many to pass (1 = any one). Empty / omitted = all must pass. */
   attrMinMatchAtLeast?: number
@@ -149,9 +155,13 @@ function rowMatches(
     f.csLeagueGoalsMin != null ||
     f.csLeagueGoalsMax != null ||
     f.csLeagueAssistsMin != null ||
-    f.csLeagueAssistsMax != null
+    f.csLeagueAssistsMax != null ||
+    f.csAvrMin != null ||
+    f.csAvrMax != null
   ) {
     if (!cs?.available) return false
+    if (f.csAvrMin != null && (cs.seniorAvgRating == null || cs.seniorAvgRating < f.csAvrMin)) return false
+    if (f.csAvrMax != null && (cs.seniorAvgRating == null || cs.seniorAvgRating > f.csAvrMax)) return false
     if (f.csGoalsMin != null && cs.seniorGoals < f.csGoalsMin) return false
     if (f.csGoalsMax != null && cs.seniorGoals > f.csGoalsMax) return false
     if (f.csAssistsMin != null && cs.seniorAssists < f.csAssistsMin) return false
@@ -236,6 +246,12 @@ function rowMatches(
   if (f.euPassport === true && !r.euPassport) return false
   if (f.leavingOnBosman === true && (!r.contract || r.contract.leaving_on_bosman <= 0)) return false
   if (f.hasMinimumReleaseClause === true && (!r.contract || r.contract.minimum_fee_rc <= 0)) return false
+  if (
+    f.contractUnprotected === true &&
+    !isContractUnprotected(r.contract, r.staff, ctx.gameDateIso)
+  ) {
+    return false
+  }
 
   if (
     f.contractExpiresWithinMonths != null &&

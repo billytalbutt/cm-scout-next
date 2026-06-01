@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { readBlocksDirectory } from './database/parser'
+import { tcmDateToIso } from './database/dates'
+import {
+  CONTRACT_DATE_EXPIRES_OFFSET,
+  CONTRACT_DATE_STARTED_OFFSET,
+} from './database/contractDiskLayout'
 import {
   buildContractEditorPatchedBuffer,
   clearContractUnhappinessAtRow,
@@ -7,7 +11,7 @@ import {
 } from './contractEditorSave'
 import {
   CONTRACT_ISSUE_BLOCK_OFFSET,
-  CONTRACT_UNHAPPINESS_BLOCK_LENGTH,
+  CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH,
 } from './database/contractDiskLayout'
 import type { BlockInfo, ContractRecord, ParsedDatabase, StaffRecord } from './database/types'
 
@@ -86,17 +90,44 @@ describe('contractEditorSave', () => {
     }
   })
 
-  it('clears contract issue block and transfer-request bit', () => {
+  it('clears contract complaint flags and transfer-request bit but preserves squad mirror bytes', () => {
     const archive = minimalContractArchive(0, 500)
     const base = 8
     archive.writeUInt8(0xcd, base + 70)
     archive.writeUInt8(0xef, base + 71)
+    archive.writeUInt8(9, base + 72)
     clearContractUnhappinessAtRow(archive, base)
-    for (let i = 0; i < CONTRACT_UNHAPPINESS_BLOCK_LENGTH; i++) {
+    for (let i = 0; i < CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH; i++) {
       expect(archive.readUInt8(base + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
-    expect(archive.readUInt8(base + 70)).toBe(0)
-    expect(archive.readUInt8(base + 71)).toBe(0)
+    expect(archive.readUInt8(base + 70)).toBe(0xcd)
+    expect(archive.readUInt8(base + 71)).toBe(0xef)
+    expect(archive.readUInt8(base + 72)).toBe(9)
     expect(archive.readUInt8(base + 78)).toBe(0)
+  })
+
+  it('writes contract start and expiry TCM dates', () => {
+    const archive = minimalContractArchive(0, 500)
+    const contractBlock: BlockInfo = {
+      name: 'contract.dat',
+      position: 0,
+      size: 88,
+      compressedSize: 88,
+    }
+    const db = fakeDb(0, 500, [contractBlock])
+    const base = 8
+    const built = buildContractEditorPatchedBuffer(
+      archive,
+      [contractBlock],
+      false,
+      db,
+      0,
+      {},
+      { date_started: '2002-07-01', contract_expires: '2006-06-30' },
+    )
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    expect(tcmDateToIso(built.buffer, base + CONTRACT_DATE_STARTED_OFFSET)).toBe('2002-07-01')
+    expect(tcmDateToIso(built.buffer, base + CONTRACT_DATE_EXPIRES_OFFSET)).toBe('2006-06-30')
   })
 })

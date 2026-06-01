@@ -15,6 +15,32 @@ export type ContractTypeCategoryId =
   | 'pt_trial'
   | 'pt_loan'
 
+/** Representative contract-type bytes for the editor (GK Save Game Editor parity). */
+export const CONTRACT_TYPE_EDITOR_OPTIONS: ReadonlyArray<{ byte: number; label: string }> = [
+  { byte: 0x01, label: 'Full time — monthly' },
+  { byte: 0x02, label: 'Full time — standard' },
+  { byte: 0x05, label: 'Full time — trial' },
+  { byte: 0x06, label: 'Full time — loan' },
+  { byte: 0x07, label: 'Full time — loan (alt)' },
+  { byte: 0x81, label: 'Part time — monthly' },
+  { byte: 0x82, label: 'Part time — standard' },
+  { byte: 0x85, label: 'Part time — trial' },
+  { byte: 0x86, label: 'Part time — loan' },
+]
+
+/** Squad-status bytes for contract editor dropdown (`contract.dat` byte 79). */
+export const SQUAD_STATUS_EDITOR_OPTIONS: ReadonlyArray<{ byte: number; label: string }> = [
+  { byte: 0, label: 'Not set' },
+  { byte: 1, label: 'Key player' },
+  { byte: 2, label: 'First team' },
+  { byte: 3, label: 'Squad player' },
+  { byte: 4, label: 'Future prospect' },
+  { byte: 5, label: 'Hot prospect' },
+  { byte: 6, label: 'Youngster' },
+  { byte: 7, label: 'Not wanted' },
+  { byte: 8, label: 'On loan' },
+]
+
 export const CONTRACT_TYPE_FILTER_OPTIONS: ReadonlyArray<{
   id: '' | ContractTypeCategoryId
   label: string

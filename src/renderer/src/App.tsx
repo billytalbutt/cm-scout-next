@@ -320,6 +320,7 @@ export function App() {
   const [csAssistsMin, setCsAssistsMin] = useState('')
   const [csAssistsMax, setCsAssistsMax] = useState('')
   const [csAppsMin, setCsAppsMin] = useState('')
+  const [csAvrMin, setCsAvrMin] = useState('')
   const [csLeagueGoalsMin, setCsLeagueGoalsMin] = useState('')
   const [csLeagueAssistsMin, setCsLeagueAssistsMin] = useState('')
   const [csCompetitionId, setCsCompetitionId] = useState('')
@@ -335,6 +336,7 @@ export function App() {
   const [euOnly, setEuOnly] = useState(false)
   const [bosmanOnly, setBosmanOnly] = useState(false)
   const [minReleaseClause, setMinReleaseClause] = useState(false)
+  const [unprotectedContractOnly, setUnprotectedContractOnly] = useState(false)
   const [expiresWithinMonths, setExpiresWithinMonths] = useState('')
   const [attrMins, setAttrMins] = useState<string[]>(() => Array.from({ length: 48 }, () => ''))
   /** Among attribute cells with a min &gt; 0, require at least this many to pass (empty = all must pass). */
@@ -633,6 +635,7 @@ export function App() {
     setCsAssistsMin('')
     setCsAssistsMax('')
     setCsAppsMin('')
+    setCsAvrMin('')
     setCsLeagueGoalsMin('')
     setCsLeagueAssistsMin('')
     setCsCompetitionId('')
@@ -702,6 +705,7 @@ export function App() {
       csAssistsMin,
       csAssistsMax,
       csAppsMin,
+      csAvrMin,
       csLeagueGoalsMin,
       csLeagueAssistsMin,
       csCompetitionId,
@@ -717,6 +721,7 @@ export function App() {
       euOnly,
       bosmanOnly,
       minReleaseClause,
+      unprotectedContractOnly,
       expiresWithinMonths,
       attrMins,
       attrMinMatchAtLeast,
@@ -752,6 +757,7 @@ export function App() {
       csAssistsMin,
       csAssistsMax,
       csAppsMin,
+      csAvrMin,
       csLeagueGoalsMin,
       csLeagueAssistsMin,
       csCompetitionId,
@@ -767,6 +773,7 @@ export function App() {
       euOnly,
       bosmanOnly,
       minReleaseClause,
+      unprotectedContractOnly,
       expiresWithinMonths,
       attrMins,
       attrMinMatchAtLeast,
@@ -1957,6 +1964,17 @@ export function App() {
                 />
                 Minimum fee release clause
               </label>
+              <label
+                className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300"
+                title="CM 01/02 post-2001 rule: after 3 years (signed under 28) or 2 years (signed at 28+), the player can be approached to sign during a transfer window."
+              >
+                <input
+                  type="checkbox"
+                  checked={unprotectedContractOnly}
+                  onChange={(e) => setUnprotectedContractOnly(e.target.checked)}
+                />
+                Unprotected contract (approach to sign)
+              </label>
               <label className="block">
                 <span className="filter-field-label-sm">
                   Contract expires within (months, ≥1, empty = any)
@@ -2087,6 +2105,18 @@ export function App() {
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
                   value={csAppsMin}
                   onChange={(e) => setCsAppsMin(e.target.value)}
+                />
+              </label>
+              <label>
+                <span className="filter-field-label">CS Avg rating min</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={10}
+                  step={0.1}
+                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1.5"
+                  value={csAvrMin}
+                  onChange={(e) => setCsAvrMin(e.target.value)}
                 />
               </label>
               <label>
@@ -3366,45 +3396,48 @@ export function App() {
                   <table className="w-full min-w-[16rem] border-collapse text-left text-[11px]">
                     <thead>
                       <tr className="border-b border-zinc-800 bg-zinc-950/80 text-zinc-500">
-                        <th className="px-2 py-1.5 font-medium">Club</th>
+                        <th className="px-2 py-1.5 font-medium">Competition</th>
                         <th className="px-2 py-1.5 text-right font-mono font-medium">Apps</th>
-                        <th className="px-2 py-1.5 text-right font-mono font-medium">Goals</th>
+                        <th className="px-2 py-1.5 text-right font-mono font-medium">Gls</th>
                         <th className="px-2 py-1.5 text-right font-mono font-medium">Ast</th>
+                        <th className="px-2 py-1.5 text-right font-mono font-medium">MoM</th>
                         <th className="px-2 py-1.5 text-right font-mono font-medium">Av.</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {profile.seasonStats.currentSeasonPerformance ? (
-                        <tr className="border-b border-zinc-800/40">
-                          <td
-                            className="max-w-[14rem] truncate px-2 py-1.5 text-zinc-100"
-                            title={profile.seasonStats.currentSeasonPerformance.label}
-                          >
-                            {profile.seasonStats.currentSeasonPerformance.label}
-                          </td>
-                          <td className="px-2 py-1.5 text-right font-mono text-emerald-200">
-                            {profile.seasonStats.currentSeasonPerformance.apps}
-                          </td>
-                          <td className="px-2 py-1.5 text-right font-mono text-emerald-200">
-                            {profile.seasonStats.currentSeasonPerformance.goals}
-                          </td>
-                          <td className="px-2 py-1.5 text-right">
-                            {formatProfileStatCell(profile.seasonStats.currentSeasonPerformance.assists)}
-                          </td>
-                          <td className="px-2 py-1.5 text-right">
-                            {formatProfileStatCell(
-                              profile.seasonStats.currentSeasonPerformance.averageRating,
-                              'rating',
-                            )}
-                          </td>
-                        </tr>
-                      ) : (
-                        <tr>
-                          <td colSpan={5} className="px-2 py-2.5 text-center text-zinc-500">
-                            Could not resolve current season from save date.
-                          </td>
-                        </tr>
-                      )}
+                      {(() => {
+                        const visible = (profile.seasonStats.cmHistoryScopes ?? []).filter(
+                          (s) => s.key === 'seniorClub' || s.apps > 0 || s.goals > 0 || s.assists > 0,
+                        )
+                        if (profile.seasonStats.cmHistoryAvailable && visible.length > 0) {
+                          return visible.map((s) => (
+                            <tr
+                              key={s.key}
+                              className={
+                                s.key === 'seniorClub'
+                                  ? 'border-t border-emerald-800/50 bg-emerald-950/40 font-semibold'
+                                  : 'border-b border-zinc-800/40'
+                              }
+                            >
+                              <td className="px-2 py-1.5 text-zinc-100">{s.label}</td>
+                              <td className="px-2 py-1.5 text-right font-mono text-emerald-200">{s.apps}</td>
+                              <td className="px-2 py-1.5 text-right font-mono text-emerald-200">{s.goals}</td>
+                              <td className="px-2 py-1.5 text-right">{formatProfileStatCell(s.assists)}</td>
+                              <td className="px-2 py-1.5 text-right">{formatProfileStatCell(s.mom ?? null)}</td>
+                              <td className="px-2 py-1.5 text-right">
+                                {formatProfileStatCell(s.averageRating, 'rating')}
+                              </td>
+                            </tr>
+                          ))
+                        }
+                        return (
+                          <tr>
+                            <td colSpan={6} className="px-2 py-2.5 text-center text-zinc-500">
+                              No current-season stats decoded for this player.
+                            </td>
+                          </tr>
+                        )
+                      })()}
                     </tbody>
                   </table>
                 </div>

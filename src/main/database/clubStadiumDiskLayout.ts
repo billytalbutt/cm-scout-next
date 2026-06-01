@@ -1,21 +1,18 @@
 /**
  * Byte offsets for editable `club.dat` / `stadium.dat` fields (CM0102Patcher TClub / TStadiums).
  */
-import { readCashDisplay, writeCashDisplay } from '../../shared/cm2LongFormat'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import { readArchiveBlock } from './parser'
 import { STADIUM_ROW_BYTES } from './stadiumRecords'
 import type { BlockInfo } from './types'
 import { findBlock, writeScalarAt, type DiskFieldKind } from './playerStaffDiskLayout'
 
-export type ClubDiskFieldKind = DiskFieldKind | 'cm2long'
+export type ClubDiskFieldKind = DiskFieldKind
 
 export type ClubDiskFieldMeta = {
   target: 'club' | 'stadium'
   offset: number
   kind: ClubDiskFieldKind
-  /** Multiply decoded normal units for UI (cash = 1000 → pounds). */
-  displayScale?: number
 }
 
 export const CLUB_CASH_OFF = 101
@@ -32,7 +29,7 @@ export const STADIUM_NEARBY_OFF = 72
 export const STADIUM_SOIL_HEATING_OFF = 77
 
 export const CLUB_EDITOR_DISK_FIELDS: Record<string, ClubDiskFieldMeta> = {
-  cash: { target: 'club', offset: CLUB_CASH_OFF, kind: 'cm2long', displayScale: 1000 },
+  cash: { target: 'club', offset: CLUB_CASH_OFF, kind: 'i32' },
   attendance: { target: 'club', offset: CLUB_ATTENDANCE_OFF, kind: 'i32' },
   min_attendance: { target: 'club', offset: CLUB_MIN_ATTENDANCE_OFF, kind: 'i32' },
   max_attendance: { target: 'club', offset: CLUB_MAX_ATTENDANCE_OFF, kind: 'i32' },
@@ -47,11 +44,10 @@ export const CLUB_EDITOR_DISK_FIELDS: Record<string, ClubDiskFieldMeta> = {
 
 export function readClubEditorDisplayAt(buf: Buffer, base: number, meta: ClubDiskFieldMeta): number {
   const abs = base + meta.offset
-  if (meta.kind === 'cm2long') {
-    return readCashDisplay(buf.readInt32LE(abs))
-  }
   if (meta.kind === 'u8') return buf.readUInt8(abs)
+  if (meta.kind === 'i8') return buf.readInt8(abs)
   if (meta.kind === 'u16') return buf.readUInt16LE(abs)
+  if (meta.kind === 'i16') return buf.readInt16LE(abs)
   return buf.readInt32LE(abs)
 }
 
@@ -62,11 +58,6 @@ export function writeClubEditorDisplayAt(
   displayValue: number,
 ): void {
   const abs = base + meta.offset
-  if (meta.kind === 'cm2long') {
-    const priorRaw = buf.readInt32LE(abs)
-    buf.writeInt32LE(writeCashDisplay(displayValue, priorRaw), abs)
-    return
-  }
   if (meta.kind === 'u8') {
     const v = Math.max(0, Math.min(255, Math.trunc(displayValue)))
     buf.writeUInt8(v, abs)

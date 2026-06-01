@@ -373,10 +373,29 @@ function buildProfileSeasonStats(
     perCompetitionTotals: null,
     perCompetitionStatsInSave: false,
     saveFilePerformance: null,
-    cmHistoryScopes: [],
-    cmHistoryAvailable: false,
+    cmHistoryScopes: (indexedSeason?.scopes ?? []).map((sc) => ({
+      key: sc.key,
+      label: sc.label,
+      apps: sc.apps,
+      goals: sc.goals,
+      assists: sc.assists,
+      averageRating: sc.averageRating,
+      source: sc.source,
+      mom: sc.mom,
+      dribbles: sc.dribbles,
+    })),
+    cmHistoryAvailable: indexedSeason?.available ?? false,
     cmHistorySeasonLabel,
-    cmCompetitionRows: [],
+    cmCompetitionRows: (indexedSeason?.byCompetition ?? []).map((c) => ({
+      competitionId: c.competitionId,
+      competitionName: c.competitionName,
+      apps: c.apps,
+      goals: c.goals,
+      assists: c.assists,
+      averageRating: c.averageRating,
+      mom: c.mom,
+      dribbles: c.dribbles,
+    })),
   }
 }
 

@@ -2,15 +2,10 @@ import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import {
-  cashLooksPlainOnDisk,
-  cashMatchesTargetPounds,
-  readCashDisplay,
-  writeCm0102CashToDisk,
-} from '../../shared/cm2LongFormat'
 import { CLUB_CASH_OFF } from './clubStadiumDiskLayout'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import {
+  clampClubCashPounds,
   clubCashAbsoluteOffset,
   patchClubCashOnArchive,
   verifyClubCashOnArchive,
@@ -30,44 +25,42 @@ function miniArchive(clubId: number, cashRaw: number): { buf: Buffer; blocks: Bl
   return { buf, blocks }
 }
 
-describe('clubCashPatch', () => {
-  it('patches plain £11m prior to £2bn and verifies', () => {
+describe('clubCashPatch (plain int32 pounds)', () => {
+  it('writes plain pounds directly and verifies', () => {
     const clubId = 42
-    const { buf, blocks } = miniArchive(clubId, 11_000_000)
-    const patched = patchClubCashOnArchive(buf, blocks, clubId, 2_000_000_000)
+    const { buf, blocks } = miniArchive(clubId, 72_000_000)
+    const patched = patchClubCashOnArchive(buf, blocks, clubId, 60_000_000)
     expect(patched.ok).toBe(true)
     const off = clubCashAbsoluteOffset(buf, blocks, clubId)
     expect(typeof off).toBe('number')
     if (typeof off !== 'number') return
-    expect(buf.readInt32LE(off)).toBe(2_000_000_000)
-    expect(verifyClubCashOnArchive(buf, blocks, clubId, 2_000_000_000).ok).toBe(true)
+    expect(buf.readInt32LE(off)).toBe(60_000_000)
+    expect(verifyClubCashOnArchive(buf, blocks, clubId, 60_000_000).ok).toBe(true)
   })
 
-  it('keeps packed CM2 encoding when prior cash was packed (Blackburn-style save)', () => {
+  it('reads the exact in-game balance back (e.g. £34,193,944)', () => {
     const clubId = 3
-    const packedPrior = writeCm0102CashToDisk(120_000_000)
-    const { buf, blocks } = miniArchive(clubId, packedPrior)
-    expect(cashLooksPlainOnDisk(packedPrior)).toBe(false)
-    const patched = patchClubCashOnArchive(buf, blocks, clubId, 99_000_000)
+    const { buf, blocks } = miniArchive(clubId, 34_193_944)
+    const off = clubCashAbsoluteOffset(buf, blocks, clubId)
+    if (typeof off !== 'number') return
+    expect(buf.readInt32LE(off)).toBe(34_193_944)
+  })
+
+  it('supports negative balances (club in debt)', () => {
+    const clubId = 9
+    const { buf, blocks } = miniArchive(clubId, 50_000_000)
+    const patched = patchClubCashOnArchive(buf, blocks, clubId, -5_250_000)
     expect(patched.ok).toBe(true)
     const off = clubCashAbsoluteOffset(buf, blocks, clubId)
     if (typeof off !== 'number') return
-    const raw = buf.readInt32LE(off)
-    expect(cashLooksPlainOnDisk(raw)).toBe(false)
-    expect(readCashDisplay(raw)).toBe(99_000_000)
-    expect(raw).not.toBe(99_000_000)
+    expect(buf.readInt32LE(off)).toBe(-5_250_000)
+    expect(verifyClubCashOnArchive(buf, blocks, clubId, -5_250_000).ok).toBe(true)
   })
 
-  it('accepts packed CM2 rounding for near-max bank balance', () => {
-    const target = 1_999_999_999
-    const packed = writeCm0102CashToDisk(target)
-    expect(readCashDisplay(packed)).toBe(1_999_999_000)
-    expect(cashMatchesTargetPounds(target, packed)).toBe(true)
-    const clubId = 9
-    const { buf, blocks } = miniArchive(clubId, writeCm0102CashToDisk(50_000_000))
-    const patched = patchClubCashOnArchive(buf, blocks, clubId, target)
-    expect(patched.ok).toBe(true)
-    expect(verifyClubCashOnArchive(buf, blocks, clubId, target).ok).toBe(true)
+  it('clamps to the ±£2bn int32-safe range', () => {
+    expect(clampClubCashPounds(5_000_000_000)).toBe(2_000_000_000)
+    expect(clampClubCashPounds(-5_000_000_000)).toBe(-2_000_000_000)
+    expect(clampClubCashPounds(34_193_944)).toBe(34_193_944)
   })
 
   it('survives writeFileSync + readFileSync round-trip', () => {
@@ -82,7 +75,7 @@ describe('clubCashPatch', () => {
       expect(verifyClubCashOnArchive(disk, blocks, clubId, 99_000_000).ok).toBe(true)
       const off = clubCashAbsoluteOffset(disk, blocks, clubId)
       if (typeof off === 'number') {
-        expect(readCashDisplay(disk.readInt32LE(off))).toBe(99_000_000)
+        expect(disk.readInt32LE(off)).toBe(99_000_000)
       }
     } finally {
       rmSync(dir, { recursive: true, force: true })

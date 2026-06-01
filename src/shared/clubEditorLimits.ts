@@ -1,12 +1,13 @@
 /**
  * CM0102-style limits for club / stadium editor fields.
- * Cash capped at £2bn (vanilla overflow without EnsureCashDoesNotResetToZero patch).
+ * Cash is a plain signed int32 in pounds; negatives are valid (club in debt).
+ * Capped at ±£2bn (vanilla overflow without EnsureCashDoesNotResetToZero patch).
  * Training 1–20 matches in-game facilities rating.
  */
 export type ClubEditorLimit = { min: number; max: number }
 
 export const CLUB_EDITOR_LIMITS: Record<string, ClubEditorLimit> = {
-  cash: { min: 0, max: 2_000_000_000 },
+  cash: { min: -2_000_000_000, max: 2_000_000_000 },
   attendance: { min: 0, max: 200_000 },
   min_attendance: { min: 0, max: 200_000 },
   max_attendance: { min: 0, max: 200_000 },

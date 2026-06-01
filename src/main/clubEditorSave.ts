@@ -1,4 +1,3 @@
-import { cashLooksPlainOnDisk, readCashDisplay } from '../shared/cm2LongFormat'
 import { clampClubEditorValue } from '../shared/clubEditorLimits'
 import type { BlockInfo, ParsedDatabase, StaffRecord } from './database/types'
 import { readArchiveBlock } from './database/parser'
@@ -34,8 +33,8 @@ export type ClubEditorSnapshot = {
   values: Record<string, number>
   /** Playable human manager's `club_job_id` when detected (informational). */
   humanManagedClubId: number | null
-  /** Raw `TClub.Cash` on disk for this club (debug / mismatch checks). */
-  cashOnDisk?: { raw: number; display: number; encoding: 'plain' | 'packed' }
+  /** `TClub.Cash` on disk for this club (plain int32 pounds; debug / mismatch checks). */
+  cashOnDisk?: { raw: number; display: number }
 }
 
 /** `TStaff` byte offset of `ClubJob` within a 110-byte staff row. */
@@ -120,7 +119,7 @@ export function buildClubEditorSnapshot(
     clubBuf != null && clubRowIdx != null
       ? clubBuf.readInt32LE(clubRowIdx * CLUB_ROW_BYTES + CLUB_CASH_OFF)
       : archiveBuffer.readInt32LE(bases.clubBase + CLUB_CASH_OFF)
-  const cashDisplay = readCashDisplay(cashRaw)
+  const cashDisplay = cashRaw
   const values = readEditorValuesAt(archiveBuffer, bases.clubBase, bases.stadiumBase)
   // Always trust decompressed club.dat for bank balance (never a stale in-archive slice).
   if (clubBuf != null && clubRowIdx != null) {
@@ -143,7 +142,6 @@ export function buildClubEditorSnapshot(
     cashOnDisk: {
       raw: cashRaw,
       display: cashDisplay,
-      encoding: cashLooksPlainOnDisk(cashRaw) ? 'plain' : 'packed',
     },
   }
 }

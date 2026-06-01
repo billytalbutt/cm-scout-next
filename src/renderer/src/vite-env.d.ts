@@ -151,10 +151,14 @@ declare global {
         name: string
         hasContract: boolean
         values: Record<string, number>
+        dateStartedIso: string | null
+        dateExpiresIso: string | null
+        hints?: Record<string, string>
       } | null>
       saveContractEdits: (
         staffIndex: number,
         changes: Record<string, number>,
+        dateChanges?: { date_started?: string | null; contract_expires?: string | null },
       ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
       getClubEditorSnapshot: (clubId: number) => Promise<
         | {
@@ -326,6 +330,8 @@ export interface ProfileSeasonStats {
     assists: number
     averageRating: number | null
     source: string
+    mom?: number
+    dribbles?: number | null
   }>
   cmHistoryAvailable: boolean
   /** e.g. `2005/06` from season year or save calendar year. */
@@ -336,6 +342,9 @@ export interface ProfileSeasonStats {
     apps: number
     goals: number
     assists: number
+    averageRating?: number | null
+    mom?: number
+    dribbles?: number | null
   }>
 }
 

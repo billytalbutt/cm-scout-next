@@ -3,6 +3,10 @@ import type { DiskFieldKind } from './playerStaffDiskLayout'
 
 export const CONTRACT_ROW_BYTES = 80
 
+/** `TContract.DateStarted` / `ContractExpires` — 8-byte TCMDate each (CM0102Patcher). */
+export const CONTRACT_DATE_STARTED_OFFSET = 37
+export const CONTRACT_DATE_EXPIRES_OFFSET = 45
+
 export const CONTRACT_DISK_FIELDS: Record<string, { offset: number; kind: DiskFieldKind }> = {
   wage: { offset: 12, kind: 'i32' },
   goal_bonus: { offset: 16, kind: 'i32' },
@@ -21,15 +25,16 @@ export const CONTRACT_DISK_FIELDS: Record<string, { offset: number; kind: DiskFi
   squad_status: { offset: 79, kind: 'u8' },
 }
 
-/**
- * GK editor “Contract → Unhappiness” block: `Unknown18_1` + `Unknown18_2` + `Unknown18_3` (18 bytes).
- * Includes complaints such as unfair treatment / rotation / squad depth (separate from `player.dat` squad number).
- */
+/** Complaint / issue flags cleared by GK “Contract → Unhappiness” (`Unknown18_1` + `Unknown18_2`). */
 export const CONTRACT_ISSUE_BLOCK_OFFSET = 54
+export const CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH = 16
+/** Full `Unknown18_*` span in `TContract` (includes bytes that mirror squad/shirt state — do not zero). */
 export const CONTRACT_UNHAPPINESS_BLOCK_LENGTH = 18
-/** @deprecated Use {@link CONTRACT_UNHAPPINESS_BLOCK_LENGTH} */
-export const CONTRACT_ISSUE_BLOCK_LENGTH = CONTRACT_UNHAPPINESS_BLOCK_LENGTH
-/** @deprecated Use {@link CONTRACT_UNHAPPINESS_BLOCK_LENGTH} */
-export const CONTRACT_UNHAPPINESS_FLAGS_LENGTH = CONTRACT_UNHAPPINESS_BLOCK_LENGTH
-/** `TContract.Unknown18_4` — cleared after the 18-byte complaint block. */
+/** @deprecated Use {@link CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH} for writes. */
+export const CONTRACT_ISSUE_BLOCK_LENGTH = CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH
+/** @deprecated Use {@link CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH} for writes. */
+export const CONTRACT_UNHAPPINESS_FLAGS_LENGTH = CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH
+/** `TContract.Unknown18_3` — often holds squad/shirt bytes; preserved on unhappiness clear. */
+export const CONTRACT_SQUAD_MIRROR_OFFSET = 70
+/** `TContract.Unknown18_4` — preserved on unhappiness clear (may duplicate shirt number). */
 export const CONTRACT_UNHAPPINESS_TAIL_OFFSET = 72

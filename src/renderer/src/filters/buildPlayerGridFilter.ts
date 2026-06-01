@@ -34,6 +34,7 @@ export type PlayerGridFilterBuildInput = {
   csAssistsMin: string
   csAssistsMax: string
   csAppsMin: string
+  csAvrMin: string
   csLeagueGoalsMin: string
   csLeagueAssistsMin: string
   csCompetitionId: string
@@ -49,6 +50,7 @@ export type PlayerGridFilterBuildInput = {
   euOnly: boolean
   bosmanOnly: boolean
   minReleaseClause: boolean
+  unprotectedContractOnly: boolean
   expiresWithinMonths: string
   attrMins: string[]
   attrMinMatchAtLeast: string
@@ -113,6 +115,7 @@ export function buildPlayerGridFilterPayload(input: PlayerGridFilterBuildInput):
   const csaMin = num(input.csAssistsMin)
   const csaMax = num(input.csAssistsMax)
   const csapMin = num(input.csAppsMin)
+  const csAvrMin = num(input.csAvrMin)
   const clgMin = num(input.csLeagueGoalsMin)
   const claMin = num(input.csLeagueAssistsMin)
   if (Number.isFinite(csgMin)) f.csGoalsMin = csgMin
@@ -120,6 +123,7 @@ export function buildPlayerGridFilterPayload(input: PlayerGridFilterBuildInput):
   if (Number.isFinite(csaMin)) f.csAssistsMin = csaMin
   if (Number.isFinite(csaMax)) f.csAssistsMax = csaMax
   if (Number.isFinite(csapMin)) f.csAppsMin = csapMin
+  if (Number.isFinite(csAvrMin)) f.csAvrMin = csAvrMin
   if (Number.isFinite(clgMin)) f.csLeagueGoalsMin = clgMin
   if (Number.isFinite(claMin)) f.csLeagueAssistsMin = claMin
   const compId = Math.floor(Number(input.csCompetitionId))
@@ -143,6 +147,7 @@ export function buildPlayerGridFilterPayload(input: PlayerGridFilterBuildInput):
   if (input.euOnly) f.euPassport = true
   if (input.bosmanOnly) f.leavingOnBosman = true
   if (input.minReleaseClause) f.hasMinimumReleaseClause = true
+  if (input.unprotectedContractOnly) f.contractUnprotected = true
   const expM = num(input.expiresWithinMonths)
   if (input.expiresWithinMonths.trim() !== '' && Number.isFinite(expM) && expM >= 1) {
     f.contractExpiresWithinMonths = Math.floor(expM)

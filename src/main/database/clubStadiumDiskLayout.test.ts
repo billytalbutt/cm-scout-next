@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CLUB_ROW_BYTES } from './clubRecords'
 import { STADIUM_ROW_BYTES } from './stadiumRecords'
-import { cm2LongDisplayToDisk, readCashDisplay } from '../../shared/cm2LongFormat'
 import {
   CLUB_CASH_OFF,
   CLUB_TRAINING_OFF,
@@ -33,7 +32,7 @@ describe('clubStadiumDiskLayout', () => {
     const stadiumBase = stadiumBlockPos + stadiumRow * STADIUM_ROW_BYTES
 
     archive.writeInt32LE(clubId, clubBase)
-    archive.writeInt32LE(cm2LongDisplayToDisk(1_000_000, 1000), clubBase + CLUB_CASH_OFF)
+    archive.writeInt32LE(1_000_000, clubBase + CLUB_CASH_OFF)
     archive.writeInt32LE(stadiumId, clubBase + 105)
 
     archive.writeInt32LE(stadiumId, stadiumBase)
@@ -48,12 +47,12 @@ describe('clubStadiumDiskLayout', () => {
     expect('clubBase' in resolved).toBe(true)
     if (!('clubBase' in resolved)) return
 
-    expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(1_000_000)
+    expect(archive.readInt32LE(clubBase + CLUB_CASH_OFF)).toBe(1_000_000)
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'cash', 100_000_000)
-    expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(100_000_000)
+    expect(archive.readInt32LE(clubBase + CLUB_CASH_OFF)).toBe(100_000_000)
   })
 
-  it('writes plain £2bn when prior cash on disk was plain int32 (e.g. £11m)', () => {
+  it('writes plain int32 pounds directly (e.g. £11m → £2bn)', () => {
     const clubId = 42
     const stadiumId = 7
     const archive = Buffer.alloc(2000)
@@ -75,11 +74,10 @@ describe('clubStadiumDiskLayout', () => {
     const resolved = resolveClubAndStadiumBases(archive, blocks, clubId, stadiumId)
     if (!('clubBase' in resolved)) throw new Error('resolve failed')
 
-    expect(readCashDisplay(archive.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(11_000_000)
+    expect(archive.readInt32LE(clubBase + CLUB_CASH_OFF)).toBe(11_000_000)
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'cash', 2_000_000_000)
     const raw = archive.readInt32LE(clubBase + CLUB_CASH_OFF)
     expect(raw).toBe(2_000_000_000)
-    expect(readCashDisplay(raw)).toBe(2_000_000_000)
 
     writeClubEditorField(archive, resolved.clubBase, resolved.stadiumBase, 'stadium_capacity', 55_000)
     expect(archive.readInt32LE(stadiumBase + 60)).toBe(55_000)

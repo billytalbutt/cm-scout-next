@@ -11,6 +11,40 @@ export function tcmDateToIso(buf: Buffer, off: number): string | null {
   return new Date(ms).toISOString().slice(0, 10)
 }
 
+function isLeapYear(y: number): boolean {
+  return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
+}
+
+/** Encode ISO calendar date as CM TCMDate (8 bytes: day-of-year−1, year, leap flag). */
+export function tcmDateBytesFromIso(iso: string | null, fallbackYear = 0): Buffer {
+  const out = Buffer.alloc(8)
+  if (iso) {
+    const [y, m, d] = iso.split('-').map(Number)
+    if ([y, m, d].every((n) => Number.isFinite(n))) {
+      const day = Math.floor((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 86400000)
+      out.writeInt16LE(day, 0)
+      out.writeInt16LE(y, 2)
+      out.writeInt32LE(isLeapYear(y) ? 1 : 0, 4)
+      return out
+    }
+  }
+  if (fallbackYear >= 1870 && fallbackYear < 2100) {
+    out.writeInt16LE(0, 0)
+    out.writeInt16LE(fallbackYear, 2)
+    out.writeInt32LE(isLeapYear(fallbackYear) ? 1 : 0, 4)
+  }
+  return out
+}
+
+/** Write TCMDate at `off` from `YYYY-MM-DD`, or zero the block when iso is empty/invalid. */
+export function writeTcmDateAtIso(buf: Buffer, off: number, iso: string | null | undefined): void {
+  if (!iso?.trim()) {
+    buf.fill(0, off, off + 8)
+    return
+  }
+  tcmDateBytesFromIso(iso.trim()).copy(buf, off)
+}
+
 /** Age in whole years on `gameDateIso`, using month/day (not just calendar year). */
 export function ageOnGameDate(dobIso: string | null, gameDateIso: string | null): number | null {
   if (!dobIso || !gameDateIso) return null

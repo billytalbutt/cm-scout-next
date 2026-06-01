@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   fmtContractBonus,
+  fmtContractBonusFieldHint,
   fmtWage,
   squadStatusLabel,
   transferArrangedLabel,
@@ -8,8 +9,10 @@ import {
 import { contractTypeLabel } from './contractTypes'
 
 describe('contractEditorDisplay', () => {
-  it('formats bonuses with -1 as None', () => {
+  it('formats bonus field hint for -1', () => {
     expect(fmtContractBonus(-1)).toBe('None')
+    expect(fmtContractBonusFieldHint(-1)).toContain('None')
+    expect(fmtContractBonusFieldHint(-1)).toContain('-1')
     expect(fmtContractBonus(500)).toBe('500')
   })
 

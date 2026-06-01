@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { buildPatchedArchiveBuffer } from './attributeEditorSave'
 import {
   CONTRACT_ISSUE_BLOCK_OFFSET,
-  CONTRACT_UNHAPPINESS_BLOCK_LENGTH,
+  CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH,
+  CONTRACT_SQUAD_MIRROR_OFFSET,
+  CONTRACT_UNHAPPINESS_TAIL_OFFSET,
 } from './database/contractDiskLayout'
 import { PLAYER_DISK_FIELDS, PLAYER_ROW_BYTES, STAFF_ROW_BYTES } from './database/playerStaffDiskLayout'
 import type { BlockInfo, ContractRecord, ParsedDatabase, PlayerRecord, StaffRecord } from './database/types'
@@ -16,6 +18,7 @@ function minimalArchive(): Buffer {
   const size = CONTRACT_ROW_POS + 80
   const buf = Buffer.alloc(size, 0)
   buf.writeInt32LE(1, PLAYER_BLOCK_POS)
+  buf.writeUInt8(11, PLAYER_BLOCK_POS + PLAYER_DISK_FIELDS.squad_number.offset)
   buf.writeInt8(8, PLAYER_BLOCK_POS + PLAYER_DISK_FIELDS.morale.offset)
   buf.writeInt32LE(1, STAFF_BLOCK_POS)
   buf.writeInt32LE(0, STAFF_BLOCK_POS + 0x61)
@@ -24,6 +27,8 @@ function minimalArchive(): Buffer {
   buf.writeInt32LE(0, CONTRACT_ROW_POS)
   buf.writeUInt8(0xff, CONTRACT_ROW_POS + 54)
   buf.writeUInt8(0x11, CONTRACT_ROW_POS + 71)
+  buf.writeUInt8(11, CONTRACT_ROW_POS + CONTRACT_SQUAD_MIRROR_OFFSET)
+  buf.writeUInt8(11, CONTRACT_ROW_POS + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
   buf.writeUInt8(8, CONTRACT_ROW_POS + 78)
   return buf
 }
@@ -63,9 +68,13 @@ describe('buildPatchedArchiveBuffer clearUnhappiness', () => {
     if (!built.ok) return
     expect(built.buffer.readInt8(PLAYER_BLOCK_POS + PLAYER_DISK_FIELDS.morale.offset)).toBe(20)
     expect(built.buffer.readUInt8(STAFF_BLOCK_POS + 0x60)).toBe(20)
-    for (let i = 0; i < CONTRACT_UNHAPPINESS_BLOCK_LENGTH; i++) {
+    for (let i = 0; i < CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH; i++) {
       expect(built.buffer.readUInt8(CONTRACT_ROW_POS + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
+    expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 71)).toBe(0x11)
+    expect(built.buffer.readUInt8(CONTRACT_ROW_POS + CONTRACT_SQUAD_MIRROR_OFFSET)).toBe(11)
+    expect(built.buffer.readUInt8(CONTRACT_ROW_POS + CONTRACT_UNHAPPINESS_TAIL_OFFSET)).toBe(11)
+    expect(built.buffer.readUInt8(PLAYER_BLOCK_POS + PLAYER_DISK_FIELDS.squad_number.offset)).toBe(11)
     expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 78)).toBe(0)
   })
 })

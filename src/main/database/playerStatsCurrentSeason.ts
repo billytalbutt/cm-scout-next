@@ -55,6 +55,10 @@ export interface PlayerCompSeasonRow {
   goals: number
   assists: number
   averageRating: number | null
+  /** Man-of-the-match count (current-season per-competition `.tmp`). */
+  mom?: number
+  /** Dribbles per game (decoded total ÷ apps). */
+  dribbles?: number | null
 }
 
 /** CM profile “scope” ids in `player stats history.tmp` (verified Cole). */
@@ -80,7 +84,11 @@ export interface CmScopeStatRow {
   goals: number
   assists: number
   averageRating: number | null
-  source: 'player stats history.tmp' | 'player stats.dat' | 'staff.dat'
+  source: 'player stats history.tmp' | 'player stats.dat' | 'staff.dat' | 'competition.tmp'
+  /** Man-of-the-match count (current-season per-competition `.tmp`). */
+  mom?: number
+  /** Dribbles per game (decoded total ÷ apps). */
+  dribbles?: number | null
 }
 
 export interface PlayerCurrentSeasonStats {

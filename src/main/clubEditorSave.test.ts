@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CLUB_ROW_BYTES } from './database/clubRecords'
 import { STADIUM_ROW_BYTES } from './database/stadiumRecords'
-import { cm2LongDisplayToDisk, readCashDisplay } from '../shared/cm2LongFormat'
 import { CLUB_CASH_OFF, CLUB_TRAINING_OFF } from './database/clubStadiumDiskLayout'
 import type { BlockInfo } from './database/types'
 import { buildPatchedArchiveForClubEdits } from './clubEditorSave'
@@ -19,7 +18,7 @@ describe('buildPatchedArchiveForClubEdits', () => {
     const stadiumBase = stadiumBlockPos + stadiumRow * STADIUM_ROW_BYTES
 
     archive.writeInt32LE(clubId, clubBase)
-    archive.writeInt32LE(cm2LongDisplayToDisk(5_000_000, 1000), clubBase + CLUB_CASH_OFF)
+    archive.writeInt32LE(5_000_000, clubBase + CLUB_CASH_OFF)
     archive.writeInt32LE(stadiumId, clubBase + 105)
     archive.writeInt32LE(stadiumId, stadiumBase)
     archive.writeInt32LE(40_000, stadiumBase + 60)
@@ -85,7 +84,7 @@ describe('buildPatchedArchiveForClubEdits', () => {
     if (!second.ok) return
 
     expect(second.buffer.readInt32LE(stadiumBase + 60)).toBe(88_000)
-    expect(readCashDisplay(second.buffer.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(2_000_000_000)
+    expect(second.buffer.readInt32LE(clubBase + CLUB_CASH_OFF)).toBe(2_000_000_000)
   })
 
   it('persists training facilities 1–20 on club row', () => {
@@ -154,6 +153,6 @@ describe('buildPatchedArchiveForClubEdits', () => {
     expect(patched.ok).toBe(true)
     if (!patched.ok) return
     expect(patched.buffer.readUInt8(clubBase + CLUB_TRAINING_OFF)).toBe(20)
-    expect(readCashDisplay(patched.buffer.readInt32LE(clubBase + CLUB_CASH_OFF))).toBe(25_000_000)
+    expect(patched.buffer.readInt32LE(clubBase + CLUB_CASH_OFF)).toBe(25_000_000)
   })
 })

@@ -1,19 +1,29 @@
-import { staffDisplayName } from './database/parser'
-import type { BlockInfo, ContractRecord, ParsedDatabase } from './database/types'
+import { writeTcmDateAtIso } from './database/dates'
+import { staffDisplayName } from './database/parser'import type { BlockInfo, ContractRecord, ParsedDatabase } from './database/types'
+import {
+  contractProtectionYearsAtSigning,
+  isContractUnprotected,
+  ageAtIsoDate,
+} from '../shared/contractProtection'
 import {
   contractTypeDisplay,
   fmtContractBonus,
+  fmtContractDateHint,
   fmtReleaseFee,
   fmtWage,
+  releaseClauseLabel,
   squadStatusLabel,
   transferArrangedLabel,
   yesNoLabel,
 } from '../shared/contractEditorDisplay'
 import {
+  CONTRACT_DATE_EXPIRES_OFFSET,
+  CONTRACT_DATE_STARTED_OFFSET,
   CONTRACT_DISK_FIELDS,
   CONTRACT_ISSUE_BLOCK_OFFSET,
   CONTRACT_ROW_BYTES,
-  CONTRACT_UNHAPPINESS_BLOCK_LENGTH,
+  CONTRACT_SQUAD_MIRROR_OFFSET,
+  CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH,
   CONTRACT_UNHAPPINESS_TAIL_OFFSET,
 } from './database/contractDiskLayout'
 import { findBlock, writeScalarAt } from './database/playerStaffDiskLayout'
@@ -23,9 +33,11 @@ export type ContractEditorSnapshot = {
   name: string
   hasContract: boolean
   values: Record<string, number>
+  /** ISO calendar dates from contract TCMDate fields. */
+  dateStartedIso: string | null
+  dateExpiresIso: string | null
   hints: Record<string, string>
 }
-
 const CONTRACT_RECORD_KEY: Record<string, keyof ContractRecord> = {
   wage: 'wage',
   goal_bonus: 'goal_bonus',
@@ -80,14 +92,19 @@ export function buildContractEditorSnapshot(db: ParsedDatabase, staffIndex: numb
   const c = db.contractsByStaffIndex.get(staffIndex)
   const values: Record<string, number> = {}
   const hints: Record<string, string> = {}
+  let dateStartedIso: string | null = null
+  let dateExpiresIso: string | null = null
   if (c) {
     for (const [diskKey, recordKey] of Object.entries(CONTRACT_RECORD_KEY)) {
       const v = c[recordKey]
       if (typeof v === 'number' && Number.isFinite(v)) values[diskKey] = v
     }
+    dateStartedIso = c.date_started_iso
+    dateExpiresIso = c.contract_expires_iso
     hints.wage = fmtWage(c.wage)
     hints.goal_bonus = fmtContractBonus(c.goal_bonus)
     hints.assist_bonus = fmtContractBonus(c.assist_bonus)
+    hints.clean_sheet_bonus = fmtContractBonus(c.clean_sheet_bonus)
     hints.release_fee = fmtReleaseFee(c.release_fee)
     hints.contract_type = contractTypeDisplay(c.contract_type)
     hints.squad_status = squadStatusLabel(c.squad_status)
@@ -95,14 +112,36 @@ export function buildContractEditorSnapshot(db: ParsedDatabase, staffIndex: numb
     hints.transfer_arranged_for = transferArrangedLabel(c.transfer_arranged_for, arrangedName)
     hints.leaving_on_bosman = yesNoLabel(c.leaving_on_bosman)
     hints.minimum_fee_rc = yesNoLabel(c.minimum_fee_rc)
+    hints.non_promotion_rc = releaseClauseLabel(c.non_promotion_rc)
+    hints.non_playing_rc = releaseClauseLabel(c.non_playing_rc)
+    hints.relegation_rc = releaseClauseLabel(c.relegation_rc)
+    hints.manager_job_rc = releaseClauseLabel(c.manager_job_rc)
+    hints.date_started = fmtContractDateHint(dateStartedIso)
+    hints.contract_expires = fmtContractDateHint(dateExpiresIso, db.gameDateIso)
+    if (dateStartedIso && db.gameDateIso) {
+      const ageAtSigning = ageAtIsoDate(staff, dateStartedIso)
+      if (ageAtSigning != null) {
+        const years = contractProtectionYearsAtSigning(ageAtSigning)
+        hints.contract_protection = isContractUnprotected(c, staff, db.gameDateIso)
+          ? 'Unprotected — can be approached to sign in a transfer window'
+          : `Protected — ${years} years from start (${fmtContractDateHint(dateStartedIso)})`
+      }
+    }
   }
   return {
     staffIndex,
     name: staffDisplayName(staff, db.firstNames, db.secondNames, db.commonNames),
     hasContract: !!c,
     values,
+    dateStartedIso,
+    dateExpiresIso,
     hints,
   }
+}
+
+export type ContractEditorDateChanges = {
+  date_started?: string | null
+  contract_expires?: string | null
 }
 
 export function buildContractEditorPatchedBuffer(
@@ -112,6 +151,7 @@ export function buildContractEditorPatchedBuffer(
   db: ParsedDatabase,
   staffIndex: number,
   changes: Record<string, number>,
+  dateChanges?: ContractEditorDateChanges,
 ): { ok: true; buffer: Buffer } | { ok: false; error: string } {
   if (compressed) {
     return { ok: false, error: 'Contract editing requires an uncompressed save.' }
@@ -130,6 +170,12 @@ export function buildContractEditorPatchedBuffer(
     if (!meta || !Number.isFinite(rawVal)) continue
     writeScalarAt(out, base + meta.offset, meta.kind, Number(rawVal))
   }
+  if (dateChanges && 'date_started' in dateChanges) {
+    writeTcmDateAtIso(out, base + CONTRACT_DATE_STARTED_OFFSET, dateChanges.date_started)
+  }
+  if (dateChanges && 'contract_expires' in dateChanges) {
+    writeTcmDateAtIso(out, base + CONTRACT_DATE_EXPIRES_OFFSET, dateChanges.contract_expires)
+  }
   return { ok: true, buffer: out }
 }
 
@@ -142,16 +188,25 @@ export function clearTransferRequestAtContractRow(buf: Buffer, contractRowAbs: n
 
 /**
  * Clear in-game player issue / unhappiness data on a contract row.
- * Matches GK Save Game Editor “Contract → Unhappiness” (zeros the 18-byte issue block).
+ * Zeros complaint flags (`Unknown18_1` + `Unknown18_2`, bytes 54–69). Bytes 70–72 are preserved —
+ * on real saves they often carry squad/shirt state; zeroing them scrambles squad numbers in CM.
  */
 export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: number): void {
+  const squadMirror0 = buf.readUInt8(contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET)
+  const squadMirror1 = buf.readUInt8(contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET + 1)
+  const squadMirrorTail =
+    contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET < buf.length
+      ? buf.readUInt8(contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
+      : 0
   buf.fill(
     0,
     contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET,
-    contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET + CONTRACT_UNHAPPINESS_BLOCK_LENGTH,
+    contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET + CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH,
   )
+  buf.writeUInt8(squadMirror0, contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET)
+  buf.writeUInt8(squadMirror1, contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET + 1)
   if (contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET < buf.length) {
-    buf.writeUInt8(0, contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
+    buf.writeUInt8(squadMirrorTail, contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
   }
   clearTransferRequestAtContractRow(buf, contractRowAbs)
 }

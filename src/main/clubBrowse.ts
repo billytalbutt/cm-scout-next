@@ -64,7 +64,7 @@ export interface ClubStaffRow {
 }
 
 /** `staff.club_job_id` and `contract.club_id` can disagree on some saves (see profilePayload). */
-function staffEmployedAtClub(db: ParsedDatabase, staffIndex: number, clubId: number): boolean {
+export function staffEmployedAtClub(db: ParsedDatabase, staffIndex: number, clubId: number): boolean {
   const s = db.staff[staffIndex]
   if (!s) return false
   if (s.club_job_id === clubId) return true

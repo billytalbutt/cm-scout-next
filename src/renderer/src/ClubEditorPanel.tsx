@@ -21,7 +21,7 @@ export type ClubEditorSnapshot = {
   stadiumName: string
   values: Record<string, number>
   humanManagedClubId?: number | null
-  cashOnDisk?: { raw: number; display: number; encoding: 'plain' | 'packed' }
+  cashOnDisk?: { raw: number; display: number }
 }
 
 function FieldGrid({
@@ -406,7 +406,7 @@ export function ClubEditorPanel({
             </p>
             {snap.cashOnDisk && (
               <p className="mt-1 font-mono text-[10px] text-zinc-600">
-                On disk: £{snap.cashOnDisk.display.toLocaleString()} ({snap.cashOnDisk.encoding} int32 @ club.dat+101)
+                On disk: £{snap.cashOnDisk.display.toLocaleString()} (int32 @ club.dat+101)
               </p>
             )}
           </div>
@@ -445,17 +445,22 @@ export function ClubEditorPanel({
           </div>
 
           <label
-            className="flex items-center gap-2 text-xs text-zinc-300"
-            title="Sets morale to Superb (20), clears contract issue flags, and clears transfer requests for every playable squad player at this club. Saves a new file — load that save in CM to apply."
+            className="flex flex-col gap-1 text-xs text-zinc-300"
+            title="Sets morale to Superb (20), clears contract issue flags, and clears transfer requests for every player at this club (employed players plus club.dat squad slots). Quit CM before saving in-place."
           >
-            <input
-              type="checkbox"
-              checked={clearSquadUnhappiness}
-              disabled={saving}
-              onChange={(e) => setClearSquadUnhappiness(e.target.checked)}
-              className="rounded border-zinc-600"
-            />
-            Clear all squad unhappiness on save
+            <span className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={clearSquadUnhappiness}
+                disabled={saving}
+                onChange={(e) => setClearSquadUnhappiness(e.target.checked)}
+                className="rounded border-zinc-600"
+              />
+              Clear all squad unhappiness on save
+            </span>
+            <span className="pl-5 text-xs font-normal text-zinc-500">
+              Every player at this club, including anyone CM lists in the squad but not shown in Merlin’s table above.
+            </span>
           </label>
 
           <div className="flex flex-wrap items-center gap-2">
