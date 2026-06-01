@@ -11,6 +11,8 @@ export type PitchSlot = {
   arrowTargetRow?: TacticalRowId | null
   /** Horizontal target on that row (enables diagonal arrows). */
   arrowTargetX?: number | null
+  /** When false, arrow ends on the plane centre (straight lane / between players). */
+  arrowTargetAttachPlayer?: boolean | null
 }
 
 export type TacticsPlayerAssignment = {
@@ -349,7 +351,7 @@ function redistributeRow(slots: PitchSlot[], rowId: TacticalRowId): PitchSlot[] 
   const y = tacticalRowY(rowId)
   if (rowId === 'gk') {
     const keep = slots[0]!
-    return [{ ...keep, y, x: PITCH_COLUMNS[2], role: 'GK', arrowTargetRow: null, arrowTargetX: null }]
+    return [{ ...keep, y, x: PITCH_COLUMNS[2], role: 'GK', arrowTargetRow: null, arrowTargetX: null, arrowTargetAttachPlayer: null }]
   }
   const order = slots.map((_, i) => i).sort((a, b) => slots[a]!.x - slots[b]!.x)
   const sorted = order.map((i) => slots[i]!)
@@ -418,6 +420,7 @@ export function pitchSlotsFromPreset(preset: TacticPreset): PitchSlot[] {
       arrow: s.arrow ?? 'none',
       arrowTargetRow: s.arrowTargetRow ?? null,
       arrowTargetX: s.arrowTargetX ?? null,
+      arrowTargetAttachPlayer: s.arrowTargetAttachPlayer ?? null,
     })),
   )
 }

@@ -173,7 +173,7 @@ export function TacticsLabPanel({
         }
         const initial = {
           slotId: slot.id,
-          target: snapArrowDragTarget(slot.x, slot.y, pitchSlots, slot.id),
+          target: snapArrowDragTarget(slot.x, slot.x, slot.y, pitchSlots, slot.id),
         }
         arrowPreviewRef.current = initial
         setArrowPreview(initial)
@@ -209,7 +209,7 @@ export function TacticsLabPanel({
         const d = arrowDragRef.current
         if (!d) return
         const { x, y } = pointerToPitchNorm(pitch, e.clientX, e.clientY)
-        const next = { slotId: d.id, target: snapArrowDragTarget(x, y, pitchSlots, d.id) }
+        const next = { slotId: d.id, target: snapArrowDragTarget(d.fromX, x, y, pitchSlots, d.id) }
         arrowPreviewRef.current = next
         setArrowPreview(next)
         return
@@ -250,13 +250,14 @@ export function TacticsLabPanel({
             const target =
               preview?.slotId === d.id
                 ? preview.target
-                : snapArrowDragTarget(s.x, s.y, prev, d.id)
+                : snapArrowDragTarget(d.fromX, s.x, s.y, prev, d.id)
             const arrow = movementArrowForDrag(d.fromRow, d.fromX, target)
             return {
               ...s,
               arrow,
               arrowTargetRow: arrow === 'none' ? null : target.rowId,
               arrowTargetX: arrow === 'none' ? null : target.x,
+              arrowTargetAttachPlayer: arrow === 'none' ? null : target.attachToPlayer,
             }
           }),
         )
@@ -270,7 +271,9 @@ export function TacticsLabPanel({
       if (!d.moved) {
         onPitchSlotsChange((prev) =>
           prev.map((s) =>
-            s.id === d.id ? { ...s, arrow: 'none', arrowTargetRow: null, arrowTargetX: null } : s,
+            s.id === d.id
+              ? { ...s, arrow: 'none', arrowTargetRow: null, arrowTargetX: null, arrowTargetAttachPlayer: null }
+              : s,
           ),
         )
         return
@@ -292,6 +295,7 @@ export function TacticsLabPanel({
       arrowPreview.target.rowId,
       arrowPreview.target.x,
       pitchSlots,
+      arrowPreview.target.attachToPlayer,
     )
     return seg ? [seg] : []
   }, [arrowPreview, pitchSlots])
@@ -308,6 +312,7 @@ export function TacticsLabPanel({
           slot.arrowTargetRow,
           slot.arrowTargetX ?? slot.x,
           pitchSlots,
+          slot.arrowTargetAttachPlayer,
         )
         return seg ? [seg] : []
       }),
@@ -319,8 +324,9 @@ export function TacticsLabPanel({
       <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-[11px] leading-snug text-zinc-500">
         <span className="font-medium text-zinc-300">Tactics Lab</span> —{' '}
         <span className="text-zinc-400">Left-click and drag</span> to move players between snap positions.{' '}
-        <span className="text-zinc-400">Right-click and drag</span> to draw a movement arrow to any line (player stays
-        put). Quick <span className="text-zinc-400">left-click</span> without dragging clears an arrow.
+        <span className="text-zinc-400">Right-click and drag</span> straight up/down for a lane arrow (centre circle / between players); drag
+        sideways onto a player to attach to them. Quick <span className="text-zinc-400">left-click</span> without dragging
+        clears an arrow.
       </div>
       {loadInfo && (
         <TacticsClubPicker

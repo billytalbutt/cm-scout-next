@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeMovementArrowLine,
+  isStraightForwardDrag,
+  laneXForSource,
   movementArrowForDrag,
   snapArrowDragTarget,
 } from './tacticsArrowDrag'
@@ -28,35 +30,84 @@ describe('computeMovementArrow', () => {
 
 describe('snapArrowDragTarget', () => {
   it('snaps to nearest grid column on the row', () => {
-    const t = snapArrowDragTarget(0.72, 0.64)
+    const t = snapArrowDragTarget(0.5, 0.72, 0.64)
     expect(t.x).toBe(0.7)
+    expect(t.attachToPlayer).toBe(false)
     expect(t.rowId).toBe('am')
   })
 
-  it('snaps to an existing player on the target row', () => {
+  it('keeps straight-forward lane on empty plane even with a player in that column', () => {
     const slots: PitchSlot[] = [
-      { id: 'a', role: 'AMC', x: 0.4, y: 0.64, arrow: 'none' },
+      { id: 'src', role: 'DMC', x: 0.5, y: 0.4, arrow: 'none' },
+      { id: 'mc', role: 'MC', x: 0.5, y: 0.52, arrow: 'none' },
     ]
-    const t = snapArrowDragTarget(0.42, 0.64, slots, 'src')
-    expect(t.x).toBe(0.4)
+    const t = snapArrowDragTarget(0.5, 0.51, 0.52, slots, 'src')
+    expect(t.x).toBe(0.5)
+    expect(t.attachToPlayer).toBe(false)
+  })
+
+  it('attaches when deliberately aimed at a player off the source lane', () => {
+    const slots: PitchSlot[] = [
+      { id: 'src', role: 'MC', x: 0.4, y: 0.52, arrow: 'none' },
+      { id: 'am', role: 'AMC', x: 0.3, y: 0.64, arrow: 'none' },
+    ]
+    const t = snapArrowDragTarget(0.4, 0.31, 0.64, slots, 'src')
+    expect(t.x).toBe(0.3)
+    expect(t.attachToPlayer).toBe(true)
+  })
+
+  it('lands on empty plane between two wide players', () => {
+    const slots: PitchSlot[] = [
+      { id: 'src', role: 'MC', x: 0.4, y: 0.52, arrow: 'none' },
+      { id: 'aml', role: 'AML', x: 0.3, y: 0.64, arrow: 'none' },
+      { id: 'amr', role: 'AMR', x: 0.7, y: 0.64, arrow: 'none' },
+    ]
+    const t = snapArrowDragTarget(0.4, 0.5, 0.64, slots, 'src')
+    expect(t.x).toBe(0.5)
+    expect(t.attachToPlayer).toBe(false)
+  })
+})
+
+describe('isStraightForwardDrag', () => {
+  it('detects vertical drag in source lane', () => {
+    expect(isStraightForwardDrag(0.4, 0.43)).toBe(true)
+    expect(isStraightForwardDrag(0.4, 0.5)).toBe(false)
+  })
+})
+
+describe('laneXForSource', () => {
+  it('snaps source x to grid lane', () => {
+    expect(laneXForSource(0.42)).toBe(0.4)
   })
 })
 
 describe('computeMovementArrowLine', () => {
   it('starts and ends on icon edges, not centres', () => {
-    const line = computeMovementArrowLine('t', 'src', 0.5, 0.52, 'am', 0.5, [])
+    const line = computeMovementArrowLine('t', 'src', 0.5, 0.52, 'am', 0.5, [], false)
     expect(line).not.toBeNull()
     if (!line) return
     expect(line.y1).toBeGreaterThan((1 - 0.52) * 100)
     expect(line.y2).toBeLessThan(line.y1)
   })
 
-  it('targets occupied cell at the near edge of the other icon', () => {
+  it('ends at plane centre when attachToPlayer is false', () => {
+    const slots: PitchSlot[] = [
+      { id: 'src', role: 'DMC', x: 0.5, y: 0.4, arrow: 'none' },
+      { id: 'mc', role: 'MC', x: 0.5, y: 0.52, arrow: 'none' },
+    ]
+    const line = computeMovementArrowLine('t', 'src', 0.5, 0.4, 'mc', 0.5, slots, false)
+    expect(line).not.toBeNull()
+    if (!line) return
+    expect(line.x2).toBeCloseTo(50, 0)
+    expect(line.y2).toBeCloseTo((1 - 0.52) * 100, 0)
+  })
+
+  it('targets occupied cell at the near edge when attachToPlayer is true', () => {
     const slots: PitchSlot[] = [
       { id: 'src', role: 'MC', x: 0.5, y: 0.52, arrow: 'none' },
       { id: 'tgt', role: 'AMC', x: 0.5, y: 0.64, arrow: 'none' },
     ]
-    const line = computeMovementArrowLine('t', 'src', 0.5, 0.52, 'am', 0.5, slots)
+    const line = computeMovementArrowLine('t', 'src', 0.5, 0.52, 'am', 0.5, slots, true)
     expect(line).not.toBeNull()
     if (!line) return
     const targetCentreY = (1 - 0.64) * 100
@@ -66,7 +117,7 @@ describe('computeMovementArrowLine', () => {
 
 describe('movementArrowForDrag', () => {
   it('derives diagonal arrow from grid target', () => {
-    const target = snapArrowDragTarget(0.1, 0.64)
+    const target = snapArrowDragTarget(0.5, 0.1, 0.64)
     expect(movementArrowForDrag('mc', 0.5, target)).toBe('forward-left')
   })
 })

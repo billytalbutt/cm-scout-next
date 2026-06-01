@@ -15,6 +15,8 @@ export type ArrowDragTarget = {
   column: PitchColumnIndex
   x: number
   y: number
+  /** When false, arrow ends at the plane centre even if a player occupies that column. */
+  attachToPlayer: boolean
 }
 
 /** Grid X snap points for movement arrows (5 columns + half-space / narrow positions). */
@@ -24,7 +26,21 @@ export const ARROW_SNAP_X = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9] as con
 const ICON_RX_PCT = 3.6
 const ICON_RY_PCT = 2.4
 
-const ROW_X_MATCH = 0.1
+/** Pointer stays this close to source X → straight-forward lane (empty plane, not player magnet). */
+const STRAIGHT_FORWARD_X = 0.085
+
+/** Pointer must be this close to a player to deliberately attach the arrowhead. */
+const PLAYER_AIM_X = 0.07
+
+const ROW_X_MATCH = 0.06
+
+export function laneXForSource(fromX: number): number {
+  return snapTo(fromX, ARROW_SNAP_X)
+}
+
+export function isStraightForwardDrag(fromX: number, pointerX: number): boolean {
+  return Math.abs(pointerX - fromX) < STRAIGHT_FORWARD_X
+}
 
 export function findSlotOnRow(
   slots: PitchSlot[],
@@ -40,30 +56,67 @@ export function findSlotOnRow(
   )
 }
 
-/** Snap pointer to tactical row + nearest grid column (or existing player on that row). */
+/**
+ * Snap pointer to tactical row + column.
+ * Straight-forward drags keep the source lane and land on an empty plane (centre circle, between players).
+ * Deliberate horizontal aim toward a player attaches the arrowhead to them.
+ */
 export function snapArrowDragTarget(
-  x: number,
-  y: number,
+  fromX: number,
+  pointerX: number,
+  pointerY: number,
   slots: PitchSlot[] = [],
   excludeSlotId?: string,
 ): ArrowDragTarget {
-  const rowId = tacticalRowForY(y)
+  const rowId = tacticalRowForY(pointerY)
   const rowY = tacticalRowY(rowId)
-  let snappedX = snapTo(x, ARROW_SNAP_X)
-
-  const occupant = slots.find(
-    (s) =>
-      s.id !== excludeSlotId &&
-      tacticalRowForY(s.y) === rowId &&
-      Math.abs(x - s.x) < ROW_X_MATCH,
+  const rowSlots = slots.filter(
+    (s) => s.id !== excludeSlotId && tacticalRowForY(s.y) === rowId,
   )
-  if (occupant) snappedX = occupant.x
+
+  if (isStraightForwardDrag(fromX, pointerX)) {
+    const laneX = laneXForSource(fromX)
+    return {
+      rowId,
+      column: nearestColumnIndex(laneX),
+      x: laneX,
+      y: rowY,
+      attachToPlayer: false,
+    }
+  }
+
+  const gridX = snapTo(pointerX, ARROW_SNAP_X)
+  let closest: PitchSlot | undefined
+  let closestDist = Infinity
+  for (const s of rowSlots) {
+    const d = Math.abs(pointerX - s.x)
+    if (d < closestDist) {
+      closestDist = d
+      closest = s
+    }
+  }
+
+  const distToGrid = Math.abs(pointerX - gridX)
+  if (
+    closest &&
+    closestDist < PLAYER_AIM_X &&
+    closestDist + 0.015 < distToGrid
+  ) {
+    return {
+      rowId,
+      column: nearestColumnIndex(closest.x),
+      x: closest.x,
+      y: rowY,
+      attachToPlayer: true,
+    }
+  }
 
   return {
     rowId,
-    column: nearestColumnIndex(snappedX),
-    x: snappedX,
+    column: nearestColumnIndex(gridX),
+    x: gridX,
     y: rowY,
+    attachToPlayer: false,
   }
 }
 
@@ -73,6 +126,17 @@ export function movementArrowForDrag(
   target: ArrowDragTarget,
 ): TacticArrow {
   return computeMovementArrow(fromRow, target.rowId, fromX, target.x)
+}
+
+/** Legacy saves without attach flag: straight lane targets stay on the plane. */
+export function resolveArrowAttachToPlayer(
+  fromX: number,
+  targetX: number,
+  attachToPlayer: boolean | null | undefined,
+): boolean {
+  if (attachToPlayer === true) return true
+  if (attachToPlayer === false) return false
+  return Math.abs(targetX - laneXForSource(fromX)) > 0.03
 }
 
 function screenPctFromPitch(pitchX: number, pitchY: number): { x: number; y: number } {
@@ -107,7 +171,7 @@ export type ArrowLineSegment = {
 
 /**
  * CM-style movement arrow: dotted line from source icon edge to target plane centre
- * or the near edge of an occupied target icon (arrowhead sits at line end only).
+ * or the near edge of an occupied target icon when deliberately aimed at a player.
  */
 export function computeMovementArrowLine(
   key: string,
@@ -117,12 +181,14 @@ export function computeMovementArrowLine(
   targetRow: TacticalRowId | null | undefined,
   targetX: number | null | undefined,
   slots: PitchSlot[],
+  attachToPlayer?: boolean | null,
 ): ArrowLineSegment | null {
   if (!targetRow || targetX == null) return null
   const toY = tacticalRowY(targetRow)
   if (Math.abs(toY - fromY) < 0.015 && Math.abs(targetX - fromX) < 0.06) return null
 
-  const occupant = findSlotOnRow(slots, targetRow, targetX, fromSlotId)
+  const attach = resolveArrowAttachToPlayer(fromX, targetX, attachToPlayer)
+  const occupant = attach ? findSlotOnRow(slots, targetRow, targetX, fromSlotId) : undefined
   const targetCenterX = occupant?.x ?? targetX
   const targetCenterY = toY
 
