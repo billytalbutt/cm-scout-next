@@ -135,7 +135,14 @@ contextBridge.exposeInMainWorld('cmapi', {
     staffIndex: number,
     changes: Record<string, number>,
     dateChanges?: { date_started?: string | null; contract_expires?: string | null },
-  ) => ipcRenderer.invoke('save-contract-edits', { staffIndex, changes, dateChanges }),
+    options?: { resetApproachProtection?: boolean },
+  ) =>
+    ipcRenderer.invoke('save-contract-edits', {
+      staffIndex,
+      changes,
+      dateChanges,
+      resetApproachProtection: options?.resetApproachProtection === true,
+    }),
   getClubEditorSnapshot: (clubId: number) => ipcRenderer.invoke('get-club-editor-snapshot', clubId),
   saveClubEdits: (
     clubId: number,

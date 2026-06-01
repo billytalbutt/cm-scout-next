@@ -66,6 +66,7 @@ function fakeDb(staffIndex: number, wage: number, blocks: BlockInfo[]): ParsedDa
     contractsByStaffIndex: new Map([[staffIndex, contract]]),
     blocks,
     compressed: false,
+    gameDateIso: '2012-08-01',
   } as ParsedDatabase
 }
 
@@ -129,5 +130,31 @@ describe('contractEditorSave', () => {
     if (!built.ok) return
     expect(tcmDateToIso(built.buffer, base + CONTRACT_DATE_STARTED_OFFSET)).toBe('2002-07-01')
     expect(tcmDateToIso(built.buffer, base + CONTRACT_DATE_EXPIRES_OFFSET)).toBe('2006-06-30')
+  })
+
+  it('resetApproachProtection sets contract start to save game date', () => {
+    const archive = minimalContractArchive(0, 500)
+    const contractBlock: BlockInfo = {
+      name: 'contract.dat',
+      position: 0,
+      size: 88,
+      compressedSize: 88,
+    }
+    const db = fakeDb(0, 500, [contractBlock])
+    const base = 8
+    const built = buildContractEditorPatchedBuffer(
+      archive,
+      [contractBlock],
+      false,
+      db,
+      0,
+      {},
+      { contract_expires: '2015-06-30' },
+      { resetApproachProtection: true },
+    )
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    expect(tcmDateToIso(built.buffer, base + CONTRACT_DATE_STARTED_OFFSET)).toBe('2012-08-01')
+    expect(tcmDateToIso(built.buffer, base + CONTRACT_DATE_EXPIRES_OFFSET)).toBe('2015-06-30')
   })
 })

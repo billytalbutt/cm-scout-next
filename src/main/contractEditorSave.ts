@@ -3,6 +3,7 @@ import { staffDisplayName } from './database/parser'
 import type { BlockInfo, ContractRecord, ParsedDatabase } from './database/types'
 import {
   contractProtectionYearsAtSigning,
+  contractStartIsoForApproachProtection,
   isContractUnprotected,
   ageAtIsoDate,
 } from '../shared/contractProtection'
@@ -37,6 +38,8 @@ export type ContractEditorSnapshot = {
   /** ISO calendar dates from contract TCMDate fields. */
   dateStartedIso: string | null
   dateExpiresIso: string | null
+  /** Loaded save date — used to reset approach-protection window. */
+  gameDateIso: string | null
   hints: Record<string, string>
 }
 const CONTRACT_RECORD_KEY: Record<string, keyof ContractRecord> = {
@@ -138,6 +141,7 @@ export function buildContractEditorSnapshot(db: ParsedDatabase, staffIndex: numb
     values,
     dateStartedIso,
     dateExpiresIso,
+    gameDateIso: db.gameDateIso ?? null,
     hints,
   }
 }
@@ -145,6 +149,19 @@ export function buildContractEditorSnapshot(db: ParsedDatabase, staffIndex: numb
 export type ContractEditorDateChanges = {
   date_started?: string | null
   contract_expires?: string | null
+}
+
+/** Merge protection reset into contract date writes (sets start date to save game date). */
+export function mergeContractDateChanges(
+  dateChanges: ContractEditorDateChanges | undefined,
+  gameDateIso: string | null | undefined,
+  resetApproachProtection: boolean,
+): ContractEditorDateChanges | undefined {
+  const startIso = resetApproachProtection ? contractStartIsoForApproachProtection(gameDateIso) : null
+  if (!dateChanges && !startIso) return undefined
+  const out: ContractEditorDateChanges = { ...dateChanges }
+  if (startIso) out.date_started = startIso
+  return out
 }
 
 export function buildContractEditorPatchedBuffer(
@@ -155,6 +172,7 @@ export function buildContractEditorPatchedBuffer(
   staffIndex: number,
   changes: Record<string, number>,
   dateChanges?: ContractEditorDateChanges,
+  opts?: { resetApproachProtection?: boolean },
 ): { ok: true; buffer: Buffer } | { ok: false; error: string } {
   if (compressed) {
     return { ok: false, error: 'Contract editing requires an uncompressed save.' }
@@ -173,11 +191,12 @@ export function buildContractEditorPatchedBuffer(
     if (!meta || !Number.isFinite(rawVal)) continue
     writeScalarAt(out, base + meta.offset, meta.kind, Number(rawVal))
   }
-  if (dateChanges && 'date_started' in dateChanges) {
-    writeTcmDateAtIso(out, base + CONTRACT_DATE_STARTED_OFFSET, dateChanges.date_started)
+  const mergedDates = mergeContractDateChanges(dateChanges, db.gameDateIso, opts?.resetApproachProtection === true)
+  if (mergedDates && 'date_started' in mergedDates) {
+    writeTcmDateAtIso(out, base + CONTRACT_DATE_STARTED_OFFSET, mergedDates.date_started)
   }
-  if (dateChanges && 'contract_expires' in dateChanges) {
-    writeTcmDateAtIso(out, base + CONTRACT_DATE_EXPIRES_OFFSET, dateChanges.contract_expires)
+  if (mergedDates && 'contract_expires' in mergedDates) {
+    writeTcmDateAtIso(out, base + CONTRACT_DATE_EXPIRES_OFFSET, mergedDates.contract_expires)
   }
   return { ok: true, buffer: out }
 }

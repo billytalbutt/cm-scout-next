@@ -61,4 +61,10 @@ Row keyed by `staffIndex` at byte 0. Writable scalars: see `src/main/database/co
 | `date_started` | 37 (8-byte TCMDate) | Contract start — player editor date picker |
 | `contract_expires` | 45 (8-byte TCMDate) | Contract end — player editor date picker |
 
+### Approach protection (“can be approached to sign”)
+
+CM 01/02 (post-2001 rules) does **not** store a separate “protected” flag. Other clubs may approach when **2 or 3 whole years have passed since `date_started`**, depending on the player’s age at signing (under 28 → 3 years; 28+ → 2 years). **Extending `contract_expires` alone does not restore protection.**
+
+In the contract editor, tick **Restore approach protection** on save to set `date_started` to the **current save game date**, starting a fresh protection window while keeping your new expiry date.
+
 Bonuses at **−1** (or 0) display as **None** in CM. Release-clause bytes are Yes/No checkboxes.

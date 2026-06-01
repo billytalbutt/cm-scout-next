@@ -1075,6 +1075,7 @@ ipcMain.handle('save-contract-edits', async (event, payload: unknown) => {
     staffIndex?: unknown
     changes?: unknown
     dateChanges?: unknown
+    resetApproachProtection?: unknown
   }
   const staffIndex = Math.floor(Number(p.staffIndex))
   const ch = p.changes
@@ -1086,8 +1087,10 @@ ipcMain.handle('save-contract-edits', async (event, payload: unknown) => {
     p.dateChanges && typeof p.dateChanges === 'object'
       ? (p.dateChanges as { date_started?: string | null; contract_expires?: string | null })
       : undefined
+  const resetApproachProtection = p.resetApproachProtection === true
   const hasDateChanges =
-    dateChanges != null && ('date_started' in dateChanges || 'contract_expires' in dateChanges)
+    resetApproachProtection ||
+    (dateChanges != null && ('date_started' in dateChanges || 'contract_expires' in dateChanges))
   if (Object.keys(changes).length === 0 && !hasDateChanges) {
     return { ok: false as const, error: 'No changes to save.' }
   }
@@ -1099,6 +1102,7 @@ ipcMain.handle('save-contract-edits', async (event, payload: unknown) => {
     staffIndex,
     changes,
     dateChanges,
+    { resetApproachProtection },
   )
   if (!built.ok) return { ok: false as const, error: built.error }
   const parent =

@@ -52,3 +52,12 @@ export function isContractUnprotected(
   }
   return true
 }
+
+/**
+ * Contract start date to write when (re)establishing CM “approach protection” after an extension.
+ * Protection is not a separate flag — it is elapsed time since `date_started` (2 or 3 years by age at signing).
+ */
+export function contractStartIsoForApproachProtection(gameDateIso: string | null | undefined): string | null {
+  if (!gameDateIso?.trim()) return null
+  return gameDateIso.trim()
+}

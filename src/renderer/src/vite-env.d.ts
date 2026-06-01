@@ -159,6 +159,7 @@ declare global {
         staffIndex: number,
         changes: Record<string, number>,
         dateChanges?: { date_started?: string | null; contract_expires?: string | null },
+        options?: { resetApproachProtection?: boolean },
       ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
       getClubEditorSnapshot: (clubId: number) => Promise<
         | {

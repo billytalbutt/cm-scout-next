@@ -29,6 +29,7 @@ export type ContractEditorSnapshot = {
   values: Record<string, number>
   dateStartedIso: string | null
   dateExpiresIso: string | null
+  gameDateIso?: string | null
   hints?: Record<string, string>
 }
 
@@ -78,6 +79,7 @@ export function ContractEditorSection({
   const [listedByClub, setListedByClub] = useState(false)
   const [listedByRequest, setListedByRequest] = useState(false)
   const [listedForLoanFlag, setListedForLoanFlag] = useState(false)
+  const [resetApproachProtection, setResetApproachProtection] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [saveMsg, setSaveMsg] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -116,6 +118,9 @@ export function ContractEditorSection({
         setListedByClub(transferListedByClub(ts))
         setListedByRequest(transferListedByRequest(ts))
         setListedForLoanFlag(listedForLoan(ts))
+        setResetApproachProtection(
+          (s.hints?.contract_protection ?? '').toLowerCase().includes('unprotected'),
+        )
         const d: Record<string, string> = {}
         for (const [k, v] of Object.entries(s.values)) {
           if (k !== 'transfer_status') d[k] = String(v)
@@ -146,13 +151,14 @@ export function ContractEditorSection({
     if (!base) return false
     if (dateStarted !== baselineDatesRef.current.started) return true
     if (dateExpires !== baselineDatesRef.current.expires) return true
+    if (resetApproachProtection) return true
     for (const key of Object.keys(base)) {
       if (key === 'transfer_status') continue
       const n = Number(draft[key])
       if (Number.isFinite(n) && Math.trunc(n) !== base[key]) return true
     }
     return transferStatusDraft !== (base.transfer_status ?? 0)
-  }, [dateExpires, dateStarted, draft, transferStatusDraft])
+  }, [dateExpires, dateStarted, draft, resetApproachProtection, transferStatusDraft])
 
   const onSave = useCallback(async () => {
     if (!snap || compressed || staffIndex == null || typeof window.cmapi?.saveContractEdits !== 'function') return
@@ -175,15 +181,29 @@ export function ContractEditorSection({
       dateChanges.contract_expires = dateExpires.trim() || null
     }
     const hasDateChanges = Object.keys(dateChanges).length > 0
-    if (Object.keys(changes).length === 0 && !hasDateChanges) return
+    if (Object.keys(changes).length === 0 && !hasDateChanges && !resetApproachProtection) return
     setSaving(true)
     setErr(null)
     try {
-      const out = await window.cmapi.saveContractEdits(staffIndex, changes, hasDateChanges ? dateChanges : undefined)
+      const out = await window.cmapi.saveContractEdits(
+        staffIndex,
+        changes,
+        hasDateChanges ? dateChanges : undefined,
+        { resetApproachProtection },
+      )
       if (out && 'ok' in out && out.ok && 'path' in out) {
-        setSaveMsg(`Saved to ${out.path}. Load that file in CM to apply contract changes.`)
+        const protNote = resetApproachProtection && snap.gameDateIso
+          ? ` Contract start set to ${formatIsoDateUk(snap.gameDateIso)} — approach protection restored.`
+          : ''
+        setSaveMsg(`Saved to ${out.path}. Load that file in CM to apply contract changes.${protNote}`)
         baselineRef.current = { ...base, ...changes, transfer_status: transferStatusDraft }
-        baselineDatesRef.current = { started: dateStarted, expires: dateExpires }
+        if (resetApproachProtection && snap.gameDateIso) {
+          setDateStarted(snap.gameDateIso)
+          baselineDatesRef.current = { started: snap.gameDateIso, expires: dateExpires }
+        } else {
+          baselineDatesRef.current = { started: dateStarted, expires: dateExpires }
+        }
+        setResetApproachProtection(false)
         baselineTsRef.current = transferStatusDraft
       } else if (out && 'error' in out) {
         setErr(out.error === 'cancelled' ? 'Save cancelled.' : String(out.error))
@@ -191,7 +211,7 @@ export function ContractEditorSection({
     } finally {
       setSaving(false)
     }
-  }, [compressed, dateExpires, dateStarted, draft, snap, staffIndex, transferStatusDraft])
+  }, [compressed, dateExpires, dateStarted, draft, resetApproachProtection, snap, staffIndex, transferStatusDraft])
 
   if (!loadInfo || staffIndex == null) return null
   if (compressed) {
@@ -227,6 +247,30 @@ export function ContractEditorSection({
           {snap.hints.contract_protection}
         </p>
       )}
+
+      <label
+        className="flex cursor-pointer items-start gap-2 rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-zinc-300"
+        title="CM blocks other clubs from approaching to sign for 2–3 years from the contract start date (by age at signing). Extending expiry alone does not reset this — set start date to the current game date."
+      >
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={resetApproachProtection}
+          onChange={(e) => setResetApproachProtection(e.target.checked)}
+        />
+        <span>
+          <span className="font-medium text-emerald-200">Restore approach protection</span>
+          {snap.gameDateIso ? (
+            <>
+              {' '}
+              — set contract start to game date ({formatIsoDateUk(snap.gameDateIso)}) so other clubs cannot
+              approach to sign for another 2–3 years.
+            </>
+          ) : (
+            ' — set contract start to the save game date (reload save if missing).'
+          )}
+        </span>
+      </label>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">

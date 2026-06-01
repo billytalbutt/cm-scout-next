@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   contractProtectionYearsAtSigning,
+  contractStartIsoForApproachProtection,
   isContractUnprotected,
 } from './contractProtection'
 import type { ContractRecord, StaffRecord } from '../main/database/types'
@@ -9,6 +10,11 @@ const staffUnder28 = { dob_iso: '1990-06-01', year_of_birth: 1990 } as StaffReco
 const staffOver28 = { dob_iso: '1970-03-15', year_of_birth: 1970 } as StaffRecord
 
 describe('contractProtection', () => {
+  it('uses game date as new protection start when resetting approach protection', () => {
+    expect(contractStartIsoForApproachProtection('2012-08-15')).toBe('2012-08-15')
+    expect(contractStartIsoForApproachProtection(null)).toBeNull()
+  })
+
   it('uses 3 years under 28 and 2 years at 28+', () => {
     expect(contractProtectionYearsAtSigning(27)).toBe(3)
     expect(contractProtectionYearsAtSigning(28)).toBe(2)
