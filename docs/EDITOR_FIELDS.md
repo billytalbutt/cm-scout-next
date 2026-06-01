@@ -16,9 +16,11 @@ CM 01/02 stores unsettled-player state in several places (same areas the GK Save
 |-------|------|--------|-------------------------------|
 | `morale` (`PlayerMorale`) | `player.dat` | 69 (`i8`) | Set to **20** (Superb) |
 | `club_valuation` (`ClubValuation`) | `staff.dat` | 0x60 (`u8`) | Set to **20** (maximum) |
-| Issue flags (`Unknown18_1` / `Unknown18_2`) | `contract.dat` | 54–69 (16 bytes) | Zeroed — squad depth, rotation, unfair treatment, sold teammate, etc. |
+| Issue flags (`Unknown18_1` / `Unknown18_2`) | `contract.dat` | 54–69 (16 bytes) | Zeroed — squad depth, rotation, unfair treatment, lost confidence in manager, etc. |
 | `Unknown18_3` / `Unknown18_4` | `contract.dat` | 70–72 | **Preserved** — often mirrors squad/shirt number; do not zero |
 | Transfer request flag | `contract.dat` | `transfer_status` byte 78, **bit 0x08** | Cleared (`transfer_status & ~8`) |
+| Disliked clubs / staff | `Preferences.dat` | 52-byte rows; dislikes @ 16–24 and 40–48 | Set to **−1** (clears “dislikes assistant manager”, etc.) |
+| `squad_status` | `contract.dat` | 79 | Reset to **2** (First team) when byte was an invalid value (&gt; 8) |
 
 Squad shirt numbers live on `player.dat` byte 4 (`squad_number`), not in the contract issue block.
 

@@ -1,5 +1,6 @@
 import { writeTcmDateAtIso } from './database/dates'
-import { staffDisplayName } from './database/parser'import type { BlockInfo, ContractRecord, ParsedDatabase } from './database/types'
+import { staffDisplayName } from './database/parser'
+import type { BlockInfo, ContractRecord, ParsedDatabase } from './database/types'
 import {
   contractProtectionYearsAtSigning,
   isContractUnprotected,
@@ -61,6 +62,7 @@ export function resolveContractRowAbsOffset(
   archiveBuffer: Buffer,
   blocks: BlockInfo[],
   staffIndex: number,
+  staffDatId?: number,
 ): number | null {
   const block = findBlock(blocks, 'contract.dat')
   if (!block) return null
@@ -77,10 +79,11 @@ export function resolveContractRowAbsOffset(
   if (preCount > 0 && lastPre.length >= 21) {
     contractCount = lastPre.readInt32LE(17)
   }
+  const wantId = staffDatId != null && staffDatId > 0 ? staffDatId : null
   for (let i = 0; i < contractCount; i++) {
     if (o + CONTRACT_ROW_BYTES > archiveBuffer.length) return null
-    const rowStaff = archiveBuffer.readInt32LE(o)
-    if (rowStaff === staffIndex) return o
+    const rowKey = archiveBuffer.readInt32LE(o)
+    if (rowKey === staffIndex || (wantId != null && rowKey === wantId)) return o
     o += CONTRACT_ROW_BYTES
   }
   return null
@@ -160,7 +163,7 @@ export function buildContractEditorPatchedBuffer(
   if (!snap?.hasContract) {
     return { ok: false, error: 'No contract row for this staff index.' }
   }
-  const base = resolveContractRowAbsOffset(archiveBuffer, blocks, staffIndex)
+  const base = resolveContractRowAbsOffset(archiveBuffer, blocks, staffIndex, db.staff[staffIndex]?.id)
   if (base == null) {
     return { ok: false, error: 'Could not locate contract.dat row.' }
   }
@@ -209,4 +212,9 @@ export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: numbe
     buf.writeUInt8(squadMirrorTail, contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
   }
   clearTransferRequestAtContractRow(buf, contractRowAbs)
+  const squadStatusOff = contractRowAbs + (CONTRACT_DISK_FIELDS.squad_status?.offset ?? 79)
+  if (squadStatusOff < buf.length) {
+    const ss = buf.readUInt8(squadStatusOff)
+    if (ss > 8) buf.writeUInt8(2, squadStatusOff)
+  }
 }

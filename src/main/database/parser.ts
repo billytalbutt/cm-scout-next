@@ -478,7 +478,10 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
     for (let i = 0; i < contractCount; i++) {
       const r = cbuf.subarray(o, o + 80)
       o += 80
-      const staffIndex = r.readInt32LE(0)
+      const rowKey = r.readInt32LE(0)
+      let staffIndex = staff.findIndex((s) => s.id === rowKey)
+      if (staffIndex < 0 && rowKey >= 0 && rowKey < staff.length) staffIndex = rowKey
+      if (staffIndex < 0) continue
       const club_id = r.readInt32LE(4)
       const wage = r.readInt32LE(12)
       const goal_bonus = r.readInt32LE(16)
@@ -497,7 +500,7 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
       const transfer_arranged_for = r.readInt32LE(74)
       const transfer_status = r.readUInt8(78)
       const squad_status = r.readUInt8(79)
-      if (staffIndex >= 0 && staffIndex < staff.length) {
+      if (staffIndex < staff.length) {
         contractsByStaffIndex.set(staffIndex, {
           staffIndex,
           club_id,

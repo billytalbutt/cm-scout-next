@@ -7,12 +7,14 @@ import {
 import { buildClubSquadPlayerRows } from './clubBrowse'
 import { CONTRACT_ISSUE_BLOCK_OFFSET, CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH } from './database/contractDiskLayout'
 import { PLAYER_DISK_FIELDS, PLAYER_ROW_BYTES, STAFF_ROW_BYTES } from './database/playerStaffDiskLayout'
+import { PREFERENCES_ROW_BYTES } from './database/staffPreferencesDiskLayout'
 import type { BlockInfo, ContractRecord, ParsedDatabase, PlayerRecord, StaffRecord } from './database/types'
 
 const PLAYER_BLOCK_POS = 100
 const STAFF_BLOCK_POS = PLAYER_BLOCK_POS + PLAYER_ROW_BYTES * 3
 const CONTRACT_BLOCK_POS = STAFF_BLOCK_POS + STAFF_ROW_BYTES * 2
 const CONTRACT_ROW_POS = CONTRACT_BLOCK_POS + 8
+const PREF_BLOCK_POS = CONTRACT_ROW_POS + 80
 
 function buildArchive(): Buffer {
   const size = CONTRACT_ROW_POS + 80
@@ -28,12 +30,16 @@ function buildArchive(): Buffer {
     buf.writeInt32LE(i + 1, staffBase)
     buf.writeInt32LE(i, staffBase + 0x61)
     buf.writeUInt8(6, staffBase + 0x60)
+    if (i === 1) buf.writeInt32LE(2, staffBase + 0x65)
   }
   buf.writeInt32LE(1, CONTRACT_BLOCK_POS + 4)
   buf.writeInt32LE(1, CONTRACT_ROW_POS)
   buf.writeUInt8(0xff, CONTRACT_ROW_POS + CONTRACT_ISSUE_BLOCK_OFFSET)
   buf.writeUInt16LE(0xbeef, CONTRACT_ROW_POS + 70)
-  return buf
+  const pref = Buffer.alloc(PREFERENCES_ROW_BYTES, 0)
+  pref.writeInt32LE(2, 0)
+  pref.writeInt32LE(500, 40)
+  return Buffer.concat([buf, pref])
 }
 
 function fakeDb(): ParsedDatabase {
@@ -43,8 +49,8 @@ function fakeDb(): ParsedDatabase {
     { id: 3, morale: 5 } as PlayerRecord,
   ]
   const staff: StaffRecord[] = [
-    { id: 1, player_id: 0, club_valuation: 6 } as StaffRecord,
-    { id: 2, player_id: 2, club_valuation: 6 } as StaffRecord,
+    { id: 1, player_id: 0, club_valuation: 6, staff_preferences_id: 0 } as StaffRecord,
+    { id: 2, player_id: 2, club_valuation: 6, staff_preferences_id: 2 } as StaffRecord,
   ]
   const contract: ContractRecord = {
     staffIndex: 1,
@@ -69,6 +75,12 @@ function fakeDb(): ParsedDatabase {
       position: CONTRACT_BLOCK_POS,
       size: 88,
       compressedSize: 88,
+    },
+    {
+      name: 'Preferences.dat',
+      position: PREF_BLOCK_POS,
+      size: PREFERENCES_ROW_BYTES,
+      compressedSize: PREFERENCES_ROW_BYTES,
     },
   ]
   return {
@@ -101,6 +113,7 @@ describe('applyClearUnhappinessForStaff', () => {
     for (let i = 0; i < CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH; i++) {
       expect(buf.readUInt8(CONTRACT_ROW_POS + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
+    expect(buf.readInt32LE(PREF_BLOCK_POS + 40)).toBe(-1)
   })
 })
 

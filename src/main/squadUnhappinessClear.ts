@@ -12,6 +12,10 @@ import {
   CONTRACT_SQUAD_MIRROR_OFFSET,
   CONTRACT_UNHAPPINESS_TAIL_OFFSET,
 } from './database/contractDiskLayout'
+import {
+  clearPreferencesDislikesForId,
+  STAFF_PREFERENCES_ID_OFFSET,
+} from './database/staffPreferencesDiskLayout'
 
 const STAFF_CLUB_VALUATION_OFFSET = 0x60
 /** Max byte — in-game “superb” happiness with the club (GK editor sets morale to 20; valuation to max). */
@@ -92,8 +96,13 @@ export function applyClearUnhappinessForStaff(
   }
   writeScalarAt(buf, playerBase + PLAYER_DISK_FIELDS.morale.offset, 'i8', MORALE_SUPERB)
   writeScalarAt(buf, staffBase + STAFF_CLUB_VALUATION_OFFSET, 'u8', CLUB_VALUATION_SUPERB)
+  const preferencesId = buf.readInt32LE(staffBase + STAFF_PREFERENCES_ID_OFFSET)
+  const prefBlock = findBlock(blocks, 'Preferences.dat')
+  if (prefBlock && preferencesId > 0) {
+    clearPreferencesDislikesForId(buf, prefBlock.position, prefBlock.size, preferencesId)
+  }
   const squadNumber = buf.readUInt8(playerBase + PLAYER_DISK_FIELDS.squad_number.offset)
-  const contractRow = resolveContractRowAbsOffset(buf, blocks, staffIndex)
+  const contractRow = resolveContractRowAbsOffset(buf, blocks, staffIndex, staff.id)
   if (contractRow != null) {
     clearContractUnhappinessAtRow(buf, contractRow)
     if (squadNumber > 0) {

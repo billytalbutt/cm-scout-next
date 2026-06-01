@@ -496,7 +496,7 @@ export function AttributeEditorPanel({
         </div>
         <label
           className="mt-3 flex items-center gap-2 text-xs text-zinc-300"
-          title="Sets morale to 20, clears contract issue flags (squad depth, rotation, etc.), and clears any transfer request. Saves a new file — load that save in CM to apply."
+          title="Sets morale to 20, max club valuation, clears contract complaints (unfair treatment, manager confidence, etc.), clears disliked staff/club in Preferences.dat, and clears transfer requests. Save a new file and load it in CM."
         >
           <input
             type="checkbox"

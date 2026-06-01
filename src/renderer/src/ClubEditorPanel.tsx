@@ -446,7 +446,7 @@ export function ClubEditorPanel({
 
           <label
             className="flex flex-col gap-1 text-xs text-zinc-300"
-            title="Sets morale to Superb (20), clears contract issue flags, and clears transfer requests for every player at this club (employed players plus club.dat squad slots). Quit CM before saving in-place."
+            title="Sets morale to Superb (20), max club valuation, clears contract complaints and Preferences dislikes, and clears transfer requests for every squad player. Quit CM before saving in-place."
           >
             <span className="flex items-center gap-2">
               <input
