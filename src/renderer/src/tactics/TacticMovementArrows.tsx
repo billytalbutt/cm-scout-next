@@ -13,7 +13,7 @@ export function TacticMovementArrows({ lines, preview = false }: Props) {
 
   return (
     <svg
-      className={`pointer-events-none absolute inset-0 h-full w-full overflow-visible ${preview ? 'z-[5]' : 'z-[4]'}`}
+      className={`pointer-events-none absolute inset-0 h-full w-full overflow-visible ${preview ? 'z-[30]' : 'z-[20]'}`}
       aria-hidden
     >
       <defs>

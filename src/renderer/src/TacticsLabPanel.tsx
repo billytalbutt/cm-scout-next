@@ -347,8 +347,6 @@ export function TacticsLabPanel({
             onContextMenu={(e) => e.preventDefault()}
           >
             <PitchMarkings />
-            <TacticMovementArrows lines={committedLines} />
-            <TacticMovementArrows lines={previewLines} preview />
             {pitchSlots.map((slot) => {
               const a = assignments[slot.id]
               const shortName = a?.name?.split(' ').pop()
@@ -375,6 +373,8 @@ export function TacticsLabPanel({
                 </button>
               )
             })}
+            <TacticMovementArrows lines={committedLines} />
+            <TacticMovementArrows lines={previewLines} preview />
           </div>
           <p className="mt-2 text-center text-[10px] text-zinc-500">
             Release drag to snap. Lineup avg:{' '}

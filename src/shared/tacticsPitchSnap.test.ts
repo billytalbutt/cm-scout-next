@@ -6,6 +6,8 @@ import {
   PITCH_COLUMNS,
   PITCH_NARROW_PAIR_X,
   rowXPositionsForCount,
+  wantsWideThree,
+  wantsWideTwo,
   pitchRowKey,
   pitchSlotsFromPreset,
   roleForColumn,
@@ -50,6 +52,35 @@ describe('rowXPositionsForCount', () => {
       { id: 'c', role: 'DC', x: 0.68, y: 0.28, arrow: 'none' },
     ]
     expect(rowXPositionsForCount(slots)).toEqual([0.3, 0.5, 0.7])
+  })
+
+  it('narrows three from back-four positions when only one touchline is used', () => {
+    const slots: PitchSlot[] = [
+      { id: 'a', role: 'DC', x: 0.1, y: 0.28, arrow: 'none' },
+      { id: 'b', role: 'DC', x: 0.5, y: 0.28, arrow: 'none' },
+      { id: 'c', role: 'DC', x: 0.7, y: 0.28, arrow: 'none' },
+    ]
+    expect(wantsWideThree(slots)).toBe(false)
+    expect(rowXPositionsForCount(slots)).toEqual([0.3, 0.5, 0.7])
+  })
+
+  it('keeps wide ML–MC–MR only when both flanks are occupied', () => {
+    const wide: PitchSlot[] = [
+      { id: 'a', role: 'ML', x: 0.1, y: 0.52, arrow: 'none' },
+      { id: 'b', role: 'MC', x: 0.5, y: 0.52, arrow: 'none' },
+      { id: 'c', role: 'MR', x: 0.9, y: 0.52, arrow: 'none' },
+    ]
+    expect(wantsWideThree(wide)).toBe(true)
+    expect(rowXPositionsForCount(wide)).toEqual([0.1, 0.5, 0.9])
+  })
+
+  it('uses narrow pair unless both touchlines are taken', () => {
+    const narrow: PitchSlot[] = [
+      { id: 'a', role: 'MC', x: 0.35, y: 0.52, arrow: 'none' },
+      { id: 'b', role: 'MC', x: 0.65, y: 0.52, arrow: 'none' },
+    ]
+    expect(wantsWideTwo(narrow)).toBe(false)
+    expect(rowXPositionsForCount(narrow)).toEqual([...PITCH_NARROW_PAIR_X])
   })
 
   it('places two central midfielders in the narrow half-space (0.4 / 0.6)', () => {
@@ -198,6 +229,18 @@ describe('snapAndRedistributePitch', () => {
     ])
     const def = rowAt(slots, 'def')
     expect(def).toHaveLength(3)
+    expect(pct(def.map((s) => s.x))).toEqual([30, 50, 70])
+    expect(def.map((s) => s.role)).toEqual(['DC', 'DC', 'DC'])
+  })
+
+  it('three on def line snap narrow from mixed back-four x positions', () => {
+    const slots = snapAndRedistributePitch([
+      { id: 'gk', role: 'GK', x: 0.5, y: 0.06, arrow: 'none' },
+      { id: 'd1', role: 'DL', x: 0.1, y: 0.28, arrow: 'none' },
+      { id: 'd2', role: 'DC', x: 0.5, y: 0.28, arrow: 'none' },
+      { id: 'd3', role: 'DCR', x: 0.7, y: 0.28, arrow: 'none' },
+    ])
+    const def = rowAt(slots, 'def')
     expect(pct(def.map((s) => s.x))).toEqual([30, 50, 70])
     expect(def.map((s) => s.role)).toEqual(['DC', 'DC', 'DC'])
   })

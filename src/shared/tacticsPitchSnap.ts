@@ -109,14 +109,23 @@ function isCentralCluster(sorted: PitchSlot[]): boolean {
   return span < 0.58 && mean > 0.2 && mean < 0.8
 }
 
-/** Three (or more) players deliberately spread to the flanks — use wide snap, not narrow trio. */
-function isWideSpread(sorted: PitchSlot[]): boolean {
-  if (sorted.length < 2) return false
+/** Three in ML–MC–MR / DL–DC–DR spread: both touchline columns deliberately occupied. */
+export function wantsWideThree(sorted: PitchSlot[]): boolean {
+  if (sorted.length !== 3) return false
   const xs = sorted.map((s) => s.x)
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  if (minX < 0.17 || maxX > 0.83) return true
-  return maxX - minX > 0.62
+  return xs.some((x) => x < 0.14) && xs.some((x) => x > 0.86)
+}
+
+/** Two at full-back width only when both touchlines are used. */
+export function wantsWideTwo(sorted: PitchSlot[]): boolean {
+  if (sorted.length !== 2) return false
+  const xs = sorted.map((s) => s.x)
+  return xs.some((x) => x < 0.14) && xs.some((x) => x > 0.86)
+}
+
+/** @deprecated Use {@link wantsWideThree} */
+function isWideSpread(sorted: PitchSlot[]): boolean {
+  return wantsWideThree(sorted)
 }
 
 function isNarrowTrioXs(xs: number[]): boolean {
@@ -131,10 +140,10 @@ export function rowXPositionsForCount(sorted: PitchSlot[]): number[] {
   if (n === 1) return [0.5]
   if (n === 5) return [...PITCH_COLUMNS]
   if (n === 2) {
-    return isCentralCluster(sorted) ? [...PITCH_NARROW_PAIR_X] : [0.1, 0.9]
+    return wantsWideTwo(sorted) ? [0.1, 0.9] : [...PITCH_NARROW_PAIR_X]
   }
   if (n === 3) {
-    return isWideSpread(sorted) ? [0.1, 0.5, 0.9] : [...PITCH_NARROW_TRIO_X]
+    return wantsWideThree(sorted) ? [0.1, 0.5, 0.9] : [...PITCH_NARROW_TRIO_X]
   }
   if (n === 4) {
     return isCentralCluster(sorted) ? [0.2, 0.4, 0.6, 0.8] : [0.1, 0.3, 0.7, 0.9]
@@ -148,7 +157,7 @@ export function rolesForRowPositions(
   sorted: PitchSlot[],
   xs: number[],
 ): string[] {
-  if (sorted.length === 3 && (isCentralCluster(sorted) || isNarrowTrioXs(xs))) {
+  if (sorted.length === 3 && (isNarrowTrioXs(xs) || !wantsWideThree(sorted))) {
     if (rowId === 'def') return ['DC', 'DC', 'DC']
     if (rowId === 'sw') return ['SW', 'SW', 'SW']
     if (rowId === 'dm') return ['DMCL', 'DMC', 'DMCR']
