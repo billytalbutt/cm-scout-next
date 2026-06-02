@@ -83,13 +83,15 @@ export function resolveContractRowAbsOffset(
     contractCount = lastPre.readInt32LE(17)
   }
   const wantId = staffDatId != null && staffDatId > 0 ? staffDatId : null
+  let byStaffIndex: number | null = null
   for (let i = 0; i < contractCount; i++) {
     if (o + CONTRACT_ROW_BYTES > archiveBuffer.length) return null
     const rowKey = archiveBuffer.readInt32LE(o)
-    if (rowKey === staffIndex || (wantId != null && rowKey === wantId)) return o
+    if (wantId != null && rowKey === wantId) return o
+    if (rowKey === staffIndex && byStaffIndex === null) byStaffIndex = o
     o += CONTRACT_ROW_BYTES
   }
-  return null
+  return byStaffIndex
 }
 
 export function buildContractEditorSnapshot(db: ParsedDatabase, staffIndex: number): ContractEditorSnapshot | null {
@@ -214,6 +216,8 @@ export function clearTransferRequestAtContractRow(buf: Buffer, contractRowAbs: n
  * on real saves they often carry squad/shirt state; zeroing them scrambles squad numbers in CM.
  */
 export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: number): void {
+  const squadStatusOff = contractRowAbs + (CONTRACT_DISK_FIELDS.squad_status?.offset ?? 79)
+  const squadStatus = squadStatusOff < buf.length ? buf.readUInt8(squadStatusOff) : 0
   const squadMirror0 = buf.readUInt8(contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET)
   const squadMirror1 = buf.readUInt8(contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET + 1)
   const squadMirrorTail =
@@ -230,10 +234,8 @@ export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: numbe
   if (contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET < buf.length) {
     buf.writeUInt8(squadMirrorTail, contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
   }
-  clearTransferRequestAtContractRow(buf, contractRowAbs)
-  const squadStatusOff = contractRowAbs + (CONTRACT_DISK_FIELDS.squad_status?.offset ?? 79)
   if (squadStatusOff < buf.length) {
-    const ss = buf.readUInt8(squadStatusOff)
-    if (ss > 8) buf.writeUInt8(2, squadStatusOff)
+    buf.writeUInt8(squadStatus, squadStatusOff)
   }
+  clearTransferRequestAtContractRow(buf, contractRowAbs)
 }

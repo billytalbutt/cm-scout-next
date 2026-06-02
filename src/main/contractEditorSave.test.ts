@@ -96,7 +96,9 @@ describe('contractEditorSave', () => {
     const base = 8
     archive.writeUInt8(0xcd, base + 70)
     archive.writeUInt8(0xef, base + 71)
-    archive.writeUInt8(9, base + 72)
+    archive.writeUInt8(8, base + 72)
+    archive.writeUInt8(3, base + 79)
+    archive.writeUInt8(8, base + 78)
     clearContractUnhappinessAtRow(archive, base)
     for (let i = 0; i < CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH; i++) {
       expect(archive.readUInt8(base + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
@@ -104,6 +106,7 @@ describe('contractEditorSave', () => {
     expect(archive.readUInt8(base + 70)).toBe(0xcd)
     expect(archive.readUInt8(base + 71)).toBe(0xef)
     expect(archive.readUInt8(base + 72)).toBe(9)
+    expect(archive.readUInt8(base + 79)).toBe(3)
     expect(archive.readUInt8(base + 78)).toBe(0)
   })
 

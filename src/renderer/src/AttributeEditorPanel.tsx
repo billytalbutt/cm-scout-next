@@ -277,7 +277,16 @@ export function AttributeEditorPanel({
         preferencesBaseline: prefBaseline ?? undefined,
       })
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
-        setSaveMsg(`Saved to ${String((out as { path: string }).path)}`)
+        const path = String((out as { path: string }).path)
+        const extra =
+          'writtenPaths' in out && Array.isArray((out as { writtenPaths: string[] }).writtenPaths)
+            ? (out as { writtenPaths: string[] }).writtenPaths.filter((p) => p !== path)
+            : []
+        setSaveMsg(
+          extra.length > 0
+            ? `Saved to ${path} (also updated ${extra.join(', ')}). Quit CM and load that file in-game.`
+            : `Saved to ${path}. Quit CM and load that file in-game.`,
+        )
         baselineRef.current = { ...base, ...changes }
         if (clearInjury) {
           setClearInjury(false)

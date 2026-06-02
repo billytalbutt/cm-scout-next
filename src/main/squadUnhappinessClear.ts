@@ -9,11 +9,8 @@ import {
 } from './database/playerStaffDiskLayout'
 import { clearContractUnhappinessAtRow, resolveContractRowAbsOffset } from './contractEditorSave'
 import {
-  CONTRACT_SQUAD_MIRROR_OFFSET,
-  CONTRACT_UNHAPPINESS_TAIL_OFFSET,
-} from './database/contractDiskLayout'
-import {
   clearPreferencesDislikesForStaff,
+  resolvePreferencesBlockSpan,
   STAFF_PREFERENCES_ID_OFFSET,
 } from './database/staffPreferencesDiskLayout'
 
@@ -99,24 +96,18 @@ export function applyClearUnhappinessForStaff(
   const preferencesId = buf.readInt32LE(staffBase + STAFF_PREFERENCES_ID_OFFSET)
   const prefBlock = findBlock(blocks, 'preferences.dat')
   if (prefBlock) {
+    const prefSpan = resolvePreferencesBlockSpan(prefBlock.position, prefBlock.size)
     clearPreferencesDislikesForStaff(
       buf,
-      prefBlock.position,
-      prefBlock.size,
+      prefSpan.dataStart,
+      prefSpan.dataEnd - prefSpan.dataStart,
       preferencesId,
       staff.id,
     )
   }
-  const squadNumber = buf.readUInt8(playerBase + PLAYER_DISK_FIELDS.squad_number.offset)
   const contractRow = resolveContractRowAbsOffset(buf, blocks, staffIndex, staff.id)
   if (contractRow != null) {
     clearContractUnhappinessAtRow(buf, contractRow)
-    if (squadNumber > 0) {
-      buf.writeUInt8(squadNumber, contractRow + CONTRACT_SQUAD_MIRROR_OFFSET)
-      if (contractRow + CONTRACT_UNHAPPINESS_TAIL_OFFSET < buf.length) {
-        buf.writeUInt8(squadNumber, contractRow + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
-      }
-    }
   }
   return { ok: true }
 }

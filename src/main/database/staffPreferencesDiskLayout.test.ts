@@ -3,6 +3,7 @@ import {
   PREFERENCES_ROW_BYTES,
   clearPreferencesDislikesForId,
   clearPreferencesDislikesForStaff,
+  resolvePreferencesBlockSpan,
 } from './staffPreferencesDiskLayout'
 
 describe('clearPreferencesDislikesForId', () => {
@@ -23,6 +24,15 @@ describe('clearPreferencesDislikesForId', () => {
     expect(buf.readInt32LE(40)).toBe(-1)
     expect(buf.readInt32LE(24 + PREFERENCES_ROW_BYTES)).toBe(-1)
     expect(buf.readInt32LE(48 + PREFERENCES_ROW_BYTES)).toBe(-1)
+  })
+
+  it('resolvePreferencesBlockSpan skips 8-byte header when present', () => {
+    const row = Buffer.alloc(PREFERENCES_ROW_BYTES, 0)
+    row.writeInt32LE(42, 0)
+    const buf = Buffer.concat([Buffer.alloc(8), row])
+    const span = resolvePreferencesBlockSpan(0, buf.length)
+    expect(span.dataStart).toBe(8)
+    expect(buf.readInt32LE(span.dataStart)).toBe(42)
   })
 
   it('clearPreferencesDislikesForStaff falls back to staff.dat id when StaffPreferences link is 0', () => {

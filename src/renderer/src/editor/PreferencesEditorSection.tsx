@@ -213,9 +213,11 @@ export function PreferencesEditorSection({
       <div>
         <h3 className="panel-section-title">Preferences</h3>
         <p className="mt-1 text-[11px] text-zinc-400">
-          Favourite and disliked clubs / staff (same as Graeme Kelly editor → Prefs). Saved with{' '}
-          <strong className="text-zinc-300">Save copy</strong> above. Use{' '}
-          <strong className="text-zinc-300">Clear unhappiness on save</strong> to wipe dislikes only.
+          Favourite and disliked clubs / staff (GK editor → Prefs). Saved with{' '}
+          <strong className="text-zinc-300">Save copy</strong> above — quit CM and load that exact file.
+          Favourites alone do not clear contract complaints (unfair treatment, lost confidence, etc.); use{' '}
+          <strong className="text-zinc-300">Clear unhappiness on save</strong> for those. That option only wipes
+          disliked slots, not favourites.
         </p>
         {!snap.hasRow && (
           <p className="mt-2 rounded-md border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-200/90">

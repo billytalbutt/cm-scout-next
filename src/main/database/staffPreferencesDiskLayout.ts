@@ -12,6 +12,40 @@ export const DISLIKED_STAFF_OFFSETS = [40, 44, 48] as const
 /** `staff.dat` → `StaffPreferences` id (`TStaff` offset 0x65). */
 export const STAFF_PREFERENCES_ID_OFFSET = 0x65
 
+/** Byte range of preference rows inside a `Preferences.dat` archive block. */
+export type PreferencesBlockSpan = {
+  dataStart: number
+  dataEnd: number
+}
+
+/** Many saves use an 8-byte block header before the row array (same pattern as other `.dat` tables). */
+export function resolvePreferencesBlockSpan(blockPosition: number, blockSize: number): PreferencesBlockSpan {
+  if (blockSize >= 8 && (blockSize - 8) % PREFERENCES_ROW_BYTES === 0) {
+    return { dataStart: blockPosition + 8, dataEnd: blockPosition + blockSize }
+  }
+  return { dataStart: blockPosition, dataEnd: blockPosition + blockSize }
+}
+
+function findPreferenceRowsInSpan(
+  buf: Buffer,
+  span: PreferencesBlockSpan,
+  staffPreferencesId: number,
+  staffDatId: number,
+): number[] {
+  const want = new Set(preferenceIdsToClear(staffPreferencesId, staffDatId))
+  const out: number[] = []
+  if (want.size > 0) {
+    for (let off = span.dataStart; off + PREFERENCES_ROW_BYTES <= span.dataEnd; off += PREFERENCES_ROW_BYTES) {
+      if (want.has(buf.readInt32LE(off))) out.push(off)
+    }
+  }
+  if (out.length === 0 && staffPreferencesId >= 0) {
+    const byIndex = span.dataStart + staffPreferencesId * PREFERENCES_ROW_BYTES
+    if (byIndex + PREFERENCES_ROW_BYTES <= span.dataEnd) out.push(byIndex)
+  }
+  return out
+}
+
 /** Clear disliked clubs/staff so CM stops showing future beef with manager/assistant/club. */
 export function clearPreferencesDislikesAtRow(buf: Buffer, rowAbs: number): void {
   if (rowAbs < 0 || rowAbs + PREFERENCES_ROW_BYTES > buf.length) return
@@ -19,7 +53,7 @@ export function clearPreferencesDislikesAtRow(buf: Buffer, rowAbs: number): void
   for (const off of DISLIKED_STAFF_OFFSETS) buf.writeInt32LE(PREFERENCES_SLOT_NONE, rowAbs + off)
 }
 
-/** Scan every `{id}` row in `Preferences.dat` (duplicate ids exist on real saves). */
+/** Scan every row whose id field matches (duplicate ids exist on real saves). */
 export function clearPreferencesDislikesForId(
   buf: Buffer,
   blockPosition: number,
@@ -27,9 +61,9 @@ export function clearPreferencesDislikesForId(
   preferencesId: number,
 ): number {
   if (preferencesId <= 0 || blockSize < PREFERENCES_ROW_BYTES) return 0
-  const end = blockPosition + blockSize
+  const span = resolvePreferencesBlockSpan(blockPosition, blockSize)
   let cleared = 0
-  for (let off = blockPosition; off + PREFERENCES_ROW_BYTES <= end; off += PREFERENCES_ROW_BYTES) {
+  for (let off = span.dataStart; off + PREFERENCES_ROW_BYTES <= span.dataEnd; off += PREFERENCES_ROW_BYTES) {
     if (buf.readInt32LE(off) !== preferencesId) continue
     clearPreferencesDislikesAtRow(buf, off)
     cleared++
@@ -56,11 +90,10 @@ export function clearPreferencesDislikesForStaff(
   staffPreferencesId: number,
   staffDatId: number,
 ): number {
-  let total = 0
-  for (const id of preferenceIdsToClear(staffPreferencesId, staffDatId)) {
-    total += clearPreferencesDislikesForId(buf, blockPosition, blockSize, id)
-  }
-  return total
+  const span = resolvePreferencesBlockSpan(blockPosition, blockSize)
+  const rows = findPreferenceRowsInSpan(buf, span, staffPreferencesId, staffDatId)
+  for (const off of rows) clearPreferencesDislikesAtRow(buf, off)
+  return rows.length
 }
 
 function readSlotTriple(buf: Buffer, rowAbs: number, offsets: readonly number[]): [number, number, number] {
@@ -102,7 +135,7 @@ export function writePreferencesValuesAtRow(
   writeSlotTriple(buf, rowAbs, DISLIKED_STAFF_OFFSETS, values.dislikedStaff)
 }
 
-/** Every 52-byte row keyed by `StaffPreferences` id or `staff.dat` id (duplicates possible). */
+/** Every 52-byte row keyed by row id, `staff.dat` id, or row index (duplicates possible). */
 export function findPreferenceRowAbsOffsets(
   buf: Buffer,
   blockPosition: number,
@@ -111,14 +144,8 @@ export function findPreferenceRowAbsOffsets(
   staffDatId: number,
 ): number[] {
   if (blockSize < PREFERENCES_ROW_BYTES) return []
-  const end = blockPosition + blockSize
-  const want = new Set(preferenceIdsToClear(staffPreferencesId, staffDatId))
-  if (want.size === 0) return []
-  const out: number[] = []
-  for (let off = blockPosition; off + PREFERENCES_ROW_BYTES <= end; off += PREFERENCES_ROW_BYTES) {
-    if (want.has(buf.readInt32LE(off))) out.push(off)
-  }
-  return out
+  const span = resolvePreferencesBlockSpan(blockPosition, blockSize)
+  return findPreferenceRowsInSpan(buf, span, staffPreferencesId, staffDatId)
 }
 
 export function readPreferencesValuesForStaff(

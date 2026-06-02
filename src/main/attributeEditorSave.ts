@@ -110,6 +110,17 @@ export function buildPatchedArchiveBuffer(
   if (opts?.clearUnhappiness) {
     const cleared = applyClearUnhappinessForStaff(out, blocks, db, staffIndex)
     if (!cleared.ok) return cleared
+    if (opts.preferences) {
+      const prefAgain = applyPreferencesPatchForStaff(
+        out,
+        blocks,
+        db,
+        staffIndex,
+        opts.preferences,
+        null,
+      )
+      if (!prefAgain.ok) return prefAgain
+    }
   }
 
   return { ok: true, buffer: out }

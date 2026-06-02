@@ -20,7 +20,7 @@ CM 01/02 stores unsettled-player state in several places (same areas the GK Save
 | `Unknown18_3` / `Unknown18_4` | `contract.dat` | 70–72 | **Preserved** — often mirrors squad/shirt number; do not zero |
 | Transfer request flag | `contract.dat` | `transfer_status` byte 78, **bit 0x08** | Cleared (`transfer_status & ~8`) |
 | Favourite / disliked clubs & staff | `Preferences.dat` | 52-byte row; fav clubs @ 4–12, disliked clubs @ 16–24, fav staff @ 28–36, disliked staff @ 40–48 | Editable in player editor **Preferences** section; empty slot = **−1**. **Clear unhappiness** only clears disliked slots. |
-| `squad_status` | `contract.dat` | 79 | Reset to **2** (First team) when byte was an invalid value (&gt; 8) |
+| `squad_status` | `contract.dat` | 79 | **Preserved** — not modified by clear unhappiness |
 
 Squad shirt numbers live on `player.dat` byte 4 (`squad_number`), not in the contract issue block.
 

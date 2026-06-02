@@ -76,5 +76,16 @@ describe('buildPatchedArchiveBuffer clearUnhappiness', () => {
     expect(built.buffer.readUInt8(CONTRACT_ROW_POS + CONTRACT_UNHAPPINESS_TAIL_OFFSET)).toBe(11)
     expect(built.buffer.readUInt8(PLAYER_BLOCK_POS + PLAYER_DISK_FIELDS.squad_number.offset)).toBe(11)
     expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 78)).toBe(0)
+    expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 79)).toBe(0)
+  })
+
+  it('clearUnhappiness preserves squad status byte 79', () => {
+    const archive = minimalArchive()
+    archive.writeUInt8(4, CONTRACT_ROW_POS + 79)
+    const db = fakeDb()
+    const built = buildPatchedArchiveBuffer(archive, db.blocks, false, db, 0, {}, { clearUnhappiness: true })
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 79)).toBe(4)
   })
 })
