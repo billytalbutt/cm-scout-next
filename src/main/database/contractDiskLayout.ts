@@ -25,16 +25,17 @@ export const CONTRACT_DISK_FIELDS: Record<string, { offset: number; kind: DiskFi
   squad_status: { offset: 79, kind: 'u8' },
 }
 
-/** Complaint / issue flags cleared by GK “Contract → Unhappiness” (`Unknown18_1` + `Unknown18_2`). */
+/** GK “Contract → Club Unhappiness” (`TContract` `Unknown` / CM Scout `Unknown1`). */
+export const CONTRACT_CLUB_UNHAPPINESS_OFFSET = 8
+export const CONTRACT_CLUB_UNHAPPINESS_LENGTH = 4
+
+/**
+ * GK “Contract → Unhappiness” issue flags (`Unknown18_*` / CM Scout `Unknown2`).
+ * CM Scout reads **19 bytes** here (not 16) — bytes 70–72 are part of this block.
+ */
 export const CONTRACT_ISSUE_BLOCK_OFFSET = 54
-export const CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH = 16
-/** Full `Unknown18_*` span in `TContract` (includes bytes that mirror squad/shirt state — do not zero). */
-export const CONTRACT_UNHAPPINESS_BLOCK_LENGTH = 18
+export const CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH = 19
 /** @deprecated Use {@link CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH} for writes. */
 export const CONTRACT_ISSUE_BLOCK_LENGTH = CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH
 /** @deprecated Use {@link CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH} for writes. */
 export const CONTRACT_UNHAPPINESS_FLAGS_LENGTH = CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH
-/** `TContract.Unknown18_3` — often holds squad/shirt bytes; preserved on unhappiness clear. */
-export const CONTRACT_SQUAD_MIRROR_OFFSET = 70
-/** `TContract.Unknown18_4` — preserved on unhappiness clear (may duplicate shirt number). */
-export const CONTRACT_UNHAPPINESS_TAIL_OFFSET = 72

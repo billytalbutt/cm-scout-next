@@ -91,21 +91,23 @@ describe('contractEditorSave', () => {
     }
   })
 
-  it('clears contract complaint flags and transfer-request bit but preserves squad mirror bytes', () => {
+  it('clears club + player unhappiness bytes (54–72) and transfer-request bit; preserves squad_status', () => {
     const archive = minimalContractArchive(0, 500)
     const base = 8
+    archive.writeUInt32LE(0xdeadbeef, base + 8)
     archive.writeUInt8(0xcd, base + 70)
     archive.writeUInt8(0xef, base + 71)
     archive.writeUInt8(8, base + 72)
     archive.writeUInt8(3, base + 79)
     archive.writeUInt8(8, base + 78)
     clearContractUnhappinessAtRow(archive, base)
+    expect(archive.readUInt32LE(base + 8)).toBe(0)
     for (let i = 0; i < CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH; i++) {
       expect(archive.readUInt8(base + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
-    expect(archive.readUInt8(base + 70)).toBe(0xcd)
-    expect(archive.readUInt8(base + 71)).toBe(0xef)
-    expect(archive.readUInt8(base + 72)).toBe(9)
+    expect(archive.readUInt8(base + 70)).toBe(0)
+    expect(archive.readUInt8(base + 71)).toBe(0)
+    expect(archive.readUInt8(base + 72)).toBe(0)
     expect(archive.readUInt8(base + 79)).toBe(3)
     expect(archive.readUInt8(base + 78)).toBe(0)
   })

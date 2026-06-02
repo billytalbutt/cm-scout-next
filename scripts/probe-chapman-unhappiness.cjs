@@ -110,9 +110,22 @@ if (contractB) {
     const key = buf.readInt32LE(row)
     if (key !== staffId && key !== staffIndex && key !== playerRow && key !== playerId) continue
     found = true
-    const complaints = buf.subarray(row + 54, row + 70)
+    const clubUnhapp = buf.subarray(row + 8, row + 12)
+    const complaints = buf.subarray(row + 54, row + 73)
+    const nonZeroClub = [...clubUnhapp].filter((b) => b !== 0).length
     const nonZero = [...complaints].filter((b) => b !== 0).length
-    console.log('contract row @', row, 'key', key, 'complaintNonZeroBytes', nonZero, 'hex', complaints.toString('hex'))
+    console.log(
+      'contract row @',
+      row,
+      'key',
+      key,
+      'clubUnhappNonZero',
+      nonZeroClub,
+      'playerIssueNonZero',
+      nonZero,
+      'issuesHex',
+      complaints.toString('hex'),
+    )
     console.log('  transfer_status', buf.readUInt8(row + 78), 'transfer_arranged', buf.readInt32LE(row + 74))
   }
   if (!found) console.log('NO contract row for keys', { staffId, staffIndex, playerRow, playerId })

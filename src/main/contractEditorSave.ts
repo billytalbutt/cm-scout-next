@@ -19,14 +19,14 @@ import {
   yesNoLabel,
 } from '../shared/contractEditorDisplay'
 import {
+  CONTRACT_CLUB_UNHAPPINESS_LENGTH,
+  CONTRACT_CLUB_UNHAPPINESS_OFFSET,
   CONTRACT_DATE_EXPIRES_OFFSET,
   CONTRACT_DATE_STARTED_OFFSET,
   CONTRACT_DISK_FIELDS,
   CONTRACT_ISSUE_BLOCK_OFFSET,
   CONTRACT_ROW_BYTES,
-  CONTRACT_SQUAD_MIRROR_OFFSET,
   CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH,
-  CONTRACT_UNHAPPINESS_TAIL_OFFSET,
 } from './database/contractDiskLayout'
 import { findBlock, writeScalarAt } from './database/playerStaffDiskLayout'
 
@@ -78,7 +78,10 @@ function contractDataStart(archiveBuffer: Buffer, block: BlockInfo): { rowStart:
   return { rowStart: o, count: contractCount }
 }
 
-/** Contract row keys that appear on real saves (staff id, array index, player.dat id / row index). */
+/**
+ * Contract row keys on real saves. CM Scout links `contract.dat` row `Id` to **staff array index**
+ * (not always `staff.dat` id). Loan players can have two rows sharing the same `Id`.
+ */
 export function contractRowKeysForStaff(
   db: ParsedDatabase,
   staffIndex: number,
@@ -86,8 +89,8 @@ export function contractRowKeysForStaff(
   const keys = new Set<number>()
   const staff = db.staff[staffIndex]
   if (!staff) return keys
-  if (staff.id > 0) keys.add(staff.id)
   keys.add(staffIndex)
+  if (staff.id > 0) keys.add(staff.id)
   if (staff.player_id >= 0) {
     keys.add(staff.player_id)
     const p = db.players[staff.player_id]
@@ -274,29 +277,22 @@ export function clearTransferRequestAtContractRow(buf: Buffer, contractRowAbs: n
 }
 
 /**
- * Clear in-game player issue / unhappiness data on a contract row.
- * Zeros complaint flags (`Unknown18_1` + `Unknown18_2`, bytes 54–69). Bytes 70–72 are preserved —
- * on real saves they often carry squad/shirt state; zeroing them scrambles squad numbers in CM.
+ * Clear in-game Future / transfer complaints on a contract row (GK Contract → Unhappiness + Club Unhappiness).
+ * CM Scout reads 19 bytes at 54–72 (`Unknown2`); clearing only 54–69 leaves issues in-game.
  */
 export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: number): void {
   const squadStatusOff = contractRowAbs + (CONTRACT_DISK_FIELDS.squad_status?.offset ?? 79)
   const squadStatus = squadStatusOff < buf.length ? buf.readUInt8(squadStatusOff) : 0
-  const squadMirror0 = buf.readUInt8(contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET)
-  const squadMirror1 = buf.readUInt8(contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET + 1)
-  const squadMirrorTail =
-    contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET < buf.length
-      ? buf.readUInt8(contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
-      : 0
+  buf.fill(
+    0,
+    contractRowAbs + CONTRACT_CLUB_UNHAPPINESS_OFFSET,
+    contractRowAbs + CONTRACT_CLUB_UNHAPPINESS_OFFSET + CONTRACT_CLUB_UNHAPPINESS_LENGTH,
+  )
   buf.fill(
     0,
     contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET,
     contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET + CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH,
   )
-  buf.writeUInt8(squadMirror0, contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET)
-  buf.writeUInt8(squadMirror1, contractRowAbs + CONTRACT_SQUAD_MIRROR_OFFSET + 1)
-  if (contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET < buf.length) {
-    buf.writeUInt8(squadMirrorTail, contractRowAbs + CONTRACT_UNHAPPINESS_TAIL_OFFSET)
-  }
   if (squadStatusOff < buf.length) {
     buf.writeUInt8(squadStatus, squadStatusOff)
   }

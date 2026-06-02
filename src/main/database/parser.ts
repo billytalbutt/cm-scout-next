@@ -480,8 +480,9 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
       const r = cbuf.subarray(o, o + 80)
       o += 80
       const rowKey = r.readInt32LE(0)
-      let staffIndex = staff.findIndex((s) => s.id === rowKey)
-      if (staffIndex < 0 && rowKey >= 0 && rowKey < staff.length) staffIndex = rowKey
+      // CM Scout: contract.Id is the staff **array index** (loan players may have two rows with same Id).
+      let staffIndex =
+        rowKey >= 0 && rowKey < staff.length ? rowKey : staff.findIndex((s) => s.id === rowKey)
       if (staffIndex < 0) staffIndex = staff.findIndex((s) => s.player_id === rowKey)
       if (staffIndex < 0 && rowKey > 0) {
         const playerIdx = players.findIndex((p) => p.id === rowKey)

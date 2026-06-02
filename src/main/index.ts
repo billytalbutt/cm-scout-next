@@ -1035,6 +1035,7 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
     for (const p of writeArchiveToDiskSiblings(loaded.indexPath, built.buffer)) writtenPaths.add(p)
     for (const p of writeArchiveToDiskSiblings(dlg.filePath, built.buffer)) writtenPaths.add(p)
     loaded.archiveBuf = built.buffer
+    loaded.indexPath = dlg.filePath
     return {
       ok: true as const,
       path: dlg.filePath,
