@@ -3,15 +3,21 @@
 @tailwind utilities;
 
 @layer components {
-  /* Filter sidebar field names — brighter than placeholders (zinc-600) */
+  /* Filter sidebar — section titles and labels slightly brighter than body copy */
   .filter-field-label {
-    @apply mb-1 block text-xs font-medium text-zinc-400;
+    @apply mb-1 block text-xs font-medium text-zinc-300;
   }
   .filter-field-label-sm {
-    @apply mb-1 block text-[11px] font-medium leading-snug text-zinc-400;
+    @apply mb-1 block text-[11px] font-medium leading-snug text-zinc-300;
   }
   .filter-attr-label {
-    @apply truncate font-medium text-zinc-400;
+    @apply truncate font-medium text-zinc-300;
+  }
+  .filter-subsection-title {
+    @apply text-xs font-medium text-zinc-300;
+  }
+  .filter-details-summary {
+    @apply cursor-pointer px-2 py-2 text-xs font-medium text-zinc-300;
   }
 
   .pill-tab {
@@ -25,7 +31,21 @@
   }
 
   .filter-section-heading {
-    @apply text-[10px] font-semibold uppercase tracking-wider text-zinc-500;
+    @apply text-[10px] font-semibold uppercase tracking-wider text-zinc-400;
+  }
+
+  /* Editor panels — section titles, field labels, in-game hints */
+  .panel-section-title {
+    @apply text-xs font-semibold uppercase tracking-wide text-zinc-400;
+  }
+  .editor-field-label {
+    @apply text-[10px] font-medium uppercase tracking-wide text-zinc-400;
+  }
+  .editor-field-hint {
+    @apply text-[10px] text-zinc-300;
+  }
+  .editor-option-row {
+    @apply flex cursor-pointer items-start gap-2 text-xs text-zinc-300;
   }
 
   /** Selected row in player / staff / regens browse tables — zinc slate, not green. */

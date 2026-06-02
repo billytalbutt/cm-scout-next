@@ -118,9 +118,7 @@ export function ContractEditorSection({
         setListedByClub(transferListedByClub(ts))
         setListedByRequest(transferListedByRequest(ts))
         setListedForLoanFlag(listedForLoan(ts))
-        setResetApproachProtection(
-          (s.hints?.contract_protection ?? '').toLowerCase().includes('unprotected'),
-        )
+        setResetApproachProtection(false)
         const d: Record<string, string> = {}
         for (const [k, v] of Object.entries(s.values)) {
           if (k !== 'transfer_status') d[k] = String(v)
@@ -235,8 +233,8 @@ export function ContractEditorSection({
   return (
     <section className="space-y-4 border-t border-zinc-800 pt-4">
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Contract &amp; transfer</h3>
-        <p className="mt-1 text-[11px] text-zinc-500">
+        <h3 className="panel-section-title">Contract &amp; transfer</h3>
+        <p className="mt-1 text-[11px] text-zinc-400">
           Same fields as Graeme Kelly Save Game Editor → Contract. Bonuses at −1 mean None in CM. Save writes a new
           copy — load it in CM to apply.
         </p>
@@ -249,12 +247,12 @@ export function ContractEditorSection({
       )}
 
       <label
-        className="flex cursor-pointer items-start gap-2 rounded-md border border-emerald-900/40 bg-emerald-950/20 px-3 py-2 text-xs text-zinc-300"
+        className="editor-option-row"
         title="CM blocks other clubs from approaching to sign for 2–3 years from the contract start date (by age at signing). Extending expiry alone does not reset this — set start date to the current game date."
       >
         <input
           type="checkbox"
-          className="mt-0.5"
+          className="mt-0.5 rounded border-zinc-600"
           checked={resetApproachProtection}
           onChange={(e) => setResetApproachProtection(e.target.checked)}
         />
@@ -274,27 +272,27 @@ export function ContractEditorSection({
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Contract started</span>
+          <span className="editor-field-label">Contract started</span>
           <input
             type="date"
             className={INPUT}
             value={dateStarted}
             onChange={(e) => setDateStarted(e.target.value)}
           />
-          <span className="text-[10px] text-zinc-400">
+          <span className="editor-field-hint">
             {dateStarted ? formatIsoDateUk(dateStarted) : 'Not set'}
             {snap.hints?.date_started && dateStarted === (snap.dateStartedIso ?? '') ? ` · ${snap.hints.date_started}` : ''}
           </span>
         </label>
         <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Contract expires</span>
+          <span className="editor-field-label">Contract expires</span>
           <input
             type="date"
             className={INPUT}
             value={dateExpires}
             onChange={(e) => setDateExpires(e.target.value)}
           />
-          <span className="text-[10px] text-zinc-400">
+          <span className="editor-field-hint">
             {dateExpires
               ? dateExpires === (snap.dateExpiresIso ?? '')
                 ? (snap.hints?.contract_expires ?? formatIsoDateUk(dateExpires))
@@ -306,7 +304,7 @@ export function ContractEditorSection({
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Wage</span>
+          <span className="editor-field-label">Wage</span>
           <input
             type="number"
             className={INPUT}
@@ -314,7 +312,7 @@ export function ContractEditorSection({
             onChange={(e) => setDraft((prev) => ({ ...prev, wage: e.target.value }))}
           />
           {Number.isFinite(wageRaw) && (
-            <span className="text-[10px] text-zinc-400">In game: {fmtWage(wageRaw)}/week</span>
+            <span className="editor-field-hint">In game: {fmtWage(wageRaw)}/week</span>
           )}
         </label>
 
@@ -325,7 +323,7 @@ export function ContractEditorSection({
               key={f.key}
               className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5"
             >
-              <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{f.label}</span>
+              <span className="editor-field-label">{f.label}</span>
               <input
                 type="number"
                 className={INPUT}
@@ -333,14 +331,14 @@ export function ContractEditorSection({
                 onChange={(e) => setDraft((prev) => ({ ...prev, [f.key]: e.target.value }))}
               />
               {Number.isFinite(raw) && (
-                <span className="text-[10px] text-zinc-400">{fmtContractBonusFieldHint(raw)}</span>
+                <span className="editor-field-hint">{fmtContractBonusFieldHint(raw)}</span>
               )}
             </label>
           )
         })}
 
         <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Release fee</span>
+          <span className="editor-field-label">Release fee</span>
           <input
             type="number"
             className={INPUT}
@@ -348,12 +346,12 @@ export function ContractEditorSection({
             onChange={(e) => setDraft((prev) => ({ ...prev, release_fee: e.target.value }))}
           />
           {Number.isFinite(releaseRaw) && (
-            <span className="text-[10px] text-zinc-400">In game: {fmtReleaseFee(releaseRaw)}</span>
+            <span className="editor-field-hint">In game: {fmtReleaseFee(releaseRaw)}</span>
           )}
         </label>
 
         <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Contract type</span>
+          <span className="editor-field-label">Contract type</span>
           <select
             className={INPUT}
             value={Number.isFinite(contractTypeRaw) ? contractTypeSelectValue(Math.trunc(contractTypeRaw)) : '2'}
@@ -372,12 +370,12 @@ export function ContractEditorSection({
               )}
           </select>
           {Number.isFinite(contractTypeRaw) && (
-            <span className="text-[10px] text-zinc-400">{contractTypeLabel(Math.trunc(contractTypeRaw))}</span>
+            <span className="editor-field-hint">{contractTypeLabel(Math.trunc(contractTypeRaw))}</span>
           )}
         </label>
 
         <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Squad status</span>
+          <span className="editor-field-label">Squad status</span>
           <select
             className={INPUT}
             value={Number.isFinite(squadStatusRaw) ? squadStatusSelectValue(Math.trunc(squadStatusRaw)) : '0'}
@@ -390,12 +388,12 @@ export function ContractEditorSection({
             ))}
           </select>
           {Number.isFinite(squadStatusRaw) && (
-            <span className="text-[10px] text-zinc-400">{squadStatusLabel(Math.trunc(squadStatusRaw))}</span>
+            <span className="editor-field-hint">{squadStatusLabel(Math.trunc(squadStatusRaw))}</span>
           )}
         </label>
 
         <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Transfer arranged for</span>
+          <span className="editor-field-label">Transfer arranged for</span>
           <input
             type="number"
             className={INPUT}
@@ -403,7 +401,7 @@ export function ContractEditorSection({
             onChange={(e) => setDraft((prev) => ({ ...prev, transfer_arranged_for: e.target.value }))}
           />
           {Number.isFinite(arrangedRaw) && (
-            <span className="text-[10px] text-zinc-400">
+            <span className="editor-field-hint">
               {snap.hints?.transfer_arranged_for ?? transferArrangedLabel(Math.trunc(arrangedRaw))}
               {arrangedRaw <= 0 ? ' (0 / negative = none)' : ''}
             </span>
@@ -411,7 +409,7 @@ export function ContractEditorSection({
         </label>
 
         <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Leaving on Bosman</span>
+          <span className="editor-field-label">Leaving on Bosman</span>
           <label className="mt-1 flex items-center gap-2 text-xs text-zinc-300">
             <input
               type="checkbox"
@@ -426,7 +424,7 @@ export function ContractEditorSection({
       </div>
 
       <div className="space-y-1.5 rounded border border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
-        <p className="text-[10px] font-medium uppercase text-zinc-500">Release clauses</p>
+        <p className="editor-field-label">Release clauses</p>
         {CLAUSE_FIELDS.map((f) => (
           <label key={f.key} className="flex items-center gap-2 text-xs text-zinc-300">
             <input
@@ -440,7 +438,7 @@ export function ContractEditorSection({
       </div>
 
       <div className="space-y-1.5 rounded border border-zinc-800/80 bg-zinc-950/40 px-3 py-2">
-        <p className="text-[10px] font-medium uppercase text-zinc-500">Transfer listing</p>
+        <p className="editor-field-label">Transfer listing</p>
         <label className="flex items-center gap-2 text-xs text-zinc-300">
           <input type="checkbox" checked={listedByClub} onChange={(e) => setListedByClub(e.target.checked)} />
           Listed by club

@@ -129,10 +129,34 @@ declare global {
         name: string
         mins: string[]
       } | null>
+      getPreferencesEditorSnapshot: (staffIndex: number) => Promise<
+        | {
+            staffIndex: number
+            name: string
+            staffDatId: number
+            staffPreferencesId: number
+            hasRow: boolean
+            rowCount: number
+            values: import('../../shared/preferencesEditor').PreferencesEditorValues
+            labels: {
+              favouriteClubs: [string, string, string]
+              dislikedClubs: [string, string, string]
+              favouriteStaff: [string, string, string]
+              dislikedStaff: [string, string, string]
+            }
+          }
+        | { error: string }
+        | null
+      >
       saveAttributeEdits: (
         staffIndex: number,
         changes: Record<string, number>,
-        options?: { clearInjury?: boolean; clearUnhappiness?: boolean },
+        options?: {
+          clearInjury?: boolean
+          clearUnhappiness?: boolean
+          preferences?: import('../../shared/preferencesEditor').PreferencesEditorValues
+          preferencesBaseline?: import('../../shared/preferencesEditor').PreferencesEditorValues
+        },
       ) => Promise<{ ok: true; path: string } | { ok: false; error: string }>
       getStaffEditorSnapshot: (staffIndex: number) => Promise<{
         staffIndex: number

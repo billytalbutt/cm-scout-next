@@ -90,11 +90,12 @@ export const STAFF_MENTAL_DISK_OFFSETS: Record<string, number> = {
 export const STAFF_EDITOR_KEYS = new Set(Object.keys(STAFF_MENTAL_DISK_OFFSETS))
 
 export function findBlock(blocks: BlockInfo[], canonicalLower: string): BlockInfo | undefined {
+  const key = canonicalLower.trim().toLowerCase()
   return blocks.find((b) =>
     b.name
       .replace(/\0+$/g, '')
       .trim()
-      .toLowerCase() === canonicalLower,
+      .toLowerCase() === key,
   )
 }
 

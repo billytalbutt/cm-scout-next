@@ -108,6 +108,8 @@ contextBridge.exposeInMainWorld('cmapi', {
   getPlayerDevelopmentDetail: (staffIndex: number) =>
     ipcRenderer.invoke('get-player-development-detail', staffIndex),
   getEditorSnapshot: (staffIndex: number) => ipcRenderer.invoke('get-editor-snapshot', staffIndex),
+  getPreferencesEditorSnapshot: (staffIndex: number) =>
+    ipcRenderer.invoke('get-preferences-editor-snapshot', staffIndex),
   getAttrFilterMins: (staffIndex: number) =>
     ipcRenderer.invoke('get-attr-filter-mins', staffIndex) as Promise<{
       staffIndex: number
@@ -117,13 +119,20 @@ contextBridge.exposeInMainWorld('cmapi', {
   saveAttributeEdits: (
     staffIndex: number,
     changes: Record<string, number>,
-    options?: { clearInjury?: boolean; clearUnhappiness?: boolean },
+    options?: {
+      clearInjury?: boolean
+      clearUnhappiness?: boolean
+      preferences?: import('../shared/preferencesEditor').PreferencesEditorValues
+      preferencesBaseline?: import('../shared/preferencesEditor').PreferencesEditorValues
+    },
   ) =>
     ipcRenderer.invoke('save-attribute-edits', {
       staffIndex,
       changes,
       clearInjury: options?.clearInjury === true,
       clearUnhappiness: options?.clearUnhappiness === true,
+      preferences: options?.preferences,
+      preferencesBaseline: options?.preferencesBaseline,
     }),
   getStaffEditorSnapshot: (staffIndex: number) =>
     ipcRenderer.invoke('get-staff-editor-snapshot', staffIndex),

@@ -19,7 +19,7 @@ CM 01/02 stores unsettled-player state in several places (same areas the GK Save
 | Issue flags (`Unknown18_1` / `Unknown18_2`) | `contract.dat` | 54–69 (16 bytes) | Zeroed — squad depth, rotation, unfair treatment, lost confidence in manager, etc. |
 | `Unknown18_3` / `Unknown18_4` | `contract.dat` | 70–72 | **Preserved** — often mirrors squad/shirt number; do not zero |
 | Transfer request flag | `contract.dat` | `transfer_status` byte 78, **bit 0x08** | Cleared (`transfer_status & ~8`) |
-| Disliked clubs / staff | `Preferences.dat` | 52-byte rows; dislikes @ 16–24 and 40–48 | Set to **−1** (clears “dislikes assistant manager”, etc.) |
+| Favourite / disliked clubs & staff | `Preferences.dat` | 52-byte row; fav clubs @ 4–12, disliked clubs @ 16–24, fav staff @ 28–36, disliked staff @ 40–48 | Editable in player editor **Preferences** section; empty slot = **−1**. **Clear unhappiness** only clears disliked slots. |
 | `squad_status` | `contract.dat` | 79 | Reset to **2** (First team) when byte was an invalid value (&gt; 8) |
 
 Squad shirt numbers live on `player.dat` byte 4 (`squad_number`), not in the contract issue block.
@@ -31,6 +31,10 @@ Squad shirt numbers live on `player.dat` byte 4 (`squad_number`), not in the con
 - `0x08` — transfer listed by player request  
 
 Morale remains editable as a normal attribute in the player editor.
+
+### Preferences (GK “Prefs”)
+
+Player editor → **Preferences**: three favourite clubs, three disliked clubs, three favourite staff, three disliked staff (search by name; **Clear (none)** sets −1). Writes every matching `Preferences.dat` row for the player’s `StaffPreferences` link or `staff.dat` id. Saved with the main **Save copy** button (same file as attributes). **Clear unhappiness on save** still only wipes disliked clubs/staff and contract complaints — it does not change favourites.
 
 ## Current injury (`injury_history.tmp`)
 

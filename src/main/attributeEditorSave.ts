@@ -4,7 +4,9 @@ import {
   clearInjuryAtAbsOffset,
   resolveInjuryHistoryAbsOffset,
 } from './database/injuryHistory'
+import { applyPreferencesPatchForStaff } from './preferencesEditorSave'
 import { applyClearUnhappinessForStaff } from './squadUnhappinessClear'
+import type { PreferencesEditorValues } from '../shared/preferencesEditor'
 import {
   findBlock,
   PLAYER_DISK_FIELDS,
@@ -30,7 +32,12 @@ export function buildPatchedArchiveBuffer(
   db: ParsedDatabase,
   staffIndex: number,
   changes: Record<string, number>,
-  opts?: { clearInjury?: boolean; clearUnhappiness?: boolean },
+  opts?: {
+    clearInjury?: boolean
+    clearUnhappiness?: boolean
+    preferences?: PreferencesEditorValues | null
+    preferencesBaseline?: PreferencesEditorValues | null
+  },
 ): AttributeEditorSaveResult {
   if (compressed) {
     return {
@@ -86,6 +93,18 @@ export function buildPatchedArchiveBuffer(
     if (typeof off !== 'number') return { ok: false, error: off.error }
     const cleared = clearInjuryAtAbsOffset(out, off)
     if (!cleared.ok) return cleared
+  }
+
+  if (opts?.preferences) {
+    const pref = applyPreferencesPatchForStaff(
+      out,
+      blocks,
+      db,
+      staffIndex,
+      opts.preferences,
+      opts.preferencesBaseline ?? null,
+    )
+    if (!pref.ok) return pref
   }
 
   if (opts?.clearUnhappiness) {

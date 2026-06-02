@@ -13,7 +13,7 @@ import {
   CONTRACT_UNHAPPINESS_TAIL_OFFSET,
 } from './database/contractDiskLayout'
 import {
-  clearPreferencesDislikesForId,
+  clearPreferencesDislikesForStaff,
   STAFF_PREFERENCES_ID_OFFSET,
 } from './database/staffPreferencesDiskLayout'
 
@@ -97,9 +97,15 @@ export function applyClearUnhappinessForStaff(
   writeScalarAt(buf, playerBase + PLAYER_DISK_FIELDS.morale.offset, 'i8', MORALE_SUPERB)
   writeScalarAt(buf, staffBase + STAFF_CLUB_VALUATION_OFFSET, 'u8', CLUB_VALUATION_SUPERB)
   const preferencesId = buf.readInt32LE(staffBase + STAFF_PREFERENCES_ID_OFFSET)
-  const prefBlock = findBlock(blocks, 'Preferences.dat')
-  if (prefBlock && preferencesId > 0) {
-    clearPreferencesDislikesForId(buf, prefBlock.position, prefBlock.size, preferencesId)
+  const prefBlock = findBlock(blocks, 'preferences.dat')
+  if (prefBlock) {
+    clearPreferencesDislikesForStaff(
+      buf,
+      prefBlock.position,
+      prefBlock.size,
+      preferencesId,
+      staff.id,
+    )
   }
   const squadNumber = buf.readUInt8(playerBase + PLAYER_DISK_FIELDS.squad_number.offset)
   const contractRow = resolveContractRowAbsOffset(buf, blocks, staffIndex, staff.id)

@@ -14,8 +14,11 @@ import {
   setCopiedPlayerAttributes,
   subscribeCopiedPlayerAttributes,
 } from '../../shared/copiedPlayerAttributes'
+import type { PreferencesEditorValues } from '../../shared/preferencesEditor'
+import { preferencesValuesEqual } from '../../shared/preferencesEditor'
 import { EditorPlayerPicker } from './editor/EditorPlayerPicker'
 import { ContractEditorSection } from './editor/ContractEditorSection'
+import { PreferencesEditorSection } from './editor/PreferencesEditorSection'
 
 export type EditorSnapshot = {
   staffIndex: number
@@ -40,22 +43,22 @@ function mergeEditorNumericMap(snap: EditorSnapshot, draft: Record<string, strin
 function PreviewLines({ preview }: { preview: EditorFieldGamePreview }) {
   if (preview.kind === 'direct') {
     return (
-      <p className="text-[10px] leading-snug text-zinc-500">
-        CM uses this value directly <span className="font-mono text-zinc-400">({preview.inGame})</span>.
+      <p className="editor-field-hint leading-snug">
+        CM uses this value directly <span className="font-mono text-zinc-300">({preview.inGame})</span>.
       </p>
     )
   }
   return (
     <div className="space-y-0.5">
-      <p className="text-[10px] leading-snug text-zinc-400">
+      <p className="editor-field-hint leading-snug">
         On attributes screen:{' '}
         <span className="font-mono font-semibold text-emerald-200/95">{preview.inGame}</span>
-        <span className="text-zinc-600"> · 1–20 style</span>
+        <span className="text-zinc-500"> · 1–20 style</span>
         {preview.kind === 'ca18' && (
-          <span className="text-zinc-600"> (from current CA + this raw byte; GK flips high/low mix)</span>
+          <span className="text-zinc-500"> (from current CA + this raw byte; GK flips high/low mix)</span>
         )}
         {preview.kind === 'clamped' && (
-          <span className="text-zinc-600"> (clamped from raw for display)</span>
+          <span className="text-zinc-500"> (clamped from raw for display)</span>
         )}
       </p>
       {preview.inGameUncapped !== preview.inGame && (
@@ -64,8 +67,8 @@ function PreviewLines({ preview }: { preview: EditorFieldGamePreview }) {
         </p>
       )}
       {preview.inMatch != null && preview.inMatch !== preview.inGame && (
-        <p className="text-[10px] leading-snug text-zinc-600">
-          In-match helper (profile tooltip): <span className="font-mono text-zinc-400">{preview.inMatch}</span>
+        <p className="editor-field-hint leading-snug text-zinc-400">
+          In-match helper (profile tooltip): <span className="font-mono text-zinc-300">{preview.inMatch}</span>
         </p>
       )}
     </div>
@@ -89,7 +92,7 @@ function NumField({
 }) {
   return (
     <label className="flex flex-col gap-0.5 rounded border border-zinc-800/80 bg-zinc-950/50 px-2 py-1.5">
-      <span className="truncate text-[10px] font-medium uppercase tracking-wide text-zinc-500" title={k}>
+      <span className="editor-field-label truncate" title={k}>
         {label}
       </span>
       <input
@@ -127,8 +130,19 @@ export function AttributeEditorPanel({
   const [searchedStaffIndex, setSearchedStaffIndex] = useState<number | null>(null)
   const [clearInjury, setClearInjury] = useState(false)
   const [clearUnhappiness, setClearUnhappiness] = useState(false)
+  const [prefDraft, setPrefDraft] = useState<PreferencesEditorValues | null>(null)
+  const [prefBaseline, setPrefBaseline] = useState<PreferencesEditorValues | null>(null)
+  const [prefRefreshKey, setPrefRefreshKey] = useState(0)
   const baselineRef = useRef<Record<string, number> | null>(null)
   const effectiveStaffIndex = searchedStaffIndex ?? staffIndex
+
+  const onPreferencesDraftChange = useCallback(
+    (draft: PreferencesEditorValues | null, baseline: PreferencesEditorValues | null) => {
+      setPrefDraft(draft)
+      setPrefBaseline(baseline)
+    },
+    [],
+  )
 
   useEffect(() => subscribeCopiedPlayerAttributes(() => setCopiedAttrs(getCopiedPlayerAttributes())), [])
 
@@ -223,7 +237,12 @@ export function AttributeEditorPanel({
     return false
   }, [draft])
 
-  const hasChanges = hasAttrChanges || clearInjury || clearUnhappiness
+  const hasPrefChanges = useMemo(() => {
+    if (!prefDraft || !prefBaseline) return false
+    return !preferencesValuesEqual(prefDraft, prefBaseline)
+  }, [prefDraft, prefBaseline])
+
+  const hasChanges = hasAttrChanges || clearInjury || clearUnhappiness || hasPrefChanges
 
   const saveDisabled = compressed || !snap || saving || !hasChanges
 
@@ -243,7 +262,7 @@ export function AttributeEditorPanel({
       const t = Math.trunc(n)
       if (t !== base[key]) changes[key] = t
     }
-    if (Object.keys(changes).length === 0 && !clearInjury && !clearUnhappiness) {
+    if (Object.keys(changes).length === 0 && !clearInjury && !clearUnhappiness && !hasPrefChanges) {
       setSaveMsg('No changes to save.')
       return
     }
@@ -254,6 +273,8 @@ export function AttributeEditorPanel({
       const out = await window.cmapi.saveAttributeEdits(snap.staffIndex, changes, {
         clearInjury,
         clearUnhappiness,
+        preferences: hasPrefChanges ? prefDraft ?? undefined : undefined,
+        preferencesBaseline: prefBaseline ?? undefined,
       })
       if (out && typeof out === 'object' && 'ok' in out && out.ok && 'path' in out) {
         setSaveMsg(`Saved to ${String((out as { path: string }).path)}`)
@@ -264,7 +285,8 @@ export function AttributeEditorPanel({
         if (clearUnhappiness) {
           setClearUnhappiness(false)
         }
-        if (clearInjury || clearUnhappiness) {
+        if (clearInjury || clearUnhappiness || hasPrefChanges) {
+          setPrefRefreshKey((k) => k + 1)
           const refreshed = await window.cmapi.getEditorSnapshot(snap.staffIndex)
           if (refreshed && typeof refreshed === 'object' && 'values' in refreshed) {
             setSnap(refreshed as EditorSnapshot)
@@ -281,7 +303,7 @@ export function AttributeEditorPanel({
     } finally {
       setSaving(false)
     }
-  }, [clearInjury, clearUnhappiness, compressed, draft, snap])
+  }, [clearInjury, clearUnhappiness, compressed, draft, hasPrefChanges, prefBaseline, prefDraft, snap])
 
   if (!loadInfo) {
     return <p className="text-sm text-zinc-500">Load a database first.</p>
@@ -383,7 +405,7 @@ export function AttributeEditorPanel({
       </p>
 
       <section className="rounded-md border border-zinc-800/80 bg-zinc-950/40 px-3 py-2.5">
-        <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">Current injury</h3>
+        <h3 className="panel-section-title mb-1.5">Current injury</h3>
         <p className="text-sm text-zinc-200">
           {snap.injury?.label ?? 'None'}
         </p>
@@ -406,7 +428,7 @@ export function AttributeEditorPanel({
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">CA / PA / squad / reputation</h3>
+        <h3 className="panel-section-title mb-2">CA / PA / squad / reputation</h3>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
           {coreKeys.map((k) => (
             <NumField
@@ -423,7 +445,7 @@ export function AttributeEditorPanel({
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Natural positions &amp; sides</h3>
+        <h3 className="panel-section-title mb-2">Natural positions &amp; sides</h3>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {EDITOR_POSITION_KEYS.map((k) => (
             <NumField
@@ -440,7 +462,7 @@ export function AttributeEditorPanel({
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Main attributes</h3>
+        <h3 className="panel-section-title mb-2">Main attributes</h3>
         <div className="grid gap-4 md:grid-cols-3">
           {EDITOR_MAIN_ATTR_COLS.map((col, ci) => (
             <div key={ci} className="grid grid-cols-1 gap-2">
@@ -461,8 +483,8 @@ export function AttributeEditorPanel({
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Hidden / staff mentals <span className="font-normal text-zinc-600">(player bytes + staff.dat)</span>
+        <h3 className="panel-section-title mb-2">
+          Hidden / staff mentals <span className="font-normal text-zinc-500">(player bytes + staff.dat)</span>
         </h3>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {EDITOR_HIDDEN_ORDER.map((k) => (
@@ -480,7 +502,7 @@ export function AttributeEditorPanel({
       </section>
 
       <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Feet &amp; morale</h3>
+        <h3 className="panel-section-title mb-2">Feet &amp; morale</h3>
         <div className="grid max-w-xl grid-cols-3 gap-2">
           {(['left_foot', 'right_foot', 'morale'] as const).map((k) => (
             <NumField
@@ -507,6 +529,14 @@ export function AttributeEditorPanel({
           Clear unhappiness on save
         </label>
       </section>
+
+      <PreferencesEditorSection
+        loadInfo={loadInfo}
+        compressed={compressed}
+        staffIndex={effectiveStaffIndex}
+        refreshKey={prefRefreshKey}
+        onDraftChange={onPreferencesDraftChange}
+      />
 
       <ContractEditorSection loadInfo={loadInfo} compressed={compressed} staffIndex={effectiveStaffIndex} />
 

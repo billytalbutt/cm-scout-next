@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   PREFERENCES_ROW_BYTES,
   clearPreferencesDislikesForId,
+  clearPreferencesDislikesForStaff,
 } from './staffPreferencesDiskLayout'
 
 describe('clearPreferencesDislikesForId', () => {
@@ -22,5 +23,15 @@ describe('clearPreferencesDislikesForId', () => {
     expect(buf.readInt32LE(40)).toBe(-1)
     expect(buf.readInt32LE(24 + PREFERENCES_ROW_BYTES)).toBe(-1)
     expect(buf.readInt32LE(48 + PREFERENCES_ROW_BYTES)).toBe(-1)
+  })
+
+  it('clearPreferencesDislikesForStaff falls back to staff.dat id when StaffPreferences link is 0', () => {
+    const row = Buffer.alloc(PREFERENCES_ROW_BYTES, 0)
+    row.writeInt32LE(6408, 0)
+    row.writeInt32LE(111, 40)
+    const buf = Buffer.concat([row])
+    const n = clearPreferencesDislikesForStaff(buf, 0, buf.length, 0, 6408)
+    expect(n).toBe(1)
+    expect(buf.readInt32LE(40)).toBe(-1)
   })
 })

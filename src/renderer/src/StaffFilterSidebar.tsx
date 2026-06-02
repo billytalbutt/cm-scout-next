@@ -293,7 +293,7 @@ export function StaffFilterSidebar({
         </select>
       </label>
       <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
-        <span className="text-xs font-medium text-zinc-400">Contract</span>
+        <span className="filter-subsection-title">Contract</span>
         <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
           <input type="checkbox" checked={euOnly} onChange={(e) => setEuOnly(e.target.checked)} />
           EU passport (1st or 2nd nation)
@@ -317,7 +317,7 @@ export function StaffFilterSidebar({
         </label>
       </div>
       <details className="rounded-md border border-zinc-800 bg-zinc-900/40" open>
-        <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400">
+        <summary className="filter-details-summary">
           Regular attributes
         </summary>
         <div className="max-h-44 overflow-y-auto border-t border-zinc-800 px-2 py-2 cm-scroll">
@@ -325,7 +325,7 @@ export function StaffFilterSidebar({
         </div>
       </details>
       <details className="rounded-md border border-zinc-800 bg-zinc-900/40" open={defaultHiddenOpen}>
-        <summary className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400">
+        <summary className="filter-details-summary">
           Hidden attributes (incl. board / sugar daddy)
         </summary>
         <div className="max-h-52 overflow-y-auto border-t border-zinc-800 px-2 py-2 cm-scroll">
@@ -334,7 +334,7 @@ export function StaffFilterSidebar({
       </details>
       <div className="rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
         <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
-          <span className="text-zinc-400">Active minimums</span>
+          <span className="text-zinc-300">Active minimums</span>
           <span className="inline-flex h-6 w-12 items-center justify-center rounded border border-zinc-600 bg-zinc-950 font-mono text-emerald-200/90">
             {activeStaffAttrFilterCount}
           </span>

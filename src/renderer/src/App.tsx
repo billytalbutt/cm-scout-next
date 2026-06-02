@@ -1932,7 +1932,7 @@ export function App() {
               </select>
             </label>
             <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
-              <span className="text-xs font-medium text-zinc-400">Transfer / loan</span>
+              <span className="filter-subsection-title">Transfer / loan</span>
               <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
                 <input type="checkbox" checked={tlClub} onChange={(e) => setTlClub(e.target.checked)} />
                 Listed by club
@@ -1947,7 +1947,7 @@ export function App() {
               </label>
             </div>
             <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
-              <span className="text-xs font-medium text-zinc-400">Contract / passport</span>
+              <span className="filter-subsection-title">Contract / passport</span>
               <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
                 <input type="checkbox" checked={euOnly} onChange={(e) => setEuOnly(e.target.checked)} />
                 EU passport (1st or 2nd nation)
@@ -2221,7 +2221,7 @@ export function App() {
             )}
             <details className="rounded-md border border-zinc-800 bg-zinc-900/40">
               <summary
-                className="cursor-pointer px-2 py-2 text-xs font-medium text-zinc-400"
+                className="filter-details-summary"
                 title="Same 1–20 scale as on-screen attribute bars. Enter 21+ for uncapped CA18 / raw-byte overflow (editor-style intrinsics). Right-click a minimum box: 5 → 10 → 15 → 20 → clear."
               >
                 Attributes
@@ -2264,7 +2264,7 @@ export function App() {
                   className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500"
                   title="Match ≥: empty = every active attribute minimum must pass; otherwise at least N of them must pass."
                 >
-                  <span className="text-zinc-400">Active</span>
+                  <span className="text-zinc-300">Active</span>
                   <span
                     className="inline-flex h-6 w-12 shrink-0 items-center justify-center rounded border border-zinc-600 bg-zinc-950 font-mono text-[11px] text-emerald-200/90"
                     title="Attributes with a minimum value &gt; 0"
@@ -2328,7 +2328,7 @@ export function App() {
               </div>
             </details>
             <div className="space-y-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2 py-2">
-              <span className="text-xs font-medium text-zinc-400">Regens</span>
+              <span className="filter-subsection-title">Regens</span>
               <label
                 className={`flex items-center gap-2 text-xs ${
                   browseTab === 'regens' ||
@@ -2394,7 +2394,7 @@ export function App() {
                   </div>
                 }
               >
-                <span className="flex cursor-default items-center text-xs font-medium text-zinc-400">
+                <span className="filter-subsection-title flex cursor-default items-center">
                   Engine sniffer
                   <InfoDot />
                 </span>

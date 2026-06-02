@@ -82,6 +82,9 @@ import {
   buildPatchedArchiveBuffer,
   editorSubjectLabel,
 } from './attributeEditorSave'
+import { buildPreferencesEditorSnapshot } from './preferencesEditorSave'
+import type { PreferencesEditorValues } from '../shared/preferencesEditor'
+import { preferencesValuesEqual } from '../shared/preferencesEditor'
 import {
   buildContractEditorPatchedBuffer,
   buildContractEditorSnapshot,
@@ -938,10 +941,32 @@ ipcMain.handle('get-editor-snapshot', async (_e, staffIndex: unknown) => {
   }
 })
 
+ipcMain.handle('get-preferences-editor-snapshot', async (_e, staffIndex: unknown) => {
+  if (!loaded) return null
+  syncLoadedArchiveFromDisk()
+  const idx = Math.floor(Number(staffIndex))
+  if (!Number.isFinite(idx) || idx < 0) return null
+  const snap = buildPreferencesEditorSnapshot(
+    loaded.archiveBuf,
+    loaded.db.blocks,
+    loaded.db,
+    idx,
+  )
+  if ('error' in snap) return { error: snap.error }
+  return snap
+})
+
 ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
   if (!loaded) return { ok: false as const, error: 'No database loaded.' }
   syncLoadedArchiveFromDisk()
-  const p = payload as { staffIndex?: unknown; changes?: unknown; clearInjury?: unknown }
+  const p = payload as {
+    staffIndex?: unknown
+    changes?: unknown
+    clearInjury?: unknown
+    clearUnhappiness?: unknown
+    preferences?: unknown
+    preferencesBaseline?: unknown
+  }
   const staffIndex = Math.floor(Number(p.staffIndex))
   const ch = p.changes
   if (!Number.isFinite(staffIndex) || staffIndex < 0 || typeof ch !== 'object' || ch === null) {
@@ -950,7 +975,18 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
   const changes = ch as Record<string, number>
   const clearInjury = p.clearInjury === true
   const clearUnhappiness = p.clearUnhappiness === true
-  if (Object.keys(changes).length === 0 && !clearInjury && !clearUnhappiness) {
+  const preferences = p.preferences as PreferencesEditorValues | undefined
+  const preferencesBaseline = p.preferencesBaseline as PreferencesEditorValues | undefined
+  const prefDirty =
+    preferences != null &&
+    preferencesBaseline != null &&
+    !preferencesValuesEqual(preferences, preferencesBaseline)
+  if (
+    Object.keys(changes).length === 0 &&
+    !clearInjury &&
+    !clearUnhappiness &&
+    !prefDirty
+  ) {
     return { ok: false as const, error: 'No changes to save.' }
   }
   const built = buildPatchedArchiveBuffer(
@@ -960,7 +996,12 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
     loaded.db,
     staffIndex,
     changes,
-    { clearInjury, clearUnhappiness },
+    {
+      clearInjury,
+      clearUnhappiness,
+      preferences: prefDirty ? preferences : null,
+      preferencesBaseline: preferencesBaseline ?? null,
+    },
   )
   if (!built.ok) return { ok: false as const, error: built.error }
 
