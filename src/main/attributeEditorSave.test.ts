@@ -25,9 +25,8 @@ function minimalArchive(): Buffer {
   buf.writeInt32LE(1, CONTRACT_BLOCK_POS + 4)
   buf.writeInt32LE(0, CONTRACT_ROW_POS)
   buf.writeUInt32LE(0x01020304, CONTRACT_ROW_POS + CONTRACT_CLUB_UNHAPPINESS_OFFSET)
-  buf.writeUInt8(0xff, CONTRACT_ROW_POS + 54)
-  buf.writeUInt8(0x11, CONTRACT_ROW_POS + 71)
-  buf.writeUInt8(0x22, CONTRACT_ROW_POS + 72)
+  buf.fill(0xff, CONTRACT_ROW_POS + 54, CONTRACT_ROW_POS + 73)
+  buf.writeUInt8(2, CONTRACT_ROW_POS + 79)
   buf.writeUInt8(8, CONTRACT_ROW_POS + 78)
   return buf
 }
@@ -68,9 +67,12 @@ describe('buildPatchedArchiveBuffer clearUnhappiness', () => {
     expect(built.buffer.readInt8(PLAYER_BLOCK_POS + PLAYER_DISK_FIELDS.morale.offset)).toBe(20)
     expect(built.buffer.readUInt8(STAFF_BLOCK_POS + 0x60)).toBe(20)
     expect(built.buffer.readUInt32LE(CONTRACT_ROW_POS + CONTRACT_CLUB_UNHAPPINESS_OFFSET)).toBe(0)
-    for (let i = 0; i < CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH; i++) {
+    for (let i = 0; i < 16; i++) {
       expect(built.buffer.readUInt8(CONTRACT_ROW_POS + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
+    expect(built.buffer.readInt16LE(CONTRACT_ROW_POS + 70)).toBe(2)
+    expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 72)).toBe(11)
+    expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 79)).toBe(2)
     expect(built.buffer.readUInt8(PLAYER_BLOCK_POS + PLAYER_DISK_FIELDS.squad_number.offset)).toBe(11)
     expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 78)).toBe(0)
     expect(built.buffer.readUInt8(CONTRACT_ROW_POS + 79)).toBe(0)

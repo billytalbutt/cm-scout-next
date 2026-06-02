@@ -30,11 +30,47 @@ export const CONTRACT_CLUB_UNHAPPINESS_OFFSET = 8
 export const CONTRACT_CLUB_UNHAPPINESS_LENGTH = 4
 
 /**
- * GK “Contract → Unhappiness” issue flags (`Unknown18_*` / CM Scout `Unknown2`).
- * CM Scout reads **19 bytes** here (not 16) — bytes 70–72 are part of this block.
+ * GK “Contract → Unhappiness” (`Unknown18_*` / CM Scout `Unknown2`, 54–72).
+ * Clear all 19 bytes, then restore 70–72 via {@link syncContractSquadMirrorBytes}.
  */
 export const CONTRACT_ISSUE_BLOCK_OFFSET = 54
 export const CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH = 19
+export const CONTRACT_SQUAD_MIRROR_INT16_OFFSET = 70
+export const CONTRACT_SQUAD_MIRROR_SHIRT_OFFSET = 72
+export const CONTRACT_SQUAD_STATUS_OFFSET = 79
+
+/**
+ * After clearing complaints, CM still reads squad role from `Unknown18_3` (int16 @ 70) and shirt @ 72,
+ * not only `SquadStatus` @ 79 — zeroing 70–72 without restoring causes “needs clarification on future”.
+ */
+export function syncContractSquadMirrorBytes(
+  buf: Buffer,
+  contractRowAbs: number,
+  opts?: { squadStatus?: number; squadNumber?: number },
+): void {
+  if (contractRowAbs < 0 || contractRowAbs + CONTRACT_ROW_BYTES > buf.length) return
+  const statusOff = contractRowAbs + CONTRACT_SQUAD_STATUS_OFFSET
+  let status = opts?.squadStatus
+  if (status == null || !Number.isFinite(status)) {
+    status = statusOff < buf.length ? buf.readUInt8(statusOff) : 0
+  }
+  status = Math.max(0, Math.min(255, Math.trunc(status)))
+
+  const mirrorOff = contractRowAbs + CONTRACT_SQUAD_MIRROR_INT16_OFFSET
+  if (mirrorOff + 2 <= buf.length) {
+    buf.writeInt16LE(status, mirrorOff)
+  }
+  if (opts?.squadNumber != null && Number.isFinite(opts.squadNumber)) {
+    const shirtOff = contractRowAbs + CONTRACT_SQUAD_MIRROR_SHIRT_OFFSET
+    if (shirtOff < buf.length) {
+      const shirt = Math.max(0, Math.min(255, Math.trunc(opts.squadNumber)))
+      buf.writeUInt8(shirt, shirtOff)
+    }
+  }
+  if (statusOff < buf.length) {
+    buf.writeUInt8(status, statusOff)
+  }
+}
 /** @deprecated Use {@link CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH} for writes. */
 export const CONTRACT_ISSUE_BLOCK_LENGTH = CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH
 /** @deprecated Use {@link CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH} for writes. */

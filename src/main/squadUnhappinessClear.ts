@@ -109,9 +109,22 @@ export function applyClearUnhappinessForStaff(
     )
   }
 
+  const playerBlock = findBlock(blocks, 'player.dat')
+  const squadNumber =
+    playerBlock && playerRow >= 0
+      ? buf.readUInt8(playerBlock.position + playerRow * PLAYER_ROW_BYTES + PLAYER_DISK_FIELDS.squad_number.offset)
+      : undefined
+  const squadStatus =
+    db.contractsByStaffIndex.get(staffIndex)?.squad_status ??
+    (() => {
+      const firstRow = resolveAllContractRowAbsOffsets(buf, blocks, db, staffIndex)[0]
+      if (firstRow == null) return 0
+      return buf.readUInt8(firstRow + 79)
+    })()
+
   const contractRows = resolveAllContractRowAbsOffsets(buf, blocks, db, staffIndex)
   for (const contractRow of contractRows) {
-    clearContractUnhappinessAtRow(buf, contractRow)
+    clearContractUnhappinessAtRow(buf, contractRow, { squadStatus, squadNumber })
   }
 
   if (contractRows.length === 0 && !prefBlock) {

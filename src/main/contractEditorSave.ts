@@ -26,9 +26,11 @@ import {
   CONTRACT_DISK_FIELDS,
   CONTRACT_ISSUE_BLOCK_OFFSET,
   CONTRACT_ROW_BYTES,
+  CONTRACT_SQUAD_STATUS_OFFSET,
   CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH,
+  syncContractSquadMirrorBytes,
 } from './database/contractDiskLayout'
-import { findBlock, writeScalarAt } from './database/playerStaffDiskLayout'
+import { findBlock, PLAYER_DISK_FIELDS, PLAYER_ROW_BYTES, writeScalarAt } from './database/playerStaffDiskLayout'
 
 export type ContractEditorSnapshot = {
   staffIndex: number
@@ -266,7 +268,35 @@ export function buildContractEditorPatchedBuffer(
   if (mergedDates && 'contract_expires' in mergedDates) {
     writeTcmDateAtIso(out, base + CONTRACT_DATE_EXPIRES_OFFSET, mergedDates.contract_expires)
   }
+  const squadNumber = readPlayerSquadNumber(out, blocks, db, staffIndex)
+  const contractRows = resolveAllContractRowAbsOffsets(out, blocks, db, staffIndex)
+  const rowsToSync = contractRows.length > 0 ? contractRows : [base]
+  let squadStatus = out.readUInt8(base + CONTRACT_SQUAD_STATUS_OFFSET)
+  if (changes.squad_status != null && Number.isFinite(Number(changes.squad_status))) {
+    squadStatus = Math.trunc(Number(changes.squad_status))
+  }
+  for (const row of rowsToSync) {
+    if (changes.squad_status != null && Number.isFinite(Number(changes.squad_status))) {
+      writeScalarAt(out, row + CONTRACT_SQUAD_STATUS_OFFSET, 'u8', squadStatus)
+    }
+    syncContractSquadMirrorBytes(out, row, { squadStatus, squadNumber })
+  }
   return { ok: true, buffer: out }
+}
+
+function readPlayerSquadNumber(
+  buf: Buffer,
+  blocks: BlockInfo[],
+  db: ParsedDatabase,
+  staffIndex: number,
+): number | undefined {
+  const staff = db.staff[staffIndex]
+  if (!staff || staff.player_id < 0 || staff.player_id >= db.players.length) return undefined
+  const playerBlock = findBlock(blocks, 'player.dat')
+  if (!playerBlock) return undefined
+  const off = playerBlock.position + staff.player_id * PLAYER_ROW_BYTES + PLAYER_DISK_FIELDS.squad_number.offset
+  if (off >= buf.length) return undefined
+  return buf.readUInt8(off)
 }
 
 /** Clear transfer-request bit (0x08) on contract.transfer_status. */
@@ -278,11 +308,20 @@ export function clearTransferRequestAtContractRow(buf: Buffer, contractRowAbs: n
 
 /**
  * Clear in-game Future / transfer complaints on a contract row (GK Contract → Unhappiness + Club Unhappiness).
- * CM Scout reads 19 bytes at 54–72 (`Unknown2`); clearing only 54–69 leaves issues in-game.
+ * Zeros full `Unknown2` (54–72) then restores squad mirror bytes so CM does not show “clarification on future”.
  */
-export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: number): void {
-  const squadStatusOff = contractRowAbs + (CONTRACT_DISK_FIELDS.squad_status?.offset ?? 79)
-  const squadStatus = squadStatusOff < buf.length ? buf.readUInt8(squadStatusOff) : 0
+export function clearContractUnhappinessAtRow(
+  buf: Buffer,
+  contractRowAbs: number,
+  opts?: { squadStatus?: number; squadNumber?: number },
+): void {
+  const squadStatusOff = contractRowAbs + CONTRACT_SQUAD_STATUS_OFFSET
+  const squadStatus =
+    opts?.squadStatus != null && Number.isFinite(opts.squadStatus)
+      ? Math.trunc(opts.squadStatus)
+      : squadStatusOff < buf.length
+        ? buf.readUInt8(squadStatusOff)
+        : 0
   buf.fill(
     0,
     contractRowAbs + CONTRACT_CLUB_UNHAPPINESS_OFFSET,
@@ -293,9 +332,10 @@ export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: numbe
     contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET,
     contractRowAbs + CONTRACT_ISSUE_BLOCK_OFFSET + CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH,
   )
-  if (squadStatusOff < buf.length) {
-    buf.writeUInt8(squadStatus, squadStatusOff)
-  }
+  syncContractSquadMirrorBytes(buf, contractRowAbs, {
+    squadStatus,
+    squadNumber: opts?.squadNumber,
+  })
   clearTransferRequestAtContractRow(buf, contractRowAbs)
   const transferArrangedOff = contractRowAbs + (CONTRACT_DISK_FIELDS.transfer_arranged_for?.offset ?? 74)
   if (transferArrangedOff + 4 <= buf.length) {

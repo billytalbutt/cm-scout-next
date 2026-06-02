@@ -91,24 +91,21 @@ describe('contractEditorSave', () => {
     }
   })
 
-  it('clears club + player unhappiness bytes (54–72) and transfer-request bit; preserves squad_status', () => {
+  it('clears complaints then restores squad mirror (status int16 @ 70, shirt @ 72, status @ 79)', () => {
     const archive = minimalContractArchive(0, 500)
     const base = 8
     archive.writeUInt32LE(0xdeadbeef, base + 8)
-    archive.writeUInt8(0xcd, base + 70)
-    archive.writeUInt8(0xef, base + 71)
-    archive.writeUInt8(8, base + 72)
-    archive.writeUInt8(3, base + 79)
+    archive.fill(0xff, base + 54, base + 73)
+    archive.writeUInt8(2, base + 79)
     archive.writeUInt8(8, base + 78)
-    clearContractUnhappinessAtRow(archive, base)
+    clearContractUnhappinessAtRow(archive, base, { squadStatus: 2, squadNumber: 9 })
     expect(archive.readUInt32LE(base + 8)).toBe(0)
-    for (let i = 0; i < CONTRACT_UNHAPPINESS_COMPLAINT_LENGTH; i++) {
+    for (let i = 0; i < 16; i++) {
       expect(archive.readUInt8(base + CONTRACT_ISSUE_BLOCK_OFFSET + i)).toBe(0)
     }
-    expect(archive.readUInt8(base + 70)).toBe(0)
-    expect(archive.readUInt8(base + 71)).toBe(0)
-    expect(archive.readUInt8(base + 72)).toBe(0)
-    expect(archive.readUInt8(base + 79)).toBe(3)
+    expect(archive.readInt16LE(base + 70)).toBe(2)
+    expect(archive.readUInt8(base + 72)).toBe(9)
+    expect(archive.readUInt8(base + 79)).toBe(2)
     expect(archive.readUInt8(base + 78)).toBe(0)
   })
 

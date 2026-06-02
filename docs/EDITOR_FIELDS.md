@@ -17,7 +17,8 @@ CM 01/02 stores unsettled-player state in several places (same areas the GK Save
 | `morale` (`PlayerMorale`) | `player.dat` | 69 (`i8`) | Set to **20** (Superb) |
 | `club_valuation` (`ClubValuation`) | `staff.dat` | 0x60 (`u8`) | Set to **20** (maximum) |
 | Club unhappiness (`Unknown` / CM Scout `Unknown1`) | `contract.dat` | 8–11 (4 bytes) | Zeroed — GK **Contract → Club Unhappiness** |
-| Player issue flags (`Unknown18_*` / CM Scout `Unknown2`) | `contract.dat` | 54–72 (**19 bytes**) | Zeroed — unfair treatment, lost confidence, rotation, etc. (bytes 70–72 are part of this block) |
+| Player issue flags (`Unknown18_*` / CM Scout `Unknown2`) | `contract.dat` | 54–72 (**19 bytes**) | Zeroed, then **70–72** restored from `squad_status` + shirt number |
+| `squad_status` | `contract.dat` | 79 | Preserved; copied to int16 @ **70** (CM “Future” / contract role) |
 | Transfer request flag | `contract.dat` | `transfer_status` byte 78, **bit 0x08** | Cleared (`transfer_status & ~8`) |
 | Future transfer arranged | `contract.dat` | 74 (`transfer_arranged_for`) | Set to **−1** |
 | Leaving on Bosman flag | `contract.dat` | 73 (`leaving_on_bosman`) | Set to **0** |
