@@ -476,12 +476,19 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
       contractCount = lastPre.readInt32LE(17)
     }
     for (let i = 0; i < contractCount; i++) {
+      const rowStartInBlock = o
       const r = cbuf.subarray(o, o + 80)
       o += 80
       const rowKey = r.readInt32LE(0)
       let staffIndex = staff.findIndex((s) => s.id === rowKey)
       if (staffIndex < 0 && rowKey >= 0 && rowKey < staff.length) staffIndex = rowKey
+      if (staffIndex < 0) staffIndex = staff.findIndex((s) => s.player_id === rowKey)
+      if (staffIndex < 0 && rowKey > 0) {
+        const playerIdx = players.findIndex((p) => p.id === rowKey)
+        if (playerIdx >= 0) staffIndex = staff.findIndex((s) => s.player_id === playerIdx)
+      }
       if (staffIndex < 0) continue
+      const rowAbsOffset = cBlock.position + rowStartInBlock
       const club_id = r.readInt32LE(4)
       const wage = r.readInt32LE(12)
       const goal_bonus = r.readInt32LE(16)
@@ -521,6 +528,7 @@ export function parseIndexDat(file: Buffer, options: ParseIndexDatOptions = {}):
           transfer_arranged_for,
           transfer_status,
           squad_status,
+          rowAbsOffset,
         })
       }
     }

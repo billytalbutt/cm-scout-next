@@ -19,6 +19,8 @@ CM 01/02 stores unsettled-player state in several places (same areas the GK Save
 | Issue flags (`Unknown18_1` / `Unknown18_2`) | `contract.dat` | 54–69 (16 bytes) | Zeroed — squad depth, rotation, unfair treatment, lost confidence in manager, etc. |
 | `Unknown18_3` / `Unknown18_4` | `contract.dat` | 70–72 | **Preserved** — often mirrors squad/shirt number; do not zero |
 | Transfer request flag | `contract.dat` | `transfer_status` byte 78, **bit 0x08** | Cleared (`transfer_status & ~8`) |
+| Future transfer arranged | `contract.dat` | 74 (`transfer_arranged_for`) | Set to **−1** |
+| Leaving on Bosman flag | `contract.dat` | 73 (`leaving_on_bosman`) | Set to **0** |
 | Favourite / disliked clubs & staff | `Preferences.dat` | 52-byte row; fav clubs @ 4–12, disliked clubs @ 16–24, fav staff @ 28–36, disliked staff @ 40–48 | Editable in player editor **Preferences** section; empty slot = **−1**. **Clear unhappiness** only clears disliked slots. |
 | `squad_status` | `contract.dat` | 79 | **Preserved** — not modified by clear unhappiness |
 

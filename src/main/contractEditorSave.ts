@@ -60,15 +60,7 @@ const CONTRACT_RECORD_KEY: Record<string, keyof ContractRecord> = {
   squad_status: 'squad_status',
 }
 
-/** Absolute offset of an 80-byte contract row in the archive, or null. */
-export function resolveContractRowAbsOffset(
-  archiveBuffer: Buffer,
-  blocks: BlockInfo[],
-  staffIndex: number,
-  staffDatId?: number,
-): number | null {
-  const block = findBlock(blocks, 'contract.dat')
-  if (!block) return null
+function contractDataStart(archiveBuffer: Buffer, block: BlockInfo): { rowStart: number; count: number } | null {
   let o = block.position
   const preCount = archiveBuffer.readInt32LE(o)
   o += 4
@@ -82,10 +74,81 @@ export function resolveContractRowAbsOffset(
   if (preCount > 0 && lastPre.length >= 21) {
     contractCount = lastPre.readInt32LE(17)
   }
+  if (contractCount < 0 || o + contractCount * CONTRACT_ROW_BYTES > archiveBuffer.length) return null
+  return { rowStart: o, count: contractCount }
+}
+
+/** Contract row keys that appear on real saves (staff id, array index, player.dat id / row index). */
+export function contractRowKeysForStaff(
+  db: ParsedDatabase,
+  staffIndex: number,
+): Set<number> {
+  const keys = new Set<number>()
+  const staff = db.staff[staffIndex]
+  if (!staff) return keys
+  if (staff.id > 0) keys.add(staff.id)
+  keys.add(staffIndex)
+  if (staff.player_id >= 0) {
+    keys.add(staff.player_id)
+    const p = db.players[staff.player_id]
+    if (p && p.id > 0) keys.add(p.id)
+  }
+  return keys
+}
+
+/** Every matching 80-byte contract row (duplicates exist on some saves). */
+export function resolveAllContractRowAbsOffsets(
+  archiveBuffer: Buffer,
+  blocks: BlockInfo[],
+  db: ParsedDatabase,
+  staffIndex: number,
+): number[] {
+  const staff = db.staff[staffIndex]
+  if (!staff) return []
+  const seen = new Set<number>()
+  const add = (off: number | null | undefined) => {
+    if (off != null && off >= 0 && off + CONTRACT_ROW_BYTES <= archiveBuffer.length) seen.add(off)
+  }
+
+  const parsed = db.contractsByStaffIndex.get(staffIndex)
+  add(parsed?.rowAbsOffset)
+
+  const block = findBlock(blocks, 'contract.dat')
+  if (!block) return [...seen]
+
+  const data = contractDataStart(archiveBuffer, block)
+  if (!data) return [...seen]
+
+  const keys = contractRowKeysForStaff(db, staffIndex)
+  let o = data.rowStart
+  for (let i = 0; i < data.count; i++) {
+    const rowKey = archiveBuffer.readInt32LE(o)
+    if (keys.has(rowKey)) add(o)
+    o += CONTRACT_ROW_BYTES
+  }
+  return [...seen]
+}
+
+/** Absolute offset of an 80-byte contract row in the archive, or null. */
+export function resolveContractRowAbsOffset(
+  archiveBuffer: Buffer,
+  blocks: BlockInfo[],
+  staffIndex: number,
+  staffDatId?: number,
+  db?: ParsedDatabase,
+): number | null {
+  if (db) {
+    const all = resolveAllContractRowAbsOffsets(archiveBuffer, blocks, db, staffIndex)
+    if (all.length > 0) return all[0]!
+  }
+  const block = findBlock(blocks, 'contract.dat')
+  if (!block) return null
+  const data = contractDataStart(archiveBuffer, block)
+  if (!data) return null
   const wantId = staffDatId != null && staffDatId > 0 ? staffDatId : null
   let byStaffIndex: number | null = null
-  for (let i = 0; i < contractCount; i++) {
-    if (o + CONTRACT_ROW_BYTES > archiveBuffer.length) return null
+  let o = data.rowStart
+  for (let i = 0; i < data.count; i++) {
     const rowKey = archiveBuffer.readInt32LE(o)
     if (wantId != null && rowKey === wantId) return o
     if (rowKey === staffIndex && byStaffIndex === null) byStaffIndex = o
@@ -183,7 +246,7 @@ export function buildContractEditorPatchedBuffer(
   if (!snap?.hasContract) {
     return { ok: false, error: 'No contract row for this staff index.' }
   }
-  const base = resolveContractRowAbsOffset(archiveBuffer, blocks, staffIndex, db.staff[staffIndex]?.id)
+  const base = resolveContractRowAbsOffset(archiveBuffer, blocks, staffIndex, db.staff[staffIndex]?.id, db)
   if (base == null) {
     return { ok: false, error: 'Could not locate contract.dat row.' }
   }
@@ -238,4 +301,12 @@ export function clearContractUnhappinessAtRow(buf: Buffer, contractRowAbs: numbe
     buf.writeUInt8(squadStatus, squadStatusOff)
   }
   clearTransferRequestAtContractRow(buf, contractRowAbs)
+  const transferArrangedOff = contractRowAbs + (CONTRACT_DISK_FIELDS.transfer_arranged_for?.offset ?? 74)
+  if (transferArrangedOff + 4 <= buf.length) {
+    buf.writeInt32LE(-1, transferArrangedOff)
+  }
+  const bosmanOff = contractRowAbs + (CONTRACT_DISK_FIELDS.leaving_on_bosman?.offset ?? 73)
+  if (bosmanOff < buf.length) {
+    buf.writeUInt8(0, bosmanOff)
+  }
 }

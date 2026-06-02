@@ -213,6 +213,8 @@ export interface ContractRecord {
   transfer_arranged_for: number
   transfer_status: number
   squad_status: number
+  /** Absolute offset of this 80-byte row in the archive (uncompressed saves). */
+  rowAbsOffset?: number
 }
 
 /** One competition slice from structured `player stats.dat` (grid V0). */

@@ -1031,12 +1031,14 @@ ipcMain.handle('save-attribute-edits', async (event, payload: unknown) => {
   if (dlg.canceled || !dlg.filePath) return { ok: false as const, error: 'cancelled' }
   try {
     writeFileSync(dlg.filePath, built.buffer)
-    const writtenPaths = writeArchiveToDiskSiblings(loaded.indexPath, built.buffer)
-    const pathSet = new Set<string>([dlg.filePath, ...writtenPaths])
+    const writtenPaths = new Set<string>([dlg.filePath])
+    for (const p of writeArchiveToDiskSiblings(loaded.indexPath, built.buffer)) writtenPaths.add(p)
+    for (const p of writeArchiveToDiskSiblings(dlg.filePath, built.buffer)) writtenPaths.add(p)
+    loaded.archiveBuf = built.buffer
     return {
       ok: true as const,
       path: dlg.filePath,
-      writtenPaths: [...pathSet],
+      writtenPaths: [...writtenPaths],
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)

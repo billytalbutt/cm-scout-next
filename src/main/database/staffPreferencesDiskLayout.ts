@@ -39,10 +39,13 @@ function findPreferenceRowsInSpan(
       if (want.has(buf.readInt32LE(off))) out.push(off)
     }
   }
-  if (out.length === 0 && staffPreferencesId >= 0) {
-    const byIndex = span.dataStart + staffPreferencesId * PREFERENCES_ROW_BYTES
-    if (byIndex + PREFERENCES_ROW_BYTES <= span.dataEnd) out.push(byIndex)
+  const tryIndex = (index: number) => {
+    if (index < 0) return
+    const byIndex = span.dataStart + index * PREFERENCES_ROW_BYTES
+    if (byIndex + PREFERENCES_ROW_BYTES <= span.dataEnd && !out.includes(byIndex)) out.push(byIndex)
   }
+  if (out.length === 0 && staffPreferencesId >= 0) tryIndex(staffPreferencesId)
+  if (out.length === 0 && staffDatId > 0) tryIndex(staffDatId)
   return out
 }
 

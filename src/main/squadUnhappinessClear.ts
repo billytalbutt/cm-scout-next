@@ -7,7 +7,10 @@ import {
   STAFF_ROW_BYTES,
   writeScalarAt,
 } from './database/playerStaffDiskLayout'
-import { clearContractUnhappinessAtRow, resolveContractRowAbsOffset } from './contractEditorSave'
+import {
+  clearContractUnhappinessAtRow,
+  resolveAllContractRowAbsOffsets,
+} from './contractEditorSave'
 import {
   clearPreferencesDislikesForStaff,
   resolvePreferencesBlockSpan,
@@ -94,20 +97,42 @@ export function applyClearUnhappinessForStaff(
   writeScalarAt(buf, playerBase + PLAYER_DISK_FIELDS.morale.offset, 'i8', MORALE_SUPERB)
   writeScalarAt(buf, staffBase + STAFF_CLUB_VALUATION_OFFSET, 'u8', CLUB_VALUATION_SUPERB)
   const preferencesId = buf.readInt32LE(staffBase + STAFF_PREFERENCES_ID_OFFSET)
+  let preferencesRowsCleared = 0
   const prefBlock = findBlock(blocks, 'preferences.dat')
   if (prefBlock) {
-    const prefSpan = resolvePreferencesBlockSpan(prefBlock.position, prefBlock.size)
-    clearPreferencesDislikesForStaff(
+    preferencesRowsCleared = clearPreferencesDislikesForStaff(
       buf,
-      prefSpan.dataStart,
-      prefSpan.dataEnd - prefSpan.dataStart,
+      prefBlock.position,
+      prefBlock.size,
       preferencesId,
       staff.id,
     )
   }
-  const contractRow = resolveContractRowAbsOffset(buf, blocks, staffIndex, staff.id)
-  if (contractRow != null) {
+
+  const contractRows = resolveAllContractRowAbsOffsets(buf, blocks, db, staffIndex)
+  for (const contractRow of contractRows) {
     clearContractUnhappinessAtRow(buf, contractRow)
+  }
+
+  if (contractRows.length === 0 && !prefBlock) {
+    return {
+      ok: false,
+      error: 'Save has no contract.dat or preferences.dat — cannot clear Future issues.',
+    }
+  }
+  if (contractRows.length === 0) {
+    return {
+      ok: false,
+      error:
+        'No contract row found for this player (complaints like unfair treatment / lost confidence were not cleared).',
+    }
+  }
+  if (prefBlock && preferencesRowsCleared === 0) {
+    return {
+      ok: false,
+      error:
+        'No Preferences.dat row found for this player (dislikes manager/club/assistant were not cleared).',
+    }
   }
   return { ok: true }
 }
