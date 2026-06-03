@@ -355,9 +355,9 @@ export interface UiPlayerRow {
    */
   cmAttrFilter48?: number[]
   /**
-   * Regen hint: with a **snapshot** (`regenBaseline.ts`), same `staff.dat` **id** and changed name-id triple →
-   * GPF2-style match; **Regen of** is the snapshot display name. Without a snapshot, same-save PA + nationalities +
-   * positions + DOB heuristic (`regenDetection.ts`). Not proof — no height/weight in parsed vanilla rows.
+   * Regen hint: with a **snapshot** (`regenBaseline.ts`), same `staff.dat` **id**, changed name-id triple,
+   * **and** matching PA + nation + positions + DOB month/day → predecessor from snapshot. Without a snapshot,
+   * same-save heuristic in the same fingerprint bucket (`regenDetection.ts`).
    */
   isRegenLikely?: boolean
   /** Predecessor display name (snapshot) or older player in-bucket name (heuristic). */

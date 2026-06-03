@@ -2649,10 +2649,12 @@ export function App() {
                           want to reset the baseline.
                         </p>
                         <p>
-                          We flag regens two ways (like the community tool): (1) same staff{' '}
-                          <code className="text-zinc-400">id</code>, name changed in that slot; (2) new face with the same
-                          PA + nation + positions + birth month/day as someone in the snapshot (e.g. Bergkamp → van der
-                          Woerd).
+                          We flag regens when the regen fingerprint matches someone in your snapshot: same{' '}
+                          <strong>PA</strong>, <strong>nation</strong> (primary + secondary passport), natural{' '}
+                          <strong>positions</strong>, and <strong>birth month/day</strong> — plus either the same staff{' '}
+                          <code className="text-zinc-400">id</code> with a new name (GPF2 slot reuse) or a new face
+                          with that fingerprint (e.g. Bergkamp → van der Woerd). Wrong-nation links like Olisadebe →
+                          a Costa Rican regen are rejected.
                         </p>
                         <p>
                           Snapshots also store all player attributes for the <strong>Development</strong> tab — compare

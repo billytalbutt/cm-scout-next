@@ -209,21 +209,38 @@ describe('regenDetection', () => {
     expect(rows.some((r) => r.name.startsWith('Young') && r.isRegenLikely)).toBe(true)
   })
 
-  it('snapshot links regenOfStaffIndex when predecessor still in save', () => {
+  it('snapshot links regenOfStaffIndex when predecessor still in save and fingerprint matches', () => {
+    const sharedDob = '1969-08-10'
     const predecessor = minimalRow({
       name: 'Dennis Bergkamp',
       staffIndex: 10,
       staffId: 500,
-      staff: { id: 500, player_id: 777, first_name_id: 1, second_name_id: 2, common_name_id: 0 },
+      staff: {
+        id: 500,
+        player_id: 777,
+        first_name_id: 1,
+        second_name_id: 2,
+        common_name_id: 0,
+        dob_iso: sharedDob,
+      },
+      player: { potential_ability: 190 },
     })
     const regen = minimalRow({
       name: 'Arno van der Woerd',
       staffIndex: 11,
       staffId: 500,
-      staff: { id: 500, player_id: 888, first_name_id: 9, second_name_id: 9, common_name_id: 0 },
+      staff: {
+        id: 500,
+        player_id: 888,
+        first_name_id: 9,
+        second_name_id: 9,
+        common_name_id: 0,
+        dob_iso: sharedDob,
+      },
+      player: { potential_ability: 190, current_ability: 140 },
     })
     const baseline: RegenBaselineFile = {
-      version: 1,
+      version: 2,
       indexPath: '/x.sav',
       pathKey: 'abc',
       gameDateIso: null,
@@ -238,6 +255,11 @@ describe('regenDetection', () => {
           pa: 190,
           ca: 180,
           staffIndex: 10,
+          firstNationId: 12,
+          secondNationId: 0,
+          posSig: playerPosSig(predecessor.player),
+          dobIso: sharedDob,
+          jobForClub: 11,
         },
       },
     }
@@ -246,5 +268,76 @@ describe('regenDetection', () => {
     expect(regen.regenOfName).toBe('Dennis Bergkamp')
     expect(regen.regenOfStaffIndex).toBe(10)
     expect(regen.regenDetectionSource).toBe('snapshot')
+  })
+
+  it('does not link same staff id when nation or positions disagree with snapshot', () => {
+    const sharedDob = '1978-11-12'
+    const olisadebe = minimalRow({
+      name: 'Emmanuel Olisadebe',
+      staffIndex: 20,
+      staffId: 600,
+      age: 35,
+      staff: {
+        id: 600,
+        player_id: 700,
+        first_nation_id: 100,
+        dob_iso: sharedDob,
+        job_for_club: 16,
+      },
+      player: {
+        potential_ability: 165,
+        attacking_midfielder: 8,
+        attacker: 18,
+        defender: 1,
+      },
+    })
+    const costaRicanRegen = minimalRow({
+      name: 'Gilberto Cordero',
+      staffIndex: 21,
+      staffId: 600,
+      age: 19,
+      staff: {
+        id: 600,
+        player_id: 701,
+        first_name_id: 50,
+        second_name_id: 51,
+        common_name_id: 0,
+        first_nation_id: 200,
+        dob_iso: sharedDob,
+      },
+      player: {
+        potential_ability: 165,
+        attacking_midfielder: 12,
+        midfielder: 15,
+        attacker: 5,
+        defender: 1,
+      },
+    })
+    const baseline: RegenBaselineFile = {
+      version: 2,
+      indexPath: '/x.sav',
+      pathKey: 'nation',
+      gameDateIso: null,
+      createdIso: new Date().toISOString(),
+      entries: {
+        '600': {
+          name: 'Emmanuel Olisadebe',
+          firstNameId: 1,
+          secondNameId: 2,
+          commonNameId: 0,
+          playerId: 700,
+          pa: 165,
+          ca: 150,
+          staffIndex: 20,
+          firstNationId: 100,
+          secondNationId: 0,
+          posSig: playerPosSig(olisadebe.player),
+          dobIso: sharedDob,
+          jobForClub: 11,
+        },
+      },
+    }
+    applyRegenPipeline([olisadebe, costaRicanRegen], baseline, 'nation')
+    expect(costaRicanRegen.isRegenLikely).not.toBe(true)
   })
 })

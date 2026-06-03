@@ -1,14 +1,23 @@
 /**
  * Regen detection uses two layers (see `regenBaseline.ts` for snapshot I/O):
  *
- * **1. GPF2-style snapshot (community “best” method)**
- * Same `staff.dat` id, name indices changed → predecessor name from snapshot.
+ * **1. GPF2-style snapshot**
+ * Same `staff.dat` id with changed name **and** matching regen fingerprint (PA, nation,
+ * natural positions, DOB month/day) → predecessor from snapshot.
  *
- * **2. Same-save heuristic (fallback)**
- * PA + nationalities + natural positions + DOB; prefers retired job (16), then CA/reputation proxy.
+ * **2. Same-save heuristic (fallback, no snapshot)**
+ * Same fingerprint bucket; prefers retired players in that bucket.
  */
 import type { RegenBaselineEntry, RegenBaselineFile } from './regenBaseline'
-import type { PlayerRecord, UiPlayerRow } from './database/types'
+import type { UiPlayerRow } from './database/types'
+import {
+  baselineFingerprintKey,
+  heuristicRegenBucketKey,
+  regenDobMonthDayMatch,
+  regenMatchesSnapshotLegend,
+  rowFingerprintKey,
+  validRegenDob,
+} from './regenFingerprint'
 
 /** Indexes for O(1) staff / player lookups during regen passes. */
 export type RegenRowLookup = {
@@ -105,6 +114,7 @@ export function applyBaselineRegenFromSnapshot(
       s.second_name_id === b.secondNameId &&
       s.common_name_id === b.commonNameId
     if (sameFace) continue
+    if (!regenMatchesSnapshotLegend(r, b)) continue
     r.isRegenLikely = true
     r.regenOfName = b.name
     r.regenDetectionSource = 'snapshot'
@@ -117,24 +127,6 @@ export function applyBaselineRegenFromSnapshot(
 }
 
 type BaselineFingerprintHit = { staffId: string; b: RegenBaselineEntry }
-
-function nationSecForStaff(firstNationId: number, secondNationId: number): number {
-  return secondNationId > 0 && secondNationId !== firstNationId ? secondNationId : 0
-}
-
-function baselineFingerprintKey(b: RegenBaselineEntry): string | null {
-  if (!b.posSig || !validDob(b.dobIso)) return null
-  const sec = nationSecForStaff(b.firstNationId, b.secondNationId)
-  return `${b.pa}|${b.firstNationId}|${sec}|${b.posSig}|${b.dobIso!.slice(5, 10)}`
-}
-
-function rowFingerprintKey(r: UiPlayerRow): string | null {
-  if (!validDob(r.staff.dob_iso)) return null
-  const pa = r.player.potential_ability
-  if (pa < 1) return null
-  const sec = nationSecForStaff(r.staff.first_nation_id, r.staff.second_nation_id)
-  return `${pa}|${r.staff.first_nation_id}|${sec}|${posSig(r.player)}|${r.staff.dob_iso.slice(5, 10)}`
-}
 
 function buildBaselineFingerprintIndex(
   baseline: RegenBaselineFile,
@@ -182,6 +174,7 @@ export function applyBaselineFingerprintRegen(
     for (const { staffId, b } of candidates) {
       if (claimed.has(staffId)) continue
       if (normName(r.name) === normName(b.name)) continue
+      if (!regenMatchesSnapshotLegend(r, b)) continue
 
       const slotRow = lu.byStaffId.get(staffId)
       const slotReused = slotRow != null && normName(slotRow.name) !== normName(b.name)
@@ -217,41 +210,9 @@ export function applyRegenPipeline(
   applyHeuristicRegenHints(rows)
 }
 
-function posSig(p: PlayerRecord): string {
-  return [
-    p.goalkeeper,
-    p.sweeper,
-    p.defender,
-    p.defensive_midfielder,
-    p.midfielder,
-    p.attacking_midfielder,
-    p.attacker,
-    p.wing_back,
-    p.right_side,
-    p.left_side,
-    p.centre_side,
-    p.free_role,
-  ].join(',')
-}
-
-function regenKey(pa: number, firstNationId: number, secondNationId: number, p: PlayerRecord): string {
-  const sec =
-    secondNationId > 0 && secondNationId !== firstNationId ? secondNationId : 0
-  return `${pa}|${firstNationId}|${sec}|${posSig(p)}`
-}
-
-function validDob(iso: string | null): iso is string {
-  return iso != null && iso.length >= 10 && iso[4] === '-' && iso[7] === '-'
-}
-
 function dobFullMatch(a: string | null, b: string | null): boolean {
-  if (!validDob(a) || !validDob(b)) return false
+  if (!validRegenDob(a) || !validRegenDob(b)) return false
   return a === b
-}
-
-function dobMonthDayMatch(a: string | null, b: string | null): boolean {
-  if (!validDob(a) || !validDob(b)) return false
-  return a.slice(5, 10) === b.slice(5, 10)
 }
 
 function isRetiredPlayer(r: UiPlayerRow): boolean {
@@ -273,13 +234,14 @@ function pickSourceForYoung(
   pa: number,
 ): UiPlayerRow | null {
   const full = olds.filter((o) => dobFullMatch(o.staff.dob_iso, young.staff.dob_iso))
-  const pool = full.length > 0 ? full : olds.filter((o) => dobMonthDayMatch(o.staff.dob_iso, young.staff.dob_iso))
+  const pool =
+    full.length > 0 ? full : olds.filter((o) => regenDobMonthDayMatch(o.staff.dob_iso, young.staff.dob_iso))
 
   if (pool.length > 0) {
     return [...pool].sort(scoreOldCandidate)[0]!
   }
 
-  if (validDob(young.staff.dob_iso)) return null
+  if (validRegenDob(young.staff.dob_iso)) return null
 
   if (pa >= ELITE_PA_NO_GUESS) return null
 
@@ -296,9 +258,8 @@ export function applyHeuristicRegenHints(rows: UiPlayerRow[]): void {
 
   const byKey = new Map<string, UiPlayerRow[]>()
   for (const r of dataRows) {
-    const pa = r.player.potential_ability
-    if (pa < 1) continue
-    const k = regenKey(pa, r.staff.first_nation_id, r.staff.second_nation_id, r.player)
+    const k = heuristicRegenBucketKey(r)
+    if (!k) continue
     let arr = byKey.get(k)
     if (!arr) {
       arr = []
@@ -322,7 +283,7 @@ export function applyHeuristicRegenHints(rows: UiPlayerRow[]): void {
 
     if (olds.length > MAX_AMBIG_OLD && youngs.length > MAX_AMBIG_YOUNG) continue
 
-    const nullDobYoungs = youngs.filter((y) => !validDob(y.staff.dob_iso))
+    const nullDobYoungs = youngs.filter((y) => !validRegenDob(y.staff.dob_iso))
     if (nullDobYoungs.length > 1) continue
 
     for (const y of youngs) {
