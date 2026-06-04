@@ -9,6 +9,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { ProfileAttrCell, ProfilePayload, StaffProfilePayload } from './vite-env.d'
 import type { GridPlayerRow } from '../../shared/gridTypes'
+import { ELITE_PROSPECT_PA_MIN } from '../../shared/regenConstants'
 import type { DatabaseLoadProgress } from '../../shared/loadProgress'
 import { DatabaseLoadOverlay } from './DatabaseLoadOverlay'
 import { gridFlagsForVisibleColumnIds, GRID_DEFAULT_COLUMN_ORDER, sanitizeGridColumnOrder } from '../../shared/gridColumnCatalog'
@@ -568,6 +569,7 @@ export function App() {
   const [regenSeenTick, setRegenSeenTick] = useState(0)
   const [devDetail, setDevDetail] = useState<PlayerDevelopmentSummary | null>(null)
   const [regenOnly, setRegenOnly] = useState(false)
+  const [regenProspectPaMin, setRegenProspectPaMin] = useState(String(ELITE_PROSPECT_PA_MIN))
   const [engineSniffer, setEngineSniffer] = useState<EngineSnifferUi>('off')
   const [showEngineAttrs, setShowEngineAttrs] = useState(() => {
     try {
@@ -1207,11 +1209,15 @@ export function App() {
 
   const columns = useMemo(() => buildGridColumns(gridColHelper, columnOrder), [columnOrder])
 
-  /** Regens tab must never show the full player list cached from Players / load. */
-  const gridRows = useMemo(
-    () => (browseTab === 'regens' ? rows.filter((r) => r.isRegenLikely === true) : rows),
-    [rows, browseTab],
-  )
+  /** Regens tab: linked regens + elite young prospects (PA floor). */
+  const gridRows = useMemo(() => {
+    if (browseTab !== 'regens') return rows
+    const paFloor = Number(regenProspectPaMin)
+    const minPa = Number.isFinite(paFloor) && paFloor >= 1 ? paFloor : ELITE_PROSPECT_PA_MIN
+    return rows.filter(
+      (r) => r.isRegenLikely === true || (r.isEliteProspect === true && r.pa >= minPa),
+    )
+  }, [rows, browseTab, regenProspectPaMin])
 
   const table = useReactTable<GridPlayerRow>({
     data: gridRows,
@@ -2641,33 +2647,21 @@ export function App() {
                     tip={
                       <div className="space-y-2 text-zinc-300">
                         <p>
-                          <span className="font-medium text-white">GPF2 / Tapani workflow</span> (Generated Player Finder
-                          2): take one snapshot as early as you can while legends are still in the database — ideally
-                          right after starting a new save. It is stored <strong>locally</strong> on your PC (not inside the
-                          .sav). Each time you load that <strong>same save path</strong> in Merlin, we compare against that
-                          snapshot — you do <strong>not</strong> need a new snapshot every time you play CM, unless you
-                          want to reset the baseline.
+                          Like <span className="font-medium text-white">GPF2</span>: take a snapshot early (stored locally,
+                          same save path). <strong>Linked</strong> rows use the GPF2 rule — same staff{' '}
+                          <code className="text-zinc-400">id</code>, new name — plus fingerprint matching for new faces
+                          (PA, nation, positions, birth month/day).
                         </p>
                         <p>
-                          We flag regens when the regen fingerprint matches someone in your snapshot: same{' '}
-                          <strong>PA</strong>, <strong>nation</strong> (primary + secondary passport), natural{' '}
-                          <strong>positions</strong>, and <strong>birth month/day</strong> — plus either the same staff{' '}
-                          <code className="text-zinc-400">id</code> with a new name (GPF2 slot reuse) or a new face
-                          with that fingerprint (e.g. Bergkamp → van der Woerd). Wrong-nation links like Olisadebe →
-                          a Costa Rican regen are rejected.
+                          The list also includes <strong>elite prospects</strong> — young high-PA players worth scouting even
+                          when we cannot name their predecessor yet (adjust PA floor below).
                         </p>
                         <p>
-                          Snapshots also store all player attributes for the <strong>Development</strong> tab — compare
-                          training progress and CA growth since the snapshot was taken.
+                          Snapshots also power the <strong>Development</strong> tab (attribute growth since snapshot).
                         </p>
                         <p className="text-zinc-400">
-                          <strong>Limit:</strong> players who had already retired before your first snapshot cannot be
-                          linked (GPF2 says the same). Use uncompressed saves (Save Compressed = No). Re-saving a snapshot{' '}
-                          <strong>overwrites</strong> the old one — only changes after that date are detected.
-                        </p>
-                        <p className="text-zinc-400">
-                          Without a snapshot we use a weaker same-save heuristic (retired players preferred in each PA
-                          bucket).
+                          Legends who retired before your first snapshot cannot be linked. Save Compressed = No. Re-saving a
+                          snapshot overwrites the old one.
                         </p>
                       </div>
                     }
@@ -2709,11 +2703,21 @@ export function App() {
                       Clear snapshot
                     </button>
                   )}
+                  <label className="inline-flex items-center gap-1.5 text-zinc-400">
+                    <span>Prospect PA ≥</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={regenProspectPaMin}
+                      onChange={(e) => setRegenProspectPaMin(e.target.value)}
+                      className="w-14 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 font-mono text-[11px] text-zinc-200"
+                    />
+                  </label>
                 </div>
                 <p className="mt-2 text-[10px] leading-snug text-zinc-500">
-                  Tip: before Nesta (or any legend) retires, you should already have a snapshot from earlier in the career.
-                  When his Italian centre-back regen appears, reload this save in Merlin — no new snapshot required. Saving
-                  again now only helps for <em>future</em> retirements after today.
+                  Linked = predecessor known (GPF2 slot or fingerprint). Prospect = young high PA, link unknown. Reload
+                  after playing CM — no new snapshot needed for players already in the baseline.
                 </p>
               </div>
             )}
@@ -2722,7 +2726,7 @@ export function App() {
                 {loadInfo.playerCount === 0
                   ? 'No playable players were found in this save. Try the other file in the same folder (Game.sav vs index.dat), or quit CM and open the save you Continue with.'
                   : browseTab === 'regens'
-                    ? 'No heuristic regens match the current filters. Try All players, or relax filters — the regen list is a same-save guess, not exhaustive.'
+                    ? 'No linked regens or elite prospects match the current filters. Lower Prospect PA or relax other filters.'
                     : 'No players match the current filters. Use Clear all in the filter panel, or relax individual filters.'}
               </p>
             )}

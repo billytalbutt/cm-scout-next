@@ -156,7 +156,7 @@ describe('regenDetection', () => {
     applyBaselineFingerprintRegen([bergkamp, arno], baseline, 'fp')
     expect(arno.isRegenLikely).toBe(true)
     expect(arno.regenOfName).toBe('Dennis Bergkamp')
-    expect(arno.regenDetectionSource).toBe('snapshot')
+    expect(arno.regenDetectionSource).toBe('snapshot-fingerprint')
   })
 
   it('fingerprint regen completes quickly on large snapshot (indexed lookup)', () => {
@@ -267,10 +267,10 @@ describe('regenDetection', () => {
     expect(regen.isRegenLikely).toBe(true)
     expect(regen.regenOfName).toBe('Dennis Bergkamp')
     expect(regen.regenOfStaffIndex).toBe(10)
-    expect(regen.regenDetectionSource).toBe('snapshot')
+    expect(regen.regenDetectionSource).toBe('snapshot-slot')
   })
 
-  it('does not link same staff id when nation or positions disagree with snapshot', () => {
+  it('GPF2 slot links same staff id even when nation differs (community default)', () => {
     const sharedDob = '1978-11-12'
     const olisadebe = minimalRow({
       name: 'Emmanuel Olisadebe',
@@ -338,6 +338,21 @@ describe('regenDetection', () => {
       },
     }
     applyRegenPipeline([olisadebe, costaRicanRegen], baseline, 'nation')
-    expect(costaRicanRegen.isRegenLikely).not.toBe(true)
+    expect(costaRicanRegen.isRegenLikely).toBe(true)
+    expect(costaRicanRegen.regenOfName).toBe('Emmanuel Olisadebe')
+    expect(costaRicanRegen.regenDetectionSource).toBe('snapshot-slot')
+  })
+
+  it('marks elite young prospects by PA', () => {
+    const young = minimalRow({
+      name: 'Fausto Di Meglio',
+      staffIndex: 1,
+      staffId: 900,
+      age: 19,
+      player: { potential_ability: 195, current_ability: 140 },
+    })
+    applyRegenPipeline([young], null, 'x')
+    expect(young.isEliteProspect).toBe(true)
+    expect(young.isRegenLikely).not.toBe(true)
   })
 })

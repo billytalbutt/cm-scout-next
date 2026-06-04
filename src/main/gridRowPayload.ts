@@ -33,6 +33,7 @@ function baseRow(r: UiPlayerRow): GridPlayerRow {
     eliteEngineBadgeDetail: r.eliteEngineBadgeDetail,
     isRegenLikely: !!r.isRegenLikely,
     regenOf: r.regenOfName ?? '',
+    isEliteProspect: !!r.isEliteProspect,
     isDemo: false,
     staffHistCareerApps: r.staffHistCareerApps,
     staffHistCareerGoals: r.staffHistCareerGoals,

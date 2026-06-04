@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { StaffBrowseFilter } from '../../main/staffBrowse'
+import {
+  getStaffEditorFieldPreview,
+  getStaffManManagementPreview,
+} from '../../shared/staffEditorFieldPreview'
 import { staffIsBoardRole } from '../../shared/cm0102StaffHiddenDisplay'
 import { staffJobForClubLabel } from '../../shared/staffJobCatalog'
+import { EditorFieldPreviewLines } from './editor/EditorFieldPreview'
 import { StaffBrowsePanel } from './StaffBrowsePanel'
 
 export type StaffEditorSnapshot = {
@@ -43,6 +48,41 @@ const GROUPS: { title: string; keys: string[]; boardHighlight?: boolean }[] = [
 function labelForKey(k: string): string {
   if (FIELD_LABELS[k]) return FIELD_LABELS[k]
   return k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+const SIGNED_I8_KEYS = new Set([
+  'attacking',
+  'business',
+  'coaching',
+  'coaching_gks',
+  'coaching_technique',
+  'directness',
+  'discipline',
+  'free_roles',
+  'interference',
+  'judgement',
+  'judging_potential',
+  'man_handling',
+  'marking',
+  'motivating',
+  'offside',
+  'patience',
+  'physiotherapy',
+  'pressing',
+  'resources',
+  'tactics',
+  'youngsters',
+])
+
+function mergedDraftValues(snap: StaffEditorSnapshot, draft: Record<string, string>): Record<string, number> {
+  const out = { ...snap.values }
+  for (const key of Object.keys(out)) {
+    const s = draft[key]
+    if (s === undefined || s === '') continue
+    const n = Number(s)
+    if (Number.isFinite(n)) out[key] = Math.trunc(n)
+  }
+  return out
 }
 
 export function StaffEditorPanel({
@@ -212,12 +252,30 @@ export function StaffEditorPanel({
                       </span>
                       <input
                         type="number"
-                        min={0}
-                        max={255}
+                        min={SIGNED_I8_KEYS.has(k) ? -128 : 0}
+                        max={SIGNED_I8_KEYS.has(k) ? 127 : 65535}
                         className="w-full rounded border border-zinc-700 bg-zinc-900 px-1.5 py-1 font-mono text-xs text-zinc-100"
                         value={draft[k] ?? ''}
                         onChange={(e) => setDraft((prev) => ({ ...prev, [k]: e.target.value }))}
                       />
+                      <div className="mt-1 border-t border-zinc-800/60 pt-1">
+                        <p className="text-[10px] text-zinc-600">
+                          Raw byte: <span className="font-mono text-zinc-400">{draft[k] ?? '—'}</span>
+                        </p>
+                        {(() => {
+                          const preview = getStaffEditorFieldPreview(mergedDraftValues(snap, draft), k)
+                          if (!preview) return null
+                          return <EditorFieldPreviewLines preview={preview} />
+                        })()}
+                        {k === 'resources' && (
+                          <div className="mt-1 border-t border-zinc-800/40 pt-1">
+                            <p className="text-[10px] text-zinc-500">Man management (combined)</p>
+                            <EditorFieldPreviewLines
+                              preview={getStaffManManagementPreview(mergedDraftValues(snap, draft))}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </label>
                   ) : null,
                 )}

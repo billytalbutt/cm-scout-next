@@ -355,15 +355,16 @@ export interface UiPlayerRow {
    */
   cmAttrFilter48?: number[]
   /**
-   * Regen hint: with a **snapshot** (`regenBaseline.ts`), same `staff.dat` **id**, changed name-id triple,
-   * **and** matching PA + nation + positions + DOB month/day → predecessor from snapshot. Without a snapshot,
-   * same-save heuristic in the same fingerprint bucket (`regenDetection.ts`).
+   * Regen link: GPF2 slot reuse (`snapshot-slot`), fingerprint on new id (`snapshot-fingerprint`),
+   * or same-save heuristic. `isEliteProspect` marks young high-PA players for scouting without a link.
    */
   isRegenLikely?: boolean
   /** Predecessor display name (snapshot) or older player in-bucket name (heuristic). */
   regenOfName?: string
   regenOfStaffIndex?: number
-  regenDetectionSource?: 'snapshot' | 'heuristic'
+  regenDetectionSource?: 'snapshot-slot' | 'snapshot-fingerprint' | 'heuristic'
+  /** Young player with PA ≥ elite threshold — shown on Regens tab even without a predecessor link. */
+  isEliteProspect?: boolean
   /** Optional rows from `staff_history.dat` for this staff `id`. */
   staffHistory?: StaffHistoryRecord[]
   /** Totals from `staff_history.dat` (career = all rows; season = rows whose `year` matches resolved highlight year). */

@@ -1,12 +1,10 @@
 /**
- * Regen detection uses two layers (see `regenBaseline.ts` for snapshot I/O):
+ * Regen detection (see `regenBaseline.ts` for snapshot I/O):
  *
- * **1. GPF2-style snapshot**
- * Same `staff.dat` id with changed name **and** matching regen fingerprint (PA, nation,
- * natural positions, DOB month/day) → predecessor from snapshot.
- *
- * **2. Same-save heuristic (fallback, no snapshot)**
- * Same fingerprint bucket; prefers retired players in that bucket.
+ * **1. GPF2 snapshot slot** — same `staff.dat` id, changed name → predecessor (community default).
+ * **2. Snapshot fingerprint** — new id, young player, PA+nation+positions+DOB month/day match.
+ * **3. Same-save heuristic** — fingerprint bucket fallback without snapshot.
+ * **4. Elite prospects** — young high-PA players for scouting (link optional).
  */
 import type { RegenBaselineEntry, RegenBaselineFile } from './regenBaseline'
 import type { UiPlayerRow } from './database/types'
@@ -18,6 +16,7 @@ import {
   rowFingerprintKey,
   validRegenDob,
 } from './regenFingerprint'
+import { ELITE_PROSPECT_PA_MIN } from '../shared/regenConstants'
 
 /** Indexes for O(1) staff / player lookups during regen passes. */
 export type RegenRowLookup = {
@@ -60,6 +59,7 @@ function clearRegenMarkers(rows: UiPlayerRow[]): void {
     delete r.regenOfName
     delete r.regenOfStaffIndex
     delete r.regenDetectionSource
+    delete r.isEliteProspect
   }
 }
 
@@ -114,10 +114,9 @@ export function applyBaselineRegenFromSnapshot(
       s.second_name_id === b.secondNameId &&
       s.common_name_id === b.commonNameId
     if (sameFace) continue
-    if (!regenMatchesSnapshotLegend(r, b)) continue
     r.isRegenLikely = true
     r.regenOfName = b.name
-    r.regenDetectionSource = 'snapshot'
+    r.regenDetectionSource = 'snapshot-slot'
     r.regenOfStaffIndex =
       findStaffIndexByPlayerIdFromLookup(lu, b.playerId, b.name) ??
       (Number.isFinite(b.staffIndex) && b.staffIndex >= 0 ? b.staffIndex : undefined)
@@ -185,13 +184,31 @@ export function applyBaselineFingerprintRegen(
 
       r.isRegenLikely = true
       r.regenOfName = b.name
-      r.regenDetectionSource = 'snapshot'
+      r.regenDetectionSource = 'snapshot-fingerprint'
       r.regenOfStaffIndex =
         findStaffIndexByPlayerIdFromLookup(lu, b.playerId, b.name) ?? b.staffIndex
       claimed.add(staffId)
       n++
       break
     }
+  }
+  return n
+}
+
+/** Mark young high-PA players for the Regens tab (scouting gems even without a link). */
+export function applyEliteProspectMarkers(
+  rows: UiPlayerRow[],
+  paMin: number = ELITE_PROSPECT_PA_MIN,
+): number {
+  let n = 0
+  for (const r of rows) {
+    if (r.staffIndex < 0) continue
+    const pa = r.player.potential_ability
+    if (pa < paMin) continue
+    if ((r.age ?? 99) > YOUNG_MAX_AGE) continue
+    if (r.ca + MIN_PA_CA_GAP > pa) continue
+    r.isEliteProspect = true
+    n++
   }
   return n
 }
@@ -208,6 +225,7 @@ export function applyRegenPipeline(
     applyBaselineFingerprintRegen(rows, baseline, pathKey, lookup)
   }
   applyHeuristicRegenHints(rows)
+  applyEliteProspectMarkers(rows)
 }
 
 function dobFullMatch(a: string | null, b: string | null): boolean {

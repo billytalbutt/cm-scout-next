@@ -328,16 +328,21 @@ function defFor(
         },
       })
     case 'isRegen':
-      return h.accessor((r) => (r.isRegenLikely === true ? 1 : 0), {
-        id,
-        header: lab,
-        cell: ({ row }) =>
-          row.original.isRegenLikely === true ? (
-            <span className="text-amber-200/90">Yes</span>
-          ) : (
-            <span className="text-zinc-600">No</span>
-          ),
-      })
+      return h.accessor(
+        (r) => (r.isRegenLikely === true ? 2 : r.isEliteProspect === true ? 1 : 0),
+        {
+          id,
+          header: lab,
+          cell: ({ row }) =>
+            row.original.isRegenLikely === true ? (
+              <span className="text-amber-200/90">Linked</span>
+            ) : row.original.isEliteProspect === true ? (
+              <span className="text-emerald-300/90">Prospect</span>
+            ) : (
+              <span className="text-zinc-600">—</span>
+            ),
+        },
+      )
     case 'regenOf':
       return h.accessor((r) => r.regenOf ?? '', {
         id,

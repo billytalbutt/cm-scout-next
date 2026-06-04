@@ -536,6 +536,6 @@ export interface ProfilePayload {
     isLikely: boolean
     ofName?: string
     ofStaffIndex?: number
-    source: 'snapshot' | 'heuristic' | null
+    source: 'snapshot-slot' | 'snapshot-fingerprint' | 'snapshot' | 'heuristic' | null
   }
 }

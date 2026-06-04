@@ -91,6 +91,15 @@ export function compareAttrCells(
 
 export type CategoryWinCounts = Record<AttrCategoryId, { left: number; right: number; tie: number }>
 
+/** Categories used for compare radar (excludes hidden/other noise). */
+export const COMPARE_RADAR_CATEGORIES: AttrCategoryId[] = [
+  'attacking',
+  'defending',
+  'physical',
+  'mental',
+  'technical',
+]
+
 export function emptyCategoryCounts(): CategoryWinCounts {
   return {
     attacking: { left: 0, right: 0, tie: 0 },
@@ -139,6 +148,33 @@ export function mergeCompareRows(
   for (const l of leftAttrs) {
     const r = rightByKey.get(l.key)
     if (r) out.push({ key: l.key, label: l.label, left: l, right: r })
+  }
+  return out
+}
+
+export function categoryAverageForSide(
+  rows: { left: CompareAttrCell; right: CompareAttrCell }[],
+  category: AttrCategoryId,
+  side: 'left' | 'right',
+  useUncapped: boolean,
+): number | null {
+  const cells = rows.filter((row) => attrCategoryForKey(row.left.key) === category)
+  if (!cells.length) return null
+  let sum = 0
+  for (const row of cells) {
+    sum += displayValue(side === 'left' ? row.left : row.right, useUncapped)
+  }
+  return sum / cells.length
+}
+
+export function radarProfileForSide(
+  rows: { left: CompareAttrCell; right: CompareAttrCell }[],
+  side: 'left' | 'right',
+  useUncapped: boolean,
+): Record<(typeof COMPARE_RADAR_CATEGORIES)[number], number | null> {
+  const out = {} as Record<(typeof COMPARE_RADAR_CATEGORIES)[number], number | null>
+  for (const cat of COMPARE_RADAR_CATEGORIES) {
+    out[cat] = categoryAverageForSide(rows, cat, side, useUncapped)
   }
   return out
 }

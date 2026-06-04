@@ -10,8 +10,16 @@ type Props = {
 }
 
 export function RegenProfileHint({ regen, onOpenPredecessor, variant = 'inline' }: Props) {
-  const source =
-    regen.source === 'snapshot' ? 'snapshot' : 'heuristic'
+  const sourceLabel =
+    regen.source === 'snapshot-slot'
+      ? 'GPF2 slot'
+      : regen.source === 'snapshot-fingerprint'
+        ? 'fingerprint'
+        : regen.source === 'heuristic'
+          ? 'heuristic'
+          : regen.source === 'snapshot'
+            ? 'snapshot'
+            : 'linked'
 
   const body = (
     <>
@@ -21,7 +29,7 @@ export function RegenProfileHint({ regen, onOpenPredecessor, variant = 'inline' 
           of <span className="font-medium text-zinc-200">{regen.ofName}</span>
         </>
       ) : null}
-      <span className="text-zinc-600"> · {source}</span>
+      <span className="text-zinc-600"> · {sourceLabel}</span>
       {regen.ofStaffIndex != null && onOpenPredecessor && (
         <>
           {' '}
@@ -49,7 +57,7 @@ export function RegenProfileHint({ regen, onOpenPredecessor, variant = 'inline' 
           ) : (
             'Predecessor unknown'
           )}
-          <span className="text-zinc-600"> · {source}</span>
+          <span className="text-zinc-600"> · {sourceLabel}</span>
           {regen.ofStaffIndex != null && onOpenPredecessor && (
             <>
               {' '}

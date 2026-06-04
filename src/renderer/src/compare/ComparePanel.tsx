@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ProfilePayload } from '../vite-env.d'
+import { CompareAnalytics } from './CompareAnalytics'
 import { attrColor } from '../ProfileAttrBlocks'
 import { PlayerRiskChips } from '../profile/PlayerRiskChips'
 import {
@@ -7,18 +8,7 @@ import {
   compareAttrCells,
   flattenProfileAttrs,
   mergeCompareRows,
-  type AttrCategoryId,
 } from '../../../shared/comparePlayers'
-
-const CATEGORY_LABELS: Record<AttrCategoryId, string> = {
-  attacking: 'Attacking',
-  defending: 'Defending',
-  physical: 'Physical',
-  mental: 'Mental',
-  technical: 'Technical',
-  hidden: 'Hidden',
-  other: 'Other',
-}
 
 function CompareHeader({ p }: { p: ProfilePayload }) {
   return (
@@ -149,26 +139,6 @@ export function ComparePanel({
             </div>
           </div>
 
-          {categoryWins && (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-xs">
-              <p className="mb-2 font-semibold text-zinc-300">Category summary</p>
-              <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
-                {(Object.keys(CATEGORY_LABELS) as AttrCategoryId[]).map((cat) => {
-                  const c = categoryWins[cat]
-                  if (c.left + c.right + c.tie === 0) return null
-                  return (
-                    <p key={cat} className="text-zinc-400">
-                      {CATEGORY_LABELS[cat]}:{' '}
-                      <span className="text-zinc-200">{c.left}</span> /{' '}
-                      <span className="text-zinc-300">{c.right}</span>
-                      {c.tie > 0 && <span className="text-zinc-500"> ({c.tie} tied)</span>}
-                    </p>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-zinc-800">
             <table className="w-full border-collapse text-left text-xs">
               <thead className="sticky top-0 bg-zinc-900/95 text-zinc-500">
@@ -188,14 +158,14 @@ export function ComparePanel({
                       <td className="px-2 py-1 text-zinc-400">{label}</td>
                       <td
                         className={`px-2 py-1 text-right font-mono tabular-nums ${
-                          winner === 'left' ? 'bg-zinc-800/60 font-semibold text-zinc-100' : 'text-zinc-300'
+                          winner === 'left' ? WINNER_CELL : LOSER_CELL
                         }`}
                       >
                         <span className={attrColor(lv, lc.invert)}>{lv}</span>
                       </td>
                       <td
                         className={`px-2 py-1 text-right font-mono tabular-nums ${
-                          winner === 'right' ? 'bg-zinc-800/60 font-semibold text-zinc-100' : 'text-zinc-300'
+                          winner === 'right' ? WINNER_CELL : LOSER_CELL
                         }`}
                       >
                         <span className={attrColor(rv, rc.invert)}>{rv}</span>
@@ -206,6 +176,16 @@ export function ComparePanel({
               </tbody>
             </table>
           </div>
+
+          {categoryWins && (
+            <CompareAnalytics
+              rows={rows}
+              categoryWins={categoryWins}
+              leftName={left.name}
+              rightName={right.name}
+              showEngineAttrs={showEngineAttrs}
+            />
+          )}
         </>
       )}
     </div>

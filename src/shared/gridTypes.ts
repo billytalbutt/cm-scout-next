@@ -92,10 +92,12 @@ export type GridPlayerRow = {
   stProfessionalism?: number
   stSportsmanship?: number
   stTemperament?: number
-  /** Heuristic regen flag (see `regenDetection.ts`) */
+  /** Linked regen (GPF2 / fingerprint / heuristic). */
   isRegenLikely?: boolean
-  /** Older player name when `isRegenLikely` */
+  /** Older player name when linked. */
   regenOf?: string
+  /** Young high-PA player on Regens tab without a confirmed link. */
+  isEliteProspect?: boolean
   /** From `staff_history.dat` — career totals (all rows). */
   staffHistCareerApps: number
   staffHistCareerGoals: number
